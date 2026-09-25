@@ -19,8 +19,42 @@ import {
   Layers,
   Trash2,
   Edit2,
+  Clock,
+  Calendar,
+  MessageSquare,
+  ShieldCheck,
+  Sparkles,
+  CheckCheck,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
+
+const ANNOUNCEMENT_PRESETS = [
+  {
+    label: '🌧️ Weather Delay',
+    title: 'Training Session Weather Update',
+    message: 'Dear Students & Parents, due to current weather conditions, today\'s outdoor training session has been rescheduled. We will inform you shortly about the alternate session slot. Stay safe!',
+  },
+  {
+    label: '🏆 Tournament Notice',
+    title: 'Upcoming Tournament & Match Selections',
+    message: 'Exciting news! Selection trials for the upcoming Inter-Academy Tournament will take place this weekend during regular batch hours. Please ensure 100% attendance in official academy uniform.',
+  },
+  {
+    label: '⏰ Timing Revision',
+    title: 'Batch Schedule & Timing Revision',
+    message: 'Please note that starting next week, batch practice timings have been updated for optimized coaching sessions. Kindly consult your coach or check the academy board for slot details.',
+  },
+  {
+    label: '🏖️ Academy Holiday',
+    title: 'Academy Closed Notice',
+    message: 'Dear Parents & Students, the academy will remain closed tomorrow on account of the public holiday. Regular training sessions will resume from the following day as per schedule.',
+  },
+  {
+    label: '🎽 Kit & Gear Reminder',
+    title: 'Sports Kit & Hydration Reminder',
+    message: 'Friendly reminder to all students to carry their complete training equipment, proper sports footwear, and personal water bottles to every training session.',
+  },
+];
 
 export const AnnouncementsPage: React.FC = () => {
   const { token } = useAuth();
@@ -37,6 +71,12 @@ export const AnnouncementsPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [previewAnnouncement, setPreviewAnnouncement] = useState<Announcement | null>(null);
+  const [broadcastTarget, setBroadcastTarget] = useState<Announcement | null>(null);
+
+  // Broadcast & Scheduling Form state
+  const [broadcastMode, setBroadcastMode] = useState<'NOW' | 'SCHEDULED'>('NOW');
+  const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
+  const [includeTwoWayPrompt, setIncludeTwoWayPrompt] = useState<boolean>(true);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -88,6 +128,23 @@ export const AnnouncementsPage: React.FC = () => {
     fetchBatches();
   }, [token]);
 
+  const handleApplyPreset = (preset: { title: string; message: string }, isEdit = false) => {
+    if (isEdit) {
+      setEditFormData((prev) => ({
+        ...prev,
+        title: preset.title,
+        message: preset.message,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        title: preset.title,
+        message: preset.message,
+      }));
+    }
+    toast.success(`Preset "${preset.title}" applied!`);
+  };
+
   const handleToggleBatch = (batchId: string) => {
     setFormData((prev) => {
       const exists = prev.batchIds.includes(batchId);
@@ -122,7 +179,8 @@ export const AnnouncementsPage: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
-      setSuccessMessage('Announcement created as DRAFT.');
+      setSuccessMessage('Announcement created as DRAFT. You can now preview and broadcast it safely.');
+      toast.success('Announcement drafted successfully!');
       setIsCreateModalOpen(false);
       setFormData({ title: '', message: '', batchIds: [] });
       fetchAnnouncements();
@@ -133,19 +191,53 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
-  const handleSendAnnouncement = async (id: string) => {
+  // Open the broadcast modal with defaults
+  const handleOpenBroadcastModal = (a: Announcement) => {
+    setBroadcastTarget(a);
+    setBroadcastMode('NOW');
+    // Default scheduled time to tomorrow 09:00 AM
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const localIso = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    setScheduledDateTime(localIso);
+    setIncludeTwoWayPrompt(true);
+  };
+
+  const handleConfirmBroadcast = async () => {
+    if (!broadcastTarget) return;
+
+    if (broadcastMode === 'SCHEDULED' && !scheduledDateTime) {
+      toast.warning('Please select a valid scheduled date and time.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
-      const res = await apiClient<any>(`/announcements/${id}/send`, {
+
+      const payload = {
+        scheduledTime: broadcastMode === 'SCHEDULED' ? new Date(scheduledDateTime).toISOString() : undefined,
+        includeTwoWayPrompt,
+      };
+
+      const res = await apiClient<any>(`/announcements/${broadcastTarget.id}/send`, {
         method: 'POST',
+        body: JSON.stringify(payload),
       });
 
-      setSuccessMessage(res?.message || 'Announcement broadcast successfully.');
+      const msg = res?.data?.message || res?.message || 'Announcement broadcast queued successfully.';
+      setSuccessMessage(msg);
+      toast.success(msg);
+      setBroadcastTarget(null);
       setPreviewAnnouncement(null);
       fetchAnnouncements();
     } catch (err: any) {
-      setError(err.message || 'Failed to send announcement');
+      const errMsg = err.message || 'Failed to send announcement';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -230,26 +322,50 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  // Safe sending window advice
+  const currentHour = new Date().getHours();
+  const isNightTime = currentHour >= 21 || currentHour < 7;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              WhatsApp Broadcast Studio
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2 mt-1">
             Broadcast Announcements
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Publish targeted notifications and dispatch automated broadcast messages to batches.
+            Publish targeted notifications and dispatch automated WhatsApp broadcasts to batches with anti-ban safety.
           </p>
         </div>
 
         <Button
           onClick={() => setIsCreateModalOpen(true)}
-          className="gap-2 shadow-sm self-start sm:self-auto"
+          className="gap-2 shadow-sm self-start sm:self-auto bg-indigo-600 hover:bg-indigo-700"
         >
           <Plus className="w-4 h-4" />
           Create Announcement
         </Button>
+      </div>
+
+      {/* Anti-Ban Safety Guide Banner */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-white">Anti-Ban Staggering Active:</span> Broadcast messages are staggered with natural 16-23s delays and include two-way response prompts so parents reply & save your number.
+          </div>
+        </div>
+        <div className="text-slate-400 text-[11px] shrink-0 font-medium">
+          Recommended Hours: <span className="text-emerald-400 font-bold">8:00 AM – 8:00 PM</span>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -362,17 +478,16 @@ export const AnnouncementsPage: React.FC = () => {
                             Edit
                           </Button>
 
-                          {a.status === 'DRAFT' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleSendAnnouncement(a.id)}
-                              disabled={submitting}
-                              className="h-8 text-xs gap-1.5"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              Broadcast
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenBroadcastModal(a)}
+                            disabled={submitting}
+                            className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            title="Broadcast / Schedule via WhatsApp"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            Broadcast
+                          </Button>
 
                           <button
                             type="button"
@@ -402,18 +517,43 @@ export const AnnouncementsPage: React.FC = () => {
         maxWidth="xl"
       >
         <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+          {/* Quick Presets */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Quick Presets:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {ANNOUNCEMENT_PRESETS.map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleApplyPreset(p, false)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Input
             label="Announcement Title *"
             required
-            placeholder="e.g. Test Series Schedule Revision"
+            placeholder="e.g. Weather Delay: Session Rescheduled"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
           />
 
           <div className="w-full space-y-1.5 text-left">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal">
-              Announcement Message Body *
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal">
+                Announcement Message Body *
+              </label>
+              <span className="text-[11px] text-slate-400">
+                {formData.message.length} characters
+              </span>
+            </div>
             <textarea
               required
               rows={4}
@@ -536,7 +676,170 @@ export const AnnouncementsPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* MODAL: Preview & Send Announcement */}
+      {/* MODAL: BROADCAST & SCHEDULE (Advanced Safe Dispatch) */}
+      <Modal
+        isOpen={Boolean(broadcastTarget)}
+        onClose={() => setBroadcastTarget(null)}
+        title="Broadcast Announcement via WhatsApp"
+        maxWidth="xl"
+      >
+        {broadcastTarget && (
+          <div className="space-y-5">
+            {/* Header info */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">{broadcastTarget.title}</h4>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Targeting {(broadcastTarget.batches || []).length} batch(es)
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                Anti-Ban Guard Active
+              </span>
+            </div>
+
+            {/* Delivery Timing Options */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                When should this broadcast be dispatched?
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBroadcastMode('NOW')}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                    broadcastMode === 'NOW'
+                      ? 'border-indigo-600 bg-indigo-500/10 text-white'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-400 hover:border-slate-300'
+                  }`}
+                >
+                  <Send className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'NOW' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <div>
+                    <div className={`text-xs font-bold ${broadcastMode === 'NOW' ? 'text-indigo-300' : 'text-slate-300'}`}>
+                      ⚡ Send Now (Instant Queue)
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      Immediately enqueues with 16-22s anti-ban spacing between each parent.
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBroadcastMode('SCHEDULED')}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                    broadcastMode === 'SCHEDULED'
+                      ? 'border-indigo-600 bg-indigo-500/10 text-white'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-400 hover:border-slate-300'
+                  }`}
+                >
+                  <Clock className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'SCHEDULED' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <div>
+                    <div className={`text-xs font-bold ${broadcastMode === 'SCHEDULED' ? 'text-indigo-300' : 'text-slate-300'}`}>
+                      ⏰ Schedule for Later
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      Set a specific date & time (e.g. tomorrow at 9:00 AM) to avoid night alerts.
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Scheduled DateTime Picker */}
+              {broadcastMode === 'SCHEDULED' && (
+                <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Select Dispatch Date & Time (IST):</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDateTime}
+                    onChange={(e) => setScheduledDateTime(e.target.value)}
+                    className="w-full text-sm rounded-lg border border-slate-700 bg-slate-800 text-white p-2.5 focus:outline-none focus:border-indigo-500"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    * The system will automatically wake up and begin staggered dispatches at this exact time.
+                  </p>
+                </div>
+              )}
+
+              {/* Night time warning if sending now late */}
+              {broadcastMode === 'NOW' && isNightTime && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Notice: It is currently late evening. Sending broadcasts at night may disturb parents. You may choose <b>Schedule for Later</b> (e.g. tomorrow morning) for higher engagement.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 2-Way Engagement Setting */}
+            <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/80 space-y-2">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeTwoWayPrompt}
+                  onChange={(e) => setIncludeTwoWayPrompt(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-200">
+                    Include 2-Way Response & Contact Save Prompt (Recommended ⭐)
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Appends: <i>"💬 Kisi bhi query ke liye yahan reply karein · 📌 Kripya number save kar lijiye"</i>. Encourages parents to reply, drastically lowering WhatsApp spam ban risks!
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Real WhatsApp Chat Bubble Preview */}
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                <span>WhatsApp Recipient View:</span>
+              </div>
+              <div className="bg-[#0b141a] rounded-xl p-4 border border-white/5">
+                <div className="max-w-sm bg-[#005c4b] text-white rounded-lg rounded-tl-none p-3 shadow-md text-xs space-y-1.5 ml-1">
+                  <div className="font-bold text-emerald-200">📢 *{broadcastTarget.title}*</div>
+                  <div className="whitespace-pre-wrap text-slate-100 leading-relaxed">{broadcastTarget.message}</div>
+                  <div className="text-[11px] text-slate-300 pt-1">- *Gurukul Sports Academy*</div>
+                  {includeTwoWayPrompt && (
+                    <div className="text-[11px] text-emerald-200/90 pt-1.5 border-t border-emerald-600/50 italic">
+                      💬 Kisi bhi query ya confirmation ke liye yahan reply karein.<br />
+                      📌 Kripya iss number ko Gurukul Sports Academy ke naam se save kar lijiye.
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-200/70 pt-0.5">
+                    <span>Just now</span>
+                    <CheckCheck className="w-3 h-3 text-cyan-300" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-700">
+              <Button variant="outline" onClick={() => setBroadcastTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmBroadcast}
+                disabled={submitting}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                <Send className="w-4 h-4" />
+                {submitting ? 'Enqueuing Broadcast...' : broadcastMode === 'SCHEDULED' ? 'Schedule Broadcast' : 'Confirm & Send Now'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* MODAL: Preview Announcement */}
       <Modal
         isOpen={Boolean(previewAnnouncement)}
         onClose={() => setPreviewAnnouncement(null)}
@@ -587,16 +890,18 @@ export const AnnouncementsPage: React.FC = () => {
                 Close
               </Button>
 
-              {previewAnnouncement.status === 'DRAFT' && (
-                <Button
-                  onClick={() => handleSendAnnouncement(previewAnnouncement.id)}
-                  disabled={submitting}
-                  className="gap-2 shadow-sm"
-                >
-                  <Send className="w-4 h-4" />
-                  {submitting ? 'Broadcasting...' : 'Confirm & Broadcast'}
-                </Button>
-              )}
+              <Button
+                onClick={() => {
+                  const target = previewAnnouncement;
+                  setPreviewAnnouncement(null);
+                  handleOpenBroadcastModal(target);
+                }}
+                disabled={submitting}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Send className="w-4 h-4" />
+                Configure & Broadcast
+              </Button>
             </div>
           </div>
         )}

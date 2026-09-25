@@ -61,7 +61,12 @@ export class AnnouncementController {
   // ============================================================================
   async sendAnnouncement(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await announcementService.sendAnnouncement(req.params.id);
+      const scheduledTime = req.body?.scheduledTime;
+      const includeTwoWayPrompt = req.body?.includeTwoWayPrompt !== false;
+      const result = await announcementService.sendAnnouncement(req.params.id, {
+        scheduledTime,
+        includeTwoWayPrompt,
+      });
 
       res.status(200).json({
         success: true,

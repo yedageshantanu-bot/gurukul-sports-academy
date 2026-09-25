@@ -159,7 +159,12 @@ export class AnnouncementService {
   // ============================================================================
   // 4. SEND ANNOUNCEMENT (Admin Only)
   // ============================================================================
-  async sendAnnouncement(id: string) {
+  // 4. SEND ANNOUNCEMENT (Admin Only)
+  // ============================================================================
+  async sendAnnouncement(
+    id: string,
+    options?: { scheduledTime?: string; includeTwoWayPrompt?: boolean }
+  ) {
     // 1. Fetch announcement with batches
     const announcement = await this.getAnnouncementById(id);
 
@@ -193,7 +198,6 @@ export class AnnouncementService {
     }
 
     const students = Array.from(studentMap.values());
-    const provider = whatsappProviderFactory.getProvider();
 
     // Fetch dynamic academy name
     const { data: academy } = await supabaseAdmin
@@ -203,37 +207,55 @@ export class AnnouncementService {
       .maybeSingle();
     const academyName = academy?.academy_name || 'Gurukul Sports Academy';
 
-    // 3. Dispatch to all recipient phones with 15-second anti-ban throttle
+    // 3. 2-Way Engagement Footer to shield number from spam bans
+    const twoWayFooter =
+      options?.includeTwoWayPrompt !== false
+        ? `\n\n💬 _Kisi bhi query ya confirmation ke liye yahan reply karein._\n📌 _Kripya iss number ko *${academyName}* ke naam se save kar lijiye._`
+        : '';
+
+    // Calculate start timestamp (handles user-scheduled future broadcasts)
+    let startTimestamp = Date.now();
+    if (options?.scheduledTime) {
+      const parsedTime = new Date(options.scheduledTime).getTime();
+      if (!isNaN(parsedTime) && parsedTime > Date.now()) {
+        startTimestamp = parsedTime;
+      }
+    }
+
+    // 4. Dispatch to all recipient phones with randomized 16-22s anti-ban throttle
     const items = students
       .map((student) => {
         const recipientPhone = student.parent_whatsapp || student.student_mobile;
         if (!recipientPhone) return null;
         return {
           recipientPhone,
-          messageBody: `📢 *${announcement.title}*\n\n${announcement.message}\n\n- ${academyName}`,
+          messageBody: `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*${twoWayFooter}`,
           studentId: student.id,
           eventType: 'ANNOUNCEMENT',
           metadata: {
             announcementId: announcement.id,
+            scheduledTime: options?.scheduledTime,
           },
         };
       })
       .filter(Boolean) as any[];
 
-    const queuedItems = await queueService.enqueueBatchStaggered(items, 15000);
+    const queuedItems = await queueService.enqueueBatchStaggered(items, 16000, startTimestamp);
 
-    // Process queued announcement messages sequentially in background
-    (async () => {
-      for (const item of queuedItems) {
-        try {
-          await queueService.processItem(item);
-        } catch (e: any) {
-          console.warn(`[AnnouncementService] Error delivering announcement to ${item.recipient_phone}:`, e.message);
+    // If scheduled for immediately (now), trigger queue processor in background
+    if (startTimestamp <= Date.now() + 30000) {
+      (async () => {
+        for (const item of queuedItems) {
+          try {
+            await queueService.processItem(item);
+          } catch (e: any) {
+            console.warn(`[AnnouncementService] Error delivering announcement to ${item.recipient_phone}:`, e.message);
+          }
         }
-      }
-    })().catch((err) => console.warn('[AnnouncementService] Background dispatch warning:', err.message));
+      })().catch((err) => console.warn('[AnnouncementService] Background dispatch warning:', err.message));
+    }
 
-    // 4. Update announcement timestamp
+    // 5. Update announcement timestamp
     const nowIso = new Date().toISOString();
     const { data: updated, error: updateErr } = await this.supabase
       .from('announcements')
@@ -248,17 +270,23 @@ export class AnnouncementService {
       throw new AppError(`Failed to update announcement timestamp: ${updateErr.message}`, 500);
     }
 
+    const isScheduledFuture = startTimestamp > Date.now() + 30000;
     const formattedUpdated = {
       ...updated,
-      status: 'SENT',
-      sent_at: nowIso,
+      status: isScheduledFuture ? 'SCHEDULED' : 'SENT',
+      sent_at: isScheduledFuture ? null : nowIso,
+      scheduled_at: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
     };
 
     return {
       success: true,
-      message: `Announcement queued for ${queuedItems.length} recipient(s) with 15s anti-ban throttle`,
+      message: isScheduledFuture
+        ? `Announcement scheduled for ${new Date(startTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} across ${queuedItems.length} recipient(s) with safe spacing.`
+        : `Announcement queued for ${queuedItems.length} recipient(s) with safe anti-ban spacing.`,
       totalRecipients: students.length,
       sentCount: queuedItems.length,
+      isScheduled: isScheduledFuture,
+      scheduledTime: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
       announcement: formattedUpdated,
     };
   }

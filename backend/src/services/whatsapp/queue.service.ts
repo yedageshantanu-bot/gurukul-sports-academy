@@ -55,7 +55,8 @@ export class WhatsAppQueueService {
   // Stagger an array of messages so they dispatch with a humanized 15-25 second gap between each recipient
   async enqueueBatchStaggered(
     items: EnqueueMessageParams[],
-    baseIntervalMs: number = 16000
+    baseIntervalMs: number = 16000,
+    startFromTimestamp?: number
   ): Promise<WhatsAppQueueItem[]> {
     if (env.DEMO_MODE || env.APP_ENV === 'demo' || !env.WHATSAPP_ENABLED) {
       console.log('[QueueService] WhatsApp is disabled in environment. Skipping batch enqueue.');
@@ -63,7 +64,7 @@ export class WhatsAppQueueService {
     }
 
     const results: WhatsAppQueueItem[] = [];
-    let currentSchedule = Date.now();
+    let currentSchedule = startFromTimestamp || Date.now();
 
     for (let i = 0; i < items.length; i++) {
       if (i > 0) {
