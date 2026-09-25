@@ -40,21 +40,22 @@ export const WhatsAppPage: React.FC = () => {
   // Fetch status from backend via apiClient (handles token refresh & prod URL)
   const fetchStatus = useCallback(async () => {
     try {
-      const data = await apiClient<{ success: boolean; data: any }>('/whatsapp/status');
-      if (data.success && data.data?.device) {
+      const res = await apiClient<any>('/whatsapp/status');
+      const payload = res?.data !== undefined ? res.data : res;
+      const deviceData = payload?.device;
+      if (deviceData) {
         setDevice((prev) => {
-          const incoming = data.data.device;
-          if (incoming.status === 'CONNECTED') {
-            return incoming;
+          if (deviceData.status === 'CONNECTED') {
+            return deviceData;
           }
-          if (incoming.qrCode) {
-            return incoming;
+          if (deviceData.qrCode) {
+            return deviceData;
           }
           // Retain QR code if backend temporarily returns empty qrCode while still in QR_READY
-          if (prev.qrCode && (incoming.status === 'QR_READY' || incoming.status === 'CONNECTING')) {
-            return { ...incoming, qrCode: prev.qrCode, status: 'QR_READY' };
+          if (prev.qrCode && (deviceData.status === 'QR_READY' || deviceData.status === 'CONNECTING')) {
+            return { ...deviceData, qrCode: prev.qrCode, status: 'QR_READY' };
           }
-          return incoming;
+          return deviceData;
         });
       }
     } catch (err: any) {
@@ -87,19 +88,15 @@ export const WhatsAppPage: React.FC = () => {
 
     try {
       const endpoint = device.status === 'DISCONNECTED' ? '/whatsapp/connect' : '/whatsapp/reconnect';
-      const data = await apiClient<{ success: boolean; data: any }>(endpoint, {
+      const res = await apiClient<any>(endpoint, {
         method: 'POST',
       });
 
-      if (!data.success && !data.data) {
-        throw new Error('Failed to generate QR code');
-      }
+      const payload = res?.data !== undefined ? res.data : res;
+      const updatedStatus = payload?.status || payload?.device || payload;
+      const returnedQr = payload?.qrCode || updatedStatus?.qrCode;
 
-      // Immediately apply status and QR code from response
-      const updatedStatus = data.data?.status || data.data?.device;
-      const returnedQr = data.data?.qrCode || updatedStatus?.qrCode;
-
-      if (updatedStatus) {
+      if (updatedStatus && updatedStatus.status) {
         setDevice({
           ...updatedStatus,
           qrCode: returnedQr || updatedStatus.qrCode,
