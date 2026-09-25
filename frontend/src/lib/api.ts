@@ -13,7 +13,7 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined' && (window.location.hostname.includes('effort-career') || window.location.hostname.includes('demo'))) {
     return '/api';
   }
-  const rawBase = (import.meta.env.VITE_API_BASE_URL || 'https://academy-crm-backend.onrender.com').trim().replace(/\/+$/, '');
+  const rawBase = (import.meta.env.VITE_API_BASE_URL || 'https://gurukul-crm-backend.onrender.com').trim().replace(/\/+$/, '');
   if (!rawBase) return '/api';
   if (rawBase.endsWith('/api')) return rawBase;
   return `${rawBase}/api`;
