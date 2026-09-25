@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -26,6 +26,7 @@ import {
   AlertCircle,
   ShieldCheck,
   ExternalLink,
+  Calendar,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -66,6 +67,17 @@ export const StudentsPage: React.FC = () => {
   const [batchId, setBatchId] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [status, setStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [admissionDate, setAdmissionDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [backfillPastFees, setBackfillPastFees] = useState(false);
+  const [pastFeesStatus, setPastFeesStatus] = useState<'PAID' | 'PENDING'>('PAID');
+
+  const isPastAdmission = useMemo(() => {
+    if (!admissionDate) return false;
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const selectedPeriod = admissionDate.slice(0, 7);
+    return selectedPeriod < currentPeriod;
+  }, [admissionDate]);
 
   // Secondary/Optional Fields
   const [feePlans, setFeePlans] = useState<any[]>([]);
@@ -158,6 +170,9 @@ export const StudentsPage: React.FC = () => {
     setCourse('');
     setMonthlyFee(0);
     setFeeDueDay(5);
+    setAdmissionDate(new Date().toISOString().split('T')[0]);
+    setBackfillPastFees(false);
+    setPastFeesStatus('PAID');
     setFormError('');
     setIsAddModalOpen(true);
   };
@@ -176,6 +191,7 @@ export const StudentsPage: React.FC = () => {
     setCourse(s.course || '');
     setMonthlyFee(s.monthlyFee || 0);
     setFeeDueDay(s.feeDueDay || 5);
+    setAdmissionDate(s.admissionDate ? s.admissionDate.split('T')[0] : '');
     setFormError('');
     setIsEditModalOpen(true);
   };
@@ -231,9 +247,13 @@ export const StudentsPage: React.FC = () => {
           course: course.trim() || undefined,
           monthlyFee: Number(monthlyFee) || 0,
           feeDueDay: Number(feeDueDay) || 5,
+          admissionDate: admissionDate || undefined,
+          backfillPastFees: isPastAdmission && backfillPastFees,
+          pastFeesStatus: pastFeesStatus,
         }),
       });
       setIsAddModalOpen(false);
+      toast.success(`Student "${name.trim()}" enrolled successfully!`);
       fetchData(true);
     } catch (err: any) {
       setFormError(err.message || 'Failed to create student');
@@ -297,9 +317,11 @@ export const StudentsPage: React.FC = () => {
           course: course.trim() || undefined,
           monthlyFee: Number(monthlyFee),
           feeDueDay: Number(feeDueDay),
+          admissionDate: admissionDate || undefined,
         }),
       });
       setIsEditModalOpen(false);
+      toast.success(`Student "${name.trim()}" updated successfully!`);
       fetchData(true);
     } catch (err: any) {
       setFormError(err.message || 'Failed to update student');
@@ -682,6 +704,59 @@ export const StudentsPage: React.FC = () => {
               placeholder="e.g. 9876543211 (Only if student has personal phone)"
             />
 
+            {/* 5. Admission / Joining Date */}
+            <div className="space-y-1.5">
+              <Input
+                label="Admission / Joining Date *"
+                type="date"
+                required
+                value={admissionDate}
+                onChange={(e) => setAdmissionDate(e.target.value)}
+              />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                For older/existing students, select their original enrollment date (e.g. January 2026 or earlier).
+              </p>
+            </div>
+
+            {/* Smart Historical Fee Records Generator for Past Admissions */}
+            {isPastAdmission && (
+              <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 rounded-xl border border-amber-500/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                    Past Admission Detected ({admissionDate})
+                  </span>
+                </div>
+                <label className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={backfillPastFees}
+                    onChange={(e) => setBackfillPastFees(e.target.checked)}
+                    className="mt-0.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span>
+                    Generate historical monthly fee records from joining month ({admissionDate.slice(0, 7)}) up to current month.
+                  </span>
+                </label>
+
+                {backfillPastFees && (
+                  <div className="pt-2 border-t border-amber-500/20">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Status for previous months:
+                    </label>
+                    <Select
+                      value={pastFeesStatus}
+                      onChange={(e) => setPastFeesStatus(e.target.value as any)}
+                      className="text-xs h-8 bg-white dark:bg-slate-900 border-amber-400/40"
+                    >
+                      <option value="PAID">All Past Months Already PAID (Clean history, zero pending dues)</option>
+                      <option value="PENDING">Past Months PENDING (Mark as Overdue / Unpaid dues)</option>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Course & Fee Plan Selection */}
             <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3">
               <div className="flex items-center justify-between">
@@ -855,6 +930,14 @@ export const StudentsPage: React.FC = () => {
               value={studentMobile}
               onChange={(e) => setStudentMobile(e.target.value)}
               placeholder="Leave empty if not required"
+            />
+
+            {/* Admission / Joining Date */}
+            <Input
+              label="Admission / Joining Date"
+              type="date"
+              value={admissionDate}
+              onChange={(e) => setAdmissionDate(e.target.value)}
             />
 
             {/* Course & Fee Plan Selection */}

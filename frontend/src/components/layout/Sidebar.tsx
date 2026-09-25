@@ -282,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer Area - Stitch Academy Engine v2.4 */}
         <div className="p-4 border-t border-white/10 bg-[#0A1120] flex-shrink-0">
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
             <span className="font-medium">Academy Engine v2.4</span>
           </div>
         </div>

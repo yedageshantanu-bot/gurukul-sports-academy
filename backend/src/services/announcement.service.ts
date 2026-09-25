@@ -262,6 +262,80 @@ export class AnnouncementService {
       announcement: formattedUpdated,
     };
   }
+
+  // ============================================================================
+  // 5. UPDATE ANNOUNCEMENT (Admin Only)
+  // ============================================================================
+  async updateAnnouncement(id: string, dto: { title?: string; message?: string; batchIds?: string[] }) {
+    await this.getAnnouncementById(id);
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (dto.title !== undefined) updates.title = dto.title;
+    if (dto.message !== undefined) updates.message = dto.message;
+
+    const { error: updateErr } = await this.supabase
+      .from('announcements')
+      .update(updates)
+      .eq('id', id);
+
+    if (updateErr) {
+      throw new AppError(`Failed to update announcement: ${updateErr.message}`, 500);
+    }
+
+    if (Array.isArray(dto.batchIds)) {
+      await this.supabase
+        .from('announcement_batches')
+        .delete()
+        .eq('announcement_id', id);
+
+      if (dto.batchIds.length > 0) {
+        const batchLinks = dto.batchIds.map((batchId) => ({
+          announcement_id: id,
+          batch_id: batchId,
+        }));
+        const { error: linkErr } = await this.supabase
+          .from('announcement_batches')
+          .insert(batchLinks);
+
+        if (linkErr) {
+          throw new AppError(`Failed to update announcement batches: ${linkErr.message}`, 500);
+        }
+      }
+    }
+
+    return this.getAnnouncementById(id);
+  }
+
+  // ============================================================================
+  // 6. DELETE ANNOUNCEMENT (Admin Only)
+  // ============================================================================
+  async deleteAnnouncement(id: string) {
+    const { error: linkErr } = await this.supabase
+      .from('announcement_batches')
+      .delete()
+      .eq('announcement_id', id);
+
+    if (linkErr) {
+      console.warn(`[AnnouncementService] Error unlinking batches: ${linkErr.message}`);
+    }
+
+    const { error: delErr } = await this.supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+
+    if (delErr) {
+      throw new AppError(`Failed to delete announcement: ${delErr.message}`, 500);
+    }
+
+    return {
+      success: true,
+      message: 'Announcement deleted successfully',
+      id,
+    };
+  }
 }
 
 export const announcementService = new AnnouncementService();

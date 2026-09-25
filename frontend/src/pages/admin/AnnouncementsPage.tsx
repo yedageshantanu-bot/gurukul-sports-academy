@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Layers,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
 
@@ -33,10 +34,22 @@ export const AnnouncementsPage: React.FC = () => {
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [previewAnnouncement, setPreviewAnnouncement] = useState<Announcement | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<{
+    title: string;
+    message: string;
+    batchIds: string[];
+  }>({
+    title: '',
+    message: '',
+    batchIds: [],
+  });
+
+  const [editFormData, setEditFormData] = useState<{
     title: string;
     message: string;
     batchIds: string[];
@@ -152,6 +165,66 @@ export const AnnouncementsPage: React.FC = () => {
       const errMsg = err.message || 'Failed to delete announcement';
       setError(errMsg);
       toast.error(errMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenEdit = (a: Announcement) => {
+    setEditingAnnouncement(a);
+    const selectedIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
+    setEditFormData({
+      title: a.title,
+      message: a.message,
+      batchIds: selectedIds,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleToggleEditBatch = (batchId: string) => {
+    setEditFormData((prev) => {
+      const exists = prev.batchIds.includes(batchId);
+      if (exists) {
+        return { ...prev, batchIds: prev.batchIds.filter((id) => id !== batchId) };
+      } else {
+        return { ...prev, batchIds: [...prev.batchIds, batchId] };
+      }
+    });
+  };
+
+  const handleSelectAllEditBatches = () => {
+    if (editFormData.batchIds.length === batches.length) {
+      setEditFormData((prev) => ({ ...prev, batchIds: [] }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, batchIds: batches.map((b) => b.id) }));
+    }
+  };
+
+  const handleUpdateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAnnouncement) return;
+    if (editFormData.batchIds.length === 0) {
+      toast.warning('Please select at least one target batch.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await apiClient(`/announcements/${editingAnnouncement.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(editFormData),
+      });
+
+      setSuccessMessage('Announcement updated successfully.');
+      toast.success('Announcement updated successfully.');
+      setIsEditModalOpen(false);
+      setEditingAnnouncement(null);
+      fetchAnnouncements();
+    } catch (err: any) {
+      const msg = err.message || 'Failed to update announcement';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -278,6 +351,17 @@ export const AnnouncementsPage: React.FC = () => {
                             Preview
                           </Button>
 
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenEdit(a)}
+                            className="h-8 text-xs gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                            title="Edit Announcement"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            Edit
+                          </Button>
+
                           {a.status === 'DRAFT' && (
                             <Button
                               size="sm"
@@ -376,6 +460,77 @@ export const AnnouncementsPage: React.FC = () => {
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Saving...' : 'Save as Draft'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Edit Announcement */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Broadcast Announcement"
+        maxWidth="xl"
+      >
+        <form onSubmit={handleUpdateAnnouncement} className="space-y-4">
+          <Input
+            label="Announcement Title *"
+            required
+            placeholder="e.g. Test Series Schedule Revision"
+            value={editFormData.title}
+            onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+          />
+
+          <div className="w-full space-y-1.5 text-left">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal">
+              Announcement Message Body *
+            </label>
+            <textarea
+              required
+              rows={4}
+              placeholder="Write announcement body here. Will be dispatched to student & guardian contacts."
+              value={editFormData.message}
+              onChange={(e) => setEditFormData({ ...editFormData, message: e.target.value })}
+              className="w-full text-sm rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all font-sans placeholder:text-slate-400 dark:placeholder:text-slate-400"
+            />
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select Target Batches *</label>
+              <button
+                type="button"
+                onClick={handleSelectAllEditBatches}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold"
+              >
+                {editFormData.batchIds.length === batches.length ? 'Deselect All' : 'Select All Batches'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200/90 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+              {batches.map((b) => (
+                <label
+                  key={b.id}
+                  className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 dark:hover:bg-slate-700/80 transition-all shadow-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={editFormData.batchIds.includes(b.id)}
+                    onChange={() => handleToggleEditBatch(b.id)}
+                    className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="truncate">{b.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Updating...' : 'Update Announcement'}
             </Button>
           </div>
         </form>

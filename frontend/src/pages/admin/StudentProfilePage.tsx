@@ -7,6 +7,7 @@ import { Skeleton } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { apiClient, getApiUrl } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { StudentItem } from '../../types/crm';
 import {
   ArrowLeft,
@@ -150,10 +151,25 @@ export const StudentProfilePage: React.FC = () => {
     }
   };
 
-  const openWhatsApp = (phone: string, text: string) => {
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+  const { toast } = useToast();
+  const [directMsgSending, setDirectMsgSending] = useState(false);
+
+  const sendDirectWhatsApp = async (phone: string, text: string) => {
+    setDirectMsgSending(true);
+    try {
+      await apiClient<any>('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone,
+          message: text,
+        }),
+      });
+      toast.success('Direct WhatsApp message dispatched to parent via OpenWA gateway!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch WhatsApp message via OpenWA');
+    } finally {
+      setDirectMsgSending(false);
+    }
   };
 
   return (
@@ -173,16 +189,18 @@ export const StudentProfilePage: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
+              disabled={directMsgSending}
               onClick={() =>
-                openWhatsApp(
-                  student.parentWhatsapp,
-                  `Hello ${student.parentName || 'Parent'}, regarding ${student.name}'s performance at the academy:`
+                sendDirectWhatsApp(
+                  student.parentWhatsapp!,
+                  `Hello ${student.parentName || 'Parent'}, regarding ${student.name}'s performance and training at Gurukul Sports Academy:`
                 )
               }
               className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              title="Send direct WhatsApp notification via OpenWA gateway"
             >
               <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
-              Chat on WhatsApp
+              {directMsgSending ? 'Sending...' : 'Direct WhatsApp'}
             </Button>
           )}
 

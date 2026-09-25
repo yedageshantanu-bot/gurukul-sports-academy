@@ -27,6 +27,30 @@ export const AttendancePage: React.FC = () => {
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
+  const [sendingWaId, setSendingWaId] = useState<string | null>(null);
+
+  const handleSendDirectWhatsApp = async (s: AttendanceSheetStudentRow) => {
+    const rawPhone = s.parentWhatsapp || s.studentMobile;
+    if (!rawPhone) {
+      toast.error('No contact number available for this athlete.');
+      return;
+    }
+    setSendingWaId(s.studentId);
+    try {
+      await apiClient<any>('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone: rawPhone,
+          message: `Hello Parent, Attendance Update: Athlete ${s.name} is marked ${s.status || 'PRESENT'} for today's training session at Gurukul Sports Academy.`,
+        }),
+      });
+      toast.success(`Direct WhatsApp alert sent to ${s.name} via OpenWA gateway!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send direct WhatsApp message');
+    } finally {
+      setSendingWaId(null);
+    }
+  };
 
   // Attendance Records state
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -404,16 +428,16 @@ export const AttendancePage: React.FC = () => {
                               <span className="font-mono text-slate-700 dark:text-slate-300">
                                 {s.parentWhatsapp || s.studentMobile}
                               </span>
-                              <a
-                                href={`https://wa.me/${(s.parentWhatsapp || s.studentMobile || '').replace(/\D/g, '')}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Open WhatsApp Chat with Parent"
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-[10px] font-bold"
+                              <button
+                                type="button"
+                                onClick={() => handleSendDirectWhatsApp(s)}
+                                disabled={sendingWaId === s.studentId}
+                                title="Send direct WhatsApp message via OpenWA Gateway"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-[10px] font-bold cursor-pointer disabled:opacity-50"
                               >
                                 <MessageSquare className="w-3 h-3" />
-                                <span>WA</span>
-                              </a>
+                                <span>{sendingWaId === s.studentId ? 'Sending...' : 'WA Direct'}</span>
+                              </button>
                             </div>
                           ) : (
                             <span className="text-slate-400 dark:text-slate-500 italic">No contact</span>

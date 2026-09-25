@@ -61,15 +61,15 @@ export const WhatsAppPage: React.FC = () => {
     fetchStatus();
   }, [fetchStatus]);
 
-  // Auto-refresh when waiting for scan
+  // Auto-refresh when waiting for scan, connecting, or refreshing
   useEffect(() => {
-    if (device.status === 'QR_READY' || device.status === 'CONNECTING') {
+    if (device.status === 'QR_READY' || device.status === 'CONNECTING' || refreshing) {
       const interval = setInterval(() => {
         fetchStatus();
-      }, 6000);
+      }, 2500);
       return () => clearInterval(interval);
     }
-  }, [device.status, fetchStatus]);
+  }, [device.status, refreshing, fetchStatus]);
 
   // Connect or Regenerate QR code
   const handleConnectOrRefresh = async () => {
@@ -147,6 +147,17 @@ export const WhatsAppPage: React.FC = () => {
     setError(null);
     setSuccess(null);
 
+    // Normalize phone number (detect both 10-digit without +91 and with +91)
+    const digits = testPhone.replace(/\D/g, '');
+    let normalizedPhone = testPhone.trim();
+    if (digits.length === 10) {
+      normalizedPhone = `+91${digits}`;
+    } else if (digits.length === 11 && digits.startsWith('0')) {
+      normalizedPhone = `+91${digits.slice(1)}`;
+    } else if (!normalizedPhone.startsWith('+')) {
+      normalizedPhone = `+${digits}`;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/whatsapp/send`, {
         method: 'POST',
@@ -155,17 +166,22 @@ export const WhatsAppPage: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          phone: testPhone.trim(),
+          recipientPhone: normalizedPhone,
+          phone: normalizedPhone,
+          messageBody: testMessage.trim(),
           message: testMessage.trim(),
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Message dispatch failed');
+      if (!res.ok) throw new Error(data.message || data.error?.message || 'Message dispatch failed');
 
-      setSuccess(`Test WhatsApp message sent to ${testPhone}!`);
+      setSuccess(`Direct WhatsApp message dispatched via OpenWA gateway to ${normalizedPhone}!`);
+      toast.success(`WhatsApp message sent to ${normalizedPhone}!`);
       setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
-      setError(err.message || 'Failed to send test message');
+      const errMsg = err.message || 'Failed to send test message';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setSendingTest(false);
     }
@@ -377,15 +393,19 @@ export const WhatsAppPage: React.FC = () => {
 
             <form onSubmit={handleSendTest} className="space-y-3.5">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Recipient Phone Number</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Recipient Phone Number</label>
+                  <span className="text-[10px] text-emerald-400 font-medium">10-digit or +91 auto-detected</span>
+                </div>
                 <input
                   type="text"
                   required
                   value={testPhone}
                   onChange={(e) => setTestPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
+                  placeholder="e.g. 9404849500 or +91 94048 49500"
                   className="w-full px-3.5 py-2 rounded-lg bg-[#0F172A] border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-orange-500 transition-colors"
                 />
+                <p className="text-[10.5px] text-slate-400">Normal 10-digit number bina +91 ya +91 ke sath — dono direct detect honge.</p>
               </div>
 
               <div className="space-y-1">

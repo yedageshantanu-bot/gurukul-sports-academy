@@ -468,24 +468,95 @@ export class StudentService {
         .upsert(enrollments, { onConflict: 'batch_id,student_id' });
     }
 
-    // Generate initial fee record for current month so student immediately shows in fee tracking & reports
+    // Generate fee records: support both past/historical students and new enrollments
     if (dto.monthlyFee && Number(dto.monthlyFee) > 0) {
       const now = new Date();
-      const billingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-indexed
+      const currentBillingPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
       const dueDay = dto.feeDueDay || 5;
-      const dueDate = new Date(now.getFullYear(), now.getMonth(), dueDay).toISOString().split('T')[0];
 
-      try {
-        await supabaseAdmin.from('student_fees').insert({
+      const feeRecordsToInsert: any[] = [];
+
+      // Determine starting year & month if student has historical admissionDate and backfill is requested
+      let startYear = currentYear;
+      let startMonth = currentMonth;
+
+      if (dto.admissionDate && dto.backfillPastFees) {
+        const parts = dto.admissionDate.split('-');
+        if (parts.length >= 2) {
+          const admY = parseInt(parts[0], 10);
+          const admM = parseInt(parts[1], 10);
+          if (!isNaN(admY) && !isNaN(admM) && admM >= 1 && admM <= 12) {
+            // Don't backfill more than 2 years in the past for sanity
+            if (admY >= currentYear - 2) {
+              startYear = admY;
+              startMonth = admM - 1;
+            }
+          }
+        }
+      }
+
+      // Loop month-by-month from startMonth up to currentMonth
+      let curY = startYear;
+      let curM = startMonth;
+
+      while (curY < currentYear || (curY === currentYear && curM <= currentMonth)) {
+        const periodStr = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+        const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
+        const isPastPeriod = curY < currentYear || (curY === currentYear && curM < currentMonth);
+
+        let feeStatus: 'PAID' | 'PENDING' = 'PENDING';
+        let amountPaid = 0;
+
+        if (isPastPeriod) {
+          if (dto.pastFeesStatus === 'PAID') {
+            feeStatus = 'PAID';
+            amountPaid = Number(dto.monthlyFee);
+          } else {
+            feeStatus = 'PENDING';
+            amountPaid = 0;
+          }
+        } else {
+          // Current month is PENDING by default
+          feeStatus = 'PENDING';
+          amountPaid = 0;
+        }
+
+        feeRecordsToInsert.push({
           student_id: student.id,
-          billing_period: billingPeriod,
+          billing_period: periodStr,
+          amount_due: Number(dto.monthlyFee),
+          amount_paid: amountPaid,
+          due_date: dueDate,
+          status: feeStatus,
+        });
+
+        // Advance to next month
+        curM++;
+        if (curM > 11) {
+          curM = 0;
+          curY++;
+        }
+      }
+
+      // Fallback: if no records were generated, ensure current month is present
+      if (feeRecordsToInsert.length === 0) {
+        const dueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
+        feeRecordsToInsert.push({
+          student_id: student.id,
+          billing_period: currentBillingPeriod,
           amount_due: Number(dto.monthlyFee),
           amount_paid: 0,
           due_date: dueDate,
           status: 'PENDING',
         });
+      }
+
+      try {
+        await supabaseAdmin.from('student_fees').insert(feeRecordsToInsert);
       } catch (err: any) {
-        console.warn('[StudentService] Initial fee assignment notice:', err?.message || err);
+        console.warn('[StudentService] Fee assignment notice:', err?.message || err);
       }
     }
 

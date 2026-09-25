@@ -41,6 +41,8 @@ export const createStudentSchema = z.object({
   batchId: z.string().uuid().optional().or(z.literal('')),
   initialBatchIds: z.array(z.string().uuid()).optional(),
   whatsappOptIn: z.boolean().default(true).optional(),
+  backfillPastFees: z.boolean().default(false).optional(),
+  pastFeesStatus: z.enum(['PAID', 'PENDING']).default('PAID').optional(),
 });
 
 export type CreateStudentDTO = z.infer<typeof createStudentSchema>;

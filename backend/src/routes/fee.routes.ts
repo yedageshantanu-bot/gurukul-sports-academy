@@ -17,6 +17,8 @@ router.get('/plans', feeController.listFeePlans);
 router.post('/plans', feeController.createFeePlan);
 router.get('/plans/:id', feeController.getFeePlanById);
 router.patch('/plans/:id', feeController.updateFeePlan);
+router.put('/plans/:id', feeController.updateFeePlan);
+router.delete('/plans/:id', feeController.deleteFeePlan);
 router.post('/plans/:id/activate', feeController.activateFeePlan);
 router.post('/plans/:id/deactivate', feeController.deactivateFeePlan);
 

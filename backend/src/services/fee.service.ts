@@ -108,6 +108,32 @@ export class FeeService {
     return this.updateFeePlan(id, { active });
   }
 
+  async deleteFeePlan(id: string) {
+    await this.getFeePlanById(id);
+
+    // Safely unlink from student_fees so historical payment and invoice records remain intact
+    await this.supabase
+      .from('student_fees')
+      .update({ fee_plan_id: null })
+      .eq('fee_plan_id', id);
+
+    const { error } = await this.supabase
+      .from('fee_plans')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[FeeService.deleteFeePlan] Error:', error);
+      throw new AppError(`Failed to delete course: ${error.message}`, 500);
+    }
+
+    return {
+      success: true,
+      message: 'Course deleted successfully',
+      id,
+    };
+  }
+
   // ============================================================================
   // STUDENT FEES
   // ============================================================================

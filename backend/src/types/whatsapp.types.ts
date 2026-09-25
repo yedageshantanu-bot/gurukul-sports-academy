@@ -85,12 +85,39 @@ export const updateTemplateSchema = z.object({
 
 // Custom send & trigger schemas
 export const sendCustomMessageSchema = z.object({
-  recipientPhone: z.string().trim().min(8, 'Valid recipient phone number is required'),
-  messageBody: z.string().trim().min(2, 'Message body is required'),
+  recipientPhone: z.string().trim().optional(),
+  phone: z.string().trim().optional(),
+  messageBody: z.string().trim().optional(),
+  message: z.string().trim().optional(),
   studentId: z.string().uuid('Invalid student ID format').optional(),
   templateId: z.string().uuid('Invalid template ID format').optional(),
   eventType: z.string().default('CUSTOM_NOTIFICATION'),
   scheduledAt: z.string().datetime().optional(),
+}).transform((data) => {
+  const rawPhone = data.recipientPhone || data.phone || '';
+  const body = data.messageBody || data.message || '';
+  const digits = rawPhone.replace(/\D/g, '');
+  if (digits.length < 10) {
+    throw new Error('Valid recipient phone number is required (at least 10 digits)');
+  }
+  if (!body.trim()) {
+    throw new Error('Message body is required');
+  }
+  let normalizedDigits = digits;
+  if (digits.length === 10) {
+    normalizedDigits = `91${digits}`;
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    normalizedDigits = `91${digits.slice(1)}`;
+  }
+  const formattedPhone = `+${normalizedDigits}`;
+
+  return {
+    ...data,
+    recipientPhone: formattedPhone,
+    phone: formattedPhone,
+    messageBody: body.trim(),
+    message: body.trim(),
+  };
 });
 
 export const triggerFeeReminderSchema = z.object({

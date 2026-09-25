@@ -234,12 +234,12 @@ export class OpenWaProvider implements WhatsAppSender {
       console.warn('[OpenWA] Session start request note:', e.message);
     }
 
-    // 2. Poll for QR code
+    // 2. Poll for QR code (up to 8 seconds to allow Render bridge to generate QR)
     let qrCode: string | null = null;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 8; i++) {
       qrCode = await this.getQrCode(session.id);
       if (qrCode) break;
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     const status = await this.getStatus();

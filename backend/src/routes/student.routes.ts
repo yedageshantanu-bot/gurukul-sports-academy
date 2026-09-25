@@ -8,9 +8,9 @@ const router = Router();
 
 router.use(verifyAuth);
 
-// Admin & Demo Admin mutation endpoints
-router.post('/', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), StudentController.createStudent);
-router.patch('/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), StudentController.updateStudent);
+// Student mutation endpoints: Admin, Demo Admin, or Teacher
+router.post('/', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), StudentController.createStudent);
+router.patch('/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), StudentController.updateStudent);
 router.post('/:id/deactivate', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), StudentController.deactivateStudent);
 router.delete('/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), StudentController.deleteStudent);
 

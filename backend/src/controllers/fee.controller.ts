@@ -88,6 +88,19 @@ export class FeeController {
     }
   }
 
+  async deleteFeePlan(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await feeService.deleteFeePlan(req.params.id);
+      res.status(200).json({
+        success: true,
+        message: 'Course deleted successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   // ============================================================================
   // STUDENT FEES
   // ============================================================================

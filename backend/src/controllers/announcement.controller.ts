@@ -71,6 +71,38 @@ export class AnnouncementController {
       next(err);
     }
   }
+
+  // ============================================================================
+  // 5. UPDATE ANNOUNCEMENT (Admin Only)
+  // ============================================================================
+  async updateAnnouncement(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await announcementService.updateAnnouncement(req.params.id, req.body);
+      res.status(200).json({
+        success: true,
+        message: 'Announcement updated successfully',
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // 6. DELETE ANNOUNCEMENT (Admin Only)
+  // ============================================================================
+  async deleteAnnouncement(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await announcementService.deleteAnnouncement(req.params.id);
+      res.status(200).json({
+        success: true,
+        message: 'Announcement deleted successfully',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const announcementController = new AnnouncementController();

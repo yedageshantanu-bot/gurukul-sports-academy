@@ -83,6 +83,29 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [searchTerm, setSearchTerm] = useState('');
   const [feeFilter, setFeeFilter] = useState('ALL');
   const [deliveryFilter, setDeliveryFilter] = useState('ALL');
+  const [sendingWaId, setSendingWaId] = useState<string | null>(null);
+
+  const handleDirectWhatsApp = async (s: PublicationStudent) => {
+    if (!s.contact_number) {
+      toast.error('No contact number available.');
+      return;
+    }
+    setSendingWaId(s.id);
+    try {
+      await apiClient<any>('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone: s.contact_number,
+          message: `Hello ${s.student_name}, this is an update regarding your publication materials "${s.publication_title}" (${s.academic_year}) from Gurukul Sports Academy. Delivery Status: ${s.delivery_status}, Fee Status: ${s.fee_status}.`,
+        }),
+      });
+      toast.success(`Direct WhatsApp update dispatched to ${s.student_name} via OpenWA gateway!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch WhatsApp message via OpenWA');
+    } finally {
+      setSendingWaId(null);
+    }
+  };
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INTERNAL, EXTERNAL
 
   // Academy students for quick selection with full parent & contact info
@@ -531,15 +554,15 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       <td className="px-5 py-4 text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-slate-300">{s.contact_number}</span>
-                          <a
-                            href={`https://wa.me/${s.contact_number.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Chat on WhatsApp"
-                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => handleDirectWhatsApp(s)}
+                            disabled={sendingWaId === s.id}
+                            title="Send direct WhatsApp message via OpenWA Gateway"
+                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors cursor-pointer disabled:opacity-50"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                          </a>
+                          </button>
                         </div>
                       </td>
 

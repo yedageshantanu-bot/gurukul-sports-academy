@@ -157,10 +157,24 @@ export const TeacherProfilePage: React.FC = () => {
     }
   };
 
-  const openWhatsApp = (phone: string, text: string) => {
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+  const [directMsgSending, setDirectMsgSending] = useState(false);
+
+  const sendDirectWhatsApp = async (phone: string, text: string) => {
+    setDirectMsgSending(true);
+    try {
+      await apiClient<any>('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone,
+          message: text,
+        }),
+      });
+      toast.success('Direct WhatsApp message dispatched via OpenWA gateway!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch WhatsApp message via OpenWA');
+    } finally {
+      setDirectMsgSending(false);
+    }
   };
 
   if (loading) {
@@ -295,16 +309,17 @@ export const TeacherProfilePage: React.FC = () => {
 
                     <button
                       onClick={() =>
-                        openWhatsApp(
+                        sendDirectWhatsApp(
                           teacher.phone,
-                          `Hello ${teacher.fullName}, this is an update regarding your batches at the academy.`
+                          `Hello ${teacher.fullName}, this is an update regarding your batches at Gurukul Sports Academy.`
                         )
                       }
-                      className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors font-medium cursor-pointer"
-                      title="Open WhatsApp Chat"
+                      disabled={directMsgSending}
+                      className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors font-medium cursor-pointer disabled:opacity-50"
+                      title="Send direct WhatsApp message via OpenWA gateway"
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                      WhatsApp Chat
+                      {directMsgSending ? 'Sending...' : 'Direct WhatsApp'}
                     </button>
                   </>
                 )}

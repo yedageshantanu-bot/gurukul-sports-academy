@@ -16,6 +16,8 @@ import {
   Plus,
   Search,
   Edit2,
+  Trash2,
+  AlertTriangle,
   Users,
   CheckCircle2,
   AlertCircle,
@@ -37,6 +39,11 @@ export const CoursesPage: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<FeePlan | null>(null);
+
+  // Delete Modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<FeePlan | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Form states
   const [formLoading, setFormLoading] = useState(false);
@@ -157,10 +164,43 @@ export const CoursesPage: React.FC = () => {
         method: 'POST',
       });
       setSuccessToast(`Course "${course.name}" status updated.`);
+      toast.success(`Course "${course.name}" ${course.active ? 'deactivated' : 'activated'}.`);
       setTimeout(() => setSuccessToast(null), 3000);
       await fetchCourses(true);
     } catch (err: any) {
       toast.error(`Failed to update status: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleDeleteClick = (course: FeePlan) => {
+    setCourseToDelete(course);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!courseToDelete) return;
+    setDeleteLoading(true);
+    const targetId = courseToDelete.id;
+    const targetName = courseToDelete.name;
+
+    // Optimistic UI update: instantly remove from list
+    setCourses((prev) => prev.filter((c) => c.id !== targetId));
+    setIsDeleteModalOpen(false);
+
+    try {
+      await apiClient(`/fees/plans/${targetId}`, {
+        method: 'DELETE',
+      });
+      setSuccessToast(`Course "${targetName}" deleted successfully!`);
+      toast.success(`Course "${targetName}" deleted successfully.`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err: any) {
+      // Re-fetch on failure
+      fetchCourses(true);
+      toast.error(`Failed to delete course: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDeleteLoading(false);
+      setCourseToDelete(null);
     }
   };
 
@@ -380,28 +420,38 @@ export const CoursesPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleOpenEdit(c)}
-                    className="text-xs h-8 px-3 gap-1.5 flex-1 justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="text-xs h-8 px-2.5 gap-1.5 flex-1 justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title="Edit Course"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
-                    <span>Edit Course</span>
+                    <span>Edit</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleToggleStatus(c)}
-                    className={`text-xs h-8 px-3 ${
+                    className={`text-xs h-8 px-2.5 ${
                       c.active
-                        ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-800/60'
+                        ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:border-amber-200 dark:hover:border-amber-800/60'
                         : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-200 dark:hover:border-emerald-800/60'
                     }`}
+                    title={c.active ? 'Deactivate Course' : 'Activate Course'}
                   >
                     {c.active ? 'Deactivate' : 'Activate'}
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteClick(c)}
+                    className="p-1.5 h-8 w-8 inline-flex items-center justify-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-800/60 transition-colors cursor-pointer"
+                    title="Delete Course"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </Card>
             );
@@ -531,6 +581,58 @@ export const CoursesPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Delete Course Confirmation */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleteLoading) {
+            setIsDeleteModalOpen(false);
+            setCourseToDelete(null);
+          }
+        }}
+        title="Delete Academy Course"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 rounded-xl flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-800 dark:text-rose-300">
+              <p className="font-bold text-sm text-rose-900 dark:text-rose-200">
+                Are you sure you want to delete this course?
+              </p>
+              <p className="mt-1">
+                Course: <span className="font-semibold">{courseToDelete?.name}</span> (₹{Number(courseToDelete?.amount || 0).toLocaleString('en-IN')})
+              </p>
+              <p className="mt-1 text-slate-500 dark:text-slate-400">
+                This action will permanently delete this course plan. Existing student records and payment histories will be preserved safely.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setCourseToDelete(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+            >
+              {deleteLoading ? 'Deleting...' : 'Yes, Delete Course'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
