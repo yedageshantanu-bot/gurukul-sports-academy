@@ -24,6 +24,22 @@ export interface CertificateData {
 }
 
 /**
+ * Sanitizes input strings so they strictly conform to standard PDF WinAnsi / Latin-1 encoding,
+ * replacing unicode bullets, em-dashes, and stars with clean ASCII equivalents.
+ */
+function cleanPdfText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[•●]/g, '-')
+    .replace(/[—–]/g, '-')
+    .replace(/[★☆✦]/g, '*')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ')
+    .trim();
+}
+
+/**
  * Generates an official, publication-grade A4 Landscape Martial Arts Promotion Certificate PDF
  * using pure vector graphics, ornate multi-tier borders, gold seals, and typography.
  */
@@ -40,12 +56,12 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
   const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
 
-  // Normalize data fields with safe fallbacks
-  const studentName = (cert.student_name || cert.playerName || 'Athletic Trainee').trim();
-  const regNo = cert.student_code || cert.regNumber || 'GSA-ATH-2026';
-  const discipline = cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports';
-  const rankName = cert.to_rank_name || cert.rankSecured || 'Advanced Grade';
-  const beltColor = cert.belt_color || cert.beltColor || 'Yellow';
+  // Normalize data fields with safe fallbacks and WinAnsi sanitization
+  const studentName = cleanPdfText(cert.student_name || cert.playerName || 'Athletic Trainee');
+  const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'GSA-ATH-2026');
+  const discipline = cleanPdfText(cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports');
+  const rankName = cleanPdfText(cert.to_rank_name || cert.rankSecured || 'Advanced Grade');
+  const beltColor = cleanPdfText(cert.belt_color || cert.beltColor || 'Yellow');
   
   // Format dates safely
   const rawDate = cert.promoted_at || cert.promotionDate;
@@ -67,9 +83,9 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   }
 
-  const certNumber = cert.certificate_number || cert.certificateNumber || `GSA-CERT-${Math.floor(100000 + Math.random() * 900000)}`;
-  const examiner = cert.examiner_name || cert.promotedBy || 'Chief Master & Technical Director';
-  const dojo = cert.represented_from || cert.representedFrom || 'Gurukul Sports Academy Central Dojo';
+  const certNumber = cleanPdfText(cert.certificate_number || cert.certificateNumber || `GSA-CERT-${Math.floor(100000 + Math.random() * 900000)}`);
+  const examiner = cleanPdfText(cert.examiner_name || cert.promotedBy || 'Chief Master & Technical Director');
+  const dojo = cleanPdfText(cert.represented_from || cert.representedFrom || 'Gurukul Sports Academy Central Dojo');
 
   // 1. Background Fill (Delicate Parchment Cream)
   page.drawRectangle({
@@ -149,7 +165,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   drawCenteredText('GURUKUL SPORTS & MARTIAL ARTS ACADEMY', currentY, 21, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
   
   currentY -= 14;
-  drawCenteredText('CENTRAL DOJO • COUNCIL OF TRADITIONAL KALARIPPAYATTU & COMBAT SPORTS', currentY, 8.5, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
+  drawCenteredText('CENTRAL DOJO - COUNCIL OF TRADITIONAL KALARIPPAYATTU & COMBAT SPORTS', currentY, 8.5, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
 
   // Decorative Golden Divider Line with Center Diamond
   currentY -= 14;
@@ -233,7 +249,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   });
 
   // Badge Text: Rank Name + Belt Color
-  const rankText = `${rankName.toUpperCase()} — ${beltColor.toUpperCase()} BELT`;
+  const rankText = cleanPdfText(`${rankName.toUpperCase()} - ${beltColor.toUpperCase()} BELT`);
   const discText = `Discipline: ${discipline}`;
   const rankTextWidth = fontBold.widthOfTextAtSize(rankText, 14);
   page.drawText(rankText, {
@@ -363,12 +379,12 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     color: rgb(15 / 255, 23 / 255, 42 / 255),
   });
 
-  const starText = '★ ★ ★';
-  const starWidth = fontBold.widthOfTextAtSize(starText, 6);
-  page.drawText(starText, {
-    x: sealCenterX - starWidth / 2,
+  const sealAccred = 'HONOR & MASTERY';
+  const sealAWidth = fontBold.widthOfTextAtSize(sealAccred, 5.5);
+  page.drawText(sealAccred, {
+    x: sealCenterX - sealAWidth / 2,
     y: sealCenterY - 11,
-    size: 6,
+    size: 5.5,
     font: fontBold,
     color: rgb(217 / 255, 119 / 255, 6 / 255),
   });
@@ -397,7 +413,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   });
 
   // Bottom Security Line
-  const securityNotice = `Authentic Gurukul Credential • Verified by Registry Engine • Document ID: ${certNumber}`;
+  const securityNotice = `Authentic Gurukul Credential | Verified by Registry Engine | Document ID: ${certNumber}`;
   const secWidth = fontRegular.widthOfTextAtSize(securityNotice, 7);
   page.drawText(securityNotice, {
     x: (width - secWidth) / 2,

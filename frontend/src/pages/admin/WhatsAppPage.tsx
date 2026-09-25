@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { API_BASE } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 import {
   Smartphone,
   RefreshCw,
@@ -24,7 +23,7 @@ interface DeviceStatus {
 }
 
 export const WhatsAppPage: React.FC = () => {
-  const { token } = useAuth();
+  const { toast } = useToast();
   const [device, setDevice] = useState<DeviceStatus>({
     status: 'DISCONNECTED',
   });
@@ -38,16 +37,25 @@ export const WhatsAppPage: React.FC = () => {
   const [testMessage, setTestMessage] = useState('Hello from Gurukul Sports Academy! Your training session reminder.');
   const [sendingTest, setSendingTest] = useState(false);
 
-  // Fetch status from backend
+  // Fetch status from backend via apiClient (handles token refresh & prod URL)
   const fetchStatus = useCallback(async () => {
-    if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/whatsapp/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await apiClient<{ success: boolean; data: any }>('/whatsapp/status');
       if (data.success && data.data?.device) {
-        setDevice(data.data.device);
+        setDevice((prev) => {
+          const incoming = data.data.device;
+          if (incoming.status === 'CONNECTED') {
+            return incoming;
+          }
+          if (incoming.qrCode) {
+            return incoming;
+          }
+          // Retain QR code if backend temporarily returns empty qrCode while still in QR_READY
+          if (prev.qrCode && (incoming.status === 'QR_READY' || incoming.status === 'CONNECTING')) {
+            return { ...incoming, qrCode: prev.qrCode, status: 'QR_READY' };
+          }
+          return incoming;
+        });
       }
     } catch (err: any) {
       console.warn('Failed to load WhatsApp status:', err);
@@ -55,7 +63,7 @@ export const WhatsAppPage: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchStatus();
@@ -63,73 +71,69 @@ export const WhatsAppPage: React.FC = () => {
 
   // Auto-refresh when waiting for scan, connecting, or refreshing
   useEffect(() => {
-    if (device.status === 'QR_READY' || device.status === 'CONNECTING' || refreshing) {
+    if (device.status === 'QR_READY' || device.status === 'CONNECTING') {
       const interval = setInterval(() => {
         fetchStatus();
-      }, 2500);
+      }, 3500);
       return () => clearInterval(interval);
     }
-  }, [device.status, refreshing, fetchStatus]);
+  }, [device.status, fetchStatus]);
 
   // Connect or Regenerate QR code
   const handleConnectOrRefresh = async () => {
-    if (!token) return;
     setRefreshing(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const endpoint = device.status === 'DISCONNECTED' ? 'connect' : 'reconnect';
-      const res = await fetch(`${API_BASE}/whatsapp/${endpoint}`, {
+      const endpoint = device.status === 'DISCONNECTED' ? '/whatsapp/connect' : '/whatsapp/reconnect';
+      const data = await apiClient<{ success: boolean; data: any }>(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error?.message || 'Failed to generate QR code');
+
+      if (!data.success && !data.data) {
+        throw new Error('Failed to generate QR code');
+      }
 
       // Immediately apply status and QR code from response
       const updatedStatus = data.data?.status || data.data?.device;
+      const returnedQr = data.data?.qrCode || updatedStatus?.qrCode;
+
       if (updatedStatus) {
-        setDevice(updatedStatus);
-      } else if (data.data?.qrCode) {
-        setDevice((prev) => ({ ...prev, status: 'QR_READY', qrCode: data.data.qrCode }));
+        setDevice({
+          ...updatedStatus,
+          qrCode: returnedQr || updatedStatus.qrCode,
+          status: updatedStatus.status === 'CONNECTED' ? 'CONNECTED' : (returnedQr ? 'QR_READY' : updatedStatus.status),
+        });
+      } else if (returnedQr) {
+        setDevice((prev) => ({ ...prev, status: 'QR_READY', qrCode: returnedQr }));
       }
 
       setSuccess('Fresh QR Code generated! Please scan from WhatsApp on your smartphone.');
-      await fetchStatus();
+      toast.success('Fresh QR Code generated! Ready to scan.');
     } catch (err: any) {
-      setError(err.message || 'Error communicating with WhatsApp gateway');
+      const errMsg = err.message || 'Error communicating with WhatsApp gateway';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setRefreshing(false);
     }
   };
 
-  const { toast } = useToast();
-
   // Disconnect
   const handleDisconnect = async () => {
-    if (!token) return;
     setRefreshing(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const res = await fetch(`${API_BASE}/whatsapp/disconnect`, {
+      await apiClient('/whatsapp/disconnect', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to disconnect');
 
+      setDevice({ status: 'DISCONNECTED' });
       setSuccess('Device disconnected successfully.');
       toast.success('WhatsApp session disconnected successfully.');
-      await fetchStatus();
     } catch (err: any) {
       const errMsg = err.message || 'Failed to disconnect session';
       setError(errMsg);
@@ -142,12 +146,11 @@ export const WhatsAppPage: React.FC = () => {
   // Send Test Message
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !testPhone.trim()) return;
+    if (!testPhone.trim()) return;
     setSendingTest(true);
     setError(null);
     setSuccess(null);
 
-    // Normalize phone number (detect both 10-digit without +91 and with +91)
     const digits = testPhone.replace(/\D/g, '');
     let normalizedPhone = testPhone.trim();
     if (digits.length === 10) {
@@ -159,12 +162,8 @@ export const WhatsAppPage: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/whatsapp/send`, {
+      await apiClient('/whatsapp/send', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           recipientPhone: normalizedPhone,
           phone: normalizedPhone,
@@ -172,8 +171,6 @@ export const WhatsAppPage: React.FC = () => {
           message: testMessage.trim(),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error?.message || 'Message dispatch failed');
 
       setSuccess(`Direct WhatsApp message dispatched via OpenWA gateway to ${normalizedPhone}!`);
       toast.success(`WhatsApp message sent to ${normalizedPhone}!`);

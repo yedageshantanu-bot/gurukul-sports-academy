@@ -184,15 +184,20 @@ export class OpenWaProvider implements WhatsAppSender {
       }
       if (fetchedQr) {
         qrCode = fetchedQr;
+        this.lastQrCode = fetchedQr;
+      } else if (this.lastQrCode) {
+        qrCode = this.lastQrCode;
       }
     }
 
+    const effectiveQr = isConnected ? undefined : (qrCode || this.lastQrCode || undefined);
+
     const deviceStatus: WhatsAppDeviceStatus = {
-      status: isConnected ? 'CONNECTED' : qrCode ? 'QR_READY' : 'CONNECTING',
+      status: isConnected ? 'CONNECTED' : effectiveQr ? 'QR_READY' : 'CONNECTING',
       phoneNumber: session.phone ? `+${session.phone}` : undefined,
       providerName: `OpenWA Gateway (${session.name || 'gurukul'})`,
       isConfigured: true,
-      qrCode,
+      qrCode: effectiveQr,
       sessionStatus: `Session ${session.name} is ${session.status}`,
       details: `Active on ${baseUrl} via ${session.phone || 'WhatsApp'}`,
     };
@@ -242,18 +247,28 @@ export class OpenWaProvider implements WhatsAppSender {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    const status = await this.getStatus();
     if (qrCode) {
-      status.qrCode = qrCode;
+      this.lastQrCode = qrCode;
+    }
+
+    this.lastStatusResult = null;
+    const status = await this.getStatus();
+    const finalQr = qrCode || this.lastQrCode || status.qrCode;
+    if (finalQr && status.status !== 'CONNECTED') {
+      status.qrCode = finalQr;
       status.status = 'QR_READY';
+      this.lastStatusResult = {
+        data: status,
+        timestamp: Date.now(),
+      };
     }
 
     return {
       success: true,
-      message: qrCode
+      message: finalQr
         ? 'Fresh QR code generated! Scan via WhatsApp on your phone.'
         : 'Session starting in background. QR code will appear momentarily.',
-      qrCode: qrCode || undefined,
+      qrCode: finalQr || undefined,
       status,
     };
   }
