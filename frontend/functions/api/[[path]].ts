@@ -2,10 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 function getSupabase(env: any, schema = 'public') {
-  const url = env?.SUPABASE_URL || 'https://uiwuknrvttwhkyxsbxrb.supabase.co';
+  const url = env?.SUPABASE_URL || 'https://litnduotmypvhnorjnwa.supabase.co';
   const key =
     env?.SUPABASE_SERVICE_ROLE_KEY ||
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpd3VrbnJ2dHR3aGt5eHNieHJiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTEwOTczNSwiZXhwIjoyMTA0Njg1NzM1fQ.Sku1XEYIOwn-Sv5wOuPINqg8bdp_HLotDsSVhOr2lkE';
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdG5kdW90bXlwdmhub3JqbndhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDI2ODI0OCwiZXhwIjoyMTA1ODQ0MjQ4fQ.Qwp_EPvk9JDReZVmNw5opDCIbKQzziDuA5R2S8MLhsg';
   return createClient(url, key, {
     db: { schema },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -26,12 +26,7 @@ function jsonResponse(data: any, status = 200) {
 
 async function getActiveBridgeUrl(env: any): Promise<string> {
   if (env?.WA_BRIDGE_URL) return env.WA_BRIDGE_URL.replace(/\/+$/, '');
-  const cloudUrl = 'https://academy-crm-vu0v.onrender.com';
-  try {
-    const r = await fetch(`${cloudUrl}/health`, { signal: AbortSignal.timeout(2000) });
-    if (r.ok) return cloudUrl;
-  } catch {}
-  return 'https://academy-crm-vu0v.onrender.com';
+  return 'https://gurukul-openwa-bridge.onrender.com';
 }
 
 async function dispatchWhatsApp(to: string, body: string, env: any) {
@@ -42,7 +37,7 @@ async function dispatchWhatsApp(to: string, body: string, env: any) {
     else clean = '+' + clean;
   }
   const bridgeUrl = await getActiveBridgeUrl(env);
-  const bridgeToken = env?.WA_BRIDGE_TOKEN || 'b5cd2fdbcb806334c3fd6e1141d2b947';
+  const bridgeToken = env?.WA_BRIDGE_TOKEN || 'gurukul_sports_openwa_bridge_secret_key_prod_2026';
 
   try {
     const res = await fetch(`${bridgeUrl}/send`, {
@@ -104,7 +99,7 @@ async function generateStudentReportPdf(student: any, academyName: string): Prom
     color: primary,
   });
 
-  page.drawText((academyName || 'EFFORT CAREER CLASSES').toUpperCase(), {
+  page.drawText((academyName || 'GURUKUL SPORTS ACADEMY').toUpperCase(), {
     x: 40,
     y: height - 50,
     size: 20,
@@ -679,11 +674,89 @@ export async function onRequest(context: any) {
           });
         }
 
-        // Auto-welcome on student add disabled per client requirement:
-        // const targetPhone = body.parentWhatsapp || body.studentMobile;
-        // if (targetPhone) {
-        //   runInBackground(context, () => dispatchWhatsApp(targetPhone, welcomeMsg, context.env));
-        // }
+        // Generate fee records: support both past/historical students and new enrollments
+        const monthlyFee = Number(body.monthlyFee || 0);
+        if (monthlyFee > 0) {
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth(); // 0-indexed
+          const currentBillingPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+          const dueDay = Number(body.feeDueDay || 5);
+
+          const feeRecordsToInsert: any[] = [];
+          let startYear = currentYear;
+          let startMonth = currentMonth;
+
+          if (body.admissionDate && body.backfillPastFees) {
+            const parts = body.admissionDate.split('-');
+            if (parts.length >= 2) {
+              const admY = parseInt(parts[0], 10);
+              const admM = parseInt(parts[1], 10);
+              if (!isNaN(admY) && !isNaN(admM) && admM >= 1 && admM <= 12) {
+                if (admY >= currentYear - 2) {
+                  startYear = admY;
+                  startMonth = admM - 1;
+                }
+              }
+            }
+          }
+
+          let curY = startYear;
+          let curM = startMonth;
+
+          while (curY < currentYear || (curY === currentYear && curM <= currentMonth)) {
+            const periodStr = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+            const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
+            const isPastPeriod = curY < currentYear || (curY === currentYear && curM < currentMonth);
+
+            let feeStatus: 'PAID' | 'PENDING' = 'PENDING';
+            let amountPaid = 0;
+
+            if (isPastPeriod) {
+              if (body.pastFeesStatus === 'PAID') {
+                feeStatus = 'PAID';
+                amountPaid = monthlyFee;
+              } else {
+                feeStatus = 'PENDING';
+                amountPaid = 0;
+              }
+            } else {
+              feeStatus = 'PENDING';
+              amountPaid = 0;
+            }
+
+            feeRecordsToInsert.push({
+              student_id: data.id,
+              billing_period: periodStr,
+              amount_due: monthlyFee,
+              amount_paid: amountPaid,
+              due_date: dueDate,
+              status: feeStatus,
+            });
+
+            curM++;
+            if (curM > 11) {
+              curM = 0;
+              curY++;
+            }
+          }
+
+          if (feeRecordsToInsert.length === 0) {
+            const dueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
+            feeRecordsToInsert.push({
+              student_id: data.id,
+              billing_period: currentBillingPeriod,
+              amount_due: monthlyFee,
+              amount_paid: 0,
+              due_date: dueDate,
+              status: 'PENDING',
+            });
+          }
+
+          if (feeRecordsToInsert.length > 0) {
+            await supabase.from('student_fees').insert(feeRecordsToInsert);
+          }
+        }
 
         return jsonResponse({ success: true, data }, 201);
       }
@@ -865,7 +938,7 @@ export async function onRequest(context: any) {
 
         // Auto-send WhatsApp login credentials to Faculty Member in BACKGROUND
         if (body.phone) {
-          const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+          const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
           const portalUrl = 'https://effort-career-demo.pages.dev';
           const teacherMsg = `Namaste Prof. ${body.fullName}!\n\nWelcome to ${academyName} Faculty Team.\nYour faculty instructor account has been created successfully.\n\nYour Login Credentials:\n- Portal URL: ${portalUrl}\n- Email: ${newEmail}\n- Password: ${teacherPassword}\n- Subject Assigned: ${body.subject || 'All Subjects'}\n\nPlease log in to access your assigned batches and conduct daily attendance.\n\nWarm regards,\n${academyName}`;
           runInBackground(context, () => dispatchWhatsApp(body.phone, teacherMsg, context.env));
@@ -1198,7 +1271,7 @@ export async function onRequest(context: any) {
               }
             }
 
-            const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+            const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
 
             for (let i = 0; i < (absentStudents || []).length; i++) {
               const st = absentStudents![i];
@@ -1237,7 +1310,7 @@ export async function onRequest(context: any) {
         if (body.status === 'ABSENT' && updatedRecord) {
           const phone = updatedRecord.students?.parent_whatsapp || updatedRecord.students?.student_mobile;
           if (phone) {
-            const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+            const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
             const bName = updatedRecord.batches?.name || 'Class';
             const msg = `Attendance Alert - ${academyName}\n\nDear Parent/Guardian,\n\nYour ward ${updatedRecord.students?.name} was marked ABSENT today (${updatedRecord.attendance_date}) in ${bName}.\n\nPlease contact the academy if this absence was unexpected.\n\nWarm regards,\n${academyName}`;
             runInBackground(context, () => dispatchWhatsApp(phone, msg, context.env));
@@ -1327,10 +1400,86 @@ export async function onRequest(context: any) {
         return jsonResponse({ success: true, data: data || [] });
       }
 
-      if (route === 'fees/plans' && method === 'GET') {
-        const { data, error } = await supabase.from('fee_plans').select('*');
-        if (error) throw error;
-        return jsonResponse({ success: true, data: data || [] });
+      if (route === 'fees/plans') {
+        if (method === 'GET') {
+          const { data, error } = await supabase.from('fee_plans').select('*').order('created_at', { ascending: false });
+          if (error) {
+            const { data: fallback } = await supabase.from('fee_plans').select('*');
+            return jsonResponse({ success: true, data: fallback || [] });
+          }
+          return jsonResponse({ success: true, data: data || [] });
+        }
+
+        if (method === 'POST') {
+          const body = await request.json();
+          const { data, error } = await supabase
+            .from('fee_plans')
+            .insert({
+              name: body.name,
+              amount: Number(body.amount),
+              frequency: body.frequency || 'MONTHLY',
+              due_day: Number(body.dueDay ?? body.due_day ?? 5),
+              active: body.active !== false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data }, 201);
+        }
+      }
+
+      if (pathParts[0] === 'fees' && pathParts[1] === 'plans' && pathParts.length >= 3) {
+        const planId = pathParts[2];
+
+        if (pathParts[3] === 'activate' && method === 'POST') {
+          const { data, error } = await supabase
+            .from('fee_plans')
+            .update({ active: true, updated_at: new Date().toISOString() })
+            .eq('id', planId)
+            .select()
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data });
+        }
+
+        if (pathParts[3] === 'deactivate' && method === 'POST') {
+          const { data, error } = await supabase
+            .from('fee_plans')
+            .update({ active: false, updated_at: new Date().toISOString() })
+            .eq('id', planId)
+            .select()
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data });
+        }
+
+        if (pathParts.length === 3 && (method === 'PATCH' || method === 'PUT')) {
+          const body = await request.json();
+          const updates: any = { updated_at: new Date().toISOString() };
+          if (body.name !== undefined) updates.name = body.name;
+          if (body.amount !== undefined) updates.amount = Number(body.amount);
+          if (body.frequency !== undefined) updates.frequency = body.frequency;
+          if (body.dueDay !== undefined) updates.due_day = Number(body.dueDay);
+          if (body.due_day !== undefined) updates.due_day = Number(body.due_day);
+          if (body.active !== undefined) updates.active = body.active;
+
+          const { data, error } = await supabase
+            .from('fee_plans')
+            .update(updates)
+            .eq('id', planId)
+            .select()
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data });
+        }
+
+        if (pathParts.length === 3 && method === 'DELETE') {
+          const { error } = await supabase.from('fee_plans').delete().eq('id', planId);
+          if (error) throw error;
+          return jsonResponse({ success: true, message: 'Fee plan deleted successfully' });
+        }
       }
 
       if (route === 'payments' && method === 'GET') {
@@ -1426,7 +1575,7 @@ export async function onRequest(context: any) {
         }
       } catch {}
 
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       return jsonResponse({
         success: true,
         data: {
@@ -1451,7 +1600,7 @@ export async function onRequest(context: any) {
         return jsonResponse({ success: false, message: 'Phone and message body required' }, 400);
       }
 
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const formatted = msgBody.includes(academyName) ? msgBody : `[${academyName}]\n${msgBody}`;
 
       const res = await dispatchWhatsApp(phone, formatted, context.env);
@@ -1490,7 +1639,7 @@ export async function onRequest(context: any) {
         return jsonResponse({ success: false, message: 'No phone number available for student' }, 400);
       }
 
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const amount = feeRecord?.amount_due || student?.monthly_fee || '1,500';
       const dueDate = feeRecord?.due_date || '5th of this month';
 
@@ -1510,7 +1659,7 @@ export async function onRequest(context: any) {
 
     if (route === 'whatsapp/remind/monthly-fees' && method === 'POST') {
       const { data: students } = await supabase.from('students').select('*').eq('status', 'ACTIVE');
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       let sentCount = 0;
 
       for (const st of (students || []).slice(0, 5)) {
@@ -1541,7 +1690,7 @@ export async function onRequest(context: any) {
         return jsonResponse({ success: false, error: 'Student has no phone number on record' }, 400);
       }
 
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const pdfBytes = await generateStudentReportPdf(student || { name: 'Student' }, academyName);
       const base64Str = uint8ArrayToBase64(pdfBytes);
       const studentName = student?.name || 'Student';
@@ -1562,7 +1711,7 @@ export async function onRequest(context: any) {
     if (pathParts[0] === 'whatsapp' && pathParts[1] === 'reports' && pathParts[2] === 'download-pdf' && pathParts[3]) {
       const studentId = pathParts[3];
       const { data: student } = await supabase.from('students').select('*').eq('id', studentId).maybeSingle();
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const pdfBytes = await generateStudentReportPdf(student || { name: 'Student' }, academyName);
       const studentName = student?.name || 'Student';
       const fileName = `${studentName.replace(/[^a-zA-Z0-9]/g, '_')}_Monthly_Report.pdf`;
@@ -1636,7 +1785,7 @@ export async function onRequest(context: any) {
 
     if (route === 'whatsapp/templates') {
       const { data } = await publicSupabase.from('whatsapp_templates').select('*');
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const templates = (data || []).map((t: any) => ({
         ...t,
         body: t.body ? t.body.replace(/{{academy_name}}/g, academyName).replace(/Apex Academy/g, academyName) : '',
@@ -1765,7 +1914,7 @@ export async function onRequest(context: any) {
       }
 
       // 5. Broadcast in background via WhatsApp with safe anti-ban delay (3 seconds)
-      const academyName = isDemo ? 'Effort Career Classes' : 'Apex Academy';
+      const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const broadcastMsg = `📢 *OFFICIAL ANNOUNCEMENT*\n*${academyName}*\n\n📌 *${ann.title}*\n\n${ann.message}\n\nFor any queries or assistance, please reach out to our office.\n\nWarm regards,\n${academyName}`;
 
       runInBackground(context, async () => {
@@ -1792,12 +1941,43 @@ export async function onRequest(context: any) {
       });
     }
 
-    if (pathParts[0] === 'announcements' && pathParts.length === 2 && method === 'DELETE') {
+    if (pathParts[0] === 'announcements' && pathParts.length === 2) {
       const announcementId = pathParts[1];
-      await supabase.from('announcement_batches').delete().eq('announcement_id', announcementId);
-      const { error } = await supabase.from('announcements').delete().eq('id', announcementId);
-      if (error) throw error;
-      return jsonResponse({ success: true, message: 'Announcement deleted successfully' });
+
+      if (method === 'PATCH' || method === 'PUT') {
+        const body = await request.json();
+        const { title, message, batchIds } = body;
+
+        const updates: any = {};
+        if (title !== undefined) updates.title = title;
+        if (message !== undefined) updates.message = message;
+
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase.from('announcements').update(updates).eq('id', announcementId);
+          if (error) throw error;
+        }
+
+        if (Array.isArray(batchIds)) {
+          await supabase.from('announcement_batches').delete().eq('announcement_id', announcementId);
+          if (batchIds.length > 0) {
+            const toInsert = batchIds.map((bId: string) => ({
+              announcement_id: announcementId,
+              batch_id: bId,
+            }));
+            await supabase.from('announcement_batches').insert(toInsert);
+          }
+        }
+
+        const { data: updated } = await supabase.from('announcements').select('*').eq('id', announcementId).single();
+        return jsonResponse({ success: true, data: updated });
+      }
+
+      if (method === 'DELETE') {
+        await supabase.from('announcement_batches').delete().eq('announcement_id', announcementId);
+        const { error } = await supabase.from('announcements').delete().eq('id', announcementId);
+        if (error) throw error;
+        return jsonResponse({ success: true, message: 'Announcement deleted successfully' });
+      }
     }
 
     if (route === 'settings') {
@@ -1814,11 +1994,11 @@ export async function onRequest(context: any) {
               currency: 'INR',
             }
           : {
-              academy_name: 'Apex Academy',
-              phone: '+91 98765 43210',
-              email: 'contact@apexacademy.edu',
-              address: '123 Education Boulevard, Tech City',
-              website: 'https://apexacademy.edu',
+              academy_name: 'Gurukul Sports Academy',
+              phone: '+91 94048 49500',
+              email: 'contact@gurukulsports.com',
+              address: 'Gurukul Sports Academy Campus, Maharashtra, India',
+              website: 'https://gurukul-sports-academy.pages.dev',
               currency: 'INR',
             };
         return jsonResponse({ success: true, data: data || defaultSettings });
