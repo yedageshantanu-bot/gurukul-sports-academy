@@ -36,7 +36,9 @@ const allowedOrigins = env.APP_URL
   ? env.APP_URL.split(',').map((o) => o.trim().replace(/\/+$/, ''))
   : ['http://localhost:3000'];
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 app.use(cors({
   origin: (origin, callback) => {
     // In non-production or server-to-server / curl requests without origin header, allow
@@ -50,7 +52,10 @@ app.use(cors({
     if (cleanOrigin.startsWith('http://localhost:') || cleanOrigin.startsWith('http://127.0.0.1:')) {
       return callback(null, true);
     }
-    if (/^https:\/\/academy-crm-[a-z0-9-]+\.onrender\.com$/.test(cleanOrigin)) {
+    if (/^https:\/\/.*\.onrender\.com$/.test(cleanOrigin)) {
+      return callback(null, true);
+    }
+    if (/\.pages\.dev$/.test(cleanOrigin)) {
       return callback(null, true);
     }
     return callback(new Error(`CORS policy does not allow access from origin: ${origin}`));

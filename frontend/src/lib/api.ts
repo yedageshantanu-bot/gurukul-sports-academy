@@ -5,22 +5,21 @@ import { supabase } from './supabase';
  * Ensures /api is included cleanly without duplication.
  */
 export function getApiBaseUrl(): string {
-  // In development, always use Vite local proxy /api which routes to localhost:10000
-  if (import.meta.env.DEV) {
-    return '/api';
+  // If explicitly specified in environment, use that
+  const rawBase = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (rawBase) {
+    if (rawBase.endsWith('/api')) return rawBase;
+    return `${rawBase}/api`;
   }
-  // On Cloudflare Pages demo host, route directly to Cloudflare Functions /api
-  if (typeof window !== 'undefined' && (window.location.hostname.includes('effort-career') || window.location.hostname.includes('demo'))) {
-    return '/api';
+  // If running in production browser on Cloudflare Pages or custom domain, route directly to Render backend
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    return 'https://gurukul-sports-backend.onrender.com/api';
   }
-  const rawBase = (import.meta.env.VITE_API_BASE_URL || 'https://gurukul-crm-backend.onrender.com').trim().replace(/\/+$/, '');
-  if (!rawBase) return '/api';
-  if (rawBase.endsWith('/api')) return rawBase;
-  return `${rawBase}/api`;
+  // Default to relative /api for local dev proxy
+  return '/api';
 }
 
 export const isDemoDomain = typeof window !== 'undefined' && (
-  window.location.hostname.includes('effort-career') ||
   window.location.hostname.includes('demo') ||
   window.location.port === '3005'
 );

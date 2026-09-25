@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: gurukul-sports-backend
+    env: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://gurukul-sports-academy.pages.dev,http://localhost:3000
+      - key: SUPABASE_URL
+        value: https://litnduotmypvhnorjnwa.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdG5kdW90bXlwdmhub3JqbndhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNjgyNDgsImV4cCI6MjEwNTg0NDI0OH0.IOZEDuR-o30froKarQE19E-QDVyJqHkzcOt_TT8YFm0
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdG5kdW90bXlwdmhub3JqbndhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDI2ODI0OCwiZXhwIjoyMTA1ODQ0MjQ4fQ.Qwp_EPvk9JDReZVmNw5opDCIbKQzziDuA5R2S8MLhsg
+      - key: WHATSAPP_PROVIDER
+        value: openwa
+      - key: OPENWA_API_URL
+        value: https://gurukul-openwa-bridge.onrender.com
+      - key: OPENWA_API_KEY
+        value: gurukul_sports_openwa_bridge_secret_key_prod_2026
+      - key: WHATSAPP_LINKED_DEVICE_URL
+        value: https://gurukul-openwa-bridge.onrender.com
+      - key: WHATSAPP_LINKED_DEVICE_TOKEN
+        value: gurukul_sports_openwa_bridge_secret_key_prod_2026
+      - key: WHATSAPP_DAILY_LIMIT
+        value: "100"
+      - key: DEV_ADMIN_EMAIL
+        value: admin@gurukulsports.in
+      - key: DEV_ADMIN_PASSWORD
+        value: Admin@Gurukul2026!
+      - key: DEV_TEACHER_EMAIL
+        value: teacher@gurukulsports.in
+      - key: DEV_TEACHER_PASSWORD
+        value: Teacher@Gurukul2026!
