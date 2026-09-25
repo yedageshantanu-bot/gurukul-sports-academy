@@ -417,3 +417,55 @@ select option:checked {
   background-color: var(--bg-surface-elevated);
 }
 
+/* ==============================================================================
+   CLEAN OFFICIAL PRINT STYLES
+   Ensures zero dashboard, sidebar, or UI clutter appears in print / PDF export
+   ============================================================================== */
+@media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+
+  body, html, #root {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+  }
+
+  /* Completely hide sidebar, header, navigation, modals backdrop, action buttons */
+  .stitch-sidebar,
+  header,
+  nav,
+  .print\:hidden,
+  button,
+  .no-print,
+  .kpi-grid,
+  .dash-columns,
+  .lower-columns {
+    display: none !important;
+  }
+
+  .main-viewport {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+  }
+
+  /* Make tables and cards print cleanly on white paper */
+  .crm-table th,
+  table th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #334155 !important;
+  }
+
+  .crm-table td,
+  table td {
+    color: #0f172a !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+}
+

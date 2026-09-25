@@ -376,25 +376,58 @@ export class RankService {
     const { data, error } = await query;
     if (error) throw new AppError(`Failed to fetch certificate registry: ${error.message}`, 500);
 
-    const records = (data || []).map((r: any) => ({
-      id: r.id,
-      certificateNumber: r.certificate_number,
-      studentId: r.student_id,
-      playerName: r.students?.name || 'Player',
-      parentName: r.students?.parent_name || '',
-      parentWhatsapp: r.students?.parent_whatsapp || r.students?.student_mobile || '',
-      dob: r.dob || '2012-05-14',
-      regNumber: r.reg_number,
-      disciplineCode: r.discipline_code,
-      disciplineName: r.discipline_code === 'KALARIPPAYATTU' ? 'Kalarippayattu' : 'Karate + Wushu',
-      rankSecured: r.new_rank_name,
-      previousRank: r.previous_rank_name,
-      beltColor: r.martial_arts_ranks?.belt_color || '',
-      representedFrom: r.represented_from || 'Gurukul Sports & Martial Arts Academy',
-      promotionDate: r.promotion_date,
-      promotedBy: r.promoted_by,
-      issuedAt: r.created_at,
-    }));
+    const records = (data || []).map((r: any) => {
+      const studentName = r.students?.name || 'Player';
+      const regNo = r.reg_number || 'GSA-ATH';
+      const discName = r.discipline_code === 'KALARIPPAYATTU'
+        ? 'Kalarippayattu'
+        : r.discipline_code === 'KARATE_WUSHU'
+        ? 'Karate + Wushu'
+        : 'Martial Arts';
+      const promDate = r.promotion_date || r.created_at || new Date().toISOString().split('T')[0];
+      const certNo = r.certificate_number || `GSA-CERT-${r.id ? String(r.id).slice(0, 6) : '2026'}`;
+      const examName = r.promoted_by || 'Chief Master (Gurukul Academy)';
+      const repFrom = r.represented_from || 'Gurukul Sports & Martial Arts Academy';
+      const toRank = r.new_rank_name || 'Rank Holder';
+      const beltCol = r.martial_arts_ranks?.belt_color || 'Yellow';
+      const dobVal = r.dob || '2012-05-14';
+
+      return {
+        id: r.id,
+        // CamelCase
+        certificateNumber: certNo,
+        studentId: r.student_id,
+        playerName: studentName,
+        parentName: r.students?.parent_name || '',
+        parentWhatsapp: r.students?.parent_whatsapp || r.students?.student_mobile || '',
+        dob: dobVal,
+        regNumber: regNo,
+        disciplineCode: r.discipline_code,
+        disciplineName: discName,
+        rankSecured: toRank,
+        previousRank: r.previous_rank_name || 'Beginner',
+        beltColor: beltCol,
+        representedFrom: repFrom,
+        promotionDate: promDate,
+        promotedBy: examName,
+        issuedAt: r.created_at,
+
+        // Snake_case aliases for 100% frontend and PDF exporter compatibility
+        student_id: r.student_id,
+        student_name: studentName,
+        student_code: regNo,
+        discipline_code: r.discipline_code,
+        discipline_name: discName,
+        from_rank_name: r.previous_rank_name,
+        to_rank_name: toRank,
+        belt_color: beltCol,
+        promoted_at: promDate,
+        certificate_number: certNo,
+        examiner_name: examName,
+        represented_from: repFrom,
+        contact_number: r.students?.parent_whatsapp || r.students?.student_mobile || '',
+      };
+    });
 
     return {
       filterRange: {

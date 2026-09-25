@@ -12,6 +12,8 @@ import {
   FileText,
   Layers,
   Medal,
+  Download,
+  Eye,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -19,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { useToast } from '../../contexts/ToastContext';
+import { downloadCertificatePdf } from '../../utils/certificatePdfGenerator';
 
 interface MartialRank {
   id: string;
@@ -80,6 +83,7 @@ export const RanksPage: React.FC = () => {
   const [certDisciplineFilter, setCertDisciplineFilter] = useState('ALL');
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [loadingCerts, setLoadingCerts] = useState(false);
+  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
 
   // Modals
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
@@ -98,6 +102,21 @@ export const RanksPage: React.FC = () => {
 
   // Preview Certificate Modal
   const [previewCert, setPreviewCert] = useState<CertificateRecord | null>(null);
+
+  // Handle direct PDF certificate generation & download
+  const handleDownloadCertificate = async (cert: CertificateRecord) => {
+    try {
+      setDownloadingCertId(cert.id);
+      toast.info(`Preparing official certificate for ${cert.student_name}...`);
+      await downloadCertificatePdf(cert);
+      toast.success(`Official certificate for ${cert.student_name} downloaded successfully!`);
+    } catch (err: any) {
+      console.error('Failed to generate certificate PDF:', err);
+      toast.error('Could not generate certificate PDF. Please retry.');
+    } finally {
+      setDownloadingCertId(null);
+    }
+  };
 
   // Fetch initial student ranks
   const fetchStudentRanks = async () => {
@@ -149,11 +168,34 @@ export const RanksPage: React.FC = () => {
       const params = new URLSearchParams();
       if (certStartDate) params.append('startDate', certStartDate);
       if (certEndDate) params.append('endDate', certEndDate);
-      if (certDisciplineFilter !== 'ALL') params.append('discipline_code', certDisciplineFilter);
+      if (certDisciplineFilter !== 'ALL') {
+        params.append('discipline', certDisciplineFilter);
+        params.append('discipline_code', certDisciplineFilter);
+      }
 
       const res = await apiClient<any>(`/ranks/certificates?${params.toString()}`);
-      const list = Array.isArray(res) ? res : res?.certificates || res?.data || [];
-      setCertificates(list);
+      const rawList = Array.isArray(res) ? res : res?.certificates || res?.data?.certificates || res?.data || [];
+      
+      const normalizedList = rawList.map((r: any) => ({
+        id: r.id || `cert-${Math.random()}`,
+        student_id: r.student_id || r.studentId || '',
+        student_name: r.student_name || r.playerName || 'Athlete Trainee',
+        student_code: r.student_code || r.regNumber || 'GSA-ATH',
+        dob: r.dob || '2012-05-14',
+        contact_number: r.contact_number || r.parentWhatsapp || r.parent_whatsapp || r.student_mobile || '',
+        discipline_code: r.discipline_code || r.disciplineCode || 'MARTIAL_ARTS',
+        discipline_name: r.discipline_name || r.disciplineName || (r.discipline_code === 'KALARIPPAYATTU' ? 'Kalarippayattu' : 'Karate + Wushu'),
+        from_rank_name: r.from_rank_name || r.previousRank || null,
+        to_rank_name: r.to_rank_name || r.rankSecured || 'Rank Holder',
+        belt_color: r.belt_color || r.beltColor || 'Yellow',
+        promoted_at: r.promoted_at || r.promotionDate || new Date().toISOString(),
+        certificate_number: r.certificate_number || r.certificateNumber || `GSA-CERT-${String(r.id || '').slice(0, 6)}`,
+        examiner_name: r.examiner_name || r.promotedBy || 'Chief Master (Gurukul Academy)',
+        represented_from: r.represented_from || r.representedFrom || 'Gurukul Sports Academy Central Dojo',
+        notes: r.notes || null,
+      }));
+
+      setCertificates(normalizedList);
     } catch (err) {
       console.error('Failed to load certificates:', err);
     } finally {
@@ -604,7 +646,7 @@ export const RanksPage: React.FC = () => {
                       <th className="py-3 px-3">Represented From</th>
                       <th className="py-3 px-3">Exam Date</th>
                       <th className="py-3 px-3">Certificate No.</th>
-                      <th className="py-3 px-3 text-right print:hidden">Card View</th>
+                      <th className="py-3 px-3 text-right print:hidden">Certificate Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 bg-[#0F172A]/70 print:divide-slate-300">
@@ -618,7 +660,7 @@ export const RanksPage: React.FC = () => {
                           <span className="text-[11px] text-slate-400 print:text-slate-600">{cert.contact_number}</span>
                         </td>
                         <td className="py-3 px-3 text-slate-300 print:text-black">
-                          {cert.dob ? new Date(cert.dob).toLocaleDateString('en-IN') : 'On File'}
+                          {cert.dob && !isNaN(new Date(cert.dob).getTime()) ? new Date(cert.dob).toLocaleDateString('en-IN') : 'On File'}
                         </td>
                         <td className="py-3 px-3">
                           <span className="font-semibold text-white print:text-black">{cert.discipline_name}</span>
@@ -633,18 +675,33 @@ export const RanksPage: React.FC = () => {
                           {cert.represented_from || 'Gurukul Sports Academy'}
                         </td>
                         <td className="py-3 px-3 text-slate-300 print:text-black">
-                          {new Date(cert.promoted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {cert.promoted_at && !isNaN(new Date(cert.promoted_at).getTime())
+                            ? new Date(cert.promoted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Current Session'}
                         </td>
                         <td className="py-3 px-3 font-mono text-emerald-400 font-bold print:text-black">
                           {cert.certificate_number}
                         </td>
                         <td className="py-3 px-3 text-right print:hidden">
-                          <Button
-                            onClick={() => setPreviewCert(cert)}
-                            className="bg-slate-800 hover:bg-slate-700 text-white text-[11px] py-1 px-2.5 border border-white/10"
-                          >
-                            Preview
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              onClick={() => handleDownloadCertificate(cert)}
+                              disabled={downloadingCertId === cert.id}
+                              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-[11px] font-bold py-1 px-2.5 shadow-sm rounded-md"
+                              title="Download Official PDF Certificate"
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1" />
+                              {downloadingCertId === cert.id ? 'Generating...' : 'Download PDF'}
+                            </Button>
+                            <Button
+                              onClick={() => setPreviewCert(cert)}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] py-1 px-2 border border-white/10 rounded-md"
+                              title="Preview Certificate Card"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                              Preview
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -973,15 +1030,24 @@ export const RanksPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 flex justify-center">
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                onClick={() => handleDownloadCertificate(previewCert)}
+                disabled={downloadingCertId === previewCert.id}
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs py-2.5 px-5 shadow-lg shadow-orange-500/20"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {downloadingCertId === previewCert.id ? 'Generating High-Res PDF...' : 'Download Official PDF Certificate'}
+              </Button>
               <Button
                 onClick={() => {
                   window.print();
                 }}
-                className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs"
+                variant="outline"
+                className="w-full sm:w-auto text-xs py-2.5 px-4 border-white/20 text-slate-300 hover:text-white hover:bg-white/5"
               >
                 <Printer className="w-3.5 h-3.5 mr-1.5" />
-                Print Inscription Copy
+                Print Certificate
               </Button>
             </div>
           </div>
