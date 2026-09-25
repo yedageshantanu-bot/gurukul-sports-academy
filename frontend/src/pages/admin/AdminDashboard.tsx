@@ -19,6 +19,8 @@ import {
   GraduationCap,
   BookOpen,
   Megaphone,
+  Smartphone,
+  QrCode,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -52,6 +54,7 @@ export const AdminDashboard: React.FC = () => {
   // Sending reminder state
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
 
   const fetchDashboard = async () => {
     try {
@@ -64,6 +67,17 @@ export const AdminDashboard: React.FC = () => {
         setMonthlyFeeSummary(res.monthlyFeeSummary || null);
         setFeeFollowups(res.feeFollowups || []);
         setRecentActivity(res.recentActivity || []);
+      }
+
+      // Check WhatsApp device health for dashboard alert banner
+      try {
+        const waRes = await apiClient<any>('/whatsapp/status');
+        const waData = waRes?.data !== undefined ? waRes.data : waRes;
+        if (waData?.device) {
+          setWhatsappStatus(waData.device);
+        }
+      } catch (e) {
+        console.warn('Could not query WhatsApp status for dashboard:', e);
       }
     } catch (err: any) {
       console.error('Failed to load admin dashboard:', err);
@@ -181,9 +195,17 @@ export const AdminDashboard: React.FC = () => {
       {/* 1. Dashboard Toolbar & Quick Action Buttons */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Academy Performance Overview
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              Academy Performance Overview
+            </h1>
+            {whatsappStatus?.status === 'CONNECTED' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                WhatsApp Linked {whatsappStatus.phoneNumber ? `(${whatsappStatus.phoneNumber})` : ''}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-400 mt-0.5">
             Real-time analytics for batches, fee disbursements, and daily attendance.
           </p>
@@ -260,6 +282,44 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Disconnected Action Banner */}
+      {whatsappStatus && whatsappStatus.status !== 'CONNECTED' && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border-2 border-amber-500/60 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-3 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+              <Smartphone className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                  Critical Action Required
+                </span>
+                <span className="text-xs text-amber-400 font-mono">
+                  {whatsappStatus.status === 'QR_READY' ? '• QR Ready to Scan' : '• Device Offline'}
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-white mt-1">
+                WhatsApp Linked Device Disconnected — Automated Notifications Paused!
+              </h2>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed max-w-3xl">
+                Daily attendance absent alerts, fee reminders, and announcements are safely paused and <b>will not be delivered</b> to parents until a phone is linked. Scan the QR code to re-link your academy WhatsApp session.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+            <Link
+              to="/admin/whatsapp"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-orange-500/25 transition-all cursor-pointer"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Scan QR Code to Connect</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* 2. Stitch 6 KPI Summary Cards Grid */}
       <div className="kpi-grid">

@@ -321,6 +321,17 @@ export class OpenWaProvider implements WhatsAppSender {
 
     console.log(`[OpenWA] Dispatching message to ${chatId} using session ${session.id} (${session.name})`);
 
+    // Anti-Ban Humanization: Simulate 1.2s - 2.2s of typing presence before dispatch
+    try {
+      await fetch(`${baseUrl}/api/sessions/${session.id}/chats/send-state`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ chatId, state: 'typing' }),
+        signal: AbortSignal.timeout(3000),
+      }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 1200 + Math.floor(Math.random() * 1000)));
+    } catch {}
+
     try {
       const res = await fetch(sendUrl, {
         method: 'POST',
