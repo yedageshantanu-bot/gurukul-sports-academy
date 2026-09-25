@@ -207,12 +207,6 @@ export class AnnouncementService {
       .maybeSingle();
     const academyName = academy?.academy_name || 'Gurukul Sports Academy';
 
-    // 3. 2-Way Engagement Footer to shield number from spam bans
-    const twoWayFooter =
-      options?.includeTwoWayPrompt !== false
-        ? `\n\n💬 _Kisi bhi query ya confirmation ke liye yahan reply karein._\n📌 _Kripya iss number ko *${academyName}* ke naam se save kar lijiye._`
-        : '';
-
     // Calculate start timestamp (handles user-scheduled future broadcasts)
     let startTimestamp = Date.now();
     if (options?.scheduledTime) {
@@ -222,14 +216,14 @@ export class AnnouncementService {
       }
     }
 
-    // 4. Dispatch to all recipient phones with randomized 16-22s anti-ban throttle
+    // 3. Dispatch to all recipient phones with randomized 16-22s anti-ban throttle
     const items = students
       .map((student) => {
         const recipientPhone = student.parent_whatsapp || student.student_mobile;
         if (!recipientPhone) return null;
         return {
           recipientPhone,
-          messageBody: `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*${twoWayFooter}`,
+          messageBody: `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`,
           studentId: student.id,
           eventType: 'ANNOUNCEMENT',
           metadata: {

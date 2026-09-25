@@ -76,7 +76,6 @@ export const AnnouncementsPage: React.FC = () => {
   // Broadcast & Scheduling Form state
   const [broadcastMode, setBroadcastMode] = useState<'NOW' | 'SCHEDULED'>('NOW');
   const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
-  const [includeTwoWayPrompt, setIncludeTwoWayPrompt] = useState<boolean>(true);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -203,7 +202,6 @@ export const AnnouncementsPage: React.FC = () => {
       .toISOString()
       .slice(0, 16);
     setScheduledDateTime(localIso);
-    setIncludeTwoWayPrompt(true);
   };
 
   const handleConfirmBroadcast = async () => {
@@ -220,7 +218,6 @@ export const AnnouncementsPage: React.FC = () => {
 
       const payload = {
         scheduledTime: broadcastMode === 'SCHEDULED' ? new Date(scheduledDateTime).toISOString() : undefined,
-        includeTwoWayPrompt,
       };
 
       const res = await apiClient<any>(`/announcements/${broadcastTarget.id}/send`, {
@@ -776,26 +773,6 @@ export const AnnouncementsPage: React.FC = () => {
               )}
             </div>
 
-            {/* 2-Way Engagement Setting */}
-            <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/80 space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeTwoWayPrompt}
-                  onChange={(e) => setIncludeTwoWayPrompt(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-200">
-                    Include 2-Way Response & Contact Save Prompt (Recommended ⭐)
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Appends: <i>"💬 Kisi bhi query ke liye yahan reply karein · 📌 Kripya number save kar lijiye"</i>. Encourages parents to reply, drastically lowering WhatsApp spam ban risks!
-                  </p>
-                </div>
-              </label>
-            </div>
-
             {/* Real WhatsApp Chat Bubble Preview */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
@@ -807,12 +784,6 @@ export const AnnouncementsPage: React.FC = () => {
                   <div className="font-bold text-emerald-200">📢 *{broadcastTarget.title}*</div>
                   <div className="whitespace-pre-wrap text-slate-100 leading-relaxed">{broadcastTarget.message}</div>
                   <div className="text-[11px] text-slate-300 pt-1">- *Gurukul Sports Academy*</div>
-                  {includeTwoWayPrompt && (
-                    <div className="text-[11px] text-emerald-200/90 pt-1.5 border-t border-emerald-600/50 italic">
-                      💬 Kisi bhi query ya confirmation ke liye yahan reply karein.<br />
-                      📌 Kripya iss number ko Gurukul Sports Academy ke naam se save kar lijiye.
-                    </div>
-                  )}
                   <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-200/70 pt-0.5">
                     <span>Just now</span>
                     <CheckCheck className="w-3 h-3 text-cyan-300" />

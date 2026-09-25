@@ -55,6 +55,39 @@ export class WhatsAppAutomationService {
     return rendered;
   }
 
+  /**
+   * Checks whether this phone number has ever received a message from our academy before.
+   */
+  async hasReceivedPriorMessages(phone: string): Promise<boolean> {
+    try {
+      const normalized = phone.replace(/[^\d+]/g, '');
+      const { count, error } = await this.supabase
+        .from('whatsapp_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_phone', normalized);
+
+      if (!error && count && count > 0) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Intelligently formats message:
+   * - If FIRST EVER message to this parent: appends one-time contact save guidance.
+   * - If RETURNING parent: keeps message 100% clean and concise without repetitive notes!
+   */
+  async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
+    const isReturning = await this.hasReceivedPriorMessages(phone);
+    if (!isReturning) {
+      return `${baseBody}\n\n📌 _Note: Kripya yeh official ${academyName} number apne phone me save kar lijiye._`;
+    }
+    return baseBody;
+  }
+
   // ============================================================================
   // AUTOMATION: ATTENDANCE ABSENT
   // ============================================================================
@@ -97,7 +130,7 @@ export class WhatsAppAutomationService {
 
       // 3. Render variables
       const academyName = await this.getAcademyName();
-      const messageBody = this.renderTemplate(template.body, {
+      const baseBody = this.renderTemplate(template.body, {
         academy_name: academyName,
         student_name: student.name,
         parent_name: student.parent_name || 'Parent',
@@ -106,6 +139,8 @@ export class WhatsAppAutomationService {
         batch_name: batchName,
         date: params.date,
       });
+
+      const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
 
       // 4. Enqueue into transactional queue with transition idempotency key
       const idempotencyKey = `ATTENDANCE_ABSENT:${student.id}:${params.date}:${Date.now()}`;
@@ -359,7 +394,7 @@ export class WhatsAppAutomationService {
     console.log(`[WhatsAppAutomation] Generating fee reminder for student ${student.name} (Rs. ${pendingAmount}) with payment link: ${razorpayPaymentLink}`);
 
     const academyName = await this.getAcademyName();
-    const messageBody = this.renderTemplate(template.body, {
+    const baseBody = this.renderTemplate(template.body, {
       academy_name: academyName,
       student_name: student.name,
       parent_name: student.parent_name || 'Parent',
@@ -372,6 +407,8 @@ export class WhatsAppAutomationService {
       razorpay_payment_link: razorpayPaymentLink,
       date: new Date().toISOString().split('T')[0],
     });
+
+    const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
 
     const queued = await queueService.enqueueMessage({
       recipientPhone,
