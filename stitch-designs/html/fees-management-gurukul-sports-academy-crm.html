@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fees Management — Gurukul Sports Academy CRM</title>
+<!-- BEGIN: CSS Tokens & Theme Definition -->
+<style data-purpose="theme-tokens">
+    :root {
+      /* Dark Theme (Default) */
+      --bg-app: #0c121e;
+      --bg-sidebar: #090e17;
+      --bg-card: #111a28;
+      --bg-card-hover: #162235;
+      --bg-card-subtle: #141f30;
+      --bg-input: #0e1624;
+      --bg-input-focus: #142033;
+      --border-subtle: #1d2a3d;
+      --border-focus: #3b82f6;
+      --border-orange: #f97316;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-disabled: #475569;
+      --brand-orange: #f97316;
+      --brand-orange-hover: #ea580c;
+      --brand-orange-soft: rgba(249, 115, 22, 0.12);
+      --badge-orange-text: #fdba74;
+      --badge-orange-bg: rgba(249, 115, 22, 0.18);
+      --badge-orange-border: rgba(249, 115, 22, 0.35);
+      --success-green: #10b981;
+      --success-green-soft: rgba(16, 185, 129, 0.12);
+      --warning-amber: #f59e0b;
+      --warning-amber-soft: rgba(245, 158, 11, 0.14);
+      --danger-red: #ef4444;
+      --danger-red-soft: rgba(239, 68, 68, 0.14);
+      --info-blue: #38bdf8;
+      --info-blue-soft: rgba(56, 189, 248, 0.14);
+      --modal-backdrop: rgba(4, 7, 13, 0.82);
+      --shadow-elevation: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Light Mode Toggle */
+    body.light-mode {
+      --bg-app: #f1f5f9;
+      --bg-sidebar: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-card-subtle: #f8fafc;
+      --bg-input: #f8fafc;
+      --bg-input-focus: #ffffff;
+      --border-subtle: #e2e8f0;
+      --border-focus: #f97316;
+      --border-orange: #f97316;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-disabled: #94a3b8;
+      --brand-orange-soft: #fff7ed;
+      --modal-backdrop: rgba(15, 23, 42, 0.65);
+      --shadow-elevation: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.45;
+    }
+  </style>
+<!-- END: CSS Tokens & Theme Definition -->
+<!-- BEGIN: CSS Layout & CRM Shell -->
+<style data-purpose="layout-and-shell">
+    .crm-wrapper {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Left Sidebar Navigation */
+    .sidebar {
+      width: 256px;
+      min-width: 256px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 40;
+    }
+
+    .brand-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 22px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand-logo-img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .brand-text-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .brand-tagline {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--brand-orange);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .nav-scrollable {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .nav-group-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      padding: 0 10px 6px;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
+    }
+
+    .nav-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-icon {
+      width: 17px;
+      height: 17px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .nav-badge-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 9999px;
+      background-color: rgba(148, 163, 184, 0.15);
+      color: var(--text-secondary);
+    }
+
+    .nav-item.active .nav-badge-pill {
+      background-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .nav-badge-orange {
+      background-color: var(--badge-orange-bg);
+      color: var(--badge-orange-text);
+      border: 1px solid var(--badge-orange-border);
+    }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .engine-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      padding: 4px 12px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: var(--success-green);
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+
+    /* Top CRM Header */
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding-bottom: 90px; /* buffer for QA switcher dock */
+    }
+
+    .top-header {
+      background-color: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .top-header-info h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .top-header-info p {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+
+    .top-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .icon-action-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-card);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .icon-action-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+      border-color: var(--text-muted);
+    }
+
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .admin-profile-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 10px 4px 4px;
+      border-radius: 9999px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .admin-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .admin-details {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .admin-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .admin-role {
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+
+    .main-body {
+      padding: 24px 32px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+  </style>
+<!-- END: CSS Layout & CRM Shell -->
+<!-- BEGIN: CSS UI Components & Data Table -->
+<style data-purpose="components-and-table">
+    /* Page Subheader */
+    .page-title-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-title-banner h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text-primary);
+    }
+
+    .page-title-banner p {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .cta-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background-color: var(--brand-orange);
+      color: #ffffff;
+      border-color: var(--brand-orange);
+      box-shadow: 0 4px 14px rgba(249, 115, 22, 0.28);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--brand-orange-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-card-hover);
+      border-color: var(--text-muted);
+    }
+
+    .btn-danger {
+      background-color: var(--danger-red);
+      color: #ffffff;
+      border-color: var(--danger-red);
+    }
+
+    .btn-danger:hover {
+      opacity: 0.9;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    /* KPI Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: rgba(249, 115, 22, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .kpi-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-card-subtle);
+      color: var(--text-secondary);
+    }
+
+    .kpi-icon-pill.green {
+      background-color: var(--success-green-soft);
+      color: var(--success-green);
+    }
+
+    .kpi-icon-pill.amber {
+      background-color: var(--warning-amber-soft);
+      color: var(--warning-amber);
+    }
+
+    .kpi-icon-pill.red {
+      background-color: var(--danger-red-soft);
+      color: var(--danger-red);
+    }
+
+    .kpi-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .kpi-trend {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .trend-green {
+      background-color: var(--success-green-soft);
+      color: var(--success-green);
+    }
+
+    .kpi-support {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Tabs Navigation */
+    .tab-nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0px;
+    }
+
+    .tab-switcher {
+      display: flex;
+      gap: 24px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 10px 2px 14px 2px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      position: relative;
+      transition: color 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: var(--brand-orange);
+    }
+
+    .tab-btn.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2.5px;
+      background-color: var(--brand-orange);
+      border-radius: 4px 4px 0 0;
+    }
+
+    .tab-count-badge {
+      font-size: 11.5px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .tab-btn.active .tab-count-badge {
+      background-color: var(--badge-orange-bg);
+      color: var(--brand-orange);
+      border-color: var(--badge-orange-border);
+    }
+
+    /* Filter Toolbar */
+    .filter-toolbar {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .search-input-group {
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      stroke: var(--text-muted);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .crm-input {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 9px 12px 9px 36px;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .crm-input:focus {
+      border-color: var(--brand-orange);
+      background-color: var(--bg-input-focus);
+    }
+
+    .filter-selects-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .crm-select {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      padding: 9px 28px 9px 12px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 14px;
+    }
+
+    .crm-select:hover, .crm-select:focus {
+      border-color: var(--brand-orange);
+      color: var(--text-primary);
+    }
+
+    .clear-filter-btn {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 4px 6px;
+    }
+
+    .clear-filter-btn:hover {
+      color: var(--brand-orange);
+    }
+
+    /* Table Container */
+    .table-container {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .crm-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .crm-table th {
+      background-color: var(--bg-card-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    .crm-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .crm-table tbody tr {
+      transition: background-color 0.12s ease;
+    }
+
+    .crm-table tbody tr:hover {
+      background-color: var(--bg-card-hover);
+    }
+
+    /* Student Profile Cell */
+    .student-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar-initials {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--bg-card-subtle);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .student-name-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .student-full-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .student-id-code {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+
+    /* Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .badge-paid {
+      background-color: var(--success-green-soft);
+      color: var(--success-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-partially-paid {
+      background-color: var(--warning-amber-soft);
+      color: var(--warning-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-pending {
+      background-color: rgba(245, 158, 11, 0.1);
+      color: var(--warning-amber);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .badge-overdue {
+      background-color: var(--danger-red-soft);
+      color: var(--danger-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-waived {
+      background-color: var(--bg-card-subtle);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .badge-active-plan {
+      background-color: var(--success-green-soft);
+      color: var(--success-green);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-inactive-plan {
+      background-color: var(--bg-card-subtle);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .currency-bold {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .currency-pending {
+      color: var(--warning-amber);
+      font-weight: 600;
+    }
+
+    .currency-overdue {
+      color: var(--danger-red);
+      font-weight: 700;
+    }
+
+    /* Actions Table Dropdown/Buttons */
+    .table-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-collect-btn {
+      background-color: var(--brand-orange-soft);
+      color: var(--brand-orange);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .quick-collect-btn:hover {
+      background-color: var(--brand-orange);
+      color: #ffffff;
+    }
+
+    .more-options-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .more-options-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    /* Overdue Receivables Dedicated Panel */
+    .overdue-panel {
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, var(--bg-card) 45%);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .overdue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .overdue-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .overdue-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background-color: var(--danger-red-soft);
+      color: var(--danger-red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overdue-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .overdue-badge-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--danger-red);
+      background-color: var(--danger-red-soft);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .overdue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .overdue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background-color: var(--bg-card-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .overdue-item-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .overdue-item-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .overdue-days-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background-color: var(--danger-red-soft);
+      color: var(--danger-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .overdue-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Fee Plans Tab Grid */
+    .fee-plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .fee-plan-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+    }
+
+    .fee-plan-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .fee-plan-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .fee-plan-price {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--brand-orange);
+      margin-top: 4px;
+    }
+
+    .fee-plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 0;
+    }
+
+    .fee-plan-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fee-plan-feature-item svg {
+      stroke: var(--brand-orange);
+      width: 15px;
+      height: 15px;
+      stroke-width: 2.5;
+    }
+
+    .fee-plan-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .assigned-students-count {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .fee-plan-card-actions {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+<!-- END: CSS UI Components & Data Table -->
+<!-- BEGIN: CSS Modals & Dialogs -->
+<style data-purpose="modals-and-dialogs">
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--modal-backdrop);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: var(--shadow-elevation);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 20px 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .form-input-text, .form-select-ctrl, .form-textarea {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-input-text:focus, .form-select-ctrl:focus, .form-textarea:focus {
+      border-color: var(--brand-orange);
+    }
+
+    .summary-calc-box {
+      background-color: var(--bg-card-subtle);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+
+    .calc-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+    }
+
+    .calc-row.highlight {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 13.5px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--brand-orange);
+      cursor: pointer;
+    }
+
+    .modal-footer {
+      padding: 16px 22px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      background-color: var(--bg-card-subtle);
+    }
+
+    /* Confirmation Modal Styles */
+    .confirm-dialog-card {
+      max-width: 440px;
+      text-align: center;
+      padding: 24px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .confirm-dialog-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: var(--warning-amber-soft);
+      color: var(--warning-amber);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .confirm-dialog-icon.danger {
+      background-color: var(--danger-red-soft);
+      color: var(--danger-red);
+    }
+  </style>
+<!-- END: CSS Modals & Dialogs -->
+<!-- BEGIN: CSS QA Dock & Responsive -->
+<style data-purpose="qa-switcher-and-responsive">
+    /* Bottom QA Switcher Dock */
+    .qa-switcher-dock {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #0b111c;
+      border: 1px solid #233247;
+      border-radius: 9999px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    .qa-dock-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--brand-orange);
+      padding: 0 8px;
+      border-right: 1px solid #233247;
+      white-space: nowrap;
+    }
+
+    .qa-chip-btn {
+      background-color: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 11px;
+      border-radius: 9999px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .qa-chip-btn:hover {
+      color: #f8fafc;
+      background-color: #1e293b;
+    }
+
+    .qa-chip-btn.active {
+      background-color: var(--brand-orange);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+    }
+
+    /* Responsive Queries */
+    @media (max-width: 1024px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .sidebar {
+        width: 72px;
+        min-width: 72px;
+      }
+      .brand-text-block, .nav-group-title, .nav-item span, .sidebar-footer, .nav-badge-pill {
+        display: none;
+      }
+      .nav-item {
+        justify-content: center;
+        padding: 12px 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .crm-wrapper {
+        flex-direction: column;
+      }
+      .sidebar {
+        display: none;
+      }
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .top-header {
+        padding: 12px 16px;
+      }
+      .main-body {
+        padding: 16px;
+      }
+      .qa-switcher-dock {
+        width: 92%;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+<!-- END: CSS QA Dock & Responsive -->
+</head>
+<body>
+<!-- BEGIN: CRM Main Application Shell -->
+<div class="crm-wrapper" id="appWrapper">
+<!-- BEGIN: Sidebar Navigation -->
+<aside class="sidebar" data-purpose="sidebar-navigation">
+<!-- Gurukul Sports Academy Brand Header -->
+<div class="brand-container">
+<img alt="Gurukul Sports Academy Logo" class="brand-logo-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmMyxiM83xRYtatbg8lliPXDkYNhoacoqVakC303ZqK-77nqaGvJrtQbmS0JH0MCk2aqR2zfPjslVyHhuoWkZIYWKnkUKXbK91vKaTBjZeu42grAZzK-Nt1grFKQyvd-JUa6LiFrRaUASayMYuaSdbrM5dxeym2U-eC7CIyjuH1QOy8jlg86E_5ygOQ6mre5eX8KAOgW8c1HadAqCR-d2vIJcwYKMFGEgM5g6u0eLVmzrh-9NhphPgeW3fZtmT49RNLA"/>
+<div class="brand-text-block">
+<span class="brand-title">Gurukul Academy</span>
+<span class="brand-tagline">OPERATIONAL CRM</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="nav-scrollable">
+<!-- GENERAL SECTION -->
+<div>
+<div class="nav-group-title">GENERAL</div>
+<ul class="nav-list">
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Dashboard</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Students</span>
+</div>
+<span class="nav-badge-pill">248</span>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Teachers</span>
+</div>
+<span class="nav-badge-pill">18</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- ACADEMICS SECTION -->
+<div>
+<div class="nav-group-title">ACADEMICS</div>
+<ul class="nav-list">
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Courses</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Batches</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Attendance</span>
+</div>
+</a>
+</li>
+</ul>
+</div>
+<!-- FINANCE & COMMS SECTION -->
+<div>
+<div class="nav-group-title">FINANCE &amp; COMMS</div>
+<ul class="nav-list">
+<li>
+<a class="nav-item active" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Fees</span>
+</div>
+<span class="nav-badge-pill nav-badge-orange">₹1.2L</span>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Payments</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Reports</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Announcements</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>WhatsApp</span>
+</div>
+</a>
+</li>
+<li>
+<a class="nav-item" href="#">
+<div class="nav-item-left">
+<svg class="nav-icon" viewbox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Settings</span>
+</div>
+</a>
+</li>
+</ul>
+</div>
+</div>
+<!-- Engine Status Pill Footer -->
+<div class="sidebar-footer">
+<div class="engine-status-pill">
+<span class="status-dot"></span>
+<span>Gurukul Engine v2.4</span>
+</div>
+</div>
+</aside>
+<!-- END: Sidebar Navigation -->
+<!-- BEGIN: Main Content Area -->
+<div class="content-area">
+<!-- BEGIN: Top CRM Header -->
+<header class="top-header" data-purpose="top-header">
+<div class="top-header-info">
+<h1>Fees</h1>
+<p>Track student fee structures, pending payments, and overdue receivables.</p>
+</div>
+<div class="top-header-actions">
+<!-- Notification Bell -->
+<button aria-label="Notifications" class="icon-action-btn" title="Notifications">
+<svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="18"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+</button>
+<!-- Light / Dark Mode Toggle -->
+<button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Theme">
+<svg fill="none" height="15" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="5"></circle><line x1="12" x2="12" y1="1" y2="3"></line><line x1="12" x2="12" y1="21" y2="23"></line><line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line><line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line><line x1="1" x2="3" y1="12" y2="12"></line><line x1="21" x2="23" y1="12" y2="12"></line><line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line><line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line></svg>
+<span id="themeLabel">Light / Dark</span>
+</button>
+<!-- Administrator Profile Pill -->
+<div class="admin-profile-pill">
+<div class="admin-avatar">RS</div>
+<div class="admin-details">
+<span class="admin-name">R. Sharma</span>
+<span class="admin-role">Administrator</span>
+</div>
+</div>
+</div>
+</header>
+<!-- END: Top CRM Header -->
+<!-- BEGIN: Main Body Content Container -->
+<main class="main-body" id="mainContent">
+<!-- BEGIN: Page Header & Top Action Buttons -->
+<section class="page-title-banner" data-purpose="fees-header">
+<div>
+<h2>Fees Management</h2>
+<p>Track student fee structures, pending payments, and overdue receivables.</p>
+</div>
+<div class="cta-actions-group">
+<button class="btn btn-secondary" onclick="openModal('assignFeeModal')">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7.5" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+<span>Assign Fee Structure</span>
+</button>
+<button class="btn btn-primary" onclick="openModal('collectPaymentModal')">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+<span>+ Collect Payment</span>
+</button>
+</div>
+</section>
+<!-- END: Page Header & Top Action Buttons -->
+<!-- BEGIN: KPI Summary Cards Grid -->
+<section class="kpi-grid" data-purpose="kpi-summary">
+<!-- Card 1: Total Receivables -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-label">Total Receivables</span>
+<div class="kpi-icon-pill">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">₹4,85,000</span>
+</div>
+<span class="kpi-support">Total assigned fees across active students</span>
+</div>
+<!-- Card 2: Collected This Month -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-label">Collected This Month</span>
+<div class="kpi-icon-pill green">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">₹2,40,000</span>
+<span class="kpi-trend trend-green">+12.4% vs last mo</span>
+</div>
+<span class="kpi-support">Payments received this month</span>
+</div>
+<!-- Card 3: Pending Amount -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-label">Pending Amount</span>
+<div class="kpi-icon-pill amber">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">₹1,65,000</span>
+</div>
+<span class="kpi-support">Outstanding upcoming student fees</span>
+</div>
+<!-- Card 4: Overdue Amount -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-label">Overdue Amount</span>
+<div class="kpi-icon-pill red">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value" style="color: var(--danger-red);">₹80,000</span>
+</div>
+<span class="kpi-support">Payments past their scheduled due date</span>
+</div>
+</section>
+<!-- END: KPI Summary Cards Grid -->
+<!-- BEGIN: Overdue Receivables Alert Panel -->
+<section class="overdue-panel" data-purpose="overdue-receivables-panel" id="overdueBanner">
+<div class="overdue-header">
+<div class="overdue-title-group">
+<div class="overdue-icon-pill">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" x2="12" y1="9" y2="13"></line><line x1="12" x2="12.01" y1="17" y2="17"></line></svg>
+</div>
+<div>
+<span class="overdue-title">Overdue Receivables Priority Queue</span>
+<p style="font-size: 12px; color: var(--text-secondary); margin-top: 1px;">Immediate attention required: 3 students past due date with total ₹80,000 overdue.</p>
+</div>
+</div>
+<span class="overdue-badge-count">3 Students • ₹80,000 Overdue</span>
+</div>
+<div class="overdue-list">
+<!-- Overdue Student Row 1 -->
+<div class="overdue-item">
+<div class="overdue-item-left">
+<div class="avatar-initials" style="border-color: rgba(239,68,68,0.4); color: var(--danger-red);">KJ</div>
+<div class="overdue-item-info">
+<span class="student-full-name">Kabir Jadhav <span class="student-id-code">(#GSA-1042)</span></span>
+<span style="font-size: 11.5px; color: var(--text-muted);">Football Beginner • Morning B — Due: 05 Nov 2026</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px;">
+<span class="overdue-days-pill">14 Days Overdue</span>
+<span class="currency-overdue">₹8,000</span>
+<div class="overdue-item-actions">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Kabir Jadhav', 'GSA-1042', 8000)">Collect Payment</button>
+<button class="btn btn-secondary btn-sm" onclick="openNotifyModal('Kabir Jadhav', '₹8,000')">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+                    Notify Student
+                  </button>
+</div>
+</div>
+</div>
+<!-- Overdue Student Row 2 -->
+<div class="overdue-item">
+<div class="overdue-item-left">
+<div class="avatar-initials" style="border-color: rgba(239,68,68,0.4); color: var(--danger-red);">RV</div>
+<div class="overdue-item-info">
+<span class="student-full-name">Rohan Varma <span class="student-id-code">(#GSA-1018)</span></span>
+<span style="font-size: 11.5px; color: var(--text-muted);">Cricket Senior • Morning B — Due: 10 Nov 2026</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px;">
+<span class="overdue-days-pill">8 Days Overdue</span>
+<span class="currency-overdue">₹9,000</span>
+<div class="overdue-item-actions">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Rohan Varma', 'GSA-1018', 9000)">Collect Payment</button>
+<button class="btn btn-secondary btn-sm" onclick="openNotifyModal('Rohan Varma', '₹9,000')">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+                    Notify Student
+                  </button>
+</div>
+</div>
+</div>
+<!-- Overdue Student Row 3 -->
+<div class="overdue-item">
+<div class="overdue-item-left">
+<div class="avatar-initials" style="border-color: rgba(239,68,68,0.4); color: var(--danger-red);">TR</div>
+<div class="overdue-item-info">
+<span class="student-full-name">Tanmay Rathore <span class="student-id-code">(#GSA-1064)</span></span>
+<span style="font-size: 11.5px; color: var(--text-muted);">Athletics Sprint • Morning A — Due: 02 Nov 2026</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px;">
+<span class="overdue-days-pill">17 Days Overdue</span>
+<span class="currency-overdue">₹8,000</span>
+<div class="overdue-item-actions">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Tanmay Rathore', 'GSA-1064', 8000)">Collect Payment</button>
+<button class="btn btn-secondary btn-sm" onclick="openNotifyModal('Tanmay Rathore', '₹8,000')">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+                    Notify Student
+                  </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: Overdue Receivables Alert Panel -->
+<!-- BEGIN: Internal Tab Switcher -->
+<section class="tab-nav-container" data-purpose="tab-navigation">
+<div class="tab-switcher">
+<button class="tab-btn active" id="tabBtnReceivables" onclick="switchViewTab('receivables')">
+<span>Receivables</span>
+<span class="tab-count-badge">24 Students</span>
+</button>
+<button class="tab-btn" id="tabBtnPlans" onclick="switchViewTab('plans')">
+<span>Fee Plans</span>
+<span class="tab-count-badge">6 Plans</span>
+</button>
+</div>
+<div id="plansHeaderAction" style="display: none;">
+<button class="btn btn-primary btn-sm" onclick="openModal('addPlanModal')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+<span>+ Add Fee Plan</span>
+</button>
+</div>
+</section>
+<!-- END: Internal Tab Switcher -->
+<!-- BEGIN: TAB CONTENT - RECEIVABLES -->
+<div id="receivablesTabSection">
+<!-- Search & Filter Toolbar -->
+<div class="filter-toolbar" data-purpose="table-filter-bar">
+<!-- Search Bar -->
+<div class="search-input-group">
+<svg class="search-icon" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+<input class="crm-input" id="studentSearchInput" onkeyup="filterReceivablesTable()" placeholder="Search student name, ID (#GSA-1024)..." type="text"/>
+</div>
+<!-- Filter Dropdowns -->
+<div class="filter-selects-group">
+<select class="crm-select" id="courseFilter" onchange="filterReceivablesTable()">
+<option value="">All Courses</option>
+<option value="Cricket">Cricket</option>
+<option value="Basketball">Basketball</option>
+<option value="Football">Football</option>
+<option value="Badminton">Badminton</option>
+<option value="Swimming">Swimming</option>
+<option value="Athletics">Athletics</option>
+</select>
+<select class="crm-select" id="batchFilter" onchange="filterReceivablesTable()">
+<option value="">All Batches</option>
+<option value="Morning A">Morning A</option>
+<option value="Morning B">Morning B</option>
+<option value="Evening A">Evening A</option>
+<option value="Evening B">Evening B</option>
+<option value="Batch C">Batch C</option>
+</select>
+<select class="crm-select" id="statusFilter" onchange="filterReceivablesTable()">
+<option value="">All Statuses</option>
+<option value="Paid">Paid</option>
+<option value="Partially Paid">Partially Paid</option>
+<option value="Pending">Pending</option>
+<option value="Overdue">Overdue</option>
+<option value="Waived">Waived</option>
+</select>
+<select class="crm-select" id="planFilter" onchange="filterReceivablesTable()">
+<option value="">All Fee Plans</option>
+<option value="Annual Plan">Annual Plan</option>
+<option value="Quarterly Plan">Quarterly Plan</option>
+<option value="Monthly Plan">Monthly Plan</option>
+<option value="Half-Yearly">Half-Yearly</option>
+</select>
+<button class="clear-filter-btn" onclick="resetAllFilters()">Clear Filters</button>
+</div>
+</div>
+<!-- Main Receivables Data Table -->
+<div class="table-container" style="margin-top: 14px;">
+<div class="table-wrapper">
+<table class="crm-table" data-purpose="receivables-table" id="receivablesTable">
+<thead>
+<tr>
+<th>Student</th>
+<th>Student ID</th>
+<th>Course / Batch</th>
+<th>Fee Plan</th>
+<th>Total Fee</th>
+<th>Paid</th>
+<th>Pending</th>
+<th>Next Due Date</th>
+<th>Status</th>
+<th style="text-align: right;">Actions</th>
+</tr>
+</thead>
+<tbody id="receivablesTableBody">
+<!-- Row 1: Aarav Patil -->
+<tr data-batch="Morning A" data-course="Cricket" data-id="GSA-1024" data-plan="Annual Plan" data-status="Partially Paid" data-student="Aarav Patil">
+<td>
+<div class="student-cell">
+<div class="avatar-initials">AP</div>
+<div class="student-name-meta">
+<span class="student-full-name">Aarav Patil</span>
+<span style="font-size: 11px; color: var(--text-muted);">Standard Admission</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1024</span></td>
+<td>Cricket Advanced <span style="color: var(--text-muted);">• Morning A</span></td>
+<td>Annual Plan</td>
+<td class="currency-bold">₹36,000</td>
+<td>₹24,000</td>
+<td class="currency-pending">₹12,000</td>
+<td>15 Oct 2026</td>
+<td><span class="status-badge badge-partially-paid">Partially Paid</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Aarav Patil', 'GSA-1024', 12000)">Collect</button>
+<button class="more-options-btn" onclick="openModal('assignFeeModal')" title="Edit Structure">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Riya Deshmukh -->
+<tr data-batch="Evening B" data-course="Basketball" data-id="GSA-1031" data-plan="Quarterly Plan" data-status="Paid" data-student="Riya Deshmukh">
+<td>
+<div class="student-cell">
+<div class="avatar-initials">RD</div>
+<div class="student-name-meta">
+<span class="student-full-name">Riya Deshmukh</span>
+<span style="font-size: 11px; color: var(--text-muted);">Academy Scholar</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1031</span></td>
+<td>Basketball Foundation <span style="color: var(--text-muted);">• Evening B</span></td>
+<td>Quarterly Plan</td>
+<td class="currency-bold">₹18,000</td>
+<td>₹18,000</td>
+<td style="color: var(--text-muted);">₹0</td>
+<td>30 Nov 2026</td>
+<td><span class="status-badge badge-paid">Paid</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="btn btn-secondary btn-sm" onclick="openReceipt('GSA-1031')">Receipt</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Kabir Jadhav -->
+<tr data-batch="Morning B" data-course="Football" data-id="GSA-1042" data-plan="Monthly Plan" data-status="Overdue" data-student="Kabir Jadhav">
+<td>
+<div class="student-cell">
+<div class="avatar-initials" style="border-color: rgba(239,68,68,0.4);">KJ</div>
+<div class="student-name-meta">
+<span class="student-full-name">Kabir Jadhav</span>
+<span style="font-size: 11px; color: var(--text-muted);">14 Days Overdue</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1042</span></td>
+<td>Football Beginner <span style="color: var(--text-muted);">• Morning B</span></td>
+<td>Monthly Plan</td>
+<td class="currency-bold">₹12,000</td>
+<td>₹4,000</td>
+<td class="currency-overdue">₹8,000</td>
+<td style="color: var(--danger-red); font-weight: 600;">05 Nov 2026</td>
+<td><span class="status-badge badge-overdue">Overdue</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Kabir Jadhav', 'GSA-1042', 8000)">Collect</button>
+<button class="more-options-btn" onclick="openNotifyModal('Kabir Jadhav', '₹8,000')" title="Send Reminder">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Ananya Sharma -->
+<tr data-batch="Evening A" data-course="Badminton" data-id="GSA-1055" data-plan="Annual Plan" data-status="Partially Paid" data-student="Ananya Sharma">
+<td>
+<div class="student-cell">
+<div class="avatar-initials">AS</div>
+<div class="student-name-meta">
+<span class="student-full-name">Ananya Sharma</span>
+<span style="font-size: 11px; color: var(--text-muted);">Elite State Prep</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1055</span></td>
+<td>Badminton Elite <span style="color: var(--text-muted);">• Evening A</span></td>
+<td>Annual Plan</td>
+<td class="currency-bold">₹42,000</td>
+<td>₹28,000</td>
+<td class="currency-pending">₹14,000</td>
+<td>20 Nov 2026</td>
+<td><span class="status-badge badge-partially-paid">Partially Paid</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Ananya Sharma', 'GSA-1055', 14000)">Collect</button>
+<button class="more-options-btn" onclick="openModal('assignFeeModal')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Rohan Varma -->
+<tr data-batch="Morning B" data-course="Cricket" data-id="GSA-1018" data-plan="Quarterly Plan" data-status="Overdue" data-student="Rohan Varma">
+<td>
+<div class="student-cell">
+<div class="avatar-initials" style="border-color: rgba(239,68,68,0.4);">RV</div>
+<div class="student-name-meta">
+<span class="student-full-name">Rohan Varma</span>
+<span style="font-size: 11px; color: var(--text-muted);">Top Order Batsman</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1018</span></td>
+<td>Cricket Senior <span style="color: var(--text-muted);">• Morning B</span></td>
+<td>Quarterly Plan</td>
+<td class="currency-bold">₹18,000</td>
+<td>₹9,000</td>
+<td class="currency-overdue">₹9,000</td>
+<td style="color: var(--danger-red); font-weight: 600;">10 Nov 2026</td>
+<td><span class="status-badge badge-overdue">Overdue</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Rohan Varma', 'GSA-1018', 9000)">Collect</button>
+<button class="more-options-btn" onclick="openNotifyModal('Rohan Varma', '₹9,000')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Siddharth Rao -->
+<tr data-batch="Batch C" data-course="Swimming" data-id="GSA-1089" data-plan="Half-Yearly" data-status="Paid" data-student="Siddharth Rao">
+<td>
+<div class="student-cell">
+<div class="avatar-initials">SR</div>
+<div class="student-name-meta">
+<span class="student-full-name">Siddharth Rao</span>
+<span style="font-size: 11px; color: var(--text-muted);">All Fees Cleared</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1089</span></td>
+<td>Swimming Pro <span style="color: var(--text-muted);">• Batch C</span></td>
+<td>Half-Yearly</td>
+<td class="currency-bold">₹22,000</td>
+<td>₹22,000</td>
+<td style="color: var(--text-muted);">₹0</td>
+<td>Completed</td>
+<td><span class="status-badge badge-paid">Paid</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="btn btn-secondary btn-sm" onclick="openReceipt('GSA-1089')">Receipt</button>
+</div>
+</td>
+</tr>
+<!-- Row 7: Tanmay Rathore -->
+<tr data-batch="Morning A" data-course="Athletics" data-id="GSA-1064" data-plan="Monthly Plan" data-status="Pending" data-student="Tanmay Rathore">
+<td>
+<div class="student-cell">
+<div class="avatar-initials">TR</div>
+<div class="student-name-meta">
+<span class="student-full-name">Tanmay Rathore</span>
+<span style="font-size: 11px; color: var(--text-muted);">Pace Sprinter</span>
+</div>
+</div>
+</td>
+<td><span class="student-id-code">#GSA-1064</span></td>
+<td>Athletics Sprint <span style="color: var(--text-muted);">• Morning A</span></td>
+<td>Monthly Plan</td>
+<td class="currency-bold">₹8,000</td>
+<td>₹0</td>
+<td class="currency-pending">₹8,000</td>
+<td>02 Nov 2026</td>
+<td><span class="status-badge badge-pending">Pending</span></td>
+<td style="text-align: right;">
+<div class="table-actions" style="justify-content: flex-end;">
+<button class="quick-collect-btn" onclick="openPaymentForStudent('Tanmay Rathore', 'GSA-1064', 8000)">Collect</button>
+<button class="more-options-btn" onclick="openModal('assignFeeModal')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- END: TAB CONTENT - RECEIVABLES -->
+<!-- BEGIN: TAB CONTENT - FEE PLANS GRID -->
+<div data-purpose="fee-plans-catalog" id="plansTabSection" style="display: none;">
+<div class="fee-plans-grid">
+<!-- Plan 1: Annual Academy Plan -->
+<div class="fee-plan-card">
+<div class="fee-plan-header">
+<div>
+<h3 class="fee-plan-name">Annual Academy Plan</h3>
+<div class="fee-plan-price">₹36,000 <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">/ yr</span></div>
+</div>
+<span class="badge-active-plan">Active</span>
+</div>
+<ul class="fee-plan-features">
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>12 Flexible Monthly Installments</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Includes Academy Kit &amp; Tourney Insurance</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Applies to Cricket, Football, &amp; Athletics</span>
+</li>
+</ul>
+<div class="fee-plan-footer">
+<span class="assigned-students-count">114 Assigned Students</span>
+<div class="fee-plan-card-actions">
+<button class="btn btn-secondary btn-sm" onclick="openModal('addPlanModal')">Edit</button>
+<button class="btn btn-secondary btn-sm" onclick="openDeactivateModal('Annual Academy Plan')" style="color: var(--danger-red);">Deactivate</button>
+</div>
+</div>
+</div>
+<!-- Plan 2: Quarterly Training Plan -->
+<div class="fee-plan-card">
+<div class="fee-plan-header">
+<div>
+<h3 class="fee-plan-name">Quarterly Training Plan</h3>
+<div class="fee-plan-price">₹18,000 <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">/ quarter</span></div>
+</div>
+<span class="badge-active-plan">Active</span>
+</div>
+<ul class="fee-plan-features">
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>4 Quarterly Installments of ₹4,500</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Access to Weekend Friendly Matches</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Applicable across All Foundation Batches</span>
+</li>
+</ul>
+<div class="fee-plan-footer">
+<span class="assigned-students-count">76 Assigned Students</span>
+<div class="fee-plan-card-actions">
+<button class="btn btn-secondary btn-sm" onclick="openModal('addPlanModal')">Edit</button>
+<button class="btn btn-secondary btn-sm" onclick="openDeactivateModal('Quarterly Training Plan')" style="color: var(--danger-red);">Deactivate</button>
+</div>
+</div>
+</div>
+<!-- Plan 3: Monthly Starter Plan -->
+<div class="fee-plan-card">
+<div class="fee-plan-header">
+<div>
+<h3 class="fee-plan-name">Monthly Starter Plan</h3>
+<div class="fee-plan-price">₹12,000 <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">/ term</span></div>
+</div>
+<span class="badge-inactive-plan">Inactive</span>
+</div>
+<ul class="fee-plan-features">
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Monthly Recurring Auto-Billing</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Weekday Practice (2 sessions/week)</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Non-competitive Starter Tier</span>
+</li>
+</ul>
+<div class="fee-plan-footer">
+<span class="assigned-students-count">32 Assigned Students</span>
+<div class="fee-plan-card-actions">
+<button class="btn btn-secondary btn-sm" onclick="openModal('addPlanModal')">Edit</button>
+<button class="btn btn-secondary btn-sm" style="color: var(--success-green);">Activate</button>
+</div>
+</div>
+</div>
+<!-- Plan 4: Elite Tournament Prep -->
+<div class="fee-plan-card">
+<div class="fee-plan-header">
+<div>
+<h3 class="fee-plan-name">Elite Tournament Prep</h3>
+<div class="fee-plan-price">₹48,000 <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">/ yr</span></div>
+</div>
+<span class="badge-active-plan">Active</span>
+</div>
+<ul class="fee-plan-features">
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Half-Yearly (2 Split Payments of ₹24,000)</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>Includes Physiotherapist &amp; Video Analysis</span>
+</li>
+<li class="fee-plan-feature-item">
+<svg fill="none" viewbox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+<span>National District Qualifier Entry Included</span>
+</li>
+</ul>
+<div class="fee-plan-footer">
+<span class="assigned-students-count">26 Assigned Students</span>
+<div class="fee-plan-card-actions">
+<button class="btn btn-secondary btn-sm" onclick="openModal('addPlanModal')">Edit</button>
+<button class="btn btn-secondary btn-sm" onclick="openDeactivateModal('Elite Tournament Prep')" style="color: var(--danger-red);">Deactivate</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: TAB CONTENT - FEE PLANS GRID -->
+</main>
+<!-- END: Main Body Content Container -->
+</div>
+<!-- END: Main Content Area -->
+</div>
+<!-- END: CRM Main Application Shell -->
+<!-- BEGIN: MODAL 1 - Collect Payment Modal -->
+<div class="modal-overlay" data-purpose="modal-collect-payment" id="collectPaymentModal" style="display: none;">
+<div class="modal-card">
+<div class="modal-header">
+<h3 class="modal-header-title">Collect Fee Payment</h3>
+<button class="modal-close-btn" onclick="closeModal('collectPaymentModal')" title="Close">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</button>
+</div>
+<div class="modal-body">
+<div class="form-group">
+<label class="form-label">Student Name / ID</label>
+<select class="form-select-ctrl" id="collectStudentSelect">
+<option value="Kabir Jadhav">Kabir Jadhav (#GSA-1042) — Outstanding ₹8,000</option>
+<option value="Aarav Patil">Aarav Patil (#GSA-1024) — Outstanding ₹12,000</option>
+<option value="Rohan Varma">Rohan Varma (#GSA-1018) — Outstanding ₹9,000</option>
+<option value="Ananya Sharma">Ananya Sharma (#GSA-1055) — Outstanding ₹14,000</option>
+<option value="Tanmay Rathore">Tanmay Rathore (#GSA-1064) — Outstanding ₹8,000</option>
+</select>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Fee Plan / Invoice</label>
+<input class="form-input-text" readonly="" style="color: var(--text-muted);" type="text" value="Monthly Plan — Term Q4"/>
+</div>
+<div class="form-group">
+<label class="form-label">Pending Balance</label>
+<input class="form-input-text" id="collectPendingAmount" readonly="" style="color: var(--danger-red); font-weight: 700;" type="text" value="₹8,000"/>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Payment Amount (₹) *</label>
+<input class="form-input-text" placeholder="e.g. 8000" type="number" value="8000"/>
+</div>
+<div class="form-group">
+<label class="form-label">Payment Date *</label>
+<input class="form-input-text" type="date" value="2026-11-19"/>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Payment Mode *</label>
+<select class="form-select-ctrl">
+<option value="UPI">UPI (Google Pay / PhonePe)</option>
+<option value="Cash">Cash at Counter</option>
+<option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+<option value="Card">Debit / Credit Card</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Transaction Reference #</label>
+<input class="form-input-text" placeholder="e.g. UPI-9382103982" type="text"/>
+</div>
+</div>
+<div class="form-group">
+<label class="form-label">Internal Remarks</label>
+<input class="form-input-text" placeholder="e.g. Cleared 2nd installment for November" type="text"/>
+</div>
+<label class="checkbox-field">
+<input checked="" type="checkbox"/>
+<span>Generate official academy receipt PDF and notify via WhatsApp</span>
+</label>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('collectPaymentModal')">Cancel</button>
+<button class="btn btn-primary" onclick="triggerCollectSuccess()">Record Payment</button>
+</div>
+</div>
+</div>
+<!-- END: MODAL 1 - Collect Payment Modal -->
+<!-- BEGIN: MODAL 2 - Assign Fee Structure Modal -->
+<div class="modal-overlay" data-purpose="modal-assign-structure" id="assignFeeModal" style="display: none;">
+<div class="modal-card">
+<div class="modal-header">
+<h3 class="modal-header-title">Assign Fee Structure to Student</h3>
+<button class="modal-close-btn" onclick="closeModal('assignFeeModal')">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</button>
+</div>
+<div class="modal-body">
+<div class="form-group">
+<label class="form-label">Select Student *</label>
+<select class="form-select-ctrl">
+<option>Aarav K. Patel (#GSA-2024-001) — Fast Bowling</option>
+<option>Rohan Varma (#GSA-2024-004) — Top Order</option>
+<option>Devansh Nambiar (#GSA-2024-012) — All-Rounder</option>
+<option>Ishaan Sen (#GSA-2024-015) — Left-arm Spin</option>
+</select>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Applicable Course</label>
+<select class="form-select-ctrl">
+<option>Cricket Advanced Coaching</option>
+<option>Basketball Foundation Academy</option>
+<option>Football Beginner Camp</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Batch Cohort</label>
+<select class="form-select-ctrl">
+<option>Morning Batch A</option>
+<option>Morning Batch B</option>
+<option>Evening Elite Prep</option>
+</select>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Fee Plan Template *</label>
+<select class="form-select-ctrl" id="assignPlanSelect" onchange="updateAssignSummary()">
+<option value="36000">Annual Academy Plan (₹36,000)</option>
+<option value="18000">Quarterly Training Plan (₹18,000)</option>
+<option value="12000">Monthly Starter Plan (₹12,000)</option>
+<option value="48000">Elite Tournament Prep (₹48,000)</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Start Date *</label>
+<input class="form-input-text" type="date" value="2026-11-01"/>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Discount / Scholarship (₹)</label>
+<input class="form-input-text" id="discountInput" onkeyup="updateAssignSummary()" type="number" value="2000"/>
+</div>
+<div class="form-group">
+<label class="form-label">Discount Reason</label>
+<input class="form-input-text" placeholder="e.g. Sibling discount / Sports quota" type="text"/>
+</div>
+</div>
+<!-- Live Computed Summary Box -->
+<div class="summary-calc-box">
+<div class="calc-row">
+<span>Base Course Fee:</span>
+<span id="summaryBaseFee">₹36,000</span>
+</div>
+<div class="calc-row">
+<span>Scholarship / Discount:</span>
+<span id="summaryDiscount" style="color: var(--success-green);">- ₹2,000</span>
+</div>
+<div class="calc-row">
+<span>Installment Schedule:</span>
+<span>4 Installments of ₹8,500</span>
+</div>
+<div class="calc-row highlight">
+<span>Net Payable Fee:</span>
+<span id="summaryNetPayable" style="color: var(--brand-orange);">₹34,000</span>
+</div>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('assignFeeModal')">Cancel</button>
+<button class="btn btn-primary" onclick="closeModal('assignFeeModal')">Assign Fee Structure</button>
+</div>
+</div>
+</div>
+<!-- END: MODAL 2 - Assign Fee Structure Modal -->
+<!-- BEGIN: MODAL 3 - Create Fee Plan Modal -->
+<div class="modal-overlay" data-purpose="modal-add-plan" id="addPlanModal" style="display: none;">
+<div class="modal-card">
+<div class="modal-header">
+<h3 class="modal-header-title">Create Fee Plan Template</h3>
+<button class="modal-close-btn" onclick="closeModal('addPlanModal')">
+<svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</button>
+</div>
+<div class="modal-body">
+<div class="form-group">
+<label class="form-label">Plan Name *</label>
+<input class="form-input-text" placeholder="e.g. Monsoon Training Special" type="text"/>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Applicable Sport / Discipline</label>
+<select class="form-select-ctrl">
+<option>All Sports Disciplines</option>
+<option>Cricket Academy Only</option>
+<option>Basketball Only</option>
+<option>Football Only</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Billing Frequency</label>
+<select class="form-select-ctrl">
+<option>Quarterly (3 Months)</option>
+<option>Monthly (1 Month)</option>
+<option>Half-Yearly (6 Months)</option>
+<option>Annually (12 Months)</option>
+</select>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">Total Fee Amount (₹) *</label>
+<input class="form-input-text" placeholder="e.g. 24000" type="number"/>
+</div>
+<div class="form-group">
+<label class="form-label">Allowed Installments</label>
+<input class="form-input-text" type="number" value="3"/>
+</div>
+</div>
+<div class="form-row-2">
+<div class="form-group">
+<label class="form-label">One-Time Registration Fee (₹)</label>
+<input class="form-input-text" placeholder="e.g. 1500" type="number"/>
+</div>
+<div class="form-group">
+<label class="form-label">Late Fee Per Day (₹)</label>
+<input class="form-input-text" type="number" value="50"/>
+</div>
+</div>
+<div class="form-group">
+<label class="form-label">Plan Description &amp; Benefits</label>
+<textarea class="form-textarea" placeholder="Brief outline of coaching hours, included kit, tournament fees etc." rows="2"></textarea>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('addPlanModal')">Cancel</button>
+<button class="btn btn-primary" onclick="closeModal('addPlanModal')">Create Fee Plan</button>
+</div>
+</div>
+</div>
+<!-- END: MODAL 3 - Create Fee Plan Modal -->
+<!-- BEGIN: MODAL 4 - Notify Student Reminder Dialog -->
+<div class="modal-overlay" data-purpose="dialog-notify-student" id="notifyStudentModal" style="display: none;">
+<div class="modal-card confirm-dialog-card">
+<div class="confirm-dialog-icon">
+<svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="24"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+</div>
+<div>
+<h3 id="notifyModalStudentTitle" style="font-size: 17px; font-weight: 700; color: var(--text-primary);">Send Fee Payment Reminder?</h3>
+<p id="notifyModalDesc" style="font-size: 13px; color: var(--text-secondary); margin-top: 6px;">
+          Send an automated SMS &amp; WhatsApp reminder with secure online payment link to the parent.
+        </p>
+</div>
+<div style="display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 6px;">
+<button class="btn btn-secondary" onclick="closeModal('notifyStudentModal')" style="flex: 1;">Cancel</button>
+<button class="btn btn-primary" onclick="sendReminderSuccess()" style="flex: 1;">Send Reminder</button>
+</div>
+</div>
+</div>
+<!-- END: MODAL 4 - Notify Student Reminder Dialog -->
+<!-- BEGIN: MODAL 5 - Deactivate Fee Plan Dialog -->
+<div class="modal-overlay" data-purpose="dialog-deactivate-plan" id="deactivatePlanModal" style="display: none;">
+<div class="modal-card confirm-dialog-card">
+<div class="confirm-dialog-icon danger">
+<svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="24"><circle cx="12" cy="12" r="10"></circle><line x1="15" x2="9" y1="9" y2="15"></line><line x1="9" x2="15" y1="9" y2="15"></line></svg>
+</div>
+<div>
+<h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary);">Deactivate Fee Plan?</h3>
+<p id="deactivateModalPlanName" style="font-size: 13px; color: var(--text-secondary); margin-top: 6px;">
+          Are you sure you want to deactivate this fee plan? New students will not be able to subscribe to it.
+        </p>
+</div>
+<div style="display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 6px;">
+<button class="btn btn-secondary" onclick="closeModal('deactivatePlanModal')" style="flex: 1;">Cancel</button>
+<button class="btn btn-danger" onclick="closeModal('deactivatePlanModal')" style="flex: 1;">Deactivate</button>
+</div>
+</div>
+</div>
+<!-- END: MODAL 5 - Deactivate Fee Plan Dialog -->
+<!-- BEGIN: QA State Switcher Dock (Bottom-fixed preview controller) -->
+<aside class="qa-switcher-dock" data-purpose="qa-state-switcher">
+<span class="qa-dock-label">QA STATES</span>
+<button class="qa-chip-btn active" id="qaBtn1" onclick="setQAState(1)">1. Normal (Receivables)</button>
+<button class="qa-chip-btn" id="qaBtn2" onclick="setQAState(2)">2. Fee Plans Tab</button>
+<button class="qa-chip-btn" id="qaBtn3" onclick="setQAState(3)">3. Collect Payment Modal</button>
+<button class="qa-chip-btn" id="qaBtn4" onclick="setQAState(4)">4. Assign Fee Modal</button>
+<button class="qa-chip-btn" id="qaBtn5" onclick="setQAState(5)">5. Add Plan Modal</button>
+<button class="qa-chip-btn" id="qaBtn6" onclick="setQAState(6)">6. Notify Student</button>
+<button class="qa-chip-btn" id="qaBtn7" onclick="setQAState(7)">7. Empty / Cleared State</button>
+</aside>
+<!-- END: QA State Switcher Dock -->
+<!-- BEGIN: Core Interactive JavaScript Functions -->
+<script data-purpose="theme-and-interactions">
+    // Light / Dark Mode Toggle Function
+    function toggleTheme() {
+      const body = document.body;
+      body.classList.toggle('light-mode');
+      const isLight = body.classList.contains('light-mode');
+      document.getElementById('themeLabel').innerText = isLight ? 'Dark Mode' : 'Light / Dark';
+    }
+
+    // Modal Manager
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // Tab Switching Function
+    function switchViewTab(tab) {
+      const receivablesTab = document.getElementById('receivablesTabSection');
+      const plansTab = document.getElementById('plansTabSection');
+      const btnReceivables = document.getElementById('tabBtnReceivables');
+      const btnPlans = document.getElementById('tabBtnPlans');
+      const plansHeaderAction = document.getElementById('plansHeaderAction');
+      const overdueBanner = document.getElementById('overdueBanner');
+
+      if (tab === 'plans') {
+        receivablesTab.style.display = 'none';
+        plansTab.style.display = 'block';
+        btnReceivables.classList.remove('active');
+        btnPlans.classList.add('active');
+        plansHeaderAction.style.display = 'block';
+        overdueBanner.style.display = 'none';
+      } else {
+        receivablesTab.style.display = 'block';
+        plansTab.style.display = 'none';
+        btnReceivables.classList.add('active');
+        btnPlans.classList.remove('active');
+        plansHeaderAction.style.display = 'none';
+        overdueBanner.style.display = 'flex';
+      }
+    }
+
+    // Open Payment for Specific Student
+    function openPaymentForStudent(studentName, id, pendingAmount) {
+      const select = document.getElementById('collectStudentSelect');
+      const amountField = document.getElementById('collectPendingAmount');
+      if (amountField) {
+        amountField.value = '₹' + pendingAmount.toLocaleString('en-IN');
+      }
+      openModal('collectPaymentModal');
+    }
+
+    // Open Notify Modal
+    function openNotifyModal(studentName, amount) {
+      const title = document.getElementById('notifyModalStudentTitle');
+      const desc = document.getElementById('notifyModalDesc');
+      if (title) title.innerText = 'Send Fee Reminder to ' + studentName + '?';
+      if (desc) desc.innerText = 'Send an SMS & WhatsApp reminder for ' + amount + ' overdue payment with direct payment link.';
+      openModal('notifyStudentModal');
+    }
+
+    // Open Deactivate Confirmation Modal
+    function openDeactivateModal(planName) {
+      const desc = document.getElementById('deactivateModalPlanName');
+      if (desc) desc.innerText = 'Are you sure you want to deactivate "' + planName + '"? Active enrolled students will remain unaffected.';
+      openModal('deactivatePlanModal');
+    }
+
+    // Search and Filtering in Data Table
+    function filterReceivablesTable() {
+      const searchVal = (document.getElementById('studentSearchInput').value || '').toLowerCase();
+      const courseVal = (document.getElementById('courseFilter').value || '').toLowerCase();
+      const batchVal = (document.getElementById('batchFilter').value || '').toLowerCase();
+      const statusVal = (document.getElementById('statusFilter').value || '').toLowerCase();
+      const planVal = (document.getElementById('planFilter').value || '').toLowerCase();
+
+      const rows = document.querySelectorAll('#receivablesTableBody tr');
+      rows.forEach(row => {
+        const student = (row.getAttribute('data-student') || '').toLowerCase();
+        const id = (row.getAttribute('data-id') || '').toLowerCase();
+        const course = (row.getAttribute('data-course') || '').toLowerCase();
+        const batch = (row.getAttribute('data-batch') || '').toLowerCase();
+        const status = (row.getAttribute('data-status') || '').toLowerCase();
+        const plan = (row.getAttribute('data-plan') || '').toLowerCase();
+
+        const matchesSearch = !searchVal || student.includes(searchVal) || id.includes(searchVal);
+        const matchesCourse = !courseVal || course.includes(courseVal);
+        const matchesBatch = !batchVal || batch.includes(batchVal);
+        const matchesStatus = !statusVal || status.includes(statusVal);
+        const matchesPlan = !planVal || plan.includes(planVal);
+
+        if (matchesSearch && matchesCourse && matchesBatch && matchesStatus && matchesPlan) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function resetAllFilters() {
+      document.getElementById('studentSearchInput').value = '';
+      document.getElementById('courseFilter').value = '';
+      document.getElementById('batchFilter').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('planFilter').value = '';
+      filterReceivablesTable();
+    }
+
+    // Calculation in Assign Fee Structure Modal
+    function updateAssignSummary() {
+      const planPrice = parseInt(document.getElementById('assignPlanSelect').value || 36000);
+      const discount = parseInt(document.getElementById('discountInput').value || 0);
+      const net = Math.max(0, planPrice - discount);
+
+      document.getElementById('summaryBaseFee').innerText = '₹' + planPrice.toLocaleString('en-IN');
+      document.getElementById('summaryDiscount').innerText = '- ₹' + discount.toLocaleString('en-IN');
+      document.getElementById('summaryNetPayable').innerText = '₹' + net.toLocaleString('en-IN');
+    }
+
+    function triggerCollectSuccess() {
+      closeModal('collectPaymentModal');
+      alert('Fee payment recorded successfully! Receipt #REC-2026-894 generated and WhatsApp acknowledgement dispatched.');
+    }
+
+    function sendReminderSuccess() {
+      closeModal('notifyStudentModal');
+      alert('Fee reminder alert dispatched via SMS & WhatsApp to registered guardian phone number.');
+    }
+
+    function openReceipt(studentId) {
+      alert('Downloading official Academy GST Receipt PDF for ' + studentId + '...');
+    }
+
+    // QA Switcher State Controller
+    function setQAState(stateNum) {
+      // Clear active chip
+      for (let i = 1; i <= 7; i++) {
+        const btn = document.getElementById('qaBtn' + i);
+        if (btn) btn.classList.remove('active');
+      }
+      const activeBtn = document.getElementById('qaBtn' + stateNum);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // Close all modals first
+      closeModal('collectPaymentModal');
+      closeModal('assignFeeModal');
+      closeModal('addPlanModal');
+      closeModal('notifyStudentModal');
+      closeModal('deactivatePlanModal');
+
+      if (stateNum === 1) {
+        // Normal View
+        switchViewTab('receivables');
+        resetAllFilters();
+      } else if (stateNum === 2) {
+        // Fee Plans Tab
+        switchViewTab('plans');
+      } else if (stateNum === 3) {
+        // Collect Payment Modal
+        switchViewTab('receivables');
+        openModal('collectPaymentModal');
+      } else if (stateNum === 4) {
+        // Assign Fee Modal
+        switchViewTab('receivables');
+        openModal('assignFeeModal');
+      } else if (stateNum === 5) {
+        // Add Fee Plan Modal
+        switchViewTab('plans');
+        openModal('addPlanModal');
+      } else if (stateNum === 6) {
+        // Notify Student Dialog
+        switchViewTab('receivables');
+        openNotifyModal('Kabir Jadhav', '₹8,000');
+      } else if (stateNum === 7) {
+        // Empty / All Cleared State
+        switchViewTab('receivables');
+        document.getElementById('studentSearchInput').value = 'NoOverdueMatchXYZ';
+        filterReceivablesTable();
+      }
+    }
+  </script>
+<!-- END: Core Interactive JavaScript Functions -->
+</body></html>

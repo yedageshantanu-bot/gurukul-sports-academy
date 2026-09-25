@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Teachers Directory — Gurukul Sports Academy CRM</title>
+<!-- BEGIN: CSS Variables & Global Typography -->
+<style data-purpose="theme-variables">
+    :root {
+      /* Dark Theme (Default) */
+      --bg-app: #0f172a;
+      --bg-sidebar: #0b1120;
+      --bg-surface: #1e293b;
+      --bg-surface-elevated: #334155;
+      --bg-input: #0f172a;
+      --border-color: #334155;
+      --border-subtle: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      /* Brand Accents */
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --primary-subtle: rgba(249, 115, 22, 0.15);
+      --success: #22c55e;
+      --success-subtle: rgba(34, 197, 94, 0.15);
+      --warning: #f59e0b;
+      --warning-subtle: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-subtle: rgba(239, 68, 68, 0.15);
+      --info: #38bdf8;
+      --info-subtle: rgba(56, 189, 248, 0.15);
+
+      /* Layout Specs */
+      --sidebar-width: 260px;
+      --header-height: 70px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #f1f5f9;
+      --bg-sidebar: #ffffff;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f8fafc;
+      --bg-input: #f8fafc;
+      --border-color: #e2e8f0;
+      --border-subtle: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+    }
+  </style>
+<!-- END: CSS Variables & Global Typography -->
+<!-- BEGIN: Layout & Component Styles -->
+<style data-purpose="app-shell-layout">
+    /* Sidebar Navigation */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 40;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .academy-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 10px;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .nav-scrollable {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin: 16px 0 8px 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 500;
+      margin-bottom: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background-color: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .nav-item-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-item-content svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    .nav-badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .nav-item.active .nav-badge {
+      background-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .sidebar-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    /* Main Area */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Top Sticky Header */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+
+    .page-title-group h1 {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .page-title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .icon-btn {
+      background: var(--bg-app);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-main);
+      border-color: var(--primary);
+    }
+
+    .badge-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      border: 2px solid var(--bg-surface);
+    }
+
+    .theme-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-app);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 10px 4px 4px;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-app);
+      border: 1px solid var(--border-color);
+    }
+
+    .avatar-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #e11d48);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-info {
+      line-height: 1.2;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .user-role {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* Page Content */
+    .content-container {
+      padding: 24px 28px 120px 28px;
+      flex: 1;
+    }
+
+    /* Page Header Section */
+    .view-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #ffffff;
+      padding: 10px 18px;
+      font-size: 13.5px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(249, 115, 22, 0.25);
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .kpi-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .kpi-badge.badge-success {
+      background-color: var(--success-subtle);
+      color: var(--success);
+    }
+
+    .kpi-badge.badge-info {
+      background-color: var(--info-subtle);
+      color: var(--info);
+    }
+
+    /* Filter Toolbar */
+    .filter-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .filter-inputs-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .search-box-wrapper {
+      position: relative;
+      min-width: 290px;
+      flex: 1;
+    }
+
+    .search-box-wrapper svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      width: 16px;
+      height: 16px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .select-dropdown {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 30px 9px 12px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    .select-dropdown:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-text-link {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .btn-text-link:hover {
+      color: var(--primary);
+    }
+
+    .results-count-badge {
+      background-color: var(--bg-app);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* Teachers Directory Table */
+    .table-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      box-shadow: var(--shadow-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    thead {
+      background-color: var(--bg-app);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      padding: 13px 18px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.15s ease;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    td {
+      padding: 16px 18px;
+      vertical-align: middle;
+      color: var(--text-main);
+    }
+
+    /* Teacher Cell */
+    .teacher-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .coach-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--bg-surface-elevated);
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .sport-badge-icon {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      width: 18px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #fff;
+      border: 2px solid var(--bg-surface);
+    }
+
+    .coach-name {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 13.5px;
+    }
+
+    .coach-id {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    /* Contact Cell */
+    .contact-cell {
+      line-height: 1.4;
+    }
+
+    .contact-phone {
+      font-size: 12.5px;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .contact-email {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* Specialization Cell */
+    .spec-badge {
+      display: inline-block;
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    /* Batch Chips */
+    .batches-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 280px;
+    }
+
+    .batch-chip {
+      background-color: var(--primary-subtle);
+      color: var(--primary);
+      border: 1px solid rgba(249, 115, 22, 0.2);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .batch-chip-more {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Status Badges */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pill.active {
+      background-color: var(--success-subtle);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .status-pill.inactive {
+      background-color: rgba(148, 163, 184, 0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    /* Actions Cell */
+    .actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .action-icon-btn:hover {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .action-icon-btn.danger:hover {
+      background-color: var(--danger-subtle);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+  </style>
+<!-- END: Layout & Component Styles -->
+<!-- BEGIN: Interactive QA States & Modal Styles -->
+<style data-purpose="modals-and-state-overlays">
+    /* Modal Backdrop */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+
+    .modal-box {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background-color: var(--bg-surface);
+      z-index: 2;
+    }
+
+    .modal-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .btn-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      padding: 24px;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      background-color: var(--bg-app);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+    }
+
+    .form-section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text-main);
+      background-color: var(--bg-surface-elevated);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #fff;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    .btn-warning-action {
+      background-color: var(--warning);
+      color: #000;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Skeleton Loading Display */
+    .skeleton-box {
+      background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
+      background-size: 200% 100%;
+      animation: skeletonLoading 1.5s infinite;
+      border-radius: var(--radius-sm);
+    }
+
+    @keyframes skeletonLoading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* State Views */
+    #state-skeleton,
+    #state-empty,
+    #state-error {
+      display: none;
+    }
+
+    .state-card-empty,
+    .state-card-error {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 60px 20px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+    }
+
+    .state-icon-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 16px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    /* QA Floating Bar */
+    .qa-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #020617;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.7);
+      z-index: 99;
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    .qa-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: var(--primary);
+      padding: 0 6px;
+      border-right: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .qa-btn {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .qa-btn:hover, .qa-btn.active {
+      background-color: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* Responsive Queries */
+    @media (max-width: 1024px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .main-wrapper {
+        margin-left: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .top-header {
+        padding: 0 16px;
+      }
+      .content-container {
+        padding: 16px;
+      }
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+<!-- END: Interactive QA States & Modal Styles -->
+</head>
+<body>
+<!-- BEGIN: LeftNavigationSidebar -->
+<aside class="sidebar" data-purpose="academy-navigation-sidebar" id="appSidebar">
+<!-- Brand / Academy Logo Header -->
+<div class="sidebar-header">
+<img alt="Gurukul Sports Academy Logo" class="academy-logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqRhlt-ur2KibyYEp7yCWsns_7zGOWlewVZpVXzoWF-DTnLgq338_pqkNPDj1aE917jtioo3er9lD3q7FNp9c3PdUqM5H-ONhW8IrQdA5dnmM6o3t1PJRzhHBAvc6EEiw-bz4dypBMaORFScQrUx72Wq4Xk-OA64K1hUYkSCDAEgqQi0mL-djqUPUcRF7gA2qjl6mYEMK02CnAxRPKM0N51EAgsxbPnjhBWQtGk2EiVFrQefk2JofTcz-yT47l-ppl4Q"/>
+<div>
+<div class="brand-title">Gurukul Academy</div>
+<div class="brand-subtitle">OPERATIONAL CRM</div>
+</div>
+</div>
+<!-- Scrollable Navigation Items -->
+<div class="nav-scrollable">
+<!-- Section: GENERAL -->
+<div class="nav-group-title">GENERAL</div>
+<a class="nav-item" href="#dashboard">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Dashboard
+        </span>
+</a>
+<a class="nav-item" href="#students">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Students
+        </span>
+<span class="nav-badge">248</span>
+</a>
+<a class="nav-item active" href="#teachers">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Teachers
+        </span>
+<span class="nav-badge">18</span>
+</a>
+<!-- Section: ACADEMICS -->
+<div class="nav-group-title">ACADEMICS</div>
+<a class="nav-item" href="#courses">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Courses
+        </span>
+</a>
+<a class="nav-item" href="#batches">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+          Batches
+        </span>
+</a>
+<a class="nav-item" href="#attendance">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Attendance
+        </span>
+</a>
+<!-- Section: FINANCE & COMMS -->
+<div class="nav-group-title">FINANCE &amp; COMMS</div>
+<a class="nav-item" href="#fees">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="16" rx="2" width="20" x="2" y="4"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+          Fees
+        </span>
+<span class="nav-badge" style="color: var(--primary);">₹1.2L</span>
+</a>
+<a class="nav-item" href="#payments">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><line x1="12" x2="12" y1="1" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Payments
+        </span>
+</a>
+<a class="nav-item" href="#reports">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg>
+          Reports
+        </span>
+</a>
+<a class="nav-item" href="#announcements">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+          Announcements
+        </span>
+</a>
+<a class="nav-item" href="#whatsapp">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          WhatsApp
+        </span>
+</a>
+<a class="nav-item" href="#settings">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Settings
+        </span>
+</a>
+</div>
+<!-- Sidebar Footer Version Tracker -->
+<div class="sidebar-footer">
+<span>Academy Engine v2.4</span>
+<div class="status-indicator">
+<span class="status-dot"></span>
+<span>Online</span>
+</div>
+</div>
+</aside>
+<!-- END: LeftNavigationSidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="main-wrapper">
+<!-- BEGIN: TopStickyHeader -->
+<header class="top-header" data-purpose="top-navigation-header">
+<div class="page-title-group">
+<h1>Teachers</h1>
+<p>Manage faculty members and teaching assignments.</p>
+</div>
+<div class="header-actions">
+<!-- Quick Search Icon Button -->
+<button class="icon-btn" onclick="document.getElementById('searchInput').focus()" title="Global Search">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+</button>
+<!-- Notification Bell -->
+<button class="icon-btn" title="Notifications">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+<span class="badge-dot"></span>
+</button>
+<!-- Theme Toggle Switcher -->
+<button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleAppTheme()">
+<svg fill="none" height="14" stroke="currentColor" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="5"></circle><line x1="12" x2="12" y1="1" y2="3"></line><line x1="12" x2="12" y1="21" y2="23"></line><line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line><line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line><line x1="1" x2="3" y1="12" y2="12"></line><line x1="21" x2="23" y1="12" y2="12"></line><line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line><line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line></svg>
+<span id="themeLabel">Light Mode</span>
+</button>
+<!-- Admin Profile Pill -->
+<div class="user-pill">
+<div class="avatar-circle">RS</div>
+<div class="user-info">
+<div class="user-name">R. Sharma</div>
+<div class="user-role">Administrator</div>
+</div>
+</div>
+</div>
+</header>
+<!-- END: TopStickyHeader -->
+<!-- BEGIN: MainContentBody -->
+<main class="content-container">
+<!-- View Header with Primary CTA -->
+<section class="view-header">
+<div>
+<h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Faculty Directory</h2>
+<p style="font-size: 13px; color: var(--text-muted);">Manage faculty members, assigned batches and teaching responsibilities.</p>
+</div>
+<button class="btn-primary" onclick="openModal('registerModal')">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+          + Register Faculty
+        </button>
+</section>
+<!-- KPI Summary Cards Grid -->
+<section class="kpi-grid" data-purpose="summary-kpis">
+<!-- KPI 1 -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Total Teachers</span>
+<svg color="var(--primary)" fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+</div>
+<div>
+<div class="kpi-value">18</div>
+<div class="kpi-desc">Registered Coaches &amp; Faculty</div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Active Teachers</span>
+<span class="kpi-badge badge-success">+2 this term</span>
+</div>
+<div>
+<div class="kpi-value">16</div>
+<div class="kpi-desc">Active on Field / Court</div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Inactive Teachers</span>
+<svg color="var(--text-dim)" fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</div>
+<div>
+<div class="kpi-value">2</div>
+<div class="kpi-desc">On Sabbatical / Leave</div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Assigned Faculty</span>
+<span class="kpi-badge badge-info">Coverage 94%</span>
+</div>
+<div>
+<div class="kpi-value">15</div>
+<div class="kpi-desc">Leading 24 Active Batches</div>
+</div>
+</div>
+</section>
+<!-- Search & Filters Toolbar -->
+<section class="filter-card" data-purpose="table-filter-bar">
+<div class="filter-inputs-group">
+<!-- Search Input -->
+<div class="search-box-wrapper">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+<input class="search-input" id="searchInput" oninput="handleSearchFilter(this.value)" placeholder="Search by coach/teacher name, phone or email..." type="text"/>
+</div>
+<!-- Specialization Filter -->
+<select class="select-dropdown" id="filterSpec" onchange="applyFilters()">
+<option value="">All Specializations</option>
+<option value="Cricket">Cricket</option>
+<option value="Badminton">Badminton</option>
+<option value="Athletics">Athletics / Sprint</option>
+<option value="Swimming">Swimming</option>
+<option value="Football">Football</option>
+<option value="Strength">Strength &amp; Conditioning</option>
+</select>
+<!-- Assigned Batch Filter -->
+<select class="select-dropdown" id="filterBatch" onchange="applyFilters()">
+<option value="">All Batches</option>
+<option value="Cricket Senior Batch B">Cricket Senior Batch B</option>
+<option value="Morning Sprint A">Morning Sprint A</option>
+<option value="Badminton Junior Academy">Badminton Junior Academy</option>
+<option value="Swimming Elite Batch A">Swimming Elite Batch A</option>
+<option value="Football Intermediate Batch">Football Intermediate Batch</option>
+<option value="Cross-Discipline Stamina">Cross-Discipline Stamina</option>
+</select>
+<!-- Account Status Filter -->
+<select class="select-dropdown" id="filterStatus" onchange="applyFilters()">
+<option value="">All Statuses</option>
+<option value="Active">Active</option>
+<option value="Inactive">Inactive</option>
+</select>
+</div>
+<div class="filter-actions">
+<button class="btn-text-link" onclick="resetFilters()">Clear Filters</button>
+<div class="results-count-badge" id="resultsCountPill">Showing 6 of 18 Faculty Members</div>
+</div>
+</section>
+<!-- STATE CONTAINER 1: Normal Active Table -->
+<section class="table-container" data-purpose="directory-data-table" id="state-normal">
+<table>
+<thead>
+<tr>
+<th>TEACHER</th>
+<th>CONTACT</th>
+<th>SPECIALIZATION / SUBJECT</th>
+<th>ASSIGNED BATCHES</th>
+<th>JOINING DATE</th>
+<th>STATUS</th>
+<th style="text-align: right;">ACTIONS</th>
+</tr>
+</thead>
+<tbody id="teachersTableBody">
+<!-- Row 1 -->
+<tr data-coach="Devendra Rawat" data-spec="Cricket" data-status="Active">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar">
+                    DR
+                    <span class="sport-badge-icon" title="Cricket">🏏</span>
+</div>
+<div>
+<div class="coach-name">Coach Devendra Rawat</div>
+<div class="coach-id">#FAC-2024-01</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 98110 44210</div>
+<div class="contact-email">d.rawat@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Cricket - Batting Specialist</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip">Cricket Senior Batch B</span>
+<span class="batch-chip">Junior Colts A</span>
+</div>
+</td>
+<td>15 Jan 2021</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr data-coach="Malini Sen" data-spec="Badminton" data-status="Active">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar">
+                    MS
+                    <span class="sport-badge-icon" title="Badminton">🏸</span>
+</div>
+<div>
+<div class="coach-name">Coach Malini Sen</div>
+<div class="coach-id">#FAC-2024-03</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 98221 88301</div>
+<div class="contact-email">m.sen@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Badminton - National Level</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip">Badminton Junior Academy</span>
+<span class="batch-chip">Sub-Junior Smashers</span>
+</div>
+</td>
+<td>10 Mar 2022</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr data-coach="Vikram Rathore" data-spec="Athletics" data-status="Active">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar">
+                    VR
+                    <span class="sport-badge-icon" title="Athletics">🏃</span>
+</div>
+<div>
+<div class="coach-name">Coach Vikram Rathore</div>
+<div class="coach-id">#FAC-2023-14</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 98765 11234</div>
+<div class="contact-email">v.rathore@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Athletics &amp; Sprint Conditioning</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip">Athletics &amp; Sprint Pro</span>
+<span class="batch-chip">Morning Fitness A</span>
+</div>
+</td>
+<td>05 Nov 2020</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr data-coach="Ananya Deshmukh" data-spec="Swimming" data-status="Active">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar">
+                    AD
+                    <span class="sport-badge-icon" title="Swimming">🏊</span>
+</div>
+<div>
+<div class="coach-name">Coach Ananya Deshmukh</div>
+<div class="coach-id">#FAC-2024-08</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 99100 55432</div>
+<div class="contact-email">a.deshmukh@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Swimming - Stroke &amp; Endurance</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip">Swimming Elite Batch A</span>
+</div>
+</td>
+<td>01 Jun 2023</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr data-coach="Gurpreet Singh" data-spec="Football" data-status="Active">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar">
+                    GS
+                    <span class="sport-badge-icon" title="Football">⚽</span>
+</div>
+<div>
+<div class="coach-name">Coach Gurpreet Singh</div>
+<div class="coach-id">#FAC-2022-09</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 98450 77123</div>
+<div class="contact-email">g.singh@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Football - Tactical Coach</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip">Football Intermediate Batch</span>
+<span class="batch-chip">Junior Kickers</span>
+</div>
+</td>
+<td>14 Jul 2022</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr data-coach="Rajesh Kulkarni" data-spec="Strength" data-status="Inactive">
+<td>
+<div class="teacher-cell">
+<div class="coach-avatar" style="opacity: 0.7;">
+                    RK
+                    <span class="sport-badge-icon" style="background-color: var(--text-dim);" title="Fitness">🏋️</span>
+</div>
+<div>
+<div class="coach-name" style="color: var(--text-muted);">Coach Rajesh Kulkarni</div>
+<div class="coach-id">#FAC-2021-02</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone" style="color: var(--text-muted);">+91 98330 99441</div>
+<div class="contact-email">r.kulkarni@gurukulsports.in</div>
+</div>
+</td>
+<td>
+<span class="spec-badge" style="opacity: 0.8;">Strength &amp; Conditioning</span>
+</td>
+<td>
+<div class="batches-cell">
+<span class="batch-chip" style="background-color: var(--bg-surface-elevated); color: var(--text-muted); border-color: var(--border-color);">Cross-Discipline Stamina</span>
+</div>
+</td>
+<td>20 Aug 2019</td>
+<td>
+<span class="status-pill inactive" title="On Medical Leave">
+                  Inactive (Medical)
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('assignModal')" title="Assign Batch">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" x2="20" y1="8" y2="14"></line><line x1="23" x2="17" y1="11" y2="11"></line></svg>
+</button>
+<button class="action-icon-btn" onclick="alert('Coach activated successfully')" title="Reactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('removeDialog')" title="Remove Faculty">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- STATE CONTAINER 2: Skeleton Loading Simulation -->
+<section class="table-container" id="state-skeleton">
+<table>
+<thead>
+<tr>
+<th>TEACHER</th>
+<th>CONTACT</th>
+<th>SPECIALIZATION / SUBJECT</th>
+<th>ASSIGNED BATCHES</th>
+<th>JOINING DATE</th>
+<th>STATUS</th>
+<th style="text-align: right;">ACTIONS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<div style="display:flex; align-items:center; gap:12px;">
+<div class="skeleton-box" style="width:40px; height:40px; border-radius:50%;"></div>
+<div>
+<div class="skeleton-box" style="width:140px; height:14px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:80px; height:10px;"></div>
+</div>
+</div>
+</td>
+<td>
+<div class="skeleton-box" style="width:110px; height:12px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:150px; height:10px;"></div>
+</td>
+<td><div class="skeleton-box" style="width:160px; height:24px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:180px; height:22px; border-radius:4px;"></div></td>
+<td><div class="skeleton-box" style="width:80px; height:14px;"></div></td>
+<td><div class="skeleton-box" style="width:70px; height:20px; border-radius:12px;"></div></td>
+<td style="text-align: right;"><div class="skeleton-box" style="width:100px; height:24px; margin-left:auto;"></div></td>
+</tr>
+<tr>
+<td>
+<div style="display:flex; align-items:center; gap:12px;">
+<div class="skeleton-box" style="width:40px; height:40px; border-radius:50%;"></div>
+<div>
+<div class="skeleton-box" style="width:120px; height:14px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:80px; height:10px;"></div>
+</div>
+</div>
+</td>
+<td>
+<div class="skeleton-box" style="width:110px; height:12px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:140px; height:10px;"></div>
+</td>
+<td><div class="skeleton-box" style="width:170px; height:24px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:160px; height:22px; border-radius:4px;"></div></td>
+<td><div class="skeleton-box" style="width:80px; height:14px;"></div></td>
+<td><div class="skeleton-box" style="width:70px; height:20px; border-radius:12px;"></div></td>
+<td style="text-align: right;"><div class="skeleton-box" style="width:100px; height:24px; margin-left:auto;"></div></td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- STATE CONTAINER 3: Empty Results State -->
+<section class="state-card-empty" id="state-empty">
+<div class="state-icon-circle" style="background-color: var(--primary-subtle); color: var(--primary);">
+          🔍
+        </div>
+<h3 style="font-size: 18px; margin-bottom: 8px; color: var(--text-main);">No Faculty Members Found</h3>
+<p style="font-size: 13.5px; color: var(--text-muted); max-width: 440px; margin: 0 auto 20px auto;">
+          We couldn't find any coaches matching your current filter criteria. Try adjusting the specialization, batch assignment or clear filters.
+        </p>
+<button class="btn-primary" onclick="resetFilters(); setViewMode('normal')">Clear All Filters</button>
+</section>
+<!-- STATE CONTAINER 4: Error State -->
+<section class="state-card-error" id="state-error">
+<div class="state-icon-circle" style="background-color: var(--danger-subtle); color: var(--danger);">
+          ⚠️
+        </div>
+<h3 style="font-size: 18px; margin-bottom: 8px; color: var(--text-main);">Unable to Fetch Faculty Data</h3>
+<p style="font-size: 13.5px; color: var(--text-muted); max-width: 440px; margin: 0 auto 20px auto;">
+          A connection error occurred while querying the faculty database. Please verify your connection or retry request.
+        </p>
+<button class="btn-primary" onclick="setViewMode('normal')">Retry Connection</button>
+</section>
+</main>
+<!-- END: MainContentBody -->
+</div>
+<!-- END: MainContentWrapper -->
+<!-- BEGIN: ModalOverlays -->
+<!-- 1. Register Faculty Modal -->
+<div class="modal-backdrop" data-purpose="register-faculty-modal" id="registerModal">
+<div class="modal-box">
+<div class="modal-header">
+<div>
+<h3>Register New Faculty Member</h3>
+<p>Add a certified coach or instructor to Gurukul Academy.</p>
+</div>
+<button class="btn-close" onclick="closeModal('registerModal')">✕</button>
+</div>
+<div class="modal-body">
+<form id="registerFacultyForm" onsubmit="event.preventDefault(); alert('Faculty registered successfully!'); closeModal('registerModal');">
+<!-- Section 1: Personal Details -->
+<div class="form-section-title">Section 1: Personal Details</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Full Name *</label>
+<input class="form-control" placeholder="e.g. Sumeet K. Varma" required="" type="text"/>
+</div>
+<div class="form-group">
+<label>Gender *</label>
+<select class="form-control" required="">
+<option value="">Select Gender</option>
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="form-group">
+<label>Phone Number *</label>
+<input class="form-control" placeholder="+91 98XXX XXXXX" required="" type="tel"/>
+</div>
+<div class="form-group">
+<label>Email Address *</label>
+<input class="form-control" placeholder="coach@gurukulsports.in" required="" type="email"/>
+</div>
+</div>
+<!-- Section 2: Professional Details -->
+<div class="form-section-title">Section 2: Professional Details</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Faculty / Coach ID</label>
+<input class="form-control" readonly="" style="opacity: 0.7; font-family: monospace;" type="text" value="#FAC-2025-19"/>
+</div>
+<div class="form-group">
+<label>Sport Discipline / Specialization *</label>
+<select class="form-control" required="">
+<option value="">Select Primary Sport</option>
+<option value="Cricket">Cricket</option>
+<option value="Badminton">Badminton</option>
+<option value="Athletics">Athletics / Sprint</option>
+<option value="Swimming">Swimming</option>
+<option value="Football">Football</option>
+<option value="Strength">Strength &amp; Conditioning</option>
+</select>
+</div>
+<div class="form-group">
+<label>Certification / Qualification</label>
+<input class="form-control" placeholder="e.g. NIS Certified / Level 2 Coach" type="text"/>
+</div>
+<div class="form-group">
+<label>Experience (Years)</label>
+<input class="form-control" min="0" placeholder="5" type="number"/>
+</div>
+</div>
+<!-- Section 3: Account Details -->
+<div class="form-section-title">Section 3: Account &amp; Access</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>System Username</label>
+<input class="form-control" placeholder="s.varma" type="text"/>
+</div>
+<div class="form-group">
+<label>Assigned System Role</label>
+<select class="form-control">
+<option value="Coach">Coach / Instructor</option>
+<option value="HeadCoach">Head Coach &amp; Evaluator</option>
+<option value="Admin">Sports Director / Admin</option>
+</select>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('registerModal')" type="button">Cancel</button>
+<button class="btn-primary" form="registerFacultyForm" type="submit">Register Faculty</button>
+</div>
+</div>
+</div>
+<!-- 2. Edit Teacher Modal (Pre-filled for Devendra Rawat) -->
+<div class="modal-backdrop" data-purpose="edit-faculty-modal" id="editModal">
+<div class="modal-box">
+<div class="modal-header">
+<div>
+<h3>Edit Faculty Profile</h3>
+<p>Modify contact info, qualification &amp; status for Coach Devendra Rawat.</p>
+</div>
+<button class="btn-close" onclick="closeModal('editModal')">✕</button>
+</div>
+<div class="modal-body">
+<div class="form-section-title">Basic Information (#FAC-2024-01)</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Full Name</label>
+<input class="form-control" type="text" value="Coach Devendra Rawat"/>
+</div>
+<div class="form-group">
+<label>Phone Number</label>
+<input class="form-control" type="tel" value="+91 98110 44210"/>
+</div>
+<div class="form-group">
+<label>Email Address</label>
+<input class="form-control" type="email" value="d.rawat@gurukulsports.in"/>
+</div>
+<div class="form-group">
+<label>Account Status</label>
+<select class="form-control">
+<option selected="" value="Active">Active</option>
+<option value="Inactive">Inactive / On Leave</option>
+</select>
+</div>
+</div>
+<div class="form-section-title">Specialization &amp; Credentials</div>
+<div class="form-group">
+<label>Specialization Description</label>
+<input class="form-control" type="text" value="Cricket - Batting Specialist &amp; Senior Strategist"/>
+</div>
+<div class="form-group">
+<label>Accreditation</label>
+<input class="form-control" type="text" value="BCCI Level 2 Certified Coach / 12 Years First-Class Experience"/>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+<button class="btn-primary" onclick="alert('Profile updated successfully!'); closeModal('editModal');">Save Changes</button>
+</div>
+</div>
+</div>
+<!-- 3. Assign Batch Modal -->
+<div class="modal-backdrop" data-purpose="assign-batch-modal" id="assignModal">
+<div class="modal-box">
+<div class="modal-header">
+<div>
+<h3>Assign Batches to Faculty</h3>
+<p>Faculty: <strong style="color:var(--text-main);">Coach Devendra Rawat</strong> (Cricket)</p>
+</div>
+<button class="btn-close" onclick="closeModal('assignModal')">✕</button>
+</div>
+<div class="modal-body">
+<div style="margin-bottom: 16px;">
+<label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Currently Assigned Cohorts:</label>
+<div style="display: flex; gap: 8px;">
+<span class="batch-chip">Cricket Senior Batch B</span>
+<span class="batch-chip">Junior Colts A</span>
+</div>
+</div>
+<div class="form-group">
+<label>Select Additional Batches to Assign:</label>
+<div style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px; max-height: 180px; overflow-y: auto;">
+<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+<input checked="" disabled="" type="checkbox"/> Cricket Senior Batch B (Mon, Wed, Fri 4:00 PM)
+            </label>
+<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+<input checked="" disabled="" type="checkbox"/> Junior Colts A (Tue, Thu, Sat 7:00 AM)
+            </label>
+<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+<input type="checkbox"/> Weekend Fast Bowling Intensive (Sat, Sun 3:00 PM)
+            </label>
+<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+<input type="checkbox"/> Foundation Cricket Boys (U-12) (Daily 4:30 PM)
+            </label>
+</div>
+</div>
+<div class="form-group">
+<label>Effective Assignment Date</label>
+<input class="form-control" type="date" value="2025-03-01"/>
+</div>
+<div class="form-group">
+<label>Assignment Notes / Head Coach Remarks</label>
+<textarea class="form-control" placeholder="e.g. Taking over batting drills for upcoming tournament prep." rows="2"></textarea>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
+<button class="btn-primary" onclick="alert('Batches assigned successfully!'); closeModal('assignModal');">Confirm Batch Assignment</button>
+</div>
+</div>
+</div>
+<!-- 4. Deactivate Teacher Dialog -->
+<div class="modal-backdrop" data-purpose="deactivate-confirmation" id="deactivateDialog">
+<div class="modal-box" style="max-width: 460px;">
+<div class="modal-header" style="border-bottom-color: rgba(245, 158, 11, 0.3);">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-size: 20px;">⚠️</span>
+<h3 style="color: var(--warning);">Deactivate Faculty Member</h3>
+</div>
+<button class="btn-close" onclick="closeModal('deactivateDialog')">✕</button>
+</div>
+<div class="modal-body">
+<p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+          Are you sure you want to deactivate <strong style="color: var(--text-main);">Coach Devendra Rawat</strong>?
+        </p>
+<div style="background-color: var(--warning-subtle); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 4px; font-size: 12px; color: #fde68a;">
+          This will temporarily revoke CRM portal access and prompt batch coordinators to reassign his 2 active cohorts.
+        </div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('deactivateDialog')">Cancel</button>
+<button class="btn-warning-action" onclick="alert('Faculty member deactivated'); closeModal('deactivateDialog');">Confirm Deactivation</button>
+</div>
+</div>
+</div>
+<!-- 5. Remove Teacher Confirmation Dialog -->
+<div class="modal-backdrop" data-purpose="remove-confirmation" id="removeDialog">
+<div class="modal-box" style="max-width: 460px;">
+<div class="modal-header" style="border-bottom-color: rgba(239, 68, 68, 0.3);">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-size: 20px;">🛑</span>
+<h3 style="color: var(--danger);">Delete Faculty Record</h3>
+</div>
+<button class="btn-close" onclick="closeModal('removeDialog')">✕</button>
+</div>
+<div class="modal-body">
+<p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+          This action will <strong style="color: var(--danger);">permanently delete</strong> the faculty account of <strong style="color: var(--text-main);">Coach Devendra Rawat</strong> (#FAC-2024-01).
+        </p>
+<div style="background-color: var(--danger-subtle); border-left: 3px solid var(--danger); padding: 10px 14px; border-radius: 4px; font-size: 12px; color: #fca5a5;">
+          Warning: All historical logs, session attendances, and performance assessments associated with this instructor will be archived. This cannot be undone.
+        </div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('removeDialog')">Cancel</button>
+<button class="btn-danger" onclick="alert('Faculty record deleted permanently'); closeModal('removeDialog');">Permanently Delete</button>
+</div>
+</div>
+</div>
+<!-- END: ModalOverlays -->
+<!-- BEGIN: Interactive QA States Bar -->
+<div class="qa-bar" data-purpose="qa-state-switcher">
+<span class="qa-label">QA STATES:</span>
+<button class="qa-btn active" id="btnStateNormal" onclick="setViewMode('normal')">1. Normal</button>
+<button class="qa-btn" id="btnStateSkeleton" onclick="setViewMode('skeleton')">2. Skeleton Loading</button>
+<button class="qa-btn" id="btnStateEmpty" onclick="setViewMode('empty')">3. Empty State</button>
+<button class="qa-btn" id="btnStateError" onclick="setViewMode('error')">4. Error State</button>
+<button class="qa-btn" onclick="openModal('registerModal')">5. Register Modal</button>
+<button class="qa-btn" onclick="openModal('editModal')">6. Edit Modal</button>
+<button class="qa-btn" onclick="openModal('assignModal')">7. Assign Modal</button>
+<button class="qa-btn" onclick="openModal('deactivateDialog')">8. Deactivate Dialog</button>
+<button class="qa-btn" onclick="openModal('removeDialog')">9. Remove Dialog</button>
+</div>
+<!-- END: Interactive QA States Bar -->
+<!-- BEGIN: Application Scripts -->
+<script data-purpose="app-logic-and-interactions">
+    // Light / Dark Theme Toggling
+    function toggleAppTheme() {
+      const htmlEl = document.documentElement;
+      const themeLabel = document.getElementById('themeLabel');
+      const isDark = htmlEl.getAttribute('data-theme') !== 'light';
+
+      if (isDark) {
+        htmlEl.setAttribute('data-theme', 'light');
+        themeLabel.textContent = 'Dark Mode';
+      } else {
+        htmlEl.removeAttribute('data-theme');
+        themeLabel.textContent = 'Light Mode';
+      }
+    }
+
+    // Modal Control Functions
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('is-open');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('is-open');
+    }
+
+    // Close modals on clicking outside overlay
+    window.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-backdrop')) {
+        e.target.classList.remove('is-open');
+      }
+    });
+
+    // View States Switcher
+    function setViewMode(mode) {
+      // Containers
+      const normalEl = document.getElementById('state-normal');
+      const skeletonEl = document.getElementById('state-skeleton');
+      const emptyEl = document.getElementById('state-empty');
+      const errorEl = document.getElementById('state-error');
+
+      // Hide all
+      normalEl.style.display = 'none';
+      skeletonEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      // Reset QA active classes
+      document.querySelectorAll('.qa-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (mode === 'normal') {
+        normalEl.style.display = 'block';
+        document.getElementById('btnStateNormal').classList.add('active');
+      } else if (mode === 'skeleton') {
+        skeletonEl.style.display = 'block';
+        document.getElementById('btnStateSkeleton').classList.add('active');
+      } else if (mode === 'empty') {
+        emptyEl.style.display = 'block';
+        document.getElementById('btnStateEmpty').classList.add('active');
+      } else if (mode === 'error') {
+        errorEl.style.display = 'block';
+        document.getElementById('btnStateError').classList.add('active');
+      }
+    }
+
+    // Search and Dropdown Filtering Logic
+    function handleSearchFilter(term) {
+      const rows = document.querySelectorAll('#teachersTableBody tr');
+      const query = term.toLowerCase().trim();
+      let matchCount = 0;
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(query)) {
+          row.style.display = '';
+          matchCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      updateCountBadge(matchCount, rows.length);
+    }
+
+    function applyFilters() {
+      const spec = document.getElementById('filterSpec').value;
+      const status = document.getElementById('filterStatus').value;
+      const rows = document.querySelectorAll('#teachersTableBody tr');
+      let visible = 0;
+
+      rows.forEach(row => {
+        const rowSpec = row.getAttribute('data-spec') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
+
+        const matchesSpec = !spec || rowSpec.includes(spec);
+        const matchesStatus = !status || rowStatus === status;
+
+        if (matchesSpec && matchesStatus) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      updateCountBadge(visible, rows.length);
+
+      if (visible === 0) {
+        setViewMode('empty');
+      } else {
+        setViewMode('normal');
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterSpec').value = '';
+      document.getElementById('filterBatch').value = '';
+      document.getElementById('filterStatus').value = '';
+      
+      const rows = document.querySelectorAll('#teachersTableBody tr');
+      rows.forEach(row => row.style.display = '');
+      updateCountBadge(rows.length, rows.length);
+      setViewMode('normal');
+    }
+
+    function updateCountBadge(visible, total) {
+      const pill = document.getElementById('resultsCountPill');
+      if (pill) {
+        pill.textContent = `Showing ${visible} of 18 Faculty Members`;
+      }
+    }
+  </script>
+<!-- END: Application Scripts -->
+</body></html>

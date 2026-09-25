@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Gurukul Sports Academy CRM</title>
+<style>
+  /* Reset & Base Variables */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  :root {
+    --bg-page: #0B0F19;
+    --bg-card: #111827;
+    --bg-card-subtle: #162032;
+    --bg-card-hover: #1E293B;
+    --border-color: #1E293B;
+    --border-focus: #F97316;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --brand-orange: #F97316;
+    --brand-orange-hover: #EA580C;
+    --brand-orange-glow: rgba(249, 115, 22, 0.15);
+    --green-success: #22C55E;
+    --green-glow: rgba(34, 197, 94, 0.15);
+    --amber-warn: #F59E0B;
+    --red-danger: #EF4444;
+    --blue-info: #38BDF8;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-stack);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 250px;
+    background-color: #070B13;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .sidebar-header {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .sidebar-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #0B0F19;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+  }
+
+  .sidebar-brand-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+
+  .sidebar-brand-sub {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-orange);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.8px;
+    padding: 8px 12px 4px 12px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: #FFFFFF;
+  }
+
+  .nav-item.active {
+    background-color: var(--brand-orange-glow);
+    color: var(--brand-orange);
+    font-weight: 600;
+    border-left: 3px solid var(--brand-orange);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.85;
+  }
+
+  .nav-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 12px;
+    background: #1E293B;
+    color: var(--text-secondary);
+  }
+
+  .sidebar-footer {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #060910;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F97316, #C2410C);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #FFFFFF;
+  }
+
+  .user-info {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #FFFFFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-role {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* MAIN CONTENT AREA */
+  .main-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-y: auto;
+  }
+
+  /* TOP HEADER */
+  .top-header {
+    height: 64px;
+    border-bottom: 1px solid var(--border-color);
+    background: #090D16;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .header-left span.current {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #111827;
+    border: 1px solid var(--border-color);
+    padding: 7px 14px;
+    border-radius: 8px;
+    width: 280px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .header-btn {
+    background: #111827;
+    border: 1px solid var(--border-color);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+
+  .header-btn:hover {
+    color: #FFFFFF;
+    border-color: var(--text-muted);
+  }
+
+  .notify-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    background: var(--brand-orange);
+    border-radius: 50%;
+  }
+
+  .admin-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #111827;
+    border: 1px solid var(--border-color);
+    padding: 4px 10px 4px 5px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  /* PAGE CONTAINER */
+  .page-container {
+    padding: 24px 28px 80px 28px;
+    max-width: 1440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* PAGE TITLE */
+  .page-header {
+    margin-bottom: 24px;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* SETTINGS TWO-COLUMN LAYOUT */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* LEFT SUB-NAVIGATION */
+  .settings-subnav {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .subnav-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    padding: 8px 12px 6px 12px;
+  }
+
+  .subnav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 3px;
+  }
+
+  .subnav-link:hover {
+    background-color: var(--bg-card-hover);
+    color: #FFFFFF;
+  }
+
+  .subnav-link.active {
+    background-color: var(--brand-orange-glow);
+    color: var(--brand-orange);
+    font-weight: 600;
+  }
+
+  .subnav-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--brand-orange);
+    color: #FFFFFF;
+    text-transform: uppercase;
+  }
+
+  .crm-status-box {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    background: #0B111E;
+    border: 1px solid var(--border-color);
+  }
+
+  .crm-status-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .status-live-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--green-success);
+    font-weight: 600;
+  }
+
+  .progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #1E293B;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .progress-bar-fill {
+    width: 82%;
+    height: 100%;
+    background: linear-gradient(90deg, #F97316, #FB923C);
+    border-radius: 3px;
+  }
+
+  .crm-status-footer {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* RIGHT CONTENT CARDS */
+  .settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .content-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .card-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .card-header-left h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-bottom: 4px;
+  }
+
+  .card-header-left p {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: var(--green-success);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* LOGO UPLOAD COMPONENT */
+  .logo-uploader-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 24px;
+  }
+
+  .logo-preview-box {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    background: #0B0F19;
+    border: 1px solid var(--border-color);
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo-preview-box img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .logo-uploader-info {
+    flex: 1;
+  }
+
+  .logo-uploader-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #FFFFFF;
+    margin-bottom: 4px;
+  }
+
+  .logo-uploader-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .btn-group-sm {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* FORMS & INPUTS */
+  .form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group.span-full {
+    grid-column: 1 / -1;
+  }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    background: #0B0F19;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    font-family: inherit;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--brand-orange-glow);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 72px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    text-decoration: none;
+  }
+
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  .btn-primary {
+    background-color: var(--brand-orange);
+    color: #FFFFFF;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--brand-orange-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--bg-card-subtle);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--bg-card-hover);
+    color: #FFFFFF;
+  }
+
+  .btn-danger-outline {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: var(--red-danger);
+  }
+
+  .btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  /* CARD FOOTER */
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+  }
+
+  .audit-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* PUBLIC DIRECTORY PREVIEW CARD */
+  .preview-embed-card {
+    background: #090D17;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .preview-embed-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .preview-crest-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #111827;
+    border: 1px solid var(--border-color);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .preview-crest-circle img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .preview-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-bottom: 2px;
+  }
+
+  .mini-badge {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--green-success);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+
+  .preview-details {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .preview-embed-right {
+    display: flex;
+    gap: 10px;
+  }
+
+  .tag-pill {
+    background: #162032;
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* WHATSAPP LINKED DEVICE / QR GATEWAY SECTION */
+  .whatsapp-link-box {
+    background: linear-gradient(135deg, #0B1622 0%, #0F1F30 100%);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .wa-badge-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--green-success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .qr-layout-flex {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    margin-top: 14px;
+    background: #09101A;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .qr-display-frame {
+    background: #FFFFFF;
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+  }
+
+  .qr-svg {
+    width: 150px;
+    height: 150px;
+  }
+
+  .qr-timer {
+    font-size: 10px;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.5px;
+  }
+
+  .wa-instructions {
+    flex: 1;
+  }
+
+  .wa-instructions h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-bottom: 6px;
+  }
+
+  .wa-instructions p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #E2E8F0;
+  }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-orange);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .wa-session-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #0D1624;
+    border: 1px solid var(--border-color);
+  }
+
+  .session-status-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green-success);
+  }
+
+  .session-telemetry {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* BOTTOM QA SWITCHER DOCK */
+  .qa-dock {
+    position: fixed;
+    bottom: 0;
+    left: 250px;
+    right: 0;
+    background: #060A12;
+    border-top: 1px solid var(--border-color);
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 60;
+    overflow-x: auto;
+  }
+
+  .qa-dock-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand-orange);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+
+  .qa-pill {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: #0E1624;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+
+  .qa-pill:hover {
+    background: #1A2536;
+    color: #FFFFFF;
+  }
+
+  .qa-pill.active {
+    background: var(--brand-orange);
+    color: #FFFFFF;
+    border-color: var(--brand-orange);
+  }
+</style>
+</head>
+<body>
+
+  <!-- LEFT SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0Z8oPxs2EMLqETwg4SpEYiDF3Tw2-dvop-oZZ0wDsjOoFD6JJfNQQsGkzgc4GsLnvSnTrjq61SuH5X9I6Dxs0M-Mmwj7VENvWCT1y4tiouzeigFmI3f5xPNB4QR4wR9jEo9SLA_QRmku6YKsgEWlGHV9DGy8zMsAR423QrVNlVRbpVb4oAm1kZLMDq2k3F45ZJmTqfH2j4ClZJLqanyEHW5h3naNpLfy44ZIHFbeq4gDRqosaGrjhO9fMtdXmM3EHSw" alt="Gurukul Academy Logo" class="sidebar-logo">
+      <div>
+        <div class="sidebar-brand-title">Gurukul Academy</div>
+        <div class="sidebar-brand-sub">Sports CRM Pro</div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-group-title">Main Operations</div>
+      
+      <a class="nav-item" href="#dashboard">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        </span>
+        Dashboard
+      </a>
+
+      <a class="nav-item" href="#students">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 14c4 0 7 2 7 5v1H5v-1c0-3 3-5 7-5zm0-2a4 4 0 100-8 4 4 0 000 8z"/></svg>
+        </span>
+        Students
+        <span class="nav-badge">248</span>
+      </a>
+
+      <a class="nav-item" href="#teachers">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2m18 0v-2a4 4 0 00-3-3.87m-4-12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </span>
+        Teachers
+        <span class="nav-badge">18</span>
+      </a>
+
+      <a class="nav-item" href="#courses">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </span>
+        Courses
+      </a>
+
+      <a class="nav-item" href="#batches">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </span>
+        Batches
+      </a>
+
+      <a class="nav-item" href="#attendance">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        </span>
+        Attendance
+      </a>
+
+      <a class="nav-item" href="#fees">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </span>
+        Fees
+      </a>
+
+      <a class="nav-item" href="#payments">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        </span>
+        Payments
+      </a>
+
+      <a class="nav-item" href="#reports">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </span>
+        Reports
+      </a>
+
+      <div class="nav-group-title">Communications & Config</div>
+
+      <a class="nav-item" href="#announcements">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+        </span>
+        Announcements
+      </a>
+
+      <a class="nav-item" href="#whatsapp">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </span>
+        WhatsApp
+        <span class="nav-badge" style="background: rgba(34,197,94,0.2); color: #22C55E;">18</span>
+      </a>
+
+      <a class="nav-item active" href="/admin/settings">
+        <span class="nav-icon">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        Settings
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar">RS</div>
+      <div class="user-info">
+        <div class="user-name">R. Sharma</div>
+        <div class="user-role">Super Administrator</div>
+      </div>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--text-muted); cursor: pointer;"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </div>
+  </aside>
+
+  <!-- MAIN WRAPPER -->
+  <div class="main-wrapper">
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-left">
+        <span>Gurukul Sports Academy</span>
+        <span>/</span>
+        <span class="current">Settings</span>
+      </div>
+
+      <div class="header-right">
+        <div class="search-box">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search settings, preferences, coaches...">
+        </div>
+
+        <button class="header-btn" title="Notification Alerts">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="notify-dot"></span>
+        </button>
+
+        <button class="header-btn" title="Dark Theme Active">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+
+        <div class="admin-chip">
+          <div class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">RS</div>
+          <span style="font-size: 12px; font-weight: 600; color: #FFFFFF;">Rajesh Sharma</span>
+          <span style="font-size: 10px; color: var(--brand-orange); background: var(--brand-orange-glow); padding: 1px 6px; border-radius: 4px; font-weight: 700;">Super Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE CONTAINER -->
+    <main class="page-container">
+      <div class="page-header">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Manage academy information, preferences, account settings, and system configuration.</p>
+      </div>
+
+      <!-- TWO-COLUMN SETTINGS LAYOUT -->
+      <div class="settings-grid">
+        <!-- LEFT SUB-NAVIGATION -->
+        <div class="settings-subnav">
+          <div class="subnav-title">Configuration Sections</div>
+          <a class="subnav-link active">
+            <span>Academy Profile</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link">
+            <span>Admin Account</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link" style="border-left: 2px solid var(--green-success); background: rgba(34,197,94,0.06);">
+            <span style="color: #22C55E; font-weight: 600;">WhatsApp Device Link</span>
+            <span class="subnav-badge" style="background: var(--green-success);">QR Live</span>
+          </a>
+          <a class="subnav-link">
+            <span>Appearance & Theme</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link">
+            <span>Notifications</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link">
+            <span>Attendance Preferences</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link">
+            <span>Fee Preferences</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a class="subnav-link">
+            <span>Security & Audit</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+
+          <!-- CRM Storage Health Widget -->
+          <div class="crm-status-box">
+            <div class="crm-status-header">
+              <span>CRM Engine</span>
+              <span class="status-live-dot">● v4.8.2 Online</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill"></div>
+            </div>
+            <div class="crm-status-footer">Cloud Storage: 8.2 GB of 10 GB used</div>
+          </div>
+        </div>
+
+        <!-- RIGHT SETTINGS PANELS -->
+        <div class="settings-content">
+
+          <!-- 1. ACADEMY PROFILE SECTION -->
+          <div class="content-card">
+            <div class="card-header-row">
+              <div class="card-header-left">
+                <h2>Academy Profile & Information</h2>
+                <p>Manage official sports credentials, contact desk details, and public academy branding.</p>
+              </div>
+              <div class="verified-badge">
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                Verified Sports Body
+              </div>
+            </div>
+
+            <!-- Logo Upload Area -->
+            <div class="logo-uploader-row">
+              <div class="logo-preview-box">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBu8KYHLwbAA_GW2pbtUS4_80uXdHqer1eL5nm_ci937LqDl3uFXNo9-OzjoDFtDMpD0ynWmaH8Md2Q2SMI_LBQu9DR4rIhg-KiRps_sU49ZJovrB4dDCGrK18y4oN36tBb3vvix8-5qzf7mP4NUAXaJYX38gSbxn0ednco2uD5RJOu4_GLaccOeGufLvYHsFWipEaczz03-vUkHIxLABpdWJQBGRJIP2sv1MlfUTNvbFGeZgCgoeYN1Gnzm3WpRDNrg" alt="Official Academy Crest">
+              </div>
+              <div class="logo-uploader-info">
+                <div class="logo-uploader-title">Official Academy Crest Emblem</div>
+                <div class="logo-uploader-meta">Recommended dimension: 512×512px. PNG or SVG vector format supported. Max file size: 2.5MB.</div>
+                <div class="btn-group-sm">
+                  <button class="btn btn-sm btn-secondary">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Upload New
+                  </button>
+                  <button class="btn btn-sm btn-secondary">Replace Logo</button>
+                  <button class="btn btn-sm btn-danger-outline">Remove</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Profile Details Form -->
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Academy Full Name</label>
+                <input type="text" class="form-input" value="Gurukul Sports Academy">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Short Identifier / Code</label>
+                <input type="text" class="form-input" value="GSA Pro">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Official Contact Desk</label>
+                <input type="text" class="form-input" value="+91 98201 23456">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Official Administrative Email</label>
+                <input type="email" class="form-input" value="admin@gurukulsports.in">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Academy Portal URL</label>
+                <input type="url" class="form-input" value="https://gurukulsports.in">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Primary Discipline Scope</label>
+                <input type="text" class="form-input" value="Multi-Sport Academy (Cricket, Football, Badminton, Athletics)">
+              </div>
+
+              <div class="form-group span-full">
+                <label class="form-label">Campus Physical Address</label>
+                <input type="text" class="form-input" value="Plot 42, Sector 18, Sports Complex Road">
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label class="form-label">City</label>
+                <input type="text" class="form-input" value="Pune">
+              </div>
+              <div class="form-group">
+                <label class="form-label">State</label>
+                <input type="text" class="form-input" value="Maharashtra">
+              </div>
+              <div class="form-group">
+                <label class="form-label">PIN Code</label>
+                <input type="text" class="form-input" value="411045">
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Year Established</label>
+                <input type="text" class="form-input" value="2018">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Google Maps Location Link</label>
+                <input type="url" class="form-input" value="https://maps.google.com/?q=Gurukul+Sports+Academy+Pune">
+              </div>
+              <div class="form-group span-full">
+                <label class="form-label">Academy Mission & Description</label>
+                <textarea class="form-textarea">Premier athletic training academy dedicated to grooming state and national champion athletes through world-class coaching, scientific fitness tracking, and holistic youth discipline.</textarea>
+              </div>
+            </div>
+
+            <!-- Public Card Preview -->
+            <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px;">Public Academy Card Preview (Student & Parent Directory View)</div>
+            <div class="preview-embed-card">
+              <div class="preview-embed-left">
+                <div class="preview-crest-circle">
+                  <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdtIpibtVzNFx7CylwbzQeFqat9VP3dVB2LyM9G1Mds27DUwwDxraw1twqKaeP5qzGutgSm6THBVx1ywYR3AjpCx2TUSHkoaQdLDpR_hHmGelrefWA3v8TuUKtWd-u5ekBYeRknc1uI6-lQgpwQutaV_9ou9syotk3PlsfaA5rwEqYIdxPOKzpxUd7tfNdBDrFLRhWSPtQVTyZNFCkwk3oLjbC547JYt482rY4IuB-1yaJcdmAoGMY98lpzPrJ5Hxlxg" alt="Crest">
+                </div>
+                <div>
+                  <div class="preview-title-row">
+                    <span>Gurukul Sports Academy</span>
+                    <span class="mini-badge">Verified</span>
+                  </div>
+                  <div class="preview-details">Plot 42, Sector 18, Sports Complex Road, Pune 411045</div>
+                  <div class="preview-details" style="color: var(--brand-orange); margin-top: 2px;">admin@gurukulsports.in • +91 98201 23456</div>
+                </div>
+              </div>
+              <div class="preview-embed-right">
+                <span class="tag-pill">Est. 2018</span>
+                <span class="tag-pill">Affiliated GSA</span>
+              </div>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="card-footer">
+              <div class="audit-text">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--green-success);"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                All edits are logged in audit system log.
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. WHATSAPP DEVICE LINK / QR GATEWAY (CLIENT INTEGRATION) -->
+          <div class="whatsapp-link-box">
+            <div class="wa-badge-banner">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.66 15L2 22l5.18-1.32A10 10 0 1012 2zm0 18.2a8.17 8.17 0 01-4.17-1.14l-.3-.18-3.08.79.82-3-.2-.32A8.2 8.2 0 1112 20.2z"/></svg>
+              WhatsApp Web Gateway Integration
+            </div>
+
+            <div class="card-header-row" style="border-bottom-color: rgba(30, 41, 59, 0.7); margin-bottom: 0; padding-bottom: 12px;">
+              <div class="card-header-left">
+                <h2>Linked WhatsApp Device (QR Code Connection)</h2>
+                <p>Scan this QR code from your Academy's official WhatsApp to activate automated fee reminders, attendance alerts, and broadcast engine.</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-sm btn-secondary" style="border-color: rgba(34,197,94,0.4); color: #22C55E;">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Regenerate QR
+                </button>
+              </div>
+            </div>
+
+            <div class="qr-layout-flex">
+              <!-- Crisp Vector SVG QR Code Frame -->
+              <div class="qr-display-frame">
+                <svg class="qr-svg" viewBox="0 0 100 100" shape-rendering="crispEdges">
+                  <!-- QR Code Matrix Simulation in Crisp Pure SVG -->
+                  <rect width="100" height="100" fill="#ffffff"/>
+                  <!-- Position Detection Pattern: Top-Left -->
+                  <rect x="5" y="5" width="30" height="30" fill="#0F172A"/>
+                  <rect x="9" y="9" width="22" height="22" fill="#ffffff"/>
+                  <rect x="13" y="13" width="14" height="14" fill="#0F172A"/>
+                  <!-- Position Detection Pattern: Top-Right -->
+                  <rect x="65" y="5" width="30" height="30" fill="#0F172A"/>
+                  <rect x="69" y="9" width="22" height="22" fill="#ffffff"/>
+                  <rect x="73" y="13" width="14" height="14" fill="#0F172A"/>
+                  <!-- Position Detection Pattern: Bottom-Left -->
+                  <rect x="5" y="65" width="30" height="30" fill="#0F172A"/>
+                  <rect x="9" y="69" width="22" height="22" fill="#ffffff"/>
+                  <rect x="13" y="73" width="14" height="14" fill="#0F172A"/>
+                  <!-- Timing Patterns -->
+                  <rect x="38" y="15" width="4" height="4" fill="#0F172A"/>
+                  <rect x="44" y="15" width="4" height="4" fill="#0F172A"/>
+                  <rect x="50" y="15" width="4" height="4" fill="#0F172A"/>
+                  <rect x="56" y="15" width="4" height="4" fill="#0F172A"/>
+                  <rect x="15" y="38" width="4" height="4" fill="#0F172A"/>
+                  <rect x="15" y="44" width="4" height="4" fill="#0F172A"/>
+                  <rect x="15" y="50" width="4" height="4" fill="#0F172A"/>
+                  <rect x="15" y="56" width="4" height="4" fill="#0F172A"/>
+                  <!-- Data Dots Grid -->
+                  <rect x="40" y="25" width="5" height="5" fill="#0F172A"/>
+                  <rect x="50" y="25" width="5" height="5" fill="#0F172A"/>
+                  <rect x="45" y="35" width="5" height="5" fill="#0F172A"/>
+                  <rect x="55" y="35" width="5" height="5" fill="#0F172A"/>
+                  <rect x="38" y="45" width="6" height="6" fill="#F97316"/>
+                  <rect x="46" y="45" width="8" height="8" fill="#0F172A"/>
+                  <rect x="56" y="45" width="6" height="6" fill="#22C55E"/>
+                  <rect x="40" y="55" width="5" height="5" fill="#0F172A"/>
+                  <rect x="50" y="55" width="5" height="5" fill="#0F172A"/>
+                  <rect x="40" y="65" width="5" height="5" fill="#0F172A"/>
+                  <rect x="50" y="65" width="5" height="5" fill="#0F172A"/>
+                  <rect x="40" y="75" width="5" height="5" fill="#0F172A"/>
+                  <rect x="50" y="75" width="5" height="5" fill="#0F172A"/>
+                  <rect x="65" y="40" width="5" height="5" fill="#0F172A"/>
+                  <rect x="75" y="40" width="5" height="5" fill="#0F172A"/>
+                  <rect x="85" y="40" width="5" height="5" fill="#0F172A"/>
+                  <rect x="65" y="50" width="5" height="5" fill="#0F172A"/>
+                  <rect x="75" y="50" width="5" height="5" fill="#0F172A"/>
+                  <rect x="85" y="50" width="5" height="5" fill="#0F172A"/>
+                  <rect x="65" y="60" width="5" height="5" fill="#0F172A"/>
+                  <rect x="75" y="60" width="5" height="5" fill="#0F172A"/>
+                  <rect x="85" y="60" width="5" height="5" fill="#0F172A"/>
+                  <rect x="65" y="70" width="5" height="5" fill="#0F172A"/>
+                  <rect x="75" y="70" width="5" height="5" fill="#0F172A"/>
+                  <rect x="85" y="70" width="5" height="5" fill="#0F172A"/>
+                </svg>
+                <div class="qr-timer">EXPIRES IN 04:32 MIN</div>
+              </div>
+
+              <!-- Setup Instructions -->
+              <div class="wa-instructions">
+                <h3>Pair Academy Phone in 3 Simple Steps:</h3>
+                <p>Ensure your mobile device has an active internet connection before scanning to authenticate session.</p>
+
+                <div class="steps-list">
+                  <div class="step-row">
+                    <span class="step-num">1</span>
+                    <span>Open <strong>WhatsApp</strong> on your official academy phone</span>
+                  </div>
+                  <div class="step-row">
+                    <span class="step-num">2</span>
+                    <span>Tap <strong>Menu (⋮)</strong> or <strong>Settings</strong> &gt; Select <strong>Linked Devices</strong></span>
+                  </div>
+                  <div class="step-row">
+                    <span class="step-num">3</span>
+                    <span>Tap <strong>Link a Device</strong> and point your camera at this QR screen</span>
+                  </div>
+                </div>
+
+                <div class="wa-session-bar">
+                  <div class="session-status-text">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green-success);"></span>
+                    Ready for Pairing (Session ID: #GSA-WA-8821)
+                  </div>
+                  <div class="session-telemetry">
+                    <span>Battery: 94%</span>
+                    <span>Signal: Strong 5G</span>
+                    <span>Gateway: Secure TLS</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- BOTTOM QA SWITCHER DOCK -->
+    <div class="qa-dock">
+      <div class="qa-dock-title">
+        <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Settings Views:
+      </div>
+      <button class="qa-pill active">1. Academy Profile</button>
+      <button class="qa-pill">2. Admin Account</button>
+      <button class="qa-pill" style="border-color: rgba(34,197,94,0.4); color: #22C55E;">3. WhatsApp QR Gateway</button>
+      <button class="qa-pill">4. Attendance Rules</button>
+      <button class="qa-pill">5. Fee Preferences</button>
+      <button class="qa-pill">6. Security & Audit</button>
+      <button class="qa-pill">7. Password Modal</button>
+      <div style="margin-left: auto; font-size: 11px; color: var(--text-muted); white-space: nowrap;">Gurukul CRM • /admin/settings</div>
+    </div>
+  </div>
+
+</body>
+</html>

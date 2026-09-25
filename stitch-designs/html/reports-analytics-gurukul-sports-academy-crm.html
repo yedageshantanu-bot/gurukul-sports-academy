@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reports &amp; Analytics — Gurukul Sports Academy CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+    :root {
+      --bg-base: #031427;
+      --bg-surface: #0b1c30;
+      --bg-surface-elevated: #1b2b3f;
+      --bg-surface-subtle: #102034;
+      --border-color: rgba(167, 139, 125, 0.18);
+      --border-color-focus: rgba(249, 115, 22, 0.5);
+      --text-main: #d3e4fe;
+      --text-muted: #bec6e0;
+      --text-dim: #7f8fa4;
+      --brand-orange: #f97316;
+      --brand-orange-hover: #ea580c;
+      --brand-orange-subtle: rgba(249, 115, 22, 0.14);
+      --success-green: #4ae176;
+      --success-bg: rgba(74, 225, 118, 0.12);
+      --warning-amber: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --danger-red: #ffb4ab;
+      --danger-bg: rgba(255, 180, 171, 0.12);
+      --sidebar-width: 256px;
+      --header-height: 64px;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+    }
+
+    /* Strict standard icons */
+    .icon {
+      width: 18px;
+      height: 18px;
+      max-width: 18px;
+      max-height: 18px;
+      flex-shrink: 0;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .icon-sm {
+      width: 14px;
+      height: 14px;
+    }
+    .icon-lg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Left Sidebar Navigation - Matching SCREEN_14 */
+    aside.crm-sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      background-color: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-logo-img {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 2px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--brand-orange);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-dim);
+      padding: 14px 10px 6px 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-surface-elevated);
+      color: #FFFFFF;
+    }
+
+    /* Active Indicator matching Payments Management SCREEN_14 */
+    .nav-item.active {
+      background-color: rgba(249, 115, 22, 0.18);
+      color: #ff9858;
+      font-weight: 600;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 18%;
+      bottom: 18%;
+      width: 3.5px;
+      border-radius: 0 4px 4px 0;
+      background: var(--brand-orange);
+    }
+    .nav-item.active .icon {
+      stroke: #ff9858;
+    }
+
+    .badge-count {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 1.5px 7px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .nav-item.active .badge-count {
+      background: var(--brand-orange);
+      color: #FFFFFF;
+    }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #081626;
+    }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12.5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.2;
+    }
+    .user-role {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Main Workspace */
+    main.crm-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--bg-base);
+    }
+
+    /* Header Bar matching SCREEN_14 */
+    header.crm-header {
+      height: var(--header-height);
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+    .header-breadcrumb a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .header-breadcrumb a:hover {
+      color: #FFFFFF;
+    }
+    .header-breadcrumb span.current {
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      width: 220px;
+    }
+    .header-search input {
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 12px;
+      color: var(--text-main);
+      width: 100%;
+    }
+    .header-search input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-subtle);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+    .btn-icon:hover {
+      color: #FFFFFF;
+      background: var(--bg-surface-elevated);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn-icon .notif-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--brand-orange);
+      box-shadow: 0 0 4px var(--brand-orange);
+    }
+
+    /* Content Area */
+    .content-container {
+      padding: 24px 28px 48px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Page Hero Banner & Action Header */
+    .page-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .page-headings h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+    }
+    .page-headings p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .page-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .select-dropdown {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .select-dropdown:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-primary {
+      background-color: var(--brand-orange);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .btn-primary:hover {
+      background-color: var(--brand-orange-hover);
+    }
+
+    /* Category Tabs */
+    .category-tabs-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      padding: 4px;
+      border-radius: 10px;
+      width: fit-content;
+    }
+
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn:hover {
+      color: #FFFFFF;
+    }
+    .tab-btn.active {
+      background-color: var(--brand-orange);
+      color: #FFFFFF;
+      box-shadow: 0 1px 6px rgba(249, 115, 22, 0.35);
+    }
+    .tab-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      font-weight: 500;
+    }
+    .tab-btn:not(.active) .tab-badge {
+      background: var(--bg-surface-elevated);
+      color: var(--text-dim);
+    }
+
+    /* KPI Summary 4-Column Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .kpi-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .kpi-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+    .kpi-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+    }
+    .kpi-icon-wrap.orange { background: var(--brand-orange-subtle); color: var(--brand-orange); }
+    .kpi-icon-wrap.green { background: var(--success-bg); color: var(--success-green); }
+    .kpi-icon-wrap.amber { background: var(--warning-bg); color: var(--warning-amber); }
+    .kpi-icon-wrap.blue { background: rgba(59, 130, 246, 0.12); color: #3B82F6; }
+
+    .kpi-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .trend-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .trend-pill.positive {
+      background-color: var(--success-bg);
+      color: var(--success-green);
+    }
+    .trend-pill.neutral {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-muted);
+    }
+
+    .kpi-supporting {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kpi-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+    .kpi-card:nth-child(1) .kpi-dot { background: var(--brand-orange); }
+    .kpi-card:nth-child(2) .kpi-dot { background: var(--success-green); }
+    .kpi-card:nth-child(3) .kpi-dot { background: #3B82F6; }
+    .kpi-card:nth-child(4) .kpi-dot { background: var(--warning-amber); }
+
+    /* Bento Grid for Charts */
+    .bento-row {
+      display: grid;
+      grid-template-columns: 1.7fr 1.3fr;
+      gap: 16px;
+    }
+
+    .card-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .card-header-bar h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .card-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+    }
+
+    /* Chart 1: Student Growth Line / Area */
+    .line-chart-box {
+      width: 100%;
+      height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+    }
+    .line-svg-wrap {
+      width: 100%;
+      height: 180px;
+    }
+    .growth-axis-x {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Chart 2: Students by Course Bars */
+    .courses-bars-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      justify-content: center;
+      flex: 1;
+    }
+    .course-bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .course-bar-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .course-name {
+      font-weight: 600;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .course-pill-color {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+    .course-stat {
+      color: var(--text-muted);
+    }
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-surface-elevated);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    /* Bento Row 2: Attendance Overview + Fee Collection */
+    .bento-row-bottom {
+      display: grid;
+      grid-template-columns: 1.1fr 1.9fr;
+      gap: 16px;
+    }
+
+    /* Donut chart layout */
+    .donut-layout-wrap {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin: auto 0;
+      padding: 10px 0;
+    }
+    .donut-container {
+      width: 130px;
+      height: 130px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .donut-center-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+    }
+    .donut-pct {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      line-height: 1;
+    }
+    .donut-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .legend-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+    .legend-val {
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .insight-card-pill {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(74, 225, 118, 0.08);
+      border: 1px solid rgba(74, 225, 118, 0.2);
+      font-size: 12px;
+      color: var(--success-green);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Fee Collection Trend Bars */
+    .fee-chart-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+      justify-content: space-between;
+    }
+    .fee-bars-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      height: 140px;
+      padding-top: 20px;
+      gap: 14px;
+    }
+    .fee-col-bar {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .fee-bar-pillar {
+      width: 100%;
+      max-width: 48px;
+      background: var(--bg-surface-elevated);
+      border-radius: 6px 6px 2px 2px;
+      position: relative;
+      transition: height 0.2s ease, background-color 0.2s ease;
+    }
+    .fee-bar-pillar.current {
+      background: linear-gradient(180deg, var(--brand-orange), #EA580C);
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.35);
+    }
+    .bar-tooltip {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brand-orange);
+      white-space: nowrap;
+    }
+    .fee-col-month {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+    .fee-col-bar:last-child .fee-col-month {
+      color: var(--brand-orange);
+    }
+
+    .fee-summary-pills-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+    }
+    .fee-sum-pill {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .fee-sum-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+    .fee-sum-num {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .fee-sum-pill.billed .fee-sum-num { color: #bec6e0; }
+    .fee-sum-pill.collected .fee-sum-num { color: var(--success-green); }
+    .fee-sum-pill.pending .fee-sum-num { color: var(--warning-amber); }
+    .fee-sum-pill.overdue .fee-sum-num { color: var(--danger-red); }
+
+    /* Tables & Sub-View Containers */
+    .subview-section {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .subview-section.active-subview {
+      display: flex;
+    }
+
+    .filter-bar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-inputs-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .table-search-input {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 7px 12px;
+      font-size: 13px;
+      outline: none;
+      width: 240px;
+    }
+    .table-search-input:focus {
+      border-color: var(--brand-orange);
+    }
+
+    .table-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table.crm-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    table.crm-table th {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    table.crm-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    table.crm-table tr:last-child td {
+      border-bottom: none;
+    }
+    table.crm-table tr:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Status Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status-badge.paid, .status-badge.healthy {
+      background: var(--success-bg);
+      color: var(--success-green);
+    }
+    .status-badge.pending, .status-badge.warning {
+      background: var(--warning-bg);
+      color: var(--warning-amber);
+    }
+    .status-badge.overdue, .status-badge.critical {
+      background: var(--danger-bg);
+      color: var(--danger-red);
+    }
+    .status-badge.waived {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+    }
+
+    .action-btn-sm {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-subtle);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .action-btn-sm:hover {
+      color: #FFFFFF;
+      background: var(--bg-surface-elevated);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Modal Overlay */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 8, 20, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 90;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .modal-body {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .form-select, .form-input {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #FFFFFF;
+      font-size: 13px;
+      outline: none;
+    }
+    .form-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+    .export-preview-card {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .modal-footer {
+      padding: 16px 22px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      background: var(--bg-surface-subtle);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      color: #FFFFFF;
+      background: var(--bg-surface-elevated);
+    }
+
+    /* QA Switcher Dock */
+    .qa-bar-dock {
+      position: sticky;
+      bottom: 0;
+      z-index: 50;
+      background: #000f21;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .qa-title {
+      font-weight: 700;
+      color: var(--brand-orange);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .qa-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .qa-btn:hover {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+    .qa-btn.active {
+      background: var(--brand-orange);
+      color: #fff;
+      border-color: var(--brand-orange);
+    }
+
+    /* Empty state */
+    .empty-state-card {
+      padding: 48px 24px;
+      text-align: center;
+      background: var(--bg-surface);
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .empty-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-surface-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+<!-- Left Sidebar Navigation Matching Payments Management (SCREEN_14) -->
+<aside class="crm-sidebar">
+<div class="sidebar-header">
+<img alt="Gurukul Sports Academy Logo" class="brand-logo-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4y7AlIZEXyiyNjgUTUH8ItMSvMix2mNrqXuiguoTQgDc7tUusS07gy7RpUPKcXn0wU3iWNMoTML97AziUwJC7kES4qlHY3g9TXqwEYjuoSad1uM0bA4Wzws1fT5rivSRCMQlo7unXpz9Mh6dL2_XdFm2jHcLeZphJz-ni4vGptreb_wICFCza14nNzrs-J4Jpi9l_x5_W_MK5I-r-iqcPfu18kosk7bsQucBqziTXIj-yzTjEFDlvFMd8UZzwONVBHQ"/>
+<div>
+<div class="brand-title">Gurukul Academy</div>
+<div class="brand-sub">OPERATIONAL CRM</div>
+</div>
+</div>
+<div class="sidebar-nav">
+<div class="nav-label">Main Navigation</div>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+<span>Dashboard</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+<span>Students</span>
+<span class="badge-count">248</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+<span>Teachers</span>
+<span class="badge-count">18</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10M6 10h10"></path></svg>
+<span>Courses</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><rect height="18" rx="2" width="18" x="3" y="3"></rect><path d="M3 9h18M9 21V9"></path></svg>
+<span>Batches</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="m9 16 2 2 4-4"></path></svg>
+<span>Attendance</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><rect height="14" rx="2" width="20" x="2" y="5"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+<span>Fees</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+<span>Payments</span>
+</a>
+<!-- Active Report Navigation Item with exact SCREEN_14 highlight style -->
+<a class="nav-item active">
+<svg class="icon" viewbox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg>
+<span>Reports</span>
+</a>
+<div class="nav-label">Communications</div>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>
+<span>Announcements</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+<span>WhatsApp</span>
+</a>
+<a class="nav-item">
+<svg class="icon" viewbox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+<span>Settings</span>
+</a>
+</div>
+<!-- Sidebar Profile Bottom Dock Matching SCREEN_14 -->
+<div class="sidebar-footer">
+<div class="user-profile">
+<div class="user-avatar">RS</div>
+<div>
+<div class="user-name">R. Sharma</div>
+<div class="user-role">Administrator</div>
+</div>
+</div>
+<button class="btn-icon" style="width:28px; height:28px; border:none; background:transparent;" title="Account Options">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+</button>
+</div>
+</aside>
+<!-- Main CRM Body Area -->
+<main class="crm-main">
+<!-- Top Header Bar with search, breadcrumb and action toggles matching SCREEN_14 -->
+<header class="crm-header">
+<div class="header-breadcrumb">
+<a href="#">Gurukul Sports Academy</a>
+<span>/</span>
+<span class="current">Reports &amp; Analytics</span>
+</div>
+<div class="header-actions">
+<!-- Quick search box -->
+<div class="header-search">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+<input placeholder="Search reports, metrics..." type="text"/>
+</div>
+<!-- Theme Toggle -->
+<button class="btn-icon" id="themeToggleBtn" title="Theme Settings">
+<svg class="icon" viewbox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" x2="12" y1="1" y2="3"></line><line x1="12" x2="12" y1="21" y2="23"></line><line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line><line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line><line x1="1" x2="3" y1="12" y2="12"></line><line x1="21" x2="23" y1="12" y2="12"></line><line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line><line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line></svg>
+</button>
+<!-- Notification Trigger -->
+<button class="btn-icon" title="Notifications">
+<svg class="icon" viewbox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+<span class="notif-dot"></span>
+</button>
+</div>
+</header>
+<!-- Content Viewport -->
+<div class="content-container">
+<!-- Page Head Title & Global Filter Controls -->
+<div class="page-title-row">
+<div class="page-headings">
+<h1>Reports &amp; Analytics</h1>
+<p>Understand academy performance through attendance, student, fee, and batch insights.</p>
+</div>
+<div class="page-controls">
+<!-- Date Range Selector -->
+<div class="select-dropdown">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+<select id="dateRangeSelect" style="background:transparent; border:none; color:inherit; font-weight:600; outline:none; cursor:pointer;">
+<option value="today">Today</option>
+<option value="this_week">This Week</option>
+<option selected="" value="this_month">This Month (Sep 2026)</option>
+<option value="last_month">Last Month (Aug 2026)</option>
+<option value="this_quarter">This Quarter (Q3)</option>
+<option value="custom">Custom Range...</option>
+</select>
+</div>
+<!-- Export Report Modal Trigger -->
+<button class="btn-primary" onclick="openExportModal()">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+<span>Export Report</span>
+</button>
+</div>
+</div>
+<!-- Report Category Navigation Tabs -->
+<div class="category-tabs-bar">
+<button class="tab-btn active" id="tab-overview" onclick="switchCategoryTab('overview')">
+<span>Overview</span>
+<span class="tab-badge">Full Academy</span>
+</button>
+<button class="tab-btn" id="tab-students" onclick="switchCategoryTab('students')">
+<span>Student Reports</span>
+<span class="tab-badge">248 Records</span>
+</button>
+<button class="tab-btn" id="tab-attendance" onclick="switchCategoryTab('attendance')">
+<span>Attendance Reports</span>
+<span class="tab-badge">86.4% Avg</span>
+</button>
+<button class="tab-btn" id="tab-fees" onclick="switchCategoryTab('fees')">
+<span>Fee Reports</span>
+<span class="tab-badge">₹2.40L</span>
+</button>
+</div>
+<!-- TAB 1: OVERVIEW TAB CONTENT -->
+<div class="subview-section active-subview" id="view-overview">
+<!-- 4 Summary KPI Cards -->
+<div class="kpi-grid">
+<!-- Card 1: Total Students -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Total Students</span>
+<div class="kpi-icon-wrap orange">
+<svg class="icon" viewbox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">248</span>
+<span class="trend-pill positive">+8.2% vs last mo</span>
+</div>
+<div class="kpi-supporting">
+<span class="kpi-dot"></span>
+<span>Currently active enrolled athletes</span>
+</div>
+</div>
+<!-- Card 2: Average Attendance -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Average Attendance</span>
+<div class="kpi-icon-wrap green">
+<svg class="icon" viewbox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="m9 16 2 2 4-4"></path></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">86.4%</span>
+<span class="trend-pill positive">+3.1% benchmark</span>
+</div>
+<div class="kpi-supporting">
+<span class="kpi-dot"></span>
+<span>Across all 18 active batches</span>
+</div>
+</div>
+<!-- Card 3: Monthly Collection -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Monthly Collection</span>
+<div class="kpi-icon-wrap blue">
+<svg class="icon" viewbox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">₹2,40,000</span>
+<span class="trend-pill positive">+14.8% vs last mo</span>
+</div>
+<div class="kpi-supporting">
+<span class="kpi-dot"></span>
+<span>Total fees collected in September</span>
+</div>
+</div>
+<!-- Card 4: Active Batches -->
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Active Batches</span>
+<div class="kpi-icon-wrap amber">
+<svg class="icon" viewbox="0 0 24 24"><rect height="18" rx="2" width="18" x="3" y="3"></rect><path d="M3 9h18M9 21V9"></path></svg>
+</div>
+</div>
+<div class="kpi-value-row">
+<span class="kpi-value">18</span>
+<span class="trend-pill neutral">5 Sports Disciplines</span>
+</div>
+<div class="kpi-supporting">
+<span class="kpi-dot"></span>
+<span>Currently running coaching slots</span>
+</div>
+</div>
+</div>
+<!-- Bento Row 1: Student Growth Line Chart + Students by Course Bars -->
+<div class="bento-row">
+<!-- Student Growth Line Chart -->
+<div class="card-container">
+<div class="card-header-bar">
+<div>
+<h2>
+<svg class="icon" style="color:var(--brand-orange)" viewbox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+<span>Student Growth</span>
+</h2>
+<div class="card-subtitle">Active student count over the last six months (Apr – Sep 2026)</div>
+</div>
+<span class="card-tag">+47.6% H1 Growth</span>
+</div>
+<!-- SVG Line Chart Representation -->
+<div class="line-chart-box">
+<svg class="line-svg-wrap" preserveaspectratio="none" viewbox="0 0 540 180">
+<defs>
+<lineargradient id="growthGrad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#F97316" stop-opacity="0.32"></stop>
+<stop offset="100%" stop-color="#F97316" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Horizontal Guide Lines -->
+<line stroke="rgba(255,255,255,0.06)" stroke-dasharray="4" x1="0" x2="540" y1="30" y2="30"></line>
+<line stroke="rgba(255,255,255,0.06)" stroke-dasharray="4" x1="0" x2="540" y1="80" y2="80"></line>
+<line stroke="rgba(255,255,255,0.06)" stroke-dasharray="4" x1="0" x2="540" y1="130" y2="130"></line>
+<!-- Area Fill -->
+<polygon fill="url(#growthGrad)" points="30,140 120,120 210,102 300,75 390,52 490,26 490,175 30,175"></polygon>
+<!-- Path Line -->
+<polyline fill="none" points="30,140 120,120 210,102 300,75 390,52 490,26" stroke="#F97316" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></polyline>
+<!-- Coordinates Points & Data Labels -->
+<circle cx="30" cy="140" fill="#F97316" r="4.5" stroke="#0b1c30" stroke-width="2"></circle>
+<text fill="#bec6e0" font-size="10" font-weight="600" text-anchor="middle" x="30" y="128">168</text>
+<circle cx="120" cy="120" fill="#F97316" r="4.5" stroke="#0b1c30" stroke-width="2"></circle>
+<text fill="#bec6e0" font-size="10" font-weight="600" text-anchor="middle" x="120" y="108">182</text>
+<circle cx="210" cy="102" fill="#F97316" r="4.5" stroke="#0b1c30" stroke-width="2"></circle>
+<text fill="#bec6e0" font-size="10" font-weight="600" text-anchor="middle" x="210" y="90">195</text>
+<circle cx="300" cy="75" fill="#F97316" r="4.5" stroke="#0b1c30" stroke-width="2"></circle>
+<text fill="#bec6e0" font-size="10" font-weight="600" text-anchor="middle" x="300" y="63">214</text>
+<circle cx="390" cy="52" fill="#F97316" r="4.5" stroke="#0b1c30" stroke-width="2"></circle>
+<text fill="#bec6e0" font-size="10" font-weight="600" text-anchor="middle" x="390" y="40">231</text>
+<circle cx="490" cy="26" fill="#F97316" r="6" stroke="#FFFFFF" stroke-width="2"></circle>
+<text fill="#F97316" font-size="12" font-weight="700" text-anchor="middle" x="490" y="16">248 (Peak)</text>
+</svg>
+<div class="growth-axis-x">
+<span>Apr 2026</span>
+<span>May</span>
+<span>Jun</span>
+<span>Jul</span>
+<span>Aug</span>
+<span style="color:var(--brand-orange)">Sep (Current)</span>
+</div>
+</div>
+</div>
+<!-- Students by Course Distribution -->
+<div class="card-container">
+<div class="card-header-bar">
+<div>
+<h2>
+<svg class="icon" style="color:#3B82F6" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m4.93 4.93 4.24 4.24"></path><path d="m14.83 9.17 4.24-4.24"></path><path d="m14.83 14.83 4.24 4.24"></path><path d="m9.17 14.83-4.24 4.24"></path></svg>
+<span>Students by Course</span>
+</h2>
+<div class="card-subtitle">Headcount and percentage distribution across active sports</div>
+</div>
+<span class="card-tag">248 Enrolled</span>
+</div>
+<div class="courses-bars-list">
+<!-- Cricket: 82 (33%) -->
+<div class="course-bar-item">
+<div class="course-bar-meta">
+<span class="course-name">
+<span class="course-pill-color" style="background:#F97316;"></span>
+                    Cricket Academy
+                  </span>
+<span class="course-stat"><strong>82 athletes</strong> (33%)</span>
+</div>
+<div class="bar-track">
+<div class="bar-fill" style="width: 33%; background: #F97316;"></div>
+</div>
+</div>
+<!-- Football: 64 (26%) -->
+<div class="course-bar-item">
+<div class="course-bar-meta">
+<span class="course-name">
+<span class="course-pill-color" style="background:#4ae176;"></span>
+                    Football Club
+                  </span>
+<span class="course-stat"><strong>64 athletes</strong> (26%)</span>
+</div>
+<div class="bar-track">
+<div class="bar-fill" style="width: 26%; background: #4ae176;"></div>
+</div>
+</div>
+<!-- Basketball: 48 (19%) -->
+<div class="course-bar-item">
+<div class="course-bar-meta">
+<span class="course-name">
+<span class="course-pill-color" style="background:#3B82F6;"></span>
+                    Basketball Squad
+                  </span>
+<span class="course-stat"><strong>48 athletes</strong> (19%)</span>
+</div>
+<div class="bar-track">
+<div class="bar-fill" style="width: 19%; background: #3B82F6;"></div>
+</div>
+</div>
+<!-- Athletics: 32 (13%) -->
+<div class="course-bar-item">
+<div class="course-bar-meta">
+<span class="course-name">
+<span class="course-pill-color" style="background:#F59E0B;"></span>
+                    Athletics Sprint &amp; Track
+                  </span>
+<span class="course-stat"><strong>32 athletes</strong> (13%)</span>
+</div>
+<div class="bar-track">
+<div class="bar-fill" style="width: 13%; background: #F59E0B;"></div>
+</div>
+</div>
+<!-- Swimming: 22 (9%) -->
+<div class="course-bar-item">
+<div class="course-bar-meta">
+<span class="course-name">
+<span class="course-pill-color" style="background:#06B6D4;"></span>
+                    Swimming Aquatics
+                  </span>
+<span class="course-stat"><strong>22 athletes</strong> (9%)</span>
+</div>
+<div class="bar-track">
+<div class="bar-fill" style="width: 9%; background: #06B6D4;"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bento Row 2: Attendance Overview Donut + Fee Collection Trend -->
+<div class="bento-row-bottom">
+<!-- Attendance Overview Chart & Insight -->
+<div class="card-container">
+<div class="card-header-bar">
+<div>
+<h2>
+<svg class="icon" style="color:var(--success-green)" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+<span>Attendance Overview</span>
+</h2>
+<div class="card-subtitle">Aggregated ratio across all academy sessions</div>
+</div>
+<span class="card-tag">Sep 2026</span>
+</div>
+<div class="donut-layout-wrap">
+<!-- SVG Donut Chart (Present 86%, Absent 9%, Leave 5%) -->
+<div class="donut-container">
+<svg style="width:100%; height:100%; transform: rotate(-90deg);" viewbox="0 0 36 36">
+<!-- Background Circle -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4.5"></path>
+<!-- Present 86% Green -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#4ae176" stroke-dasharray="86, 100" stroke-linecap="round" stroke-width="4.5"></path>
+<!-- Absent 9% Red (offset 86) -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ffb4ab" stroke-dasharray="9, 100" stroke-dashoffset="-86" stroke-width="4.5"></path>
+<!-- Leave 5% Amber (offset 95) -->
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" stroke-dasharray="5, 100" stroke-dashoffset="-95" stroke-width="4.5"></path>
+</svg>
+<div class="donut-center-label">
+<div class="donut-pct">86.4%</div>
+<div class="donut-sub">Present</div>
+</div>
+</div>
+<!-- Donut Legend Breakdown -->
+<div class="donut-legend">
+<div class="legend-item">
+<div class="legend-left">
+<span class="legend-dot" style="background:#4ae176;"></span>
+<span>Present (Attended)</span>
+</div>
+<span class="legend-val">86%</span>
+</div>
+<div class="legend-item">
+<div class="legend-left">
+<span class="legend-dot" style="background:#ffb4ab;"></span>
+<span>Absent (Unexcused)</span>
+</div>
+<span class="legend-val">9%</span>
+</div>
+<div class="legend-item">
+<div class="legend-left">
+<span class="legend-dot" style="background:#F59E0B;"></span>
+<span>Approved Leave</span>
+</div>
+<span class="legend-val">5%</span>
+</div>
+</div>
+</div>
+<!-- Insight note -->
+<div class="insight-card-pill">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+<span>Attendance is currently above the academy's target benchmark (85.0%).</span>
+</div>
+</div>
+<!-- Fee Collection Overview Trend Bars & Summary -->
+<div class="card-container">
+<div class="card-header-bar">
+<div>
+<h2>
+<svg class="icon" style="color:var(--brand-orange)" viewbox="0 0 24 24"><rect height="14" rx="2" width="20" x="2" y="5"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+<span>Fee Collection Trend</span>
+</h2>
+<div class="card-subtitle">Monthly inflow from April to September 2026</div>
+</div>
+<span class="card-tag" style="background:var(--success-bg); color:var(--success-green);">+45.4% vs April</span>
+</div>
+<div class="fee-chart-wrapper">
+<!-- Bar Columns Representation -->
+<div class="fee-bars-container">
+<!-- Apr: ₹1,65,000 -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar" style="height: 70px;"></div>
+<span class="fee-col-month">Apr</span>
+</div>
+<!-- May: ₹1,82,000 -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar" style="height: 78px;"></div>
+<span class="fee-col-month">May</span>
+</div>
+<!-- Jun: ₹1,95,000 -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar" style="height: 84px;"></div>
+<span class="fee-col-month">Jun</span>
+</div>
+<!-- Jul: ₹2,10,000 -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar" style="height: 92px;"></div>
+<span class="fee-col-month">Jul</span>
+</div>
+<!-- Aug: ₹2,25,000 -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar" style="height: 100px;"></div>
+<span class="fee-col-month">Aug</span>
+</div>
+<!-- Sep: ₹2,40,000 (Current) -->
+<div class="fee-col-bar">
+<div class="fee-bar-pillar current" style="height: 110px;">
+<span class="bar-tooltip">₹2.40L</span>
+</div>
+<span class="fee-col-month">Sep</span>
+</div>
+</div>
+<!-- Bottom Summary Pills: Total Billed, Collected, Pending, Overdue -->
+<div class="fee-summary-pills-row">
+<div class="fee-sum-pill billed">
+<span class="fee-sum-label">Total Billed</span>
+<span class="fee-sum-num">₹4,85,000</span>
+</div>
+<div class="fee-sum-pill collected">
+<span class="fee-sum-label">Total Collected</span>
+<span class="fee-sum-num">₹2,40,000</span>
+</div>
+<div class="fee-sum-pill pending">
+<span class="fee-sum-label">Pending Dues</span>
+<span class="fee-sum-num">₹1,65,000</span>
+</div>
+<div class="fee-sum-pill overdue">
+<span class="fee-sum-label">Overdue Accounts</span>
+<span class="fee-sum-num">₹80,000</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- TAB 2: STUDENT REPORTS TAB CONTENT -->
+<div class="subview-section" id="view-students">
+<!-- Summary Cards for Students -->
+<div class="kpi-grid">
+<div class="kpi-card">
+<span class="kpi-title">Total Active Students</span>
+<div class="kpi-value-row">
+<span class="kpi-value">248</span>
+<span class="trend-pill positive">100% Target</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">New Admissions</span>
+<div class="kpi-value-row">
+<span class="kpi-value">34</span>
+<span class="trend-pill positive">This Month</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Inactive Students</span>
+<div class="kpi-value-row">
+<span class="kpi-value">12</span>
+<span class="trend-pill neutral">Paused / Med</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Students Pending Fees</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="color:var(--danger-red)">28</span>
+<span class="trend-pill" style="background:var(--danger-bg); color:var(--danger-red)">Action Needed</span>
+</div>
+</div>
+</div>
+<!-- Student Filters -->
+<div class="filter-bar-row">
+<div class="filter-inputs-group">
+<input class="table-search-input" placeholder="Search by athlete name or ID..." type="text"/>
+<select class="select-dropdown">
+<option>All Courses</option>
+<option>Cricket Academy</option>
+<option>Football Club</option>
+<option>Basketball Squad</option>
+<option>Athletics Sprint</option>
+<option>Swimming Aquatics</option>
+</select>
+<select class="select-dropdown">
+<option>All Batches</option>
+<option>Morning Elite A</option>
+<option>Evening Pro B</option>
+<option>Weekend Juniors</option>
+</select>
+<select class="select-dropdown">
+<option>All Fee Status</option>
+<option>Paid</option>
+<option>Pending</option>
+<option>Overdue</option>
+</select>
+</div>
+<button class="action-btn-sm" onclick="openExportModal('Student Report')">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            Export Student Report
+          </button>
+</div>
+<!-- Student Reports Table -->
+<div class="table-container">
+<table class="crm-table">
+<thead>
+<tr>
+<th>Student Name</th>
+<th>Student ID</th>
+<th>Course</th>
+<th>Batch</th>
+<th>Enrollment Date</th>
+<th>Attendance %</th>
+<th>Fee Status</th>
+<th>Student Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Aarav Patil</strong></td>
+<td>#GSA-1024</td>
+<td>Cricket Academy</td>
+<td>Morning Elite A</td>
+<td>12 Jan 2026</td>
+<td><strong style="color:var(--success-green)">94.2%</strong></td>
+<td><span class="status-badge paid">PAID</span></td>
+<td><span class="status-badge healthy">Active</span></td>
+<td><button class="action-btn-sm">View Profile</button></td>
+</tr>
+<tr>
+<td><strong>Riya Deshmukh</strong></td>
+<td>#GSA-1031</td>
+<td>Basketball Squad</td>
+<td>Evening Pro B</td>
+<td>05 Feb 2026</td>
+<td><strong style="color:var(--success-green)">88.5%</strong></td>
+<td><span class="status-badge paid">PAID</span></td>
+<td><span class="status-badge healthy">Active</span></td>
+<td><button class="action-btn-sm">View Profile</button></td>
+</tr>
+<tr>
+<td><strong>Kabir Jadhav</strong></td>
+<td>#GSA-1042</td>
+<td>Football Club</td>
+<td>Morning Beginners</td>
+<td>20 Feb 2026</td>
+<td><strong style="color:var(--warning-amber)">76.0%</strong></td>
+<td><span class="status-badge overdue">OVERDUE</span></td>
+<td><span class="status-badge healthy">Active</span></td>
+<td><button class="action-btn-sm">View Profile</button></td>
+</tr>
+<tr>
+<td><strong>Ananya Sharma</strong></td>
+<td>#GSA-1055</td>
+<td>Swimming Aquatics</td>
+<td>Evening Squad A</td>
+<td>14 Mar 2026</td>
+<td><strong style="color:var(--success-green)">91.0%</strong></td>
+<td><span class="status-badge paid">PAID</span></td>
+<td><span class="status-badge healthy">Active</span></td>
+<td><button class="action-btn-sm">View Profile</button></td>
+</tr>
+<tr>
+<td><strong>Rohan Varma</strong></td>
+<td>#GSA-1018</td>
+<td>Cricket Academy</td>
+<td>Morning Elite B</td>
+<td>02 Jan 2026</td>
+<td><strong style="color:var(--success-green)">89.4%</strong></td>
+<td><span class="status-badge pending">PENDING</span></td>
+<td><span class="status-badge healthy">Active</span></td>
+<td><button class="action-btn-sm">View Profile</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- TAB 3: ATTENDANCE REPORTS TAB CONTENT -->
+<div class="subview-section" id="view-attendance">
+<div class="kpi-grid">
+<div class="kpi-card">
+<span class="kpi-title">Overall Attendance</span>
+<div class="kpi-value-row">
+<span class="kpi-value">86.4%</span>
+<span class="trend-pill positive">Optimal</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Most Regular Batch</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="font-size:18px;">Cricket Elite A</span>
+<span class="trend-pill positive">94.2%</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Lowest Attendance Batch</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="font-size:18px; color:var(--warning-amber)">Athletics Eve</span>
+<span class="trend-pill" style="background:var(--warning-bg); color:var(--warning-amber)">72.1%</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Total Absences</span>
+<div class="kpi-value-row">
+<span class="kpi-value">142</span>
+<span class="trend-pill neutral">This Month</span>
+</div>
+</div>
+</div>
+<div class="filter-bar-row">
+<div class="filter-inputs-group">
+<select class="select-dropdown">
+<option>All Batches</option>
+<option>Cricket Elite A</option>
+<option>Football Club B</option>
+<option>Basketball Pro</option>
+<option>Swimming Squad A</option>
+</select>
+<select class="select-dropdown">
+<option>Attendance Status: All</option>
+<option>Healthy (&gt;85%)</option>
+<option>Needs Attention (75-85%)</option>
+<option>Critical (&lt;75%)</option>
+</select>
+</div>
+<button class="action-btn-sm" onclick="openExportModal('Attendance Report')">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            Export Attendance Report
+          </button>
+</div>
+<!-- Attendance by Batch Table -->
+<div class="table-container">
+<table class="crm-table">
+<thead>
+<tr>
+<th>Batch Name</th>
+<th>Course</th>
+<th>Total Students</th>
+<th>Present Records</th>
+<th>Absent Records</th>
+<th>Leave Records</th>
+<th>Average Attendance</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cricket Elite Morning A</strong></td>
+<td>Cricket Academy</td>
+<td>24</td>
+<td>542</td>
+<td>28</td>
+<td>10</td>
+<td><strong style="color:var(--success-green)">94.2%</strong></td>
+<td><span class="status-badge healthy">Healthy</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Football Junior Evening</strong></td>
+<td>Football Club</td>
+<td>28</td>
+<td>580</td>
+<td>62</td>
+<td>18</td>
+<td><strong style="color:var(--success-green)">87.8%</strong></td>
+<td><span class="status-badge healthy">Healthy</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Basketball Pro Foundation</strong></td>
+<td>Basketball Squad</td>
+<td>20</td>
+<td>390</td>
+<td>58</td>
+<td>22</td>
+<td><strong style="color:var(--warning-amber)">83.0%</strong></td>
+<td><span class="status-badge warning">Needs Attention</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Athletics Sprint Evening</strong></td>
+<td>Athletics Sprint</td>
+<td>16</td>
+<td>260</td>
+<td>74</td>
+<td>26</td>
+<td><strong style="color:var(--danger-red)">72.1%</strong></td>
+<td><span class="status-badge critical">Critical</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- TAB 4: FEE REPORTS TAB CONTENT -->
+<div class="subview-section" id="view-fees">
+<div class="kpi-grid">
+<div class="kpi-card">
+<span class="kpi-title">Total Billed</span>
+<div class="kpi-value-row">
+<span class="kpi-value">₹4,85,000</span>
+<span class="trend-pill neutral">Full Cycle</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Total Collected</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="color:var(--success-green)">₹2,40,000</span>
+<span class="trend-pill positive">49.5% Inflow</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Total Pending</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="color:var(--warning-amber)">₹1,65,000</span>
+<span class="trend-pill" style="background:var(--warning-bg); color:var(--warning-amber)">Due in 15d</span>
+</div>
+</div>
+<div class="kpi-card">
+<span class="kpi-title">Total Overdue</span>
+<div class="kpi-value-row">
+<span class="kpi-value" style="color:var(--danger-red)">₹80,000</span>
+<span class="trend-pill" style="background:var(--danger-bg); color:var(--danger-red)">3 Athletes</span>
+</div>
+</div>
+</div>
+<!-- Collection by Payment Method breakdown banner -->
+<div class="card-container" style="padding:16px 20px;">
+<div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Collection by Payment Method</div>
+<div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="width:10px; height:10px; border-radius:3px; background:#4ae176;"></span>
+<span style="font-size:13px; color:var(--text-muted)">UPI / QR: <strong>₹1,56,000 (65%)</strong></span>
+</div>
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="width:10px; height:10px; border-radius:3px; background:#F59E0B;"></span>
+<span style="font-size:13px; color:var(--text-muted)">Cash Desk: <strong>₹60,000 (25%)</strong></span>
+</div>
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="width:10px; height:10px; border-radius:3px; background:#3B82F6;"></span>
+<span style="font-size:13px; color:var(--text-muted)">Bank Transfer / NEFT: <strong>₹24,000 (10%)</strong></span>
+</div>
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="width:10px; height:10px; border-radius:3px; background:#94A3B8;"></span>
+<span style="font-size:13px; color:var(--text-muted)">Card / POS: <strong>₹0 (0%)</strong></span>
+</div>
+</div>
+</div>
+<div class="filter-bar-row">
+<div class="filter-inputs-group">
+<select class="select-dropdown">
+<option>All Payment Methods</option>
+<option>UPI</option>
+<option>Cash</option>
+<option>Bank Transfer</option>
+</select>
+<select class="select-dropdown">
+<option>All Payment Status</option>
+<option>Paid</option>
+<option>Partially Paid</option>
+<option>Pending</option>
+<option>Overdue</option>
+<option>Waived</option>
+</select>
+</div>
+<button class="action-btn-sm" onclick="openExportModal('Fee Report')">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            Export Fee Report
+          </button>
+</div>
+<div class="table-container">
+<table class="crm-table">
+<thead>
+<tr>
+<th>Student Name</th>
+<th>Course</th>
+<th>Batch</th>
+<th>Total Fee</th>
+<th>Amount Paid</th>
+<th>Pending Amount</th>
+<th>Due Date</th>
+<th>Payment Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Aarav Patil</strong></td>
+<td>Cricket Academy</td>
+<td>Morning Elite A</td>
+<td>₹36,000</td>
+<td>₹24,000</td>
+<td>₹12,000</td>
+<td>15 Oct 2026</td>
+<td><span class="status-badge paid">PAID</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Rohan Varma</strong></td>
+<td>Cricket Academy</td>
+<td>Morning Elite B</td>
+<td>₹18,000</td>
+<td>₹9,000</td>
+<td>₹9,000</td>
+<td>10 Nov 2026</td>
+<td><span class="status-badge pending">PENDING</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Kabir Jadhav</strong></td>
+<td>Football Club</td>
+<td>Morning Beginners</td>
+<td>₹12,000</td>
+<td>₹4,000</td>
+<td>₹8,000</td>
+<td>05 Nov 2026</td>
+<td><span class="status-badge overdue">OVERDUE</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+<tr>
+<td><strong>Tanmay Rathore</strong></td>
+<td>Athletics Sprint</td>
+<td>Morning A</td>
+<td>₹8,000</td>
+<td>₹0</td>
+<td>₹8,000</td>
+<td>02 Nov 2026</td>
+<td><span class="status-badge overdue">OVERDUE</span></td>
+<td><button class="action-btn-sm">View Details</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- EMPTY STATE VIEW (QA TOGGLE) -->
+<div class="subview-section" id="view-empty">
+<div class="empty-state-card">
+<div class="empty-icon-wrap">
+<svg class="icon icon-lg" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+</div>
+<div style="font-size:16px; font-weight:700; color:#FFFFFF;">No report data available for the selected filters</div>
+<div style="font-size:13px; color:var(--text-muted); max-width:420px;">
+            We couldn't find any student, fee, or attendance records matching your chosen parameters. Try selecting a different date range or clearing your filter criteria.
+          </div>
+<button class="btn-primary" onclick="resetFiltersAndShowOverview()" style="margin-top:8px;">
+            Reset All Filters
+          </button>
+</div>
+</div>
+</div>
+<!-- Export Report Modal -->
+<div class="modal-backdrop" id="exportModal">
+<div class="modal-box">
+<div class="modal-header">
+<h3>Export Report</h3>
+<button class="modal-close-btn" onclick="closeExportModal()">×</button>
+</div>
+<div class="modal-body">
+<div class="form-group">
+<label class="form-label">Report Type</label>
+<select class="form-select" id="exportReportType">
+<option value="Overview Report">Overview Report</option>
+<option value="Student Report">Student Report</option>
+<option value="Attendance Report">Attendance Report</option>
+<option value="Fee Report">Fee Report</option>
+</select>
+</div>
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+<div class="form-group">
+<label class="form-label">Date Range</label>
+<select class="form-select">
+<option>This Month (Sep 2026)</option>
+<option>Last Month</option>
+<option>This Quarter</option>
+<option>Custom Range</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">File Format</label>
+<select class="form-select">
+<option>PDF Document (.pdf)</option>
+<option>Excel Spreadsheet (.xlsx)</option>
+<option>CSV Spreadsheet (.csv)</option>
+</select>
+</div>
+</div>
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+<div class="form-group">
+<label class="form-label">Course Filter</label>
+<select class="form-select">
+<option>All Courses</option>
+<option>Cricket Academy</option>
+<option>Football Club</option>
+<option>Basketball Squad</option>
+<option>Athletics</option>
+<option>Swimming</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Batch Filter</label>
+<select class="form-select">
+<option>All Batches</option>
+<option>Morning Elite</option>
+<option>Evening Pro</option>
+</select>
+</div>
+</div>
+<div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+<label class="form-checkbox-row">
+<input checked="" style="accent-color:var(--brand-orange)" type="checkbox"/>
+<span>Include visual charts and trend curves in export</span>
+</label>
+<label class="form-checkbox-row">
+<input checked="" style="accent-color:var(--brand-orange)" type="checkbox"/>
+<span>Include executive summary KPI breakdown (default)</span>
+</label>
+</div>
+<!-- Small Export Summary -->
+<div class="export-preview-card" id="exportSummaryNotice">
+<span style="font-weight:700; color:#FFFFFF;">Export Summary:</span>
+<span>Comprehensive Gurukul Sports Academy analytics package including 248 student entries, attendance ratios, and ₹2.40L collection audits.</span>
+</div>
+<!-- Ready state indicator -->
+<div id="exportSuccessFeedback" style="display:none; padding:10px 14px; border-radius:8px; background:var(--success-bg); border:1px solid rgba(74,225,118,0.2); color:var(--success-green); font-size:13px; font-weight:600; text-align:center;">
+            ✓ Your report is ready to export.
+          </div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeExportModal()">Cancel</button>
+<button class="btn-primary" onclick="simulateReportGeneration()">Generate Report</button>
+</div>
+</div>
+</div>
+<!-- QA State Switcher Dock at Bottom for Instant Evaluation -->
+<div class="qa-bar-dock">
+<div class="qa-title">
+<svg class="icon icon-sm" viewbox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        QA Switcher
+      </div>
+<button class="qa-btn active" id="qa-btn-overview" onclick="switchCategoryTab('overview')">1. Overview</button>
+<button class="qa-btn" id="qa-btn-students" onclick="switchCategoryTab('students')">2. Student Reports</button>
+<button class="qa-btn" id="qa-btn-attendance" onclick="switchCategoryTab('attendance')">3. Attendance Reports</button>
+<button class="qa-btn" id="qa-btn-fees" onclick="switchCategoryTab('fees')">4. Fee Reports</button>
+<button class="qa-btn" id="qa-btn-modal" onclick="openExportModal()">5. Export Modal</button>
+<button class="qa-btn" id="qa-btn-empty" onclick="switchCategoryTab('empty')">6. Empty State</button>
+<span style="margin-left:auto; color:var(--text-dim); font-size:11px;">Gurukul CRM v2.4 • System Active</span>
+</div>
+</main>
+<script>
+    // Category Tabs Switcher
+    function switchCategoryTab(tabKey) {
+      const views = ['overview', 'students', 'attendance', 'fees', 'empty'];
+      views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.classList.remove('active-subview');
+      });
+
+      const tabBtns = ['overview', 'students', 'attendance', 'fees'];
+      tabBtns.forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (btn) btn.classList.remove('active');
+        const qaBtn = document.getElementById('qa-btn-' + t);
+        if (qaBtn) qaBtn.classList.remove('active');
+      });
+
+      const qaModal = document.getElementById('qa-btn-modal');
+      if (qaModal) qaModal.classList.remove('active');
+      const qaEmpty = document.getElementById('qa-btn-empty');
+      if (qaEmpty) qaEmpty.classList.remove('active');
+
+      const targetView = document.getElementById('view-' + tabKey);
+      if (targetView) targetView.classList.add('active-subview');
+
+      const targetBtn = document.getElementById('tab-' + tabKey);
+      if (targetBtn) targetBtn.classList.add('active');
+
+      const targetQaBtn = document.getElementById('qa-btn-' + tabKey);
+      if (targetQaBtn) targetQaBtn.classList.add('active');
+    }
+
+    // Modal controls
+    function openExportModal(reportType) {
+      const modal = document.getElementById('exportModal');
+      if (modal) modal.classList.add('open');
+      if (reportType) {
+        const typeSelect = document.getElementById('exportReportType');
+        if (typeSelect) typeSelect.value = reportType;
+      }
+      const feedback = document.getElementById('exportSuccessFeedback');
+      if (feedback) feedback.style.display = 'none';
+      const qaModal = document.getElementById('qa-btn-modal');
+      if (qaModal) qaModal.classList.add('active');
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('exportModal');
+      if (modal) modal.classList.remove('open');
+      const qaModal = document.getElementById('qa-btn-modal');
+      if (qaModal) qaModal.classList.remove('active');
+    }
+
+    function simulateReportGeneration() {
+      const feedback = document.getElementById('exportSuccessFeedback');
+      if (feedback) {
+        feedback.style.display = 'block';
+      }
+    }
+
+    function resetFiltersAndShowOverview() {
+      switchCategoryTab('overview');
+    }
+  </script>
+</body></html>

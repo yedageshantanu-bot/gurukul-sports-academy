@@ -1,0 +1,2803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Communication — Gurukul Sports Academy CRM</title>
+  <style>
+    /* ==========================================================
+       GURUKUL SPORTS ACADEMY CRM — GLOBAL DESIGN SYSTEM
+       Module: WhatsApp Communication (/admin/whatsapp)
+       Theme: Pure Standard CSS with Dark/Light Support & Zero External CDN
+       ========================================================== */
+    :root {
+      --bg-page: #031427;
+      --bg-surface: #07192f;
+      --bg-card: #0b1e36;
+      --bg-card-hover: #102644;
+      --bg-sidebar: #020e1c;
+      --border-color: #173252;
+      --border-subtle: #102642;
+      
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --primary-glow: rgba(249, 115, 22, 0.16);
+      --primary-border: rgba(249, 115, 22, 0.35);
+
+      --wa-green: #25d366;
+      --wa-dark-green: #128c7e;
+      --wa-glow: rgba(37, 211, 102, 0.16);
+      
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #38bdf8;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      --radius-full: 9999px;
+
+      --shadow-card: 0 4px 16px -2px rgba(0, 8, 20, 0.5);
+      --shadow-elevated: 0 10px 25px -4px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Light mode override support */
+    body.light-mode {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: #f1f5f9;
+      --bg-card-hover: #e2e8f0;
+      --bg-sidebar: #0f172a;
+      --border-color: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #64748b;
+      --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.12);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.22);
+    }
+
+    /* Icon Helper */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================
+       SIDEBAR NAVIGATION (EXACT 1:1 WITH PAYMENTS & REPORTS)
+       ========================================================== */
+    .sidebar {
+      width: 250px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 50;
+    }
+
+    .sidebar-header {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #ffffff;
+      padding: 2px;
+    }
+
+    .sidebar-title-group h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+      line-height: 1.2;
+    }
+
+    .sidebar-title-group p {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--text-dim);
+      padding: 12px 10px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-item.active {
+      color: #ffffff;
+      background: linear-gradient(90deg, rgba(249, 115, 22, 0.18) 0%, rgba(249, 115, 22, 0.04) 100%);
+      font-weight: 600;
+      border-left: 3px solid var(--primary);
+    }
+
+    .nav-item.active svg {
+      stroke: var(--primary);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+    }
+
+    .nav-badge.orange {
+      background-color: rgba(249, 115, 22, 0.15);
+      color: var(--primary);
+      border-color: rgba(249, 115, 22, 0.3);
+    }
+
+    .nav-badge.green {
+      background-color: rgba(37, 211, 102, 0.18);
+      color: #25d366;
+      border-color: rgba(37, 211, 102, 0.3);
+    }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar-chip {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-full);
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user-meta {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .user-meta .name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .user-meta .role {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ==========================================================
+       MAIN CONTENT CONTAINER
+       ========================================================== */
+    .main-wrapper {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    /* Top Navigation Header */
+    .top-header {
+      height: 64px;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      flex-shrink: 0;
+    }
+
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .breadcrumbs span.current {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+      color: var(--text-muted);
+      width: 240px;
+    }
+
+    .search-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 12px;
+      width: 100%;
+    }
+
+    .header-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+    }
+
+    .header-btn:hover {
+      color: var(--text-main);
+      border-color: var(--primary);
+    }
+
+    .notification-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 7px;
+      height: 7px;
+      border-radius: var(--radius-full);
+      background-color: var(--primary);
+      border: 2px solid var(--bg-page);
+    }
+
+    .admin-badge-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 6px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .admin-badge-pill .mini-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-full);
+      background: var(--primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* Page Body */
+    .page-container {
+      padding: 24px 28px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      flex: 1;
+    }
+
+    /* Page Header */
+    .page-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .page-title-group h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffffff;
+    }
+
+    .page-title-group p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-card);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background-color: var(--bg-card-hover);
+      border-color: var(--text-muted);
+    }
+
+    .btn-wa {
+      background-color: #25d366;
+      color: #0b1e36;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(37, 211, 102, 0.3);
+    }
+    .btn-wa:hover {
+      background-color: #22bf5b;
+    }
+
+    .btn-danger {
+      background-color: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-danger:hover {
+      background-color: var(--danger);
+      color: #ffffff;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ==========================================================
+       4 SUMMARY KPI CARDS (BENTO GRID)
+       ========================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      box-shadow: var(--shadow-card);
+    }
+
+    .kpi-card:hover {
+      border-color: var(--primary-border);
+      transform: translateY(-2px);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .kpi-icon-wrap {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kpi-icon-blue {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+    }
+
+    .kpi-icon-green {
+      background: rgba(37, 211, 102, 0.14);
+      color: #25d366;
+    }
+
+    .kpi-icon-amber {
+      background: rgba(245, 158, 11, 0.14);
+      color: #f59e0b;
+    }
+
+    .kpi-icon-purple {
+      background: rgba(168, 85, 247, 0.14);
+      color: #c084fc;
+    }
+
+    .kpi-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .kpi-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-trend {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+    }
+
+    /* ==========================================================
+       INTERNAL NAVIGATION TABS
+       ========================================================== */
+    .tabs-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      padding: 6px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
+      width: fit-content;
+    }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+    }
+
+    .tab-count {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .tab-btn.active .tab-count {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    /* ==========================================================
+       TAB 1: CONVERSATIONS (TWO-PANEL WORKSPACE)
+       ========================================================== */
+    .comm-workspace {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      height: 640px;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Left Panel: Conversation List */
+    .conv-list-panel {
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+    }
+
+    .conv-search-bar {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conv-filter-pills {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .filter-pill {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .filter-pill.active {
+      background: rgba(249, 115, 22, 0.15);
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .conv-scroll-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .conv-item {
+      padding: 14px 16px;
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.15s ease;
+      position: relative;
+    }
+
+    .conv-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .conv-item.active {
+      background: rgba(249, 115, 22, 0.08);
+      border-left: 3px solid var(--primary);
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .contact-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-full);
+      border: 2px solid var(--bg-surface);
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+
+    .dot-online {
+      background-color: var(--wa-green);
+    }
+
+    .dot-offline {
+      background-color: var(--text-dim);
+    }
+
+    .conv-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .conv-meta-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .contact-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .conv-snippet {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .conv-bottom-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .pill-status {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .status-unread {
+      background: rgba(37, 211, 102, 0.15);
+      color: #25d366;
+    }
+
+    .status-replied {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+    }
+
+    .status-awaiting {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
+
+    .status-resolved {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+    }
+
+    .unread-bubble {
+      width: 18px;
+      height: 18px;
+      border-radius: var(--radius-full);
+      background-color: var(--primary);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Right Panel: Selected Conversation Details */
+    .conv-detail-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+      height: 100%;
+    }
+
+    .detail-header {
+      padding: 12px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .detail-contact-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .detail-contact-summary:hover .detail-name {
+      color: var(--primary);
+    }
+
+    .detail-name-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .detail-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .detail-sub-sep {
+      color: var(--border-color);
+    }
+
+    .header-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Message History Canvas */
+    .message-history-area {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: radial-gradient(circle at center, rgba(16, 38, 68, 0.4) 0%, rgba(3, 20, 39, 0.8) 100%);
+    }
+
+    .date-separator {
+      align-self: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 12px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .message-bubble {
+      max-width: 65%;
+      padding: 12px 14px;
+      border-radius: var(--radius-lg);
+      font-size: 13px;
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      position: relative;
+    }
+
+    .message-incoming {
+      align-self: flex-start;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-bottom-left-radius: 2px;
+    }
+
+    .message-outgoing {
+      align-self: flex-end;
+      background-color: #064e3b;
+      border: 1px solid #047857;
+      color: #ecfdf5;
+      border-bottom-right-radius: 2px;
+    }
+
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 2px;
+    }
+
+    .read-ticks {
+      color: #38bdf8;
+      display: inline-flex;
+    }
+
+    /* Message Composer */
+    .message-composer {
+      padding: 12px 18px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .composer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .template-quick-select {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .template-dropdown {
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .composer-input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tool-icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s;
+    }
+
+    .tool-icon-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-page);
+    }
+
+    .composer-input {
+      flex: 1;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .composer-input:focus {
+      border-color: var(--primary);
+    }
+
+    /* ==========================================================
+       TAB 2: BROADCAST MESSAGES TAB (TABLE VIEW)
+       ========================================================== */
+    .broadcast-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .custom-table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.6px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-sent {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .badge-scheduled {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-draft {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .badge-failed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* ==========================================================
+       TAB 3: MESSAGE TEMPLATES (GRID CARDS)
+       ========================================================== */
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .template-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.15s ease;
+      box-shadow: var(--shadow-card);
+    }
+
+    .template-card:hover {
+      border-color: var(--primary-border);
+      transform: translateY(-2px);
+    }
+
+    .tmpl-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .tmpl-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .tmpl-category {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--primary);
+    }
+
+    .tmpl-body {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      max-height: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tmpl-tag {
+      color: #38bdf8;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .tmpl-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 10px;
+    }
+
+    .tmpl-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* ==========================================================
+       MODAL & DRAWER OVERLAYS
+       ========================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 8, 20, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-elevated);
+      animation: modalSlideUp 0.2s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+    }
+
+    .modal-close:hover {
+      color: #ffffff;
+    }
+
+    .modal-body {
+      padding: 22px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .form-control {
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 9px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .var-chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .var-chip {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: #38bdf8;
+      cursor: pointer;
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .var-chip:hover {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Contact Details Drawer (Right Slide-over) */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 8, 20, 0.6);
+      backdrop-filter: blur(2px);
+      display: none;
+      justify-content: flex-end;
+      z-index: 90;
+    }
+
+    .drawer-overlay.active {
+      display: flex;
+    }
+
+    .drawer-panel {
+      width: 380px;
+      height: 100%;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -6px 0 25px rgba(0, 0, 0, 0.5);
+      animation: drawerSlideIn 0.2s ease-out;
+    }
+
+    @keyframes drawerSlideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .drawer-header {
+      padding: 18px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drawer-content {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      flex: 1;
+    }
+
+    .drawer-profile-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .drawer-avatar-lg {
+      width: 68px;
+      height: 68px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid var(--bg-surface);
+    }
+
+    .drawer-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .drawer-stat-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .drawer-stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .drawer-stat-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* QA Switcher Dock */
+    .qa-switcher-dock {
+      position: sticky;
+      bottom: 0;
+      background: #000c1a;
+      border-top: 1px solid var(--border-color);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      z-index: 30;
+      margin-top: auto;
+    }
+
+    .qa-dock-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .qa-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .qa-toggle-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .qa-toggle-btn:hover, .qa-toggle-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================
+       SIDEBAR NAVIGATION (EXACT 1:1 REUSE OF GURUKUL SPORTS SHELL)
+       ========================================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkS2MrDCxDwdxP54Bjwm1p0jMI0b3a_y8HafjlvHpafZTSN1mlKqFXiSQFohH9Aqzpjdeaim1DSlfap4LLCpefzLc1H4rleOB43tLAWm5dDzpzbhAMvAjA2vGPIHIgcPTkbWX1OpztJi2aCluA9QR8u_Eq4TbTqInAmZgrZO5cOE_z205wZEovb4pBcnb6YksGJvYuGlBT2HLZ6JQVSMY727w7-HzWVWGz3yxReRToXyWD5pt3sLGC7JThQZ7zZn7CuQ" alt="Gurukul Academy Crest Emblem" class="sidebar-logo">
+      <div class="sidebar-title-group">
+        <h1>Gurukul Academy</h1>
+        <p>OPERATIONAL CRM</p>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">MAIN NAVIGATION</div>
+
+      <a class="nav-item" onclick="switchNav('Dashboard')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        </span>
+        <span>Dashboard</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Students')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        <span>Students</span>
+        <span class="nav-badge">248</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Teachers')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+        </span>
+        <span>Teachers</span>
+        <span class="nav-badge">18</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Courses')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+        </span>
+        <span>Courses</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Batches')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>
+        </span>
+        <span>Batches</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Attendance')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+        </span>
+        <span>Attendance</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Fees')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        </span>
+        <span>Fees</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Payments')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </span>
+        <span>Payments</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Reports')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+        </span>
+        <span>Reports</span>
+      </a>
+
+      <div class="nav-section-label">COMMUNICATIONS</div>
+
+      <a class="nav-item" onclick="switchNav('Announcements')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        </span>
+        <span>Announcements</span>
+      </a>
+
+      <!-- ACTIVE ITEM: WHATSAPP -->
+      <a class="nav-item active">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </span>
+        <span>WhatsApp</span>
+        <span class="nav-badge green">18</span>
+      </a>
+
+      <a class="nav-item" onclick="switchNav('Settings')">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar-chip">RS</div>
+      <div class="user-meta">
+        <div class="name">R. Sharma</div>
+        <div class="role">Administrator</div>
+      </div>
+      <div class="icon" style="color: var(--text-dim); cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==========================================================
+       MAIN VIEWPORT CONTAINER
+       ========================================================== -->
+  <main class="main-wrapper">
+    <!-- Top Nav Header -->
+    <header class="top-header">
+      <div class="breadcrumbs">
+        <span>Gurukul Sports Academy</span>
+        <span>/</span>
+        <span class="current">WhatsApp Communication</span>
+      </div>
+
+      <div class="top-controls">
+        <div class="search-box">
+          <span class="icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input type="text" placeholder="Search chats, contacts, templates...">
+        </div>
+
+        <button class="header-btn" onclick="toggleTheme()" title="Toggle Theme">
+          <span class="icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </span>
+        </button>
+
+        <button class="header-btn" title="Notifications">
+          <span class="icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          </span>
+          <div class="notification-dot"></div>
+        </button>
+
+        <div class="admin-badge-pill">
+          <div class="mini-avatar">RS</div>
+          <span>Admin</span>
+          <span class="icon" style="width: 14px; height: 14px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content Area -->
+    <div class="page-container">
+      
+      <!-- Page Header with Dual Actions -->
+      <div class="page-header-row">
+        <div class="page-title-group">
+          <h2>
+            <span class="icon" style="color: #25d366; width: 24px; height: 24px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            </span>
+            WhatsApp Communication
+          </h2>
+          <p>Communicate with students and academy members through organized messages and reminders.</p>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="openModal('modalTemplates')">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </span>
+            Message Templates
+          </button>
+
+          <button class="btn btn-primary" onclick="openModal('modalNewMessage')">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </span>
+            + New Message
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Summary KPI Bento Cards -->
+      <section class="kpi-grid">
+        <!-- Card 1 -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Total Contacts</span>
+            <div class="kpi-icon-wrap kpi-icon-blue">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="kpi-val">248</div>
+          <div class="kpi-meta">
+            <span class="badge-trend">+100%</span>
+            <span>Students and academy members</span>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Messages Sent</span>
+            <div class="kpi-icon-wrap kpi-icon-green">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="kpi-val">1,284</div>
+          <div class="kpi-meta">
+            <span class="badge-trend">+18.4%</span>
+            <span>Messages sent this month</span>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Pending Replies</span>
+            <div class="kpi-icon-wrap kpi-icon-amber">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="kpi-val">18</div>
+          <div class="kpi-meta" style="color: #f59e0b;">
+            <span>Requires urgent admin attention</span>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-title">Saved Templates</span>
+            <div class="kpi-icon-wrap kpi-icon-purple">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h6"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="kpi-val">12</div>
+          <div class="kpi-meta">
+            <span>Reusable message templates</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Internal Navigation Tabs -->
+      <div class="tabs-bar">
+        <button class="tab-btn active" id="btnTab1" onclick="switchViewTab('conversations')">
+          <span class="icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <span>Conversations</span>
+          <span class="tab-count">3 Active</span>
+        </button>
+
+        <button class="tab-btn" id="btnTab2" onclick="switchViewTab('broadcasts')">
+          <span class="icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+          </span>
+          <span>Broadcast Messages</span>
+          <span class="tab-count">3</span>
+        </button>
+
+        <button class="tab-btn" id="btnTab3" onclick="switchViewTab('templates')">
+          <span class="icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </span>
+          <span>Message Templates</span>
+          <span class="tab-count">5</span>
+        </button>
+      </div>
+
+      <!-- ==========================================================
+           TAB VIEW 1: CONVERSATIONS (TWO-PANEL WORKSPACE)
+           ========================================================== -->
+      <section id="viewConversations" class="comm-workspace">
+        
+        <!-- Left Panel: Conversation List -->
+        <div class="conv-list-panel">
+          <div class="conv-search-bar">
+            <div class="search-box" style="width: 100%;">
+              <span class="icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </span>
+              <input type="text" placeholder="Search conversations...">
+            </div>
+
+            <div class="conv-filter-pills">
+              <span class="filter-pill active">All (24)</span>
+              <span class="filter-pill">Unread (8)</span>
+              <span class="filter-pill">Awaiting Reply (5)</span>
+              <span class="filter-pill">Resolved</span>
+            </div>
+          </div>
+
+          <div class="conv-scroll-list">
+            <!-- Contact 1 (Active) -->
+            <div class="conv-item active" onclick="selectConversation('aarav')">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #f97316;">AP</div>
+                <div class="status-dot dot-online"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-meta-top">
+                  <span class="contact-name">Aarav Patil</span>
+                  <span class="message-time">10:42 AM</span>
+                </div>
+                <div class="conv-snippet">Sir, tomorrow’s practice is at 6 AM, right?</div>
+                <div class="conv-bottom-meta">
+                  <span class="pill-status status-unread">Unread</span>
+                  <span class="unread-bubble">1</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact 2 -->
+            <div class="conv-item" onclick="selectConversation('riya')">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #3b82f6;">RD</div>
+                <div class="status-dot dot-online"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-meta-top">
+                  <span class="contact-name">Riya Deshmukh</span>
+                  <span class="message-time">09:15 AM</span>
+                </div>
+                <div class="conv-snippet">Please share the upcoming tournament details.</div>
+                <div class="conv-bottom-meta">
+                  <span class="pill-status status-awaiting">Awaiting Reply</span>
+                  <span class="unread-bubble">2</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact 3 -->
+            <div class="conv-item" onclick="selectConversation('kabir')">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #10b981;">KJ</div>
+                <div class="status-dot dot-offline"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-meta-top">
+                  <span class="contact-name">Kabir Jadhav</span>
+                  <span class="message-time">Yesterday</span>
+                </div>
+                <div class="conv-snippet">I have completed the fee payment.</div>
+                <div class="conv-bottom-meta">
+                  <span class="pill-status status-replied">Replied</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact 4 -->
+            <div class="conv-item">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #8b5cf6;">SM</div>
+                <div class="status-dot dot-offline"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-meta-top">
+                  <span class="contact-name">Siddhi More</span>
+                  <span class="message-time">Sep 19</span>
+                </div>
+                <div class="conv-snippet">Thank you coach for the assessment report.</div>
+                <div class="conv-bottom-meta">
+                  <span class="pill-status status-resolved">Resolved</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact 5 -->
+            <div class="conv-item">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #ec4899;">VK</div>
+                <div class="status-dot dot-offline"></div>
+              </div>
+              <div class="conv-info">
+                <div class="conv-meta-top">
+                  <span class="contact-name">Varun Kadam</span>
+                  <span class="message-time">Sep 18</span>
+                </div>
+                <div class="conv-snippet">Requesting medical leave for this week.</div>
+                <div class="conv-bottom-meta">
+                  <span class="pill-status status-resolved">Resolved</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Conversation Detail Panel -->
+        <div class="conv-detail-panel">
+          <!-- Conversation Header -->
+          <div class="detail-header">
+            <div class="detail-contact-summary" onclick="openContactDrawer('Aarav Patil', 'STU-2026-089', 'Cricket Academy', 'Elite Morning Batch A', '+91 98231 44520', 'Paid', '94%')">
+              <div class="avatar-wrapper">
+                <div class="contact-avatar" style="background: #f97316; width: 38px; height: 38px; font-size: 13px;">AP</div>
+                <div class="status-dot dot-online"></div>
+              </div>
+              <div class="detail-name-wrap">
+                <div class="detail-name">
+                  <span>Aarav Patil</span>
+                  <span class="pill-status status-unread" style="font-size: 10px;">Unread</span>
+                </div>
+                <div class="detail-sub">
+                  <span>STU-2026-089</span>
+                  <span class="detail-sub-sep">•</span>
+                  <span>Cricket Academy (Elite Morning)</span>
+                  <span class="detail-sub-sep">•</span>
+                  <span style="color: #25d366;">Active now</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="header-quick-actions">
+              <button class="btn btn-secondary btn-sm" onclick="openContactDrawer('Aarav Patil', 'STU-2026-089', 'Cricket Academy', 'Elite Morning Batch A', '+91 98231 44520', 'Paid', '94%')">
+                <span class="icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                View Profile Drawer
+              </button>
+              <button class="header-btn" title="More Actions">
+                <span class="icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Message History Canvas -->
+          <div class="message-history-area" id="chatStream">
+            <div class="date-separator">Today, September 22, 2026</div>
+
+            <!-- Outgoing System/Admin message -->
+            <div class="message-bubble message-outgoing">
+              <div>Hello Aarav, your bowling drills data from yesterday has been logged in your 360° Athlete Profile. Great consistency on length!</div>
+              <div class="bubble-meta">
+                <span>09:30 AM</span>
+                <span class="read-ticks">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+                </span>
+              </div>
+            </div>
+
+            <!-- Incoming student message -->
+            <div class="message-bubble message-incoming">
+              <div>Thank you so much coach! I felt much better with the run-up adjustments.</div>
+              <div class="bubble-meta">
+                <span>09:45 AM</span>
+              </div>
+            </div>
+
+            <!-- Incoming latest message -->
+            <div class="message-bubble message-incoming" style="border-left: 3px solid var(--primary);">
+              <div style="font-weight: 600; color: #ffffff; margin-bottom: 2px;">Aarav Patil</div>
+              <div>Sir, tomorrow’s practice is at 6 AM, right? Just wanted to confirm if the turf nets will be open due to mild rain forecast.</div>
+              <div class="bubble-meta">
+                <span>10:42 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Composer Bar -->
+          <div class="message-composer">
+            <div class="composer-toolbar">
+              <div class="template-quick-select">
+                <span class="icon" style="color: var(--primary);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </span>
+                <span>Insert Template:</span>
+                <select class="template-dropdown" onchange="applyTemplateToComposer(this.value)">
+                  <option value="">Select quick reply template...</option>
+                  <option value="Yes, tomorrow's practice is strictly on schedule at 06:00 AM at the indoor turf arena. Please arrive 10 mins early.">Practice Schedule Confirmation</option>
+                  <option value="Hi {{Student Name}}, please note that your monthly fee is due. Let us know if you need assistance.">Fee Payment Reminder</option>
+                  <option value="Tournament registration deadline is this Friday. Please submit your medical fitness form.">Tournament Notice</option>
+                </select>
+              </div>
+
+              <span style="font-size: 11px; color: var(--text-dim);">WhatsApp Web Gateway • Connected</span>
+            </div>
+
+            <div class="composer-input-row">
+              <button class="tool-icon-btn" title="Attach Document / Media">
+                <span class="icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                </span>
+              </button>
+
+              <button class="tool-icon-btn" title="Add Emoji">
+                <span class="icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                </span>
+              </button>
+
+              <input type="text" id="composerInput" class="composer-input" placeholder="Type a message or reminder to Aarav Patil..." value="Yes, tomorrow's practice is strictly at 06:00 AM. Indoor turf nets will be active!">
+
+              <button class="btn btn-wa" onclick="sendMockMessage()">
+                <span class="icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </span>
+                Send
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ==========================================================
+           TAB VIEW 2: BROADCAST MESSAGES TAB
+           ========================================================== -->
+      <section id="viewBroadcasts" class="broadcast-container" style="display: none;">
+        <div class="section-banner-header">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">Broadcast Messages</h3>
+            <p style="font-size: 12px; color: var(--text-muted);">Send organized updates and reminders to selected student groups.</p>
+          </div>
+
+          <button class="btn btn-primary" onclick="openModal('modalCreateBroadcast')">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </span>
+            + Create Broadcast
+          </button>
+        </div>
+
+        <div class="custom-table-card">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Broadcast Title</th>
+                  <th>Audience</th>
+                  <th>Recipients</th>
+                  <th>Sent / Scheduled Date</th>
+                  <th>Created By</th>
+                  <th>Delivery Status</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div style="font-weight: 600; color: #ffffff;">Monthly Fee Reminder</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">Automated reminder with UPI direct gateway link</div>
+                  </td>
+                  <td><span class="filter-pill" style="font-size: 11px;">Students with Pending Fees</span></td>
+                  <td><strong style="color: #ffffff;">34</strong> students</td>
+                  <td>Sep 18, 2026 • 10:00 AM</td>
+                  <td>System Automation</td>
+                  <td><span class="badge-status badge-sent">● Sent</span></td>
+                  <td style="text-align: right;">
+                    <button class="btn btn-secondary btn-sm" onclick="alert('Viewing broadcast metrics')">Report</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div style="font-weight: 600; color: #ffffff;">Tournament Registration Notice</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">U-16 Cricket Inter-Academy Selection Trials</div>
+                  </td>
+                  <td><span class="filter-pill" style="font-size: 11px;">Cricket Batch</span></td>
+                  <td><strong style="color: #ffffff;">42</strong> athletes</td>
+                  <td>Sep 20, 2026 • 04:30 PM</td>
+                  <td>Coach Deshmukh</td>
+                  <td><span class="badge-status badge-sent">● Sent</span></td>
+                  <td style="text-align: right;">
+                    <button class="btn btn-secondary btn-sm" onclick="alert('Viewing broadcast metrics')">Report</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div style="font-weight: 600; color: #ffffff;">Holiday Announcement</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">Academy Closed on Ganesh Chaturthi</div>
+                  </td>
+                  <td><span class="filter-pill" style="font-size: 11px;">All Students</span></td>
+                  <td><strong style="color: #ffffff;">248</strong> members</td>
+                  <td>Sep 24, 2026 • 08:00 AM</td>
+                  <td>Admin (R. Sharma)</td>
+                  <td><span class="badge-status badge-scheduled">⏳ Scheduled</span></td>
+                  <td style="text-align: right;">
+                    <button class="btn btn-secondary btn-sm">Edit</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div style="font-weight: 600; color: #ffffff;">Weekend Physical Fitness Drill Notice</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">Conditioning & Endurance Camp timings</div>
+                  </td>
+                  <td><span class="filter-pill" style="font-size: 11px;">Specific Batch: Athletics Track</span></td>
+                  <td><strong style="color: #ffffff;">32</strong> athletes</td>
+                  <td>Drafted Today</td>
+                  <td>Head Coach Sharma</td>
+                  <td><span class="badge-status badge-draft">Draft</span></td>
+                  <td style="text-align: right;">
+                    <button class="btn btn-secondary btn-sm">Send Now</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           TAB VIEW 3: MESSAGE TEMPLATES TAB
+           ========================================================== -->
+      <section id="viewTemplates" class="broadcast-container" style="display: none;">
+        <div class="section-banner-header">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">Message Templates</h3>
+            <p style="font-size: 12px; color: var(--text-muted);">Create reusable messages for common academy communication.</p>
+          </div>
+
+          <button class="btn btn-primary" onclick="openModal('modalAddTemplate')">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </span>
+            + Add Template
+          </button>
+        </div>
+
+        <div class="templates-grid">
+          <!-- Template 1 -->
+          <div class="template-card">
+            <div class="tmpl-header">
+              <span class="tmpl-name">Fee Payment Reminder</span>
+              <span class="tmpl-category">Fees</span>
+            </div>
+            <div class="tmpl-body">
+              Dear <span class="tmpl-tag">{{Student Name}}</span>, friendly reminder from <span class="tmpl-tag">{{Academy Name}}</span> that your coaching fee of <span class="tmpl-tag">{{Pending Amount}}</span> is due on <span class="tmpl-tag">{{Due Date}}</span>.
+            </div>
+            <div class="tmpl-footer">
+              <span>Used 142 times • Active</span>
+              <div class="tmpl-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openModal('modalEditTemplate')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modalDeleteTemplate')">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template 2 -->
+          <div class="template-card">
+            <div class="tmpl-header">
+              <span class="tmpl-name">Attendance Reminder</span>
+              <span class="tmpl-category">Attendance</span>
+            </div>
+            <div class="tmpl-body">
+              Hello <span class="tmpl-tag">{{Student Name}}</span>, we noticed you were absent from today's <span class="tmpl-tag">{{Batch Name}}</span> session. Please update your coach if you need assistance.
+            </div>
+            <div class="tmpl-footer">
+              <span>Used 86 times • Active</span>
+              <div class="tmpl-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openModal('modalEditTemplate')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modalDeleteTemplate')">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template 3 -->
+          <div class="template-card">
+            <div class="tmpl-header">
+              <span class="tmpl-name">Practice Schedule Update</span>
+              <span class="tmpl-category">Training</span>
+            </div>
+            <div class="tmpl-body">
+              Attention <span class="tmpl-tag">{{Batch Name}}</span> athletes: Training on <span class="tmpl-tag">{{Practice Date}}</span> will be held at <span class="tmpl-tag">{{Practice Time}}</span> at Ground B.
+            </div>
+            <div class="tmpl-footer">
+              <span>Used 54 times • Active</span>
+              <div class="tmpl-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openModal('modalEditTemplate')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modalDeleteTemplate')">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template 4 -->
+          <div class="template-card">
+            <div class="tmpl-header">
+              <span class="tmpl-name">Tournament Announcement</span>
+              <span class="tmpl-category">Events</span>
+            </div>
+            <div class="tmpl-body">
+              Exciting news for <span class="tmpl-tag">{{Course Name}}</span>! Registrations for the State Championship are now open. Reach out to front desk for registration slips.
+            </div>
+            <div class="tmpl-footer">
+              <span>Used 39 times • Active</span>
+              <div class="tmpl-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openModal('modalEditTemplate')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modalDeleteTemplate')">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template 5 -->
+          <div class="template-card">
+            <div class="tmpl-header">
+              <span class="tmpl-name">Holiday Notice</span>
+              <span class="tmpl-category">General</span>
+            </div>
+            <div class="tmpl-body">
+              Gurukul Sports Academy will remain closed on <span class="tmpl-tag">{{Practice Date}}</span> on account of public celebrations. Regular batches resume the following morning.
+            </div>
+            <div class="tmpl-footer">
+              <span>Used 18 times • Active</span>
+              <div class="tmpl-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openModal('modalEditTemplate')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modalDeleteTemplate')">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ==========================================================
+         QA VIEW SWITCHER DOCK
+         ========================================================== -->
+    <div class="qa-switcher-dock">
+      <div class="qa-dock-title">
+        <span class="icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </span>
+        <span>QA Quick Modals:</span>
+      </div>
+
+      <div class="qa-btn-group">
+        <button class="qa-toggle-btn active" onclick="switchViewTab('conversations')">1. Chat Workspace</button>
+        <button class="qa-toggle-btn" onclick="switchViewTab('broadcasts')">2. Broadcasts Table</button>
+        <button class="qa-toggle-btn" onclick="switchViewTab('templates')">3. Templates Grid</button>
+        <button class="qa-toggle-btn" onclick="openModal('modalNewMessage')">4. New Msg Modal</button>
+        <button class="qa-toggle-btn" onclick="openModal('modalCreateBroadcast')">5. Broadcast Modal</button>
+        <button class="qa-toggle-btn" onclick="openContactDrawer('Aarav Patil', 'STU-2026-089', 'Cricket Academy', 'Elite Morning Batch A', '+91 98231 44520', 'Paid', '94%')">6. Profile Drawer</button>
+        <button class="qa-toggle-btn" onclick="toggleEmptyState()">7. Empty State</button>
+      </div>
+
+      <div style="font-size: 11px; color: var(--text-dim);">
+        Gurukul CRM • /admin/whatsapp
+      </div>
+    </div>
+  </main>
+
+  <!-- ==========================================================
+       MODAL 1: NEW WHATSAPP MESSAGE
+       ========================================================== -->
+  <div id="modalNewMessage" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>
+          <span class="icon" style="color: var(--primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          New WhatsApp Message
+        </h3>
+        <button class="modal-close" onclick="closeModal('modalNewMessage')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Recipient Type</label>
+            <select class="form-control" id="recipientType" onchange="updateRecipientCount()">
+              <option value="individual">Individual Student</option>
+              <option value="multiple">Multiple Students</option>
+              <option value="batch" selected>Specific Batch</option>
+              <option value="course">Specific Course</option>
+              <option value="all">All Students (248)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Select Recipient / Target</label>
+            <select class="form-control">
+              <option>Cricket Academy — Elite Morning Batch A (12 students)</option>
+              <option>Football Club — Senior Evening Batch (18 students)</option>
+              <option>Aarav Patil (STU-2026-089)</option>
+              <option>Riya Deshmukh (STU-2026-092)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Load Saved Template (Optional)</label>
+          <select class="form-control" onchange="document.getElementById('newMsgTextarea').value = this.value">
+            <option value="">Custom Message (No Template)</option>
+            <option value="Dear {{Student Name}}, this is an urgent reminder that tomorrow's batch practice begins at 06:00 AM sharp at Turf Arena.">Practice Schedule Update</option>
+            <option value="Hello {{Student Name}}, your monthly coaching dues are pending. Please complete the settlement at your earliest convenience.">Fee Payment Reminder</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Message Content</label>
+          <textarea class="form-control" id="newMsgTextarea" placeholder="Write WhatsApp message text here...">Dear {{Student Name}}, this is an urgent reminder that tomorrow's batch practice begins at 06:00 AM sharp at Turf Arena.</textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Delivery Schedule</label>
+            <select class="form-control" id="scheduleSelector" onchange="toggleScheduleFields(this.value)">
+              <option value="now">Send Now (Instant Dispatch)</option>
+              <option value="later">Schedule for Later</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="scheduledDateCol" style="display: none;">
+            <label class="form-label">Scheduled Date & Time</label>
+            <input type="datetime-local" class="form-control" value="2026-09-23T06:00">
+          </div>
+        </div>
+
+        <div style="padding: 10px 14px; background: rgba(37, 211, 102, 0.08); border: 1px solid rgba(37, 211, 102, 0.2); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 12px; color: #25d366; font-weight: 600;">Recipients Selected: 12 students</span>
+          <span style="font-size: 11px; color: var(--text-dim);">Estimated Delivery Rate: 100%</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalNewMessage')">Cancel</button>
+        <button class="btn btn-wa" onclick="alert('WhatsApp message queued for dispatch!'); closeModal('modalNewMessage');">
+          <span class="icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </span>
+          Send Message
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       MODAL 2: CREATE BROADCAST MESSAGE
+       ========================================================== -->
+  <div id="modalCreateBroadcast" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3>
+          <span class="icon" style="color: var(--primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+          </span>
+          Create Broadcast Message
+        </h3>
+        <button class="modal-close" onclick="closeModal('modalCreateBroadcast')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Broadcast Name</label>
+            <input type="text" class="form-control" value="State Tournament Registration Call">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Target Audience</label>
+            <select class="form-control">
+              <option>Cricket Academy (All Batches)</option>
+              <option>Students with Pending Fees</option>
+              <option>Students with Low Attendance (&lt; 75%)</option>
+              <option>All Students (248 athletes)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Select Course</label>
+            <select class="form-control">
+              <option>Cricket Academy</option>
+              <option>Football Club</option>
+              <option>Badminton Squad</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Select Batch</label>
+            <select class="form-control">
+              <option>All Cricket Batches (Morning + Evening)</option>
+              <option>Elite Morning Batch A</option>
+              <option>Junior Evening Batch B</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Message Content</label>
+          <textarea class="form-control" rows="3">Greetings Athletes & Parents! Registrations for Maharashtra U-16 Cricket Trophy 2026 are closing this Thursday. Please submit your parent consent and physical fitness clearance to Head Coach Deshmukh.</textarea>
+        </div>
+
+        <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--primary); margin-bottom: 4px;">Message Preview</div>
+          <div style="font-size: 12px; color: var(--text-muted);">
+            "Greetings Athletes & Parents! Registrations for Maharashtra U-16 Cricket Trophy 2026 are closing this Thursday..."
+          </div>
+          <div style="margin-top: 8px; display: flex; justify-content: space-between; font-size: 12px; color: #25d366; font-weight: 600;">
+            <span>Estimated Recipients: 48 students</span>
+            <span style="color: var(--text-dim);">Broadcast Mode: Direct WA Push</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalCreateBroadcast')">Cancel</button>
+        <button class="btn btn-secondary" onclick="closeModal('modalCreateBroadcast')">Save as Draft</button>
+        <button class="btn btn-primary" onclick="alert('Broadcast sent successfully to 48 students!'); closeModal('modalCreateBroadcast');">
+          Send Broadcast
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       MODAL 3: ADD TEMPLATE MODAL
+       ========================================================== -->
+  <div id="modalAddTemplate" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>
+          <span class="icon" style="color: var(--primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </span>
+          Create Message Template
+        </h3>
+        <button class="modal-close" onclick="closeModal('modalAddTemplate')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Template Name</label>
+            <input type="text" class="form-control" placeholder="e.g. Monthly Fee Reminder">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-control">
+              <option>Fees</option>
+              <option>Attendance</option>
+              <option>Training</option>
+              <option>Events</option>
+              <option>General</option>
+              <option>Emergency</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Available Variables (Click to Insert)</label>
+          <div class="var-chips-wrap">
+            <span class="var-chip" onclick="insertVariable('{{Student Name}}')">+ {{Student Name}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Course Name}}')">+ {{Course Name}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Batch Name}}')">+ {{Batch Name}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Due Date}}')">+ {{Due Date}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Pending Amount}}')">+ {{Pending Amount}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Academy Name}}')">+ {{Academy Name}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Practice Date}}')">+ {{Practice Date}}</span>
+            <span class="var-chip" onclick="insertVariable('{{Practice Time}}')">+ {{Practice Time}}</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Message Content</label>
+          <textarea class="form-control" id="templateEditorContent" placeholder="Compose message with variables...">Dear {{Student Name}}, your training session with {{Academy Name}} for {{Batch Name}} is scheduled on {{Practice Date}}.</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Template Status</label>
+          <select class="form-control">
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalAddTemplate')">Cancel</button>
+        <button class="btn btn-primary" onclick="alert('Template saved to library!'); closeModal('modalAddTemplate');">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       MODAL 4: EDIT TEMPLATE MODAL
+       ========================================================== -->
+  <div id="modalEditTemplate" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>Edit Message Template</h3>
+        <button class="modal-close" onclick="closeModal('modalEditTemplate')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Template Name</label>
+            <input type="text" class="form-control" value="Fee Payment Reminder">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-control">
+              <option selected>Fees</option>
+              <option>Attendance</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Message Content</label>
+          <textarea class="form-control">Dear {{Student Name}}, friendly reminder from {{Academy Name}} that your coaching fee of {{Pending Amount}} is due on {{Due Date}}.</textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalEditTemplate')">Cancel</button>
+        <button class="btn btn-primary" onclick="alert('Changes saved successfully!'); closeModal('modalEditTemplate');">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       MODAL 5: DELETE TEMPLATE CONFIRMATION (DANGER)
+       ========================================================== -->
+  <div id="modalDeleteTemplate" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="modal-header" style="border-bottom-color: rgba(239, 68, 68, 0.2);">
+        <h3 style="color: #f87171;">
+          <span class="icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </span>
+          Delete Message Template?
+        </h3>
+        <button class="modal-close" onclick="closeModal('modalDeleteTemplate')">✕</button>
+      </div>
+
+      <div class="modal-body" style="font-size: 13px; color: var(--text-muted);">
+        This template will be permanently removed and will no longer be available for future messages. Continue only if this template is obsolete.
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modalDeleteTemplate')">Cancel</button>
+        <button class="btn btn-danger" onclick="alert('Template deleted.'); closeModal('modalDeleteTemplate');">Delete Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       DRAWER: CONTACT DETAILS DRAWER (RIGHT SLIDE-OVER)
+       ========================================================== -->
+  <div id="contactDrawer" class="drawer-overlay" onclick="closeDrawer(event)">
+    <div class="drawer-panel" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <div style="font-size: 14px; font-weight: 700; color: #ffffff;">Athlete Contact Drawer</div>
+        <button class="modal-close" onclick="closeDrawerDirect()">✕</button>
+      </div>
+
+      <div class="drawer-content">
+        <div class="drawer-profile-hero">
+          <div class="drawer-avatar-lg" id="drwAvatar">AP</div>
+          <div style="font-size: 16px; font-weight: 800; color: #ffffff;" id="drwName">Aarav Patil</div>
+          <div style="font-size: 12px; color: var(--text-muted);" id="drwId">STU-2026-089</div>
+          <span class="badge-status badge-sent" style="margin-top: 4px;">Enrolled Athlete</span>
+        </div>
+
+        <div class="drawer-stats-grid">
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">Course</span>
+            <span class="drawer-stat-val" id="drwCourse">Cricket Academy</span>
+          </div>
+
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">Batch</span>
+            <span class="drawer-stat-val" id="drwBatch">Elite Morning Batch A</span>
+          </div>
+
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">WhatsApp Contact</span>
+            <span class="drawer-stat-val" id="drwPhone">+91 98231 44520</span>
+          </div>
+
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">Fee Status</span>
+            <span class="drawer-stat-val" style="color: #4ade80;" id="drwFee">Paid (Q3 Cycle)</span>
+          </div>
+
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">Attendance Ratio</span>
+            <span class="drawer-stat-val" style="color: #38bdf8;" id="drwAtt">94% (High)</span>
+          </div>
+
+          <div class="drawer-stat-item">
+            <span class="drawer-stat-label">Last Communication</span>
+            <span class="drawer-stat-val">Today, 10:42 AM</span>
+          </div>
+        </div>
+
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn btn-wa" onclick="closeDrawerDirect(); switchViewTab('conversations');">
+            <span class="icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            Start Active Conversation
+          </button>
+          
+          <button class="btn btn-secondary" onclick="alert('Navigating to Student 360 Profile: /admin/students/' + document.getElementById('drwId').textContent)">
+            View Student 360° Profile
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       VANILLA JAVASCRIPT CONTROLLER (100% OFFLINE / ZERO DEPENDENCY)
+       ========================================================== -->
+  <script>
+    // Tab switching between Conversations, Broadcasts, and Templates
+    function switchViewTab(tabKey) {
+      const tabs = ['conversations', 'broadcasts', 'templates'];
+      tabs.forEach(t => {
+        const viewEl = document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1));
+        const btnEl = document.getElementById(t === 'conversations' ? 'btnTab1' : t === 'broadcasts' ? 'btnTab2' : 'btnTab3');
+        if (t === tabKey) {
+          viewEl.style.display = t === 'conversations' ? 'grid' : 'flex';
+          btnEl.classList.add('active');
+        } else {
+          viewEl.style.display = 'none';
+          btnEl.classList.remove('active');
+        }
+      });
+    }
+
+    // Toggle Light / Dark Theme
+    function toggleTheme() {
+      document.body.classList.toggle('light-mode');
+    }
+
+    // Sidebar navigation mock click
+    function switchNav(name) {
+      // In production app this switches route
+      console.log('Navigated to:', name);
+    }
+
+    // Modal helpers
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('active');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    }
+
+    // Contact Drawer controls
+    function openContactDrawer(name, id, course, batch, phone, fee, att) {
+      document.getElementById('drwName').textContent = name;
+      document.getElementById('drwAvatar').textContent = name.split(' ').map(n => n[0]).join('');
+      document.getElementById('drwId').textContent = id;
+      document.getElementById('drwCourse').textContent = course;
+      document.getElementById('drwBatch').textContent = batch;
+      document.getElementById('drwPhone').textContent = phone;
+      document.getElementById('drwFee').textContent = fee;
+      document.getElementById('drwAtt').textContent = att;
+      document.getElementById('contactDrawer').classList.add('active');
+    }
+
+    function closeDrawer(event) {
+      document.getElementById('contactDrawer').classList.remove('active');
+    }
+
+    function closeDrawerDirect() {
+      document.getElementById('contactDrawer').classList.remove('active');
+    }
+
+    // Template quick picker
+    function applyTemplateToComposer(val) {
+      if (val) {
+        document.getElementById('composerInput').value = val;
+      }
+    }
+
+    // Insert variable chip into template editor
+    function insertVariable(varName) {
+      const editor = document.getElementById('templateEditorContent');
+      editor.value += ' ' + varName + ' ';
+      editor.focus();
+    }
+
+    // Delivery schedule options toggle
+    function toggleScheduleFields(val) {
+      const dateCol = document.getElementById('scheduledDateCol');
+      if (val === 'later') {
+        dateCol.style.display = 'flex';
+      } else {
+        dateCol.style.display = 'none';
+      }
+    }
+
+    // Mock send chat message
+    function sendMockMessage() {
+      const input = document.getElementById('composerInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const stream = document.getElementById('chatStream');
+      const newBubble = document.createElement('div');
+      newBubble.className = 'message-bubble message-outgoing';
+      newBubble.innerHTML = `
+        <div>${text}</div>
+        <div class="bubble-meta">
+          <span>Just now</span>
+          <span class="read-ticks">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+          </span>
+        </div>
+      `;
+      stream.appendChild(newBubble);
+      stream.scrollTop = stream.scrollHeight;
+      input.value = '';
+    }
+
+    // Empty state preview toggle
+    let isEmpty = false;
+    function toggleEmptyState() {
+      const stream = document.getElementById('chatStream');
+      if (!isEmpty) {
+        stream.innerHTML = `
+          <div style="margin: auto; text-align: center; max-width: 320px; padding: 40px 20px; color: var(--text-muted);">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: var(--primary);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h4 style="color: #ffffff; font-size: 15px; margin-bottom: 6px;">No conversations found</h4>
+            <p style="font-size: 12px; line-height: 1.5;">Start a new message to communicate with academy members, share batch schedules, and send fee reminders.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top: 14px;" onclick="openModal('modalNewMessage')">+ Start Conversation</button>
+          </div>
+        `;
+        isEmpty = true;
+      } else {
+        location.reload();
+      }
+    }
+
+    // Switch selected conversation
+    function selectConversation(key) {
+      document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+    }
+  </script>
+</body>
+</html>

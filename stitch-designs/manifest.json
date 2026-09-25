@@ -1,0 +1,128 @@
+[
+  {
+    "title": "Attendance Management — Gurukul Sports Academy CRM",
+    "screenId": "200a3745e3c04784865ef81cb1ed6675",
+    "slug": "attendance-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/attendance-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/attendance-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Admin Dashboard — Gurukul Sports Academy CRM",
+    "screenId": "3c96bf14881045f099d906d6b1f9970a",
+    "slug": "admin-dashboard-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/admin-dashboard-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/admin-dashboard-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Student 360° Profile — Gurukul Sports Academy CRM",
+    "screenId": "fb7186a8e51a460ca53bdae9f3d52a62",
+    "slug": "student-360-profile-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/student-360-profile-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/student-360-profile-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Batches Management — Gurukul Sports Academy CRM",
+    "screenId": "d2d9592e3bdc475f928b70309f77f857",
+    "slug": "batches-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/batches-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/batches-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Courses Management — Gurukul Sports Academy CRM",
+    "screenId": "3b296688307a4f8a81fa4ae2a7cefa77",
+    "slug": "courses-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/courses-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/courses-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Settings — Gurukul Sports Academy CRM",
+    "screenId": "7614800943b042e4b773907a3b210aa8",
+    "slug": "settings-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/settings-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/settings-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Teacher Admin Profile — Gurukul Sports Academy CRM",
+    "screenId": "364f1ff13b704f148168d41588eb4e1f",
+    "slug": "teacher-admin-profile-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/teacher-admin-profile-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/teacher-admin-profile-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Teachers Directory — Gurukul Sports Academy CRM",
+    "screenId": "0dd2d31f128c414bbb402214de2caeb3",
+    "slug": "teachers-directory-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/teachers-directory-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/teachers-directory-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "WhatsApp Communication — Gurukul Sports Academy CRM",
+    "screenId": "95ea674f69184983b2444d594a0eb692",
+    "slug": "whatsapp-communication-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/whatsapp-communication-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/whatsapp-communication-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Login Portal — Gurukul Sports Academy CRM",
+    "screenId": "f06de1e1eadf47009468c7a596f586bd",
+    "slug": "login-portal-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/login-portal-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/login-portal-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "image.png",
+    "screenId": "7988961363331044567",
+    "slug": "image-png",
+    "screenshotPath": "stitch-designs/screens/image-png.png",
+    "htmlPath": null
+  },
+  {
+    "title": "Reports & Analytics — Gurukul Sports Academy CRM",
+    "screenId": "b440fe8c58494bef9e09a54e9430c0f4",
+    "slug": "reports-analytics-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/reports-analytics-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/reports-analytics-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Students Directory — Gurukul Sports Academy CRM",
+    "screenId": "aab6845948674fc78eac1234a1d9bbc4",
+    "slug": "students-directory-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/students-directory-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/students-directory-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Payments Management — Gurukul Sports Academy CRM",
+    "screenId": "47e34840d8644a0d8d485f0ad7c7ab6e",
+    "slug": "payments-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/payments-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/payments-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Announcements Management — Gurukul Sports Academy CRM",
+    "screenId": "5670c29e1a54493bab91ba6579fd2aff",
+    "slug": "announcements-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/announcements-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/announcements-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Admin Activity Logs & Audit Trail — Gurukul Sports Academy CRM",
+    "screenId": "7291454bb55c47308c01270a25619347",
+    "slug": "admin-activity-logs-audit-trail-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/admin-activity-logs-audit-trail-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/admin-activity-logs-audit-trail-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Fees Management — Gurukul Sports Academy CRM",
+    "screenId": "01d0b4f226ff47728e90737b01f76dd3",
+    "slug": "fees-management-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/fees-management-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/fees-management-gurukul-sports-academy-crm.html"
+  },
+  {
+    "title": "Global Search & Notifications Center — Gurukul Sports Academy CRM",
+    "screenId": "a60acb3c9ddb4e34ab12c12d267e1a2f",
+    "slug": "global-search-notifications-center-gurukul-sports-academy-crm",
+    "screenshotPath": "stitch-designs/screens/global-search-notifications-center-gurukul-sports-academy-crm.png",
+    "htmlPath": "stitch-designs/html/global-search-notifications-center-gurukul-sports-academy-crm.html"
+  }
+]

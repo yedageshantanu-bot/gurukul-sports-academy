@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Gurukul Sports Academy CRM</title>
+  <style>
+    :root {
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --brand-orange: #F97316;
+      --brand-orange-hover: #EA580C;
+      --brand-orange-light: rgba(249, 115, 22, 0.12);
+      --state-success: #22C55E;
+      --state-success-light: rgba(34, 197, 94, 0.12);
+      --state-warning: #F59E0B;
+      --state-warning-light: rgba(245, 158, 11, 0.12);
+      --state-danger: #EF4444;
+      --state-danger-light: rgba(239, 68, 68, 0.12);
+      --state-info: #38BDF8;
+      --state-info-light: rgba(56, 189, 248, 0.12);
+
+      --radius-xs: 4px;
+      --radius-sm: 8px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      --radius-pill: 9999px;
+
+      --sidebar-width: 256px;
+      --header-height: 68px;
+      --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    [data-theme="dark"] {
+      --bg-app: #0F172A;
+      --bg-sidebar: #0A1120;
+      --bg-surface: #1E293B;
+      --bg-surface-elevated: #273549;
+      --bg-surface-hover: #334155;
+      --bg-input: #162235;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.14);
+      --border-strong: rgba(255, 255, 255, 0.22);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+      --chart-grid: rgba(255, 255, 255, 0.06);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #F8FAFC;
+      --bg-sidebar: #FFFFFF;
+      --bg-surface: #FFFFFF;
+      --bg-surface-elevated: #F1F5F9;
+      --bg-surface-hover: #E2E8F0;
+      --bg-input: #FFFFFF;
+      --border-subtle: #E2E8F0;
+      --border-medium: #CBD5E1;
+      --border-strong: #94A3B8;
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.06);
+      --chart-grid: rgba(15, 23, 42, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* Layout Shell */
+    .app-shell {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 40;
+      transition: transform 0.25s ease, width 0.25s ease;
+    }
+
+    .brand-header {
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand-logo-img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .brand-text-wrap {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--brand-orange);
+    }
+
+    .nav-content {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 8px 12px 4px;
+      margin-top: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 13.5px;
+      transition: var(--transition);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background-color: var(--brand-orange);
+      color: #FFFFFF;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .nav-item-badge {
+      margin-left: auto;
+      background: var(--bg-surface-hover);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+    }
+
+    .nav-item.active .nav-item-badge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+    }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--state-success);
+      box-shadow: 0 0 0 2px var(--state-success-light);
+    }
+
+    /* Main Area */
+    .main-viewport {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      transition: margin-left 0.25s ease;
+    }
+
+    /* Top App Header */
+    .top-header {
+      height: var(--header-height);
+      background-color: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      width: 36px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .header-title-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-page-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* Search Input */
+    .header-search {
+      position: relative;
+      width: 260px;
+    }
+
+    .header-search input {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px 0 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-input);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .header-search input:focus {
+      border-color: var(--brand-orange);
+      box-shadow: 0 0 0 2px var(--brand-orange-light);
+    }
+
+    .header-search svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+    }
+
+    /* Header Actions */
+    .header-btn {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .header-btn:hover {
+      background-color: var(--bg-surface-hover);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 8px;
+      height: 8px;
+      background-color: var(--brand-orange);
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px var(--bg-sidebar);
+    }
+
+    /* Admin Profile Pill */
+    .user-profile-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 10px 4px 4px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      cursor: pointer;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .user-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-role-badge {
+      font-size: 10px;
+      color: var(--brand-orange);
+      font-weight: 600;
+    }
+
+    /* Dashboard Workspace Canvas */
+    .dashboard-content {
+      padding: 24px 28px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Dashboard Action Bar */
+    .dashboard-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .welcome-text h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .welcome-text p {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      margin-top: 2px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Period Filter Segmented Control */
+    .segmented-control {
+      display: inline-flex;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+    }
+
+    .segmented-btn {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: none;
+      border: none;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .segmented-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .segmented-btn.active {
+      background-color: var(--bg-surface-elevated);
+      color: var(--brand-orange);
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Quick Action Pill Bar */
+    .quick-actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-quick {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .btn-quick:hover {
+      border-color: var(--brand-orange);
+      color: var(--brand-orange);
+      background-color: var(--bg-surface-elevated);
+    }
+
+    .btn-quick.primary {
+      background-color: var(--brand-orange);
+      color: #FFFFFF;
+      border-color: var(--brand-orange);
+      box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3);
+    }
+
+    .btn-quick.primary:hover {
+      background-color: var(--brand-orange-hover);
+      border-color: var(--brand-orange-hover);
+      color: #FFFFFF;
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card);
+      border-color: var(--border-medium);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .kpi-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kpi-card:nth-child(1) .kpi-icon-wrap { background: rgba(249, 115, 22, 0.12); color: var(--brand-orange); }
+    .kpi-card:nth-child(2) .kpi-icon-wrap { background: rgba(56, 189, 248, 0.12); color: #38BDF8; }
+    .kpi-card:nth-child(3) .kpi-icon-wrap { background: rgba(168, 85, 247, 0.12); color: #A855F7; }
+    .kpi-card:nth-child(4) .kpi-icon-wrap { background: rgba(45, 212, 191, 0.12); color: #2DD4BF; }
+    .kpi-card:nth-child(5) .kpi-icon-wrap { background: rgba(245, 158, 11, 0.12); color: var(--state-warning); }
+    .kpi-card:nth-child(6) .kpi-icon-wrap { background: rgba(34, 197, 94, 0.12); color: var(--state-success); }
+
+    .kpi-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pill-green {
+      background-color: var(--state-success-light);
+      color: var(--state-success);
+    }
+
+    .pill-amber {
+      background-color: var(--state-warning-light);
+      color: var(--state-warning);
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .kpi-sublabel {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Main Grid: 2-Column Split (Attendance & Fee Summary) */
+    .dash-columns {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .card-title-group h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .card-meta-action {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand-orange);
+      text-decoration: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Attendance Chart Visualization */
+    .attendance-legend {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .dot-present { background-color: var(--state-success); }
+    .dot-late { background-color: var(--state-warning); }
+    .dot-absent { background-color: var(--state-danger); }
+
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .chart-bar-group {
+      display: grid;
+      grid-template-columns: 80px 1fr 50px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bar-day-label {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .stacked-bar-track {
+      height: 22px;
+      background-color: var(--bg-surface-elevated);
+      border-radius: var(--radius-sm);
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-segment {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .bar-segment.present { background-color: var(--state-success); }
+    .bar-segment.late { background-color: var(--state-warning); }
+    .bar-segment.absent { background-color: var(--state-danger); }
+
+    .bar-stat-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-align: right;
+      color: var(--text-primary);
+    }
+
+    /* Fee Collection Summary Section */
+    .fee-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .fee-stat-box {
+      background-color: var(--bg-surface-elevated);
+      border-radius: var(--radius-md);
+      padding: 14px 12px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .fee-stat-box .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .fee-stat-box .amount {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 4px;
+    }
+
+    .fee-stat-box.success .amount { color: var(--state-success); }
+    .fee-stat-box.warning .amount { color: var(--state-warning); }
+    .fee-stat-box.danger .amount { color: var(--state-danger); }
+
+    /* Progress Breakdown Bar */
+    .fee-progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .fee-progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .fee-progress-bar {
+      height: 12px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-surface-elevated);
+      display: flex;
+      overflow: hidden;
+    }
+
+    .fee-segment.collected {
+      background-color: var(--state-success);
+      width: 68%;
+    }
+
+    .fee-segment.pending {
+      background-color: var(--state-warning);
+      width: 22%;
+    }
+
+    .fee-segment.overdue {
+      background-color: var(--state-danger);
+      width: 10%;
+    }
+
+    .fee-quick-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+    }
+
+    .fee-metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+    }
+
+    .fee-metric-row span:first-child {
+      color: var(--text-secondary);
+    }
+
+    .fee-metric-row span:last-child {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Lower Section: Overdue Follow-ups & Recent Activity */
+    .lower-columns {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+
+    /* Overdue Fees Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .crm-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .crm-table th {
+      background-color: var(--bg-surface-elevated);
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .crm-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    .crm-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .crm-table tr:hover td {
+      background-color: var(--bg-surface-elevated);
+    }
+
+    .student-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .student-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: var(--bg-surface-hover);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-status.warning {
+      background-color: var(--state-warning-light);
+      color: var(--state-warning);
+    }
+
+    .badge-status.danger {
+      background-color: var(--state-danger-light);
+      color: var(--state-danger);
+    }
+
+    .btn-table-action {
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: var(--transition);
+    }
+
+    .btn-table-action:hover {
+      border-color: #25D366;
+      color: #25D366;
+      background-color: rgba(37, 211, 102, 0.08);
+    }
+
+    /* Activity Timeline List */
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      position: relative;
+    }
+
+    .activity-icon-node {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--brand-orange);
+    }
+
+    .activity-icon-node.success { color: var(--state-success); }
+    .activity-icon-node.blue { color: #38BDF8; }
+    .activity-icon-node.purple { color: #A855F7; }
+
+    .activity-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .activity-text {
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.35;
+    }
+
+    .activity-text strong {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .activity-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* UI State Switcher QA Toolbar for reviewing states */
+    .qa-states-drawer {
+      background-color: var(--bg-surface);
+      border: 1px dashed var(--border-medium);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .qa-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--brand-orange);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .qa-button-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .qa-btn {
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .qa-btn:hover, .qa-btn.active {
+      color: var(--text-primary);
+      border-color: var(--brand-orange);
+      background-color: var(--bg-surface-hover);
+    }
+
+    /* Responsive Adaptations */
+    @media (max-width: 1280px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .dash-columns, .lower-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .main-viewport {
+        margin-left: 0;
+      }
+      .mobile-menu-btn {
+        display: flex;
+      }
+      .header-search {
+        display: none;
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .dashboard-content {
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .fee-stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Shared Left Sidebar -->
+  <aside class="sidebar" id="appSidebar">
+    <div class="brand-header">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBulr-QcQ3VrbMLBl9ji88u_1rFo1lDMheI_qM76LXj2fWCuKmF2ATBYup5F_xn_7XGbI0TI6K47Deob0rZ2Xv3N8WZoQwxPujxaoXEq_tjQPHWtrCe7wNvoQkrYRgOt4fI1gOfuGmYSKsLJvddo2w-Z7hRVCW5uehQspp1K4r_IW-6VfZkK9u209Ry1ENQugxS0PPrRuTsAVulQ6wqduw79wmOU3m-CwOA2Gag9ZlTbtrtytwFmtnWMVBr0TcM16ot8g" alt="Gurukul Sports Academy Logo" class="brand-logo-img">
+      <div class="brand-text-wrap">
+        <span class="brand-title">Gurukul Academy</span>
+        <span class="brand-badge">OPERATIONAL CRM</span>
+      </div>
+    </div>
+
+    <div class="nav-content">
+      <div class="nav-section-label">General</div>
+      
+      <a class="nav-item active" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <span>Students</span>
+        <span class="nav-item-badge">248</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <span>Teachers</span>
+        <span class="nav-item-badge">18</span>
+      </a>
+
+      <div class="nav-section-label">Academics</div>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <span>Courses</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <span>Batches</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+        </svg>
+        <span>Attendance</span>
+      </a>
+
+      <div class="nav-section-label">Finance & Comms</div>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+        <span>Fees</span>
+        <span class="nav-item-badge" style="background: var(--state-warning-light); color: var(--state-warning);">₹1.2L</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+        </svg>
+        <span>Payments</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>Reports</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+        </svg>
+        <span>Announcements</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+        <span>WhatsApp</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span>Settings</span>
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="status-pulse">
+        <span class="pulse-dot"></span>
+        <span>Academy Engine v2.4</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Viewport Content -->
+  <div class="main-viewport">
+    
+    <!-- Top Shared Header -->
+    <header class="top-header">
+      <div class="header-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <div class="header-title-wrap">
+          <span class="header-page-title">Dashboard</span>
+          <span class="header-subtitle">Overview of your academy's activities and performance</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Compact Search -->
+        <div class="header-search">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="text" placeholder="Search student, batch or fee...">
+        </div>
+
+        <!-- Notification Bell -->
+        <button class="header-btn" title="System Notifications">
+          <span class="notif-badge"></span>
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+        </button>
+
+        <!-- Theme Toggle (Light / Dark) -->
+        <button class="header-btn" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+          <svg id="themeIcon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <!-- Sun icon for dark mode toggle -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </button>
+
+        <!-- Admin Profile Pill -->
+        <div class="user-profile-pill">
+          <div class="user-avatar">GA</div>
+          <div class="user-details">
+            <span class="user-name">R. Sharma</span>
+            <span class="user-role-badge">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content Canvas -->
+    <main class="dashboard-content">
+      
+      <!-- Dashboard Toolbar & Quick Action Buttons -->
+      <div class="dashboard-toolbar">
+        <div class="welcome-text">
+          <h1>Academy Performance Overview</h1>
+          <p>Real-time analytics for batches, fee disbursements, and daily attendance.</p>
+        </div>
+
+        <div class="toolbar-actions">
+          <!-- Compact Date/Period Selector -->
+          <div class="segmented-control">
+            <button class="segmented-btn">Today</button>
+            <button class="segmented-btn active">This Week</button>
+            <button class="segmented-btn">This Month</button>
+          </div>
+
+          <!-- Quick Actions Required in Section 8 -->
+          <div class="quick-actions-bar">
+            <button class="btn-quick primary">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+              <span>Add Student</span>
+            </button>
+            <button class="btn-quick">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <span>Record Payment</span>
+            </button>
+            <button class="btn-quick">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>Create Batch</span>
+            </button>
+            <button class="btn-quick">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+              </svg>
+              <span>Publish Announcement</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. KPI SUMMARY CARDS (6 Grid Cards) -->
+      <div class="kpi-grid">
+        <!-- 1. Total Students -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+            </div>
+            <span class="kpi-pill pill-green">↑ +8.4%</span>
+          </div>
+          <div class="kpi-value">248</div>
+          <div class="kpi-label">Total Students</div>
+          <div class="kpi-sublabel">Active enrolled students</div>
+        </div>
+
+        <!-- 2. Active Teachers -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <span class="kpi-pill pill-green">100% on duty</span>
+          </div>
+          <div class="kpi-value">18</div>
+          <div class="kpi-label">Active Teachers</div>
+          <div class="kpi-sublabel">Currently teaching</div>
+        </div>
+
+        <!-- 3. Active Courses -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+            </div>
+            <span class="kpi-pill" style="background: rgba(168, 85, 247, 0.12); color: #A855F7;">4 Disciplines</span>
+          </div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-label">Active Courses</div>
+          <div class="kpi-sublabel">Available programs</div>
+        </div>
+
+        <!-- 4. Active Batches -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <span class="kpi-pill" style="background: rgba(45, 212, 191, 0.12); color: #2DD4BF;">Morning/Eve</span>
+          </div>
+          <div class="kpi-value">24</div>
+          <div class="kpi-label">Active Batches</div>
+          <div class="kpi-sublabel">Running batches</div>
+        </div>
+
+        <!-- 5. Pending Fees -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+            </div>
+            <span class="kpi-pill pill-amber">⚠️ 14 Dues</span>
+          </div>
+          <div class="kpi-value" style="color: var(--state-warning);">₹1,24,500</div>
+          <div class="kpi-label">Pending Fees</div>
+          <div class="kpi-sublabel">Outstanding amount</div>
+        </div>
+
+        <!-- 6. Today's Attendance -->
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon-wrap">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="kpi-pill pill-green">High Rate</span>
+          </div>
+          <div class="kpi-value" style="color: var(--state-success);">92%</div>
+          <div class="kpi-label">Today's Attendance</div>
+          <div class="kpi-sublabel">228 / 248 Present</div>
+        </div>
+      </div>
+
+      <!-- 5. MAIN DASHBOARD CONTENT: 2-COLUMN SECTION -->
+      <div class="dash-columns">
+        <!-- LEFT: Attendance Overview -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Attendance Overview</h3>
+              <p>Weekly trend across all 24 sports academy batches</p>
+            </div>
+            <span class="card-meta-action">
+              View Detailed Log
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </div>
+
+          <!-- Attendance Status Indicators -->
+          <div class="attendance-legend">
+            <div class="legend-item">
+              <span class="legend-dot dot-present"></span>
+              <span>Present (Avg 91%)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot dot-late"></span>
+              <span>Late Arrival (5%)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot dot-absent"></span>
+              <span>Absent / Leave (4%)</span>
+            </div>
+          </div>
+
+          <!-- Weekly Horizontal Bar Chart Representation -->
+          <div class="chart-container">
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Mon, 18 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 93%;"></div>
+                <div class="bar-segment late" style="width: 4%;"></div>
+                <div class="bar-segment absent" style="width: 3%;"></div>
+              </div>
+              <span class="bar-stat-label">93%</span>
+            </div>
+
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Tue, 19 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 89%;"></div>
+                <div class="bar-segment late" style="width: 6%;"></div>
+                <div class="bar-segment absent" style="width: 5%;"></div>
+              </div>
+              <span class="bar-stat-label">89%</span>
+            </div>
+
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Wed, 20 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 94%;"></div>
+                <div class="bar-segment late" style="width: 3%;"></div>
+                <div class="bar-segment absent" style="width: 3%;"></div>
+              </div>
+              <span class="bar-stat-label">94%</span>
+            </div>
+
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Thu, 21 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 90%;"></div>
+                <div class="bar-segment late" style="width: 7%;"></div>
+                <div class="bar-segment absent" style="width: 3%;"></div>
+              </div>
+              <span class="bar-stat-label">90%</span>
+            </div>
+
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Fri, 22 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 92%;"></div>
+                <div class="bar-segment late" style="width: 5%;"></div>
+                <div class="bar-segment absent" style="width: 3%;"></div>
+              </div>
+              <span class="bar-stat-label">92%</span>
+            </div>
+
+            <div class="chart-bar-group">
+              <span class="bar-day-label">Sat, 23 Mar</span>
+              <div class="stacked-bar-track">
+                <div class="bar-segment present" style="width: 96%;"></div>
+                <div class="bar-segment late" style="width: 2%;"></div>
+                <div class="bar-segment absent" style="width: 2%;"></div>
+              </div>
+              <span class="bar-stat-label">96%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Fee Collection Summary -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Fee Collection Summary</h3>
+              <p>March 2025 academic & athletic cohort</p>
+            </div>
+            <span class="card-meta-action">
+              Fee Register
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </div>
+
+          <!-- Fee Stat Metric Boxes -->
+          <div class="fee-stats-grid">
+            <div class="fee-stat-box success">
+              <div class="label">Total Collected</div>
+              <div class="amount">₹4,82,000</div>
+            </div>
+            <div class="fee-stat-box warning">
+              <div class="label">Pending Dues</div>
+              <div class="amount">₹1,24,500</div>
+            </div>
+            <div class="fee-stat-box danger">
+              <div class="label">Overdue (>15d)</div>
+              <div class="amount">₹32,000</div>
+            </div>
+          </div>
+
+          <!-- Progress Visualization Bar -->
+          <div class="fee-progress-section">
+            <div class="fee-progress-header">
+              <span>Collection Target Progress</span>
+              <strong>79.5% Achieved</strong>
+            </div>
+            <div class="fee-progress-bar">
+              <div class="fee-segment collected" title="Collected ₹4,82,000 (79.5%)"></div>
+              <div class="fee-segment pending" title="Pending ₹92,500 (15.2%)"></div>
+              <div class="fee-segment overdue" title="Overdue ₹32,000 (5.3%)"></div>
+            </div>
+          </div>
+
+          <!-- Quick Metrics List -->
+          <div class="fee-quick-metrics">
+            <div class="fee-metric-row">
+              <span>Total Invoiced This Cycle</span>
+              <span>₹6,06,500 (248 Students)</span>
+            </div>
+            <div class="fee-metric-row">
+              <span>Automated WhatsApp Reminders Sent</span>
+              <span>84 Reminders (92% Open Rate)</span>
+            </div>
+            <div class="fee-metric-row">
+              <span>Next Expected Settlement</span>
+              <span>Tomorrow, 25 Mar (₹45,000)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 & 7. OVERDUE ACTION PANEL & RECENT ACTIVITY -->
+      <div class="lower-columns">
+        <!-- 6. Overdue Fee Follow-ups Action Panel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Overdue Fee Follow-ups</h3>
+              <p>Immediate action required for students with pending payments</p>
+            </div>
+            <span class="card-meta-action">View All (14 Students)</span>
+          </div>
+
+          <div class="table-container">
+            <table class="crm-table">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>Batch / Program</th>
+                  <th>Pending Amount</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="student-cell">
+                      <div class="student-avatar">AK</div>
+                      <div>
+                        <strong>Aarav Kumar</strong>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID: #GSA-2024-89</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Cricket Senior Batch B</td>
+                  <td><strong style="color: var(--state-danger);">₹8,500</strong></td>
+                  <td>10 Mar 2025</td>
+                  <td>
+                    <span class="badge-status danger">14 Days Overdue</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button class="btn-table-action" title="Send WhatsApp Fee Reminder">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/>
+                      </svg>
+                      <span>Send Reminder</span>
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="student-cell">
+                      <div class="student-avatar">PS</div>
+                      <div>
+                        <strong>Priya Sharma</strong>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID: #GSA-2024-112</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Badminton Junior Academy</td>
+                  <td><strong style="color: var(--state-warning);">₹6,000</strong></td>
+                  <td>15 Mar 2025</td>
+                  <td>
+                    <span class="badge-status warning">9 Days Overdue</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button class="btn-table-action" title="Send WhatsApp Fee Reminder">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/>
+                      </svg>
+                      <span>Send Reminder</span>
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="student-cell">
+                      <div class="student-avatar">RV</div>
+                      <div>
+                        <strong>Rohan Verma</strong>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID: #GSA-2024-45</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Athletics & Sprint Pro</td>
+                  <td><strong style="color: var(--state-danger);">₹12,000</strong></td>
+                  <td>05 Mar 2025</td>
+                  <td>
+                    <span class="badge-status danger">19 Days Overdue</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button class="btn-table-action" title="Send WhatsApp Fee Reminder">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/>
+                      </svg>
+                      <span>Send Reminder</span>
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>
+                    <div class="student-cell">
+                      <div class="student-avatar">SM</div>
+                      <div>
+                        <strong>Simran Malik</strong>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID: #GSA-2024-201</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Swimming Elite Batch A</td>
+                  <td><strong style="color: var(--state-warning);">₹5,500</strong></td>
+                  <td>18 Mar 2025</td>
+                  <td>
+                    <span class="badge-status warning">6 Days Overdue</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button class="btn-table-action" title="Send WhatsApp Fee Reminder">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/>
+                      </svg>
+                      <span>Send Reminder</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 7. Recent Activity Timeline -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Recent Activity</h3>
+              <p>Live operational events and staff audits</p>
+            </div>
+            <span class="card-meta-action">Activity History</span>
+          </div>
+
+          <div class="activity-feed">
+            <div class="activity-item">
+              <div class="activity-icon-node success">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+              </div>
+              <div class="activity-details">
+                <div class="activity-text">
+                  <strong>Fee payment recorded</strong> of ₹7,500 for <span style="color: var(--brand-orange);">Kavya Patel</span> via UPI Gateway.
+                </div>
+                <div class="activity-meta">
+                  <span>Recorded by Admin</span>
+                  <span>•</span>
+                  <span>14 mins ago</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon-node">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+              </div>
+              <div class="activity-details">
+                <div class="activity-text">
+                  <strong>New student enrolled</strong> — Aryan Singh joined <em>Football Intermediate Batch</em>.
+                </div>
+                <div class="activity-meta">
+                  <span>Enrolled by Coach D. Rawat</span>
+                  <span>•</span>
+                  <span>48 mins ago</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon-node blue">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+              </div>
+              <div class="activity-details">
+                <div class="activity-text">
+                  <strong>Attendance submitted</strong> for <em>Morning Cricket Batch A</em> (26/28 present).
+                </div>
+                <div class="activity-meta">
+                  <span>Verified by Coach M. Khan</span>
+                  <span>•</span>
+                  <span>1 hr 20 mins ago</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon-node purple">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                </svg>
+              </div>
+              <div class="activity-details">
+                <div class="activity-text">
+                  <strong>Announcement published</strong> — "State Championship Trials scheduled for 28th March".
+                </div>
+                <div class="activity-meta">
+                  <span>Broadcasted to all cohorts</span>
+                  <span>•</span>
+                  <span>3 hrs ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12. INTERACTIVE QA STATES PREVIEW BAR -->
+      <div class="qa-states-drawer">
+        <div class="qa-label">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>Component State Previews:</span>
+        </div>
+        <div class="qa-button-group">
+          <button class="qa-btn active" onclick="setDashboardState('normal')">1. Normal Active</button>
+          <button class="qa-btn" onclick="setDashboardState('loading')">2. KPI Skeleton Loading</button>
+          <button class="qa-btn" onclick="setDashboardState('empty-activity')">3. Empty Activity</button>
+          <button class="qa-btn" onclick="setDashboardState('empty-overdue')">4. Zero Overdue Fees</button>
+          <button class="qa-btn" onclick="toggleSidebarCollapse()">5. Toggle Sidebar Rail</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  // Theme Toggle Logic
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const htmlRoot = document.documentElement;
+  
+  themeToggleBtn.addEventListener('click', () => {
+    const currentTheme = htmlRoot.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    htmlRoot.setAttribute('data-theme', newTheme);
+  });
+
+  // Mobile Menu Toggle
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const appSidebar = document.getElementById('appSidebar');
+
+  mobileMenuBtn.addEventListener('click', () => {
+    appSidebar.classList.toggle('open');
+  });
+
+  // State Switcher Demo QA function
+  function setDashboardState(state) {
+    document.querySelectorAll('.qa-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const kpiValues = document.querySelectorAll('.kpi-value');
+    const activityFeed = document.querySelector('.activity-feed');
+    const overdueTable = document.querySelector('.crm-table tbody');
+
+    if (state === 'loading') {
+      kpiValues.forEach(val => {
+        val.innerHTML = '<span style="display:inline-block; width:60px; height:24px; background:var(--bg-surface-hover); border-radius:4px; animation:pulse 1.2s infinite ease-in-out;"></span>';
+      });
+    } else if (state === 'empty-activity') {
+      activityFeed.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No recent system activities recorded today.</div>';
+    } else if (state === 'empty-overdue') {
+      overdueTable.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--state-success); font-weight: 500;">✓ Excellent! All batch fees are up to date. Zero overdue payments.</td></tr>';
+    } else {
+      window.location.reload();
+    }
+  }
+
+  function toggleSidebarCollapse() {
+    if (appSidebar.style.width === '78px') {
+      appSidebar.style.width = '256px';
+      document.querySelector('.main-viewport').style.marginLeft = '256px';
+      document.querySelectorAll('.nav-item span, .brand-text-wrap, .nav-section-label, .sidebar-footer').forEach(el => el.style.display = '');
+    } else {
+      appSidebar.style.width = '78px';
+      document.querySelector('.main-viewport').style.marginLeft = '78px';
+      document.querySelectorAll('.nav-item span, .brand-text-wrap, .nav-section-label, .sidebar-footer').forEach(el => el.style.display = 'none');
+    }
+  }
+</script>
+
+</body>
+</html>

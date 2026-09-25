@@ -1,0 +1,2370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attendance Management — Gurukul Sports Academy CRM</title>
+<style>
+  :root {
+    --primary: #F97316;
+    --primary-hover: #ea580c;
+    --primary-light: rgba(249, 115, 22, 0.12);
+    --bg-page: #0B132B;
+    --bg-surface: #111E38;
+    --bg-card: #162444;
+    --bg-elevated: #1C2D54;
+    --border: #233863;
+    --border-light: rgba(255, 255, 255, 0.08);
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    
+    --success: #22C55E;
+    --success-bg: rgba(34, 197, 94, 0.15);
+    --success-border: rgba(34, 197, 94, 0.35);
+    
+    --danger: #EF4444;
+    --danger-bg: rgba(239, 68, 68, 0.15);
+    --danger-border: rgba(239, 68, 68, 0.35);
+    
+    --warning: #F59E0B;
+    --warning-bg: rgba(245, 158, 11, 0.15);
+    --warning-border: rgba(245, 158, 11, 0.35);
+    
+    --info: #38BDF8;
+    --info-bg: rgba(56, 189, 248, 0.15);
+    --info-border: rgba(56, 189, 248, 0.35);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-full: 9999px;
+    --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Light mode override via class */
+  body.light-theme {
+    --bg-page: #F8FAFC;
+    --bg-surface: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-elevated: #F1F5F9;
+    --border: #E2E8F0;
+    --border-light: #CBD5E1;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .brand-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px 24px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .brand-logo-img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+  }
+
+  .brand-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+  }
+
+  .brand-subtitle {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .nav-group {
+    margin-bottom: 24px;
+  }
+
+  .nav-category {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 0 12px 10px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    margin-bottom: 4px;
+    cursor: pointer;
+  }
+
+  .nav-link:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  .nav-link.active {
+    background: var(--primary);
+    color: #FFFFFF;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+  }
+
+  .nav-item-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.85;
+  }
+
+  .nav-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .nav-link.active .nav-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+  }
+
+  .academy-engine-badge {
+    margin-top: auto;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+
+  .online-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+  }
+
+  /* MAIN CONTENT AREA */
+  .main-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-y: auto;
+  }
+
+  /* TOP HEADER */
+  .top-header {
+    height: 72px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .header-left-info h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+  }
+
+  .header-left-info p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .icon-button {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .icon-button:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-light);
+  }
+
+  .theme-toggle-btn {
+    padding: 8px 14px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .theme-toggle-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  .user-profile-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 12px 5px 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+  }
+
+  .avatar-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .user-details {
+    line-height: 1.2;
+  }
+
+  .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .user-role {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  /* PAGE CONTAINER */
+  .page-container {
+    padding: 32px;
+    max-width: 1440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* PAGE HEADING & SUMMARY KPI CARDS */
+  .page-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 20px;
+  }
+
+  .page-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+
+  .page-subtitle {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    position: relative;
+    box-shadow: var(--shadow);
+  }
+
+  .kpi-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .kpi-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+  }
+
+  .kpi-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .kpi-badge.success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+  .kpi-badge.danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+  .kpi-badge.warning { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+
+  .kpi-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .kpi-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+
+  .kpi-trend {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+  }
+
+  .kpi-trend.positive { background: var(--success-bg); color: var(--success); }
+  .kpi-trend.negative { background: var(--danger-bg); color: var(--danger); }
+  .kpi-trend.neutral { background: var(--bg-card); color: var(--text-secondary); }
+
+  .kpi-caption {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* MODE SWITCHER TABS & ACTION BAR */
+  .tabs-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .tab-segmented-control {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    display: inline-flex;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tab-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .tab-btn.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .tab-btn .badge-count {
+    background: var(--bg-elevated);
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+
+  .tab-btn.active .badge-count {
+    background: var(--primary);
+    color: #FFFFFF;
+  }
+
+  /* LIVE CONTROLS TOOLBAR CARD */
+  .control-panel-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 180px 220px 280px 1fr auto;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+  }
+
+  .custom-input, .custom-select {
+    height: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border 0.15s;
+    width: 100%;
+  }
+
+  .custom-input:focus, .custom-select:focus {
+    border-color: var(--primary);
+  }
+
+  .batch-meta-box {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 6px 14px;
+    height: 40px;
+  }
+
+  .meta-chunk {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .meta-chunk .chunk-title {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .meta-chunk .chunk-val {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .divider-v {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+  }
+
+  /* BUTTONS */
+  .btn-primary {
+    background: var(--primary);
+    color: #FFFFFF;
+    border: none;
+    border-radius: var(--radius-md);
+    height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3);
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border-light);
+  }
+
+  .btn-success-subtle {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+    border-radius: var(--radius-md);
+    height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-success-subtle:hover {
+    background: rgba(34, 197, 94, 0.25);
+  }
+
+  .btn-danger-subtle {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-md);
+    height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-danger-subtle:hover {
+    background: rgba(239, 68, 68, 0.25);
+  }
+
+  /* ROLL CALL SUB-TOOLBAR */
+  .rollcall-sub-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .search-status-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    max-width: 600px;
+  }
+
+  .search-box-wrap {
+    position: relative;
+    flex: 1;
+  }
+
+  .search-box-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+  }
+
+  .search-input {
+    width: 100%;
+    height: 38px;
+    padding-left: 36px;
+    padding-right: 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .status-filter-pills {
+    display: flex;
+    gap: 6px;
+  }
+
+  .filter-pill {
+    padding: 6px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-pill.active {
+    background: var(--bg-elevated);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .rollcall-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* TABLE CARD CONTAINER */
+  .table-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-bottom: 30px;
+  }
+
+  .custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  .custom-table th {
+    background: var(--bg-card);
+    padding: 13px 18px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .custom-table td {
+    padding: 14px 18px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text-secondary);
+  }
+
+  .custom-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .custom-table tr:hover td {
+    background: var(--bg-elevated);
+  }
+
+  /* STUDENT CELL */
+  .student-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .student-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .student-name-block {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .student-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .student-id {
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--text-muted);
+  }
+
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .badge-tag.cricket { background: rgba(249, 115, 22, 0.15); color: #F97316; }
+  .badge-tag.badminton { background: rgba(56, 189, 248, 0.15); color: #38BDF8; }
+  .badge-tag.athletics { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+
+  /* ATTENDANCE STATUS SELECTOR - SEGMENTED CONTROL IN ROW */
+  .status-segmented-picker {
+    display: inline-flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .status-choice-btn {
+    border: none;
+    background: transparent;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-muted);
+  }
+
+  .status-choice-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .status-choice-btn.selected-present {
+    background: var(--success);
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  }
+
+  .status-choice-btn.selected-absent {
+    background: var(--danger);
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+  }
+
+  .status-choice-btn.selected-late {
+    background: var(--warning);
+    color: #0F172A;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+  }
+
+  .status-choice-btn.selected-leave {
+    background: var(--info);
+    color: #0F172A;
+    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.3);
+  }
+
+  .remarks-input {
+    width: 100%;
+    min-width: 140px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 9px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+  }
+
+  .remarks-input:focus {
+    border-color: var(--primary);
+  }
+
+  /* TABLE FOOTER / SAVE BAR */
+  .table-sticky-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-summary-chips {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .chip-counter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .chip-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+
+  .chip-dot.green { background: var(--success); }
+  .chip-dot.red { background: var(--danger); }
+  .chip-dot.amber { background: var(--warning); }
+  .chip-dot.blue { background: var(--info); }
+
+  /* QA CONTROLLER DOCK (BOTTOM) */
+  .qa-floating-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000F24;
+    border: 1px solid #2A3C63;
+    border-radius: var(--radius-full);
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+  }
+
+  .qa-pill-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding-right: 6px;
+    border-right: 1px solid #2A3C63;
+  }
+
+  .qa-btn {
+    background: transparent;
+    border: none;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .qa-btn:hover {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .qa-btn.active {
+    background: var(--primary);
+    color: #FFFFFF;
+  }
+
+  /* MODALS & DRAWERS (QA OVERLAYS) */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 10, 24, 0.78);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    padding: 20px;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-dialog {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 540px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    padding: 24px;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  /* NOTIFY ABSENTEES PREVIEW */
+  .absentee-list-preview {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin: 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .absentee-row-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 6px 10px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+  }
+
+  .message-preview-box {
+    background: #000F21;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #CBD5E1;
+    border-left: 3px solid var(--primary);
+  }
+
+  /* SLIDE-OVER DRAWER (HISTORICAL DETAIL) */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 10, 24, 0.7);
+    display: none;
+    justify-content: flex-end;
+    z-index: 95;
+  }
+
+  .drawer-overlay.open {
+    display: flex;
+  }
+
+  .drawer-panel {
+    width: 100%;
+    max-width: 520px;
+    background: var(--bg-surface);
+    height: 100%;
+    border-left: 1px solid var(--border);
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    animation: slideRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  .drawer-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .drawer-body {
+    padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .session-spec-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  .spec-item .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .spec-item .val {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  /* TOAST NOTIFICATION */
+  .toast-notification {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--success-border);
+    border-left: 4px solid var(--success);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 110;
+  }
+
+  .toast-notification.show {
+    display: flex;
+  }
+
+  /* EMPTY & LOADING STATES CONTAINER */
+  .state-view-container {
+    display: none;
+    padding: 60px 20px;
+    text-align: center;
+  }
+
+  .state-view-container.show {
+    display: block;
+  }
+
+  .state-icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    margin-bottom: 16px;
+  }
+
+  .state-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .state-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 400px;
+    margin: 0 auto 20px;
+  }
+
+  @media (max-width: 1024px) {
+    .sidebar { width: 80px; padding: 20px 10px; }
+    .brand-title, .brand-subtitle, .nav-category, .nav-item-content span, .nav-badge, .academy-engine-badge span { display: none; }
+    .brand-header { justify-content: center; padding-bottom: 16px; }
+    .nav-link { justify-content: center; padding: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .controls-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .kpi-grid { grid-template-columns: 1fr; }
+    .top-header { padding: 0 16px; }
+    .page-container { padding: 16px; }
+    .controls-grid { grid-template-columns: 1fr; }
+    .qa-floating-bar { width: 92%; overflow-x: auto; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand-header">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvoGN2U6AXjfBXvecfXZrk6Bh9yGBdKlpV5FdOT6uXDD__eGWKX1ifBnYoJnksARFzaUoMR1uCVCzaoOD_BaquUeulENrSG_xakOU8EPmzGh-UubcGlznV0R1OZHwJah37Yo4xz5C2vVBmBpMc30b-5d1ZUATERGzo9KEofp3Cj786jQNWsmIEI1pPmUm1bR6DZ2KVq9qczVnkxMoBuQ2JNDxDCw7SO_6_U8iFMsa-6RmHzfkUUNEN1AmkkpLto6NVAw" alt="Gurukul Academy" class="brand-logo-img">
+      <div>
+        <div class="brand-title">Gurukul Academy</div>
+        <div class="brand-subtitle">Operational CRM</div>
+      </div>
+    </div>
+
+    <!-- GENERAL -->
+    <div class="nav-group">
+      <div class="nav-category">General</div>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          <span>Dashboard</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Students</span>
+        </div>
+        <span class="nav-badge">248</span>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Teachers</span>
+        </div>
+        <span class="nav-badge">18</span>
+      </a>
+    </div>
+
+    <!-- ACADEMICS -->
+    <div class="nav-group">
+      <div class="nav-category">Academics</div>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span>Courses</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>Batches</span>
+        </div>
+      </a>
+      <a class="nav-link active">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <span>Attendance</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- FINANCE & COMMS -->
+    <div class="nav-group">
+      <div class="nav-category">Finance & Comms</div>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+          <span>Fees</span>
+        </div>
+        <span class="nav-badge" style="color: #F97316;">₹1.2L</span>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>Payments</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <span>Reports</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>Announcements</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          <span>WhatsApp</span>
+        </div>
+      </a>
+      <a class="nav-link">
+        <div class="nav-item-content">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Settings</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="academy-engine-badge">
+      <div class="online-indicator"></div>
+      <span>Gurukul Engine v2.4</span>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="main-wrapper">
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-left-info">
+        <h2>Attendance</h2>
+        <p>Record and monitor student attendance across all batches.</p>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-button" title="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        </button>
+
+        <button class="theme-toggle-btn" onclick="document.body.classList.toggle('light-theme')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <span>Light / Dark</span>
+        </button>
+
+        <div class="user-profile-pill">
+          <div class="avatar-circle">RS</div>
+          <div class="user-details">
+            <div class="user-name">R. Sharma</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT BODY -->
+    <div class="page-container">
+      
+      <!-- PAGE HEADER -->
+      <div class="page-header-row">
+        <div>
+          <h1 class="page-title">Attendance Management</h1>
+          <p class="page-subtitle">Track daily attendance, perform roll-call, and review historical batch records.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-secondary" onclick="openNotifyModal()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            Notify Absentees
+          </button>
+          <button class="btn-primary" onclick="triggerSaveAttendance()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span id="saveBtnLabel">Save Attendance</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI METRIC CARDS -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-title">Total Enrolled Today</span>
+            <div class="kpi-badge">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            </div>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value">20</span>
+            <span class="kpi-trend neutral">Across active session</span>
+          </div>
+          <p class="kpi-caption">Morning Batch B — Cricket Elite</p>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-title">Present Today</span>
+            <div class="kpi-badge success">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" style="color: var(--success);" id="kpiPresentCount">16</span>
+            <span class="kpi-trend positive">80.0% Verified</span>
+          </div>
+          <p class="kpi-caption">On pitch & training ground</p>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-title">Absent Today</span>
+            <div class="kpi-badge danger">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" style="color: var(--danger);" id="kpiAbsentCount">2</span>
+            <span class="kpi-trend negative">Pending SMS Alert</span>
+          </div>
+          <p class="kpi-caption">Unexcused missing athletes</p>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-title">Attendance Rate</span>
+            <div class="kpi-badge warning">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="kpiRate">90.0%</span>
+            <span class="kpi-trend positive">+3.2% vs Last Wk</span>
+          </div>
+          <p class="kpi-caption">1 Late arrival • 1 Approved Leave</p>
+        </div>
+      </div>
+
+      <!-- TABS SWITCHER -->
+      <div class="tabs-action-bar">
+        <div class="tab-segmented-control">
+          <button class="tab-btn active" id="tabRollCallBtn" onclick="switchMainTab('rollcall')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <span>Live Roll-Call</span>
+            <span class="badge-count">10 Students</span>
+          </button>
+          <button class="tab-btn" id="tabHistoryBtn" onclick="switchMainTab('history')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>Attendance History</span>
+            <span class="badge-count">24 Sessions</span>
+          </button>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-success-subtle" onclick="markAllPresent()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Mark All Present
+          </button>
+          <button class="btn-secondary" onclick="resetRollCall()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1: LIVE ROLL-CALL TAB -->
+      <div id="liveRollCallView">
+        
+        <!-- TOP CONTROLS CARD -->
+        <div class="control-panel-card">
+          <div class="controls-grid">
+            <div class="input-group">
+              <label class="input-label">Date</label>
+              <input type="date" class="custom-input" value="2025-05-18">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Sport / Course</label>
+              <select class="custom-select">
+                <option selected>Cricket Championship Academy</option>
+                <option>Badminton Junior Colts</option>
+                <option>Athletics Sprint Accelerator</option>
+                <option>Competitive Swimming</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Select Batch</label>
+              <select class="custom-select">
+                <option selected>Cricket Senior — Morning Batch B (CRK-B02)</option>
+                <option>Cricket Junior — Colts A (CRK-J01)</option>
+                <option>Weekend Fast Bowlers Camp (CRK-W03)</option>
+              </select>
+            </div>
+
+            <div class="batch-meta-box">
+              <div class="meta-chunk">
+                <span class="chunk-title">Coach</span>
+                <span class="chunk-val">Coach Devendra Rawat</span>
+              </div>
+              <div class="divider-v"></div>
+              <div class="meta-chunk">
+                <span class="chunk-title">Session Time</span>
+                <span class="chunk-val">06:30 AM – 08:30 AM</span>
+              </div>
+              <div class="divider-v"></div>
+              <div class="meta-chunk">
+                <span class="chunk-title">Venue</span>
+                <span class="chunk-val">Main Oval Turf Pitch 2</span>
+              </div>
+            </div>
+
+            <div>
+              <button class="btn-secondary" style="height: 40px; padding: 0 14px;" title="Refresh Session Details">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ROLL-CALL SUB-TOOLBAR -->
+        <div class="rollcall-sub-toolbar">
+          <div class="search-status-filter-group">
+            <div class="search-box-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" class="search-input" placeholder="Search student by name, roll ID or sport..." onkeyup="filterRollCall(this.value)">
+            </div>
+
+            <div class="status-filter-pills">
+              <button class="filter-pill active" onclick="filterByStatusPill(this, 'ALL')">All (10)</button>
+              <button class="filter-pill" onclick="filterByStatusPill(this, 'PRESENT')">Present (7)</button>
+              <button class="filter-pill" onclick="filterByStatusPill(this, 'ABSENT')">Absent (2)</button>
+              <button class="filter-pill" onclick="filterByStatusPill(this, 'LATE')">Late (1)</button>
+            </div>
+          </div>
+
+          <div class="rollcall-actions-group">
+            <span style="font-size: 12px; color: var(--text-muted);">Auto-saving draft locally</span>
+          </div>
+        </div>
+
+        <!-- ROLL-CALL TABLE -->
+        <div class="table-card">
+          <table class="custom-table" id="rollCallTable">
+            <thead>
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" checked title="Select All"></th>
+                <th>Student Athlete</th>
+                <th>Course & Discipline</th>
+                <th>Batch Cohort</th>
+                <th style="width: 320px;">Attendance Status</th>
+                <th>Operational Remarks</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1 -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar">AK</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Aarav K. Patel</span>
+                      <span class="student-id">#GSA-2024-001 • Fast Bowling</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Warmup pace test: 132 km/h"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Aarav K. Patel', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 2 -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #38BDF8;">RV</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Rohan Varma</span>
+                      <span class="student-id">#GSA-2024-004 • Top Order Batsman</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Power hitting drill completed"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Rohan Varma', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 3 - Absent -->
+              <tr data-status="absent">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #EF4444;">SS</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Siddharth Sharma</span>
+                      <span class="student-id">#GSA-2024-009 • Wicket Keeper</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn selected-absent" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Unexcused missing; guardian unreached" style="border-color: rgba(239, 68, 68, 0.4);"></td>
+                <td style="text-align: right;">
+                  <button class="btn-danger-subtle" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openNotifyModal()">Notify</button>
+                </td>
+              </tr>
+
+              <!-- Row 4 - Late -->
+              <tr data-status="late">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #F59E0B;">DN</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Devansh Nambiar</span>
+                      <span class="student-id">#GSA-2024-012 • All-Rounder</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn selected-late" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Arrived at 06:52 AM (Traffic transit delay)"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Devansh Nambiar', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 5 - Present -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #22C55E;">IS</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Ishaan Sen</span>
+                      <span class="student-id">#GSA-2024-015 • Left-arm Spin</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Completed full fielding session"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Ishaan Sen', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 6 - Leave -->
+              <tr data-status="leave">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #38BDF8;">YM</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Yuvraj Mehta</span>
+                      <span class="student-id">#GSA-2024-018 • Middle Order</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn selected-leave" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Academic school board exams (approved)"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Yuvraj Mehta', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 7 - Absent -->
+              <tr data-status="absent">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #EF4444;">TR</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Tanmay Rathore</span>
+                      <span class="student-id">#GSA-2024-022 • Pace Bowler</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn selected-absent" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="No prior communication received"></td>
+                <td style="text-align: right;">
+                  <button class="btn-danger-subtle" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openNotifyModal()">Notify</button>
+                </td>
+              </tr>
+
+              <!-- Row 8 - Present -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #22C55E;">KR</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Kavya Raghavan</span>
+                      <span class="student-id">#GSA-2024-027 • Leg Spin</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Net session 3: 4 wickets taken"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Kavya Raghavan', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 9 - Present -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #F97316;">VJ</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Varun Joshi</span>
+                      <span class="student-id">#GSA-2024-031 • Opener</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Endurance run 5km done"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Varun Joshi', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+
+              <!-- Row 10 - Present -->
+              <tr data-status="present">
+                <td><input type="checkbox" checked></td>
+                <td>
+                  <div class="student-cell">
+                    <div class="student-avatar" style="color: #22C55E;">NM</div>
+                    <div class="student-name-block">
+                      <span class="student-name">Neil Mukherjee</span>
+                      <span class="student-id">#GSA-2024-035 • Medium Pacer</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td><span style="font-size: 12px; font-weight: 600;">Morning Batch B</span></td>
+                <td>
+                  <div class="status-segmented-picker">
+                    <button class="status-choice-btn selected-present" onclick="setStatus(this, 'present')">✓ Present</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'absent')">✗ Absent</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'late')">⏱ Late</button>
+                    <button class="status-choice-btn" onclick="setStatus(this, 'leave')">✈ Leave</button>
+                  </div>
+                </td>
+                <td><input type="text" class="remarks-input" placeholder="Add remark..." value="Normal participation"></td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 10px; font-size: 11px;" onclick="openHistoryDrawer('Neil Mukherjee', 'CRK-B02')">Audit</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- STICKY BOTTOM ACTIONS -->
+          <div class="table-sticky-footer">
+            <div class="footer-summary-chips">
+              <div class="chip-counter"><span class="chip-dot green"></span> 7 Present</div>
+              <div class="chip-counter"><span class="chip-dot red"></span> 2 Absent</div>
+              <div class="chip-counter"><span class="chip-dot amber"></span> 1 Late</div>
+              <div class="chip-counter"><span class="chip-dot blue"></span> 1 Leave</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <span id="saveStatusIndicator" style="font-size: 12.5px; color: var(--text-muted);">Last saved: Today at 07:15 AM</span>
+              <button class="btn-primary" onclick="triggerSaveAttendance()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Save Attendance
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: ATTENDANCE HISTORY TAB (INTERNAL TAB) -->
+      <div id="historyView" style="display: none;">
+        <!-- HISTORY FILTER TOOLBAR -->
+        <div class="control-panel-card" style="margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 220px 220px 220px 180px 1fr auto; gap: 14px; align-items: center;">
+            <div class="input-group">
+              <label class="input-label">Date Range</label>
+              <input type="text" class="custom-input" value="01 May 2025 – 18 May 2025">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Sport / Course</label>
+              <select class="custom-select">
+                <option>All Sports (Cricket, Badminton, Athletics, Swim)</option>
+                <option selected>Cricket Senior Academy</option>
+                <option>Badminton Junior Colts</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Batch</label>
+              <select class="custom-select">
+                <option selected>All Batches (CRK-B02, CRK-J01, etc.)</option>
+                <option>Morning Batch B (CRK-B02)</option>
+                <option>Evening Colts (BDM-J01)</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Coach</label>
+              <select class="custom-select">
+                <option selected>All Teachers / Coaches</option>
+                <option>Coach Devendra Rawat</option>
+                <option>Coach Malini Sen</option>
+                <option>Coach Vikram Rathore</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Status</label>
+              <select class="custom-select">
+                <option selected>All Statuses</option>
+                <option>Full Attendance (&gt;90%)</option>
+                <option>High Absenteeism (&lt;70%)</option>
+              </select>
+            </div>
+
+            <div>
+              <button class="btn-primary" style="margin-top: 18px;">Apply Filter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORICAL SESSIONS TABLE -->
+        <div class="table-card">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Session Date</th>
+                <th>Batch & Cohort</th>
+                <th>Course Discipline</th>
+                <th>Faculty In-Charge</th>
+                <th>Roll-Call Breakdown</th>
+                <th>Attendance %</th>
+                <th>Recorded By</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong style="color: var(--text-primary);">18 May 2025</strong><br><span style="font-size: 11px; color: var(--text-muted);">06:30 AM – 08:30 AM</span></td>
+                <td><span style="font-weight: 600; color: var(--text-primary);">Cricket Senior — Morning B</span><br><span style="font-size: 11px; font-family: monospace;">CRK-B02</span></td>
+                <td><span class="badge-tag cricket">🏏 Cricket Senior</span></td>
+                <td>Coach Devendra Rawat</td>
+                <td>
+                  <span style="color: var(--success); font-weight: 600;">16 Present</span> • 
+                  <span style="color: var(--danger); font-weight: 600;">2 Absent</span> • 
+                  <span style="color: var(--warning); font-weight: 600;">1 Late</span> • 
+                  <span style="color: var(--info); font-weight: 600;">1 Leave</span>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 60px; height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden;">
+                      <div style="width: 80%; height: 100%; background: var(--success);"></div>
+                    </div>
+                    <span style="font-weight: 700; color: var(--success);">80.0%</span>
+                  </div>
+                </td>
+                <td>R. Sharma (Admin)</td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 12px; font-size: 12px;" onclick="openHistoryDrawer('Cricket Senior — Morning B', 'CRK-B02')">View Details</button>
+                </td>
+              </tr>
+
+              <tr>
+                <td><strong style="color: var(--text-primary);">17 May 2025</strong><br><span style="font-size: 11px; color: var(--text-muted);">04:30 PM – 06:30 PM</span></td>
+                <td><span style="font-weight: 600; color: var(--text-primary);">Junior Badminton — Evening Colts</span><br><span style="font-size: 11px; font-family: monospace;">BDM-J01</span></td>
+                <td><span class="badge-tag badminton">🏸 Badminton</span></td>
+                <td>Coach Malini Sen</td>
+                <td>
+                  <span style="color: var(--success); font-weight: 600;">15 Present</span> • 
+                  <span style="color: var(--danger); font-weight: 600;">1 Absent</span> • 
+                  <span style="color: var(--warning); font-weight: 600;">0 Late</span>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 60px; height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden;">
+                      <div style="width: 93.7%; height: 100%; background: var(--success);"></div>
+                    </div>
+                    <span style="font-weight: 700; color: var(--success);">93.7%</span>
+                  </div>
+                </td>
+                <td>M. Sen (Coach)</td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 12px; font-size: 12px;" onclick="openHistoryDrawer('Junior Badminton — Evening Colts', 'BDM-J01')">View Details</button>
+                </td>
+              </tr>
+
+              <tr>
+                <td><strong style="color: var(--text-primary);">16 May 2025</strong><br><span style="font-size: 11px; color: var(--text-muted);">05:45 AM – 07:15 AM</span></td>
+                <td><span style="font-weight: 600; color: var(--text-primary);">Speed & Track Sprint Accelerator</span><br><span style="font-size: 11px; font-family: monospace;">ATH-S03</span></td>
+                <td><span class="badge-tag athletics">🏃 Athletics</span></td>
+                <td>Coach Vikram Rathore</td>
+                <td>
+                  <span style="color: var(--success); font-weight: 600;">14 Present</span> • 
+                  <span style="color: var(--danger); font-weight: 600;">0 Absent</span> • 
+                  <span style="color: var(--warning); font-weight: 600;">0 Late</span>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 60px; height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden;">
+                      <div style="width: 100%; height: 100%; background: var(--success);"></div>
+                    </div>
+                    <span style="font-weight: 700; color: var(--success);">100%</span>
+                  </div>
+                </td>
+                <td>V. Rathore (Coach)</td>
+                <td style="text-align: right;">
+                  <button class="btn-secondary" style="height: 30px; padding: 0 12px; font-size: 12px;" onclick="openHistoryDrawer('Speed & Track Sprint Accelerator', 'ATH-S03')">View Details</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VIEW 3: EMPTY STATE (FOR QA) -->
+      <div id="emptyViewContainer" class="state-view-container">
+        <div class="state-icon-box">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <h3 class="state-title">No Attendance Recorded For Selected Filters</h3>
+        <p class="state-desc">There are no schedule sessions or enrolled student rosters matching your search query. Try clearing active filters or select a different date.</p>
+        <button class="btn-secondary" onclick="showNormalView()">Clear All Filters</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- MODAL 1: NOTIFY ABSENTEES CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="notifyModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--danger-bg); color: var(--danger); display: flex; align-items: center; justify-content: center;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </div>
+          <div>
+            <h3>Notify Absent Athletes & Guardians</h3>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Cricket Senior Morning Batch B • Today</span>
+          </div>
+        </div>
+        <button class="icon-button" style="width: 30px; height: 30px;" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Identified Absentees (2)</span>
+          <span style="font-size: 11px; color: var(--danger); font-weight: 600;">Immediate SMS / WhatsApp</span>
+        </div>
+
+        <div class="absentee-list-preview">
+          <div class="absentee-row-pill">
+            <span style="font-weight: 600; color: var(--text-primary);">Siddharth Sharma (#GSA-2024-009)</span>
+            <span style="color: var(--text-secondary);">Parent: +91 98210 44812</span>
+          </div>
+          <div class="absentee-row-pill">
+            <span style="font-weight: 600; color: var(--text-primary);">Tanmay Rathore (#GSA-2024-022)</span>
+            <span style="color: var(--text-secondary);">Parent: +91 98450 11923</span>
+          </div>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 14px;">
+          <label class="input-label">Dispatch Channel</label>
+          <div style="display: flex; gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer;">
+              <input type="radio" name="channel" checked> WhatsApp Official + SMS
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer;">
+              <input type="radio" name="channel"> In-App Push Notification
+            </label>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Automated Dispatch Message Template</label>
+          <div class="message-preview-box">
+            "Dear Parent, athlete <strong>{Student_Name}</strong> was marked <strong>ABSENT</strong> for today's Cricket Senior Morning Batch (06:30 AM – 08:30 AM) under Coach Devendra Rawat at Gurukul Sports Academy. Please reply or contact academy admin at +91 8000-GURUKUL if this is an unexpected absence."
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+        <button class="btn-primary" onclick="simulateSendNotification()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          Send Dispatch (2 Guardians)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRAWER: HISTORICAL AUDIT & DETAILS -->
+  <div class="drawer-overlay" id="historyDrawer">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <div>
+          <h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary);" id="drawerTitle">Cricket Senior — Morning B</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 3px;" id="drawerSub">Historical Session Audit • Batch Code: CRK-B02</p>
+        </div>
+        <button class="icon-button" style="width: 32px; height: 32px;" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="session-spec-grid">
+          <div class="spec-item">
+            <div class="label">Date & Time</div>
+            <div class="val">18 May 2025 • 06:30 AM</div>
+          </div>
+          <div class="spec-item">
+            <div class="label">Coach In-Charge</div>
+            <div class="val">Devendra Rawat</div>
+          </div>
+          <div class="spec-item">
+            <div class="label">Ground / Facility</div>
+            <div class="val">Pitch 2 (Oval Turf)</div>
+          </div>
+          <div class="spec-item">
+            <div class="label">Audit Status</div>
+            <div class="val" style="color: var(--success);">Verified by Admin</div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Student Roster Breakdown</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="absentee-row-pill" style="padding: 10px 12px;">
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary);">Aarav K. Patel (#GSA-2024-001)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Remarks: Warmup pace test: 132 km/h</div>
+            </div>
+            <span class="badge-tag" style="background: var(--success-bg); color: var(--success);">Present</span>
+          </div>
+
+          <div class="absentee-row-pill" style="padding: 10px 12px;">
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary);">Siddharth Sharma (#GSA-2024-009)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Remarks: Unexcused missing; guardian unreached</div>
+            </div>
+            <span class="badge-tag" style="background: var(--danger-bg); color: var(--danger);">Absent</span>
+          </div>
+
+          <div class="absentee-row-pill" style="padding: 10px 12px;">
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary);">Devansh Nambiar (#GSA-2024-012)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Remarks: Arrived at 06:52 AM (Traffic transit delay)</div>
+            </div>
+            <span class="badge-tag" style="background: var(--warning-bg); color: var(--warning);">Late (22 min)</span>
+          </div>
+
+          <div class="absentee-row-pill" style="padding: 10px 12px;">
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary);">Yuvraj Mehta (#GSA-2024-018)</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Remarks: Academic school board exams (approved)</div>
+            </div>
+            <span class="badge-tag" style="background: var(--info-bg); color: var(--info);">Approved Leave</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 16px 24px; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" onclick="closeModals()">Close Drawer</button>
+        <button class="btn-primary" onclick="alert('Exporting session CSV audit report...')">Download Audit Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST FEEDBACK -->
+  <div class="toast-notification" id="toastBox">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);" id="toastTitle">Attendance Saved Successfully</div>
+      <div style="font-size: 11.5px; color: var(--text-secondary);" id="toastDesc">Roll-call for Cricket Morning Batch B has been committed.</div>
+    </div>
+  </div>
+
+  <!-- QA INTERACTIVE CONTROLLER (BOTTOM DOCK) -->
+  <div class="qa-floating-bar">
+    <span class="qa-pill-title">QA States</span>
+    <button class="qa-btn active" onclick="setQaState(this, 'normal')">1. Normal View</button>
+    <button class="qa-btn" onclick="setQaState(this, 'history')">2. History Tab</button>
+    <button class="qa-btn" onclick="setQaState(this, 'notify')">3. Notify Absentees Modal</button>
+    <button class="qa-btn" onclick="setQaState(this, 'drawer')">4. Session Audit Drawer</button>
+    <button class="qa-btn" onclick="setQaState(this, 'empty')">5. Empty State</button>
+    <button class="qa-btn" onclick="setQaState(this, 'saveFeedback')">6. Save Success Feedback</button>
+  </div>
+
+  <script>
+    // Tab switching
+    function switchMainTab(tab) {
+      const rollCallView = document.getElementById('liveRollCallView');
+      const historyView = document.getElementById('historyView');
+      const emptyView = document.getElementById('emptyViewContainer');
+      const tabRollCallBtn = document.getElementById('tabRollCallBtn');
+      const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+
+      emptyView.classList.remove('show');
+
+      if (tab === 'rollcall') {
+        rollCallView.style.display = 'block';
+        historyView.style.display = 'none';
+        tabRollCallBtn.classList.add('active');
+        tabHistoryBtn.classList.remove('active');
+      } else {
+        rollCallView.style.display = 'none';
+        historyView.style.display = 'block';
+        tabRollCallBtn.classList.remove('active');
+        tabHistoryBtn.classList.add('active');
+      }
+    }
+
+    // Status picker interaction
+    function setStatus(btn, statusType) {
+      const parent = btn.parentElement;
+      const row = parent.closest('tr');
+      
+      // Clear previous classes
+      const buttons = parent.querySelectorAll('.status-choice-btn');
+      buttons.forEach(b => {
+        b.className = 'status-choice-btn';
+      });
+
+      if (statusType === 'present') {
+        btn.classList.add('selected-present');
+        row.setAttribute('data-status', 'present');
+      } else if (statusType === 'absent') {
+        btn.classList.add('selected-absent');
+        row.setAttribute('data-status', 'absent');
+      } else if (statusType === 'late') {
+        btn.classList.add('selected-late');
+        row.setAttribute('data-status', 'late');
+      } else if (statusType === 'leave') {
+        btn.classList.add('selected-leave');
+        row.setAttribute('data-status', 'leave');
+      }
+      recalculateRollSummary();
+    }
+
+    // Mark All Present
+    function markAllPresent() {
+      const rows = document.querySelectorAll('#rollCallTable tbody tr');
+      rows.forEach(r => {
+        const picker = r.querySelector('.status-segmented-picker');
+        const btns = picker.querySelectorAll('.status-choice-btn');
+        btns.forEach(b => b.className = 'status-choice-btn');
+        btns[0].classList.add('selected-present');
+        r.setAttribute('data-status', 'present');
+      });
+      recalculateRollSummary();
+      showToast('All Students Marked Present', 'Updated 10 athlete records to Present status.');
+    }
+
+    // Reset Roll Call
+    function resetRollCall() {
+      recalculateRollSummary();
+      showToast('Roll-Call Reset', 'Form restored to initial batch baseline.');
+    }
+
+    // Recalculate KPI numbers dynamically
+    function recalculateRollSummary() {
+      const rows = document.querySelectorAll('#rollCallTable tbody tr');
+      let present = 0, absent = 0, late = 0, leave = 0;
+      rows.forEach(r => {
+        const st = r.getAttribute('data-status');
+        if (st === 'present') present++;
+        else if (st === 'absent') absent++;
+        else if (st === 'late') late++;
+        else if (st === 'leave') leave++;
+      });
+      document.getElementById('kpiPresentCount').innerText = present;
+      document.getElementById('kpiAbsentCount').innerText = absent;
+      const total = rows.length;
+      const pct = Math.round(((present + late) / total) * 100);
+      document.getElementById('kpiRate').innerText = pct + '%';
+    }
+
+    // Modal helpers
+    function openNotifyModal() {
+      document.getElementById('notifyModal').classList.add('open');
+    }
+
+    function openHistoryDrawer(name, code) {
+      if (name) {
+        document.getElementById('drawerTitle').innerText = name;
+        document.getElementById('drawerSub').innerText = 'Historical Session Audit • Batch Code: ' + (code || 'CRK-B02');
+      }
+      document.getElementById('historyDrawer').classList.add('open');
+    }
+
+    function closeModals() {
+      document.getElementById('notifyModal').classList.remove('open');
+      document.getElementById('historyDrawer').classList.remove('open');
+    }
+
+    function simulateSendNotification() {
+      closeModals();
+      showToast('Notifications Dispatched', 'Automated alerts successfully sent to 2 parent contacts.');
+    }
+
+    function triggerSaveAttendance() {
+      const btn = document.getElementById('saveBtnLabel');
+      btn.innerText = 'Saving...';
+      setTimeout(() => {
+        btn.innerText = 'Save Attendance';
+        document.getElementById('saveStatusIndicator').innerText = 'Last saved: Just now (' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ')';
+        showToast('Attendance Saved Successfully', '10 athlete attendance records committed to Gurukul database.');
+      }, 500);
+    }
+
+    function showToast(title, desc) {
+      const toast = document.getElementById('toastBox');
+      document.getElementById('toastTitle').innerText = title;
+      document.getElementById('toastDesc').innerText = desc;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3500);
+    }
+
+    // Filter table by search
+    function filterRollCall(query) {
+      const rows = document.querySelectorAll('#rollCallTable tbody tr');
+      const q = query.toLowerCase();
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    // Filter by status pill
+    function filterByStatusPill(btn, status) {
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const rows = document.querySelectorAll('#rollCallTable tbody tr');
+      rows.forEach(r => {
+        if (status === 'ALL') {
+          r.style.display = '';
+        } else {
+          r.style.display = (r.getAttribute('data-status').toUpperCase() === status) ? '' : 'none';
+        }
+      });
+    }
+
+    // QA States Switcher
+    function setQaState(btn, state) {
+      document.querySelectorAll('.qa-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      closeModals();
+
+      const rollCallView = document.getElementById('liveRollCallView');
+      const historyView = document.getElementById('historyView');
+      const emptyView = document.getElementById('emptyViewContainer');
+
+      if (state === 'normal') {
+        switchMainTab('rollcall');
+      } else if (state === 'history') {
+        switchMainTab('history');
+      } else if (state === 'notify') {
+        switchMainTab('rollcall');
+        openNotifyModal();
+      } else if (state === 'drawer') {
+        switchMainTab('rollcall');
+        openHistoryDrawer('Cricket Senior — Morning B', 'CRK-B02');
+      } else if (state === 'empty') {
+        rollCallView.style.display = 'none';
+        historyView.style.display = 'none';
+        emptyView.classList.add('show');
+      } else if (state === 'saveFeedback') {
+        switchMainTab('rollcall');
+        triggerSaveAttendance();
+      }
+    }
+
+    function showNormalView() {
+      const normalBtn = document.querySelectorAll('.qa-btn')[0];
+      setQaState(normalBtn, 'normal');
+    }
+  </script>
+</body>
+</html>

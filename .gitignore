@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables & secrets
+.env
+.env.*
+*.env
+!.env.example
+wa-bridge/.env
+wa-bridge/.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!wa-bridge/.env.example
+!backend/.env.example
+
+# Build artifacts & distributions
+dist/
+*/dist/
+build/
+*/build/
+.next/
+
+# WhatsApp multi-device persistent sessions & credentials (CRITICAL: NEVER COMMIT)
+wa-bridge/.session/
+wa-bridge/.test-session/
+.session/
+data/session/
+/data/session/
+*.session
+**/.session/
+**/session/
+auth/
+credentials/
+tokens/
+*.token
+*.key
+.env.demo
+.env.production
+
+# Logs & temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+coverage/
+.DS_Store
+Thumbs.db
+
+

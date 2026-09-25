@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+
+    <!-- Apex Peak Left Wing -->
+    <linearGradient id="leftWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <!-- Apex Peak Right Wing -->
+    <linearGradient id="rightWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#93C5FD" />
+    </linearGradient>
+
+    <!-- Center Pinnacle / Star Glow -->
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+
+    <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="shadowFilter" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Container with subtle inner shadow -->
+  <rect width="120" height="120" rx="28" fill="url(#bgGrad)" />
+  
+  <!-- Subtle inner border overlay -->
+  <rect x="1" y="1" width="118" height="118" rx="27" stroke="white" stroke-opacity="0.2" stroke-width="2" />
+
+  <!-- Background decorative light rays -->
+  <circle cx="60" cy="50" r="38" fill="white" fill-opacity="0.06" filter="url(#glowFilter)" />
+
+  <!-- Modern Geometric "A" / Apex Pinnacle -->
+  <g filter="url(#shadowFilter)">
+    <!-- Left Ascending Crest -->
+    <path
+      d="M60 22 L28 88 H46 L60 56 Z"
+      fill="url(#leftWing)"
+    />
+
+    <!-- Right Ascending Crest -->
+    <path
+      d="M60 22 L74 56 L92 88 H74 L60 56 Z"
+      fill="url(#rightWing)"
+    />
+
+    <!-- Apex Bridge / Golden Horizon Spark -->
+    <path
+      d="M44 68 L60 62 L76 68 L60 74 Z"
+      fill="url(#goldGlow)"
+    />
+
+    <!-- Star of Excellence at Summit -->
+    <circle cx="60" cy="22" r="4.5" fill="#FDE047" filter="url(#glowFilter)" />
+  </g>
+</svg>

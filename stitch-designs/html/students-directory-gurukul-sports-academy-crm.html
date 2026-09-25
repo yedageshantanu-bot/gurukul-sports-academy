@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Students Directory — Gurukul Sports Academy CRM</title>
+<style data-purpose="theme-variables">
+    :root {
+      /* Dark Theme (Default) */
+      --bg-app: #0f172a;
+      --bg-sidebar: #0b1120;
+      --bg-surface: #1e293b;
+      --bg-surface-elevated: #334155;
+      --bg-input: #0f172a;
+      --border-color: #334155;
+      --border-subtle: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      /* Brand Accents */
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --primary-subtle: rgba(249, 115, 22, 0.15);
+      --success: #22c55e;
+      --success-subtle: rgba(34, 197, 94, 0.15);
+      --warning: #f59e0b;
+      --warning-subtle: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-subtle: rgba(239, 68, 68, 0.15);
+      --info: #38bdf8;
+      --info-subtle: rgba(56, 189, 248, 0.15);
+
+      /* Layout Specs */
+      --sidebar-width: 260px;
+      --header-height: 70px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #f1f5f9;
+      --bg-sidebar: #ffffff;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f8fafc;
+      --bg-input: #f8fafc;
+      --border-color: #e2e8f0;
+      --border-subtle: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+    }
+  </style>
+<style data-purpose="app-shell-layout">
+    /* Sidebar Navigation */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 40;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .academy-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 10px;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .nav-scrollable {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin: 16px 0 8px 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 500;
+      margin-bottom: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background-color: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+    }
+
+    .nav-item-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-item-content svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    .nav-badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .nav-item.active .nav-badge {
+      background-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .sidebar-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    /* Main Area */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Top Sticky Header */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+
+    .page-title-group h1 {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .page-title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .icon-btn {
+      background: var(--bg-app);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-main);
+      border-color: var(--primary);
+    }
+
+    .badge-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      border: 2px solid var(--bg-surface);
+    }
+
+    .theme-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-app);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 10px 4px 4px;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-app);
+      border: 1px solid var(--border-color);
+    }
+
+    .avatar-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #e11d48);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-info {
+      line-height: 1.2;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .user-role {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* Page Content */
+    .content-container {
+      padding: 24px 28px 120px 28px;
+      flex: 1;
+    }
+
+    /* Page Header Section */
+    .view-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #ffffff;
+      padding: 10px 18px;
+      font-size: 13.5px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(249, 115, 22, 0.25);
+      transition: background-color 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .kpi-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .kpi-badge.badge-success {
+      background-color: var(--success-subtle);
+      color: var(--success);
+    }
+
+    .kpi-badge.badge-info {
+      background-color: var(--info-subtle);
+      color: var(--info);
+    }
+
+    /* Filter Toolbar */
+    .filter-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .filter-inputs-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .search-box-wrapper {
+      position: relative;
+      min-width: 290px;
+      flex: 1;
+    }
+
+    .search-box-wrapper svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      width: 16px;
+      height: 16px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .select-dropdown {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 30px 9px 12px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    .select-dropdown:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-text-link {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .btn-text-link:hover {
+      color: var(--primary);
+    }
+
+    .results-count-badge {
+      background-color: var(--bg-app);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* Directory Table */
+    .table-container {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      box-shadow: var(--shadow-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    thead {
+      background-color: var(--bg-app);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      padding: 13px 18px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.15s ease;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    td {
+      padding: 16px 18px;
+      vertical-align: middle;
+      color: var(--text-main);
+    }
+
+    /* Student Cell */
+    .student-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .student-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--bg-surface-elevated);
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .sport-badge-icon {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      width: 18px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #fff;
+      border: 2px solid var(--bg-surface);
+    }
+
+    .student-name {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 13.5px;
+    }
+
+    .student-id {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    /* Contact Cell */
+    .contact-cell {
+      line-height: 1.4;
+    }
+
+    .contact-phone {
+      font-size: 12.5px;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .contact-email {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* Discipline / Course */
+    .spec-badge {
+      display: inline-block;
+      background-color: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .batch-chip {
+      background-color: var(--primary-subtle);
+      color: var(--primary);
+      border: 1px solid rgba(249, 115, 22, 0.2);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* Status Badges */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pill.active {
+      background-color: var(--success-subtle);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .status-pill.inactive {
+      background-color: rgba(148, 163, 184, 0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .fee-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    .fee-badge.paid {
+      background-color: var(--success-subtle);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .fee-badge.pending {
+      background-color: var(--warning-subtle);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .fee-badge.overdue {
+      background-color: var(--danger-subtle);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .fee-badge.partial {
+      background-color: var(--info-subtle);
+      color: var(--info);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* Actions Cell */
+    .actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .action-icon-btn:hover {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .action-icon-btn.danger:hover {
+      background-color: var(--danger-subtle);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    /* Modal Styles - Hidden by default */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+
+    .modal-box {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background-color: var(--bg-surface);
+      z-index: 2;
+    }
+
+    .modal-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .btn-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      padding: 24px;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      background-color: var(--bg-app);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+    }
+
+    .form-section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text-main);
+      background-color: var(--bg-surface-elevated);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #fff;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    /* Skeleton Loading Display */
+    .skeleton-box {
+      background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
+      background-size: 200% 100%;
+      animation: skeletonLoading 1.5s infinite;
+      border-radius: var(--radius-sm);
+    }
+
+    @keyframes skeletonLoading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    #state-skeleton,
+    #state-empty,
+    #state-error {
+      display: none;
+    }
+
+    .state-card-empty,
+    .state-card-error {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 60px 20px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+    }
+
+    .state-icon-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 16px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    /* QA Floating Bar */
+    .qa-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #020617;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.7);
+      z-index: 99;
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    .qa-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: var(--primary);
+      padding: 0 6px;
+      border-right: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .qa-btn {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .qa-btn:hover, .qa-btn.active {
+      background-color: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    @media (max-width: 1024px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .main-wrapper {
+        margin-left: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .top-header {
+        padding: 0 16px;
+      }
+      .content-container {
+        padding: 16px;
+      }
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- BEGIN: LeftNavigationSidebar -->
+<aside class="sidebar" data-purpose="academy-navigation-sidebar" id="appSidebar">
+<div class="sidebar-header">
+<img alt="Gurukul Sports Academy Logo" class="academy-logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbq6eunNHK9dGLRFFbkjQYRj4iIJto7KJrVONGqwjsZDA90DS-LuLGofMRFoU2cYD0HOzB-lPmmryUiG0a6hpUF2CCQq2HegVIG63vsqU94on_8CSlSMjCrypEqYbSvBPQ-QT5CEJWSG4teNQtvx7TpQUsO8TKGZ-kFxY-ymqPiO9lzZ6ZBEL5_9FO60xZy0s_HZ5WQEs7iHv5JXI3lOAM5QtFNP0_cLh5A_AybyrMZ16i7fR6T1HswLdYjeuP3ebtyA"/>
+<div>
+<div class="brand-title">Gurukul Academy</div>
+<div class="brand-subtitle">OPERATIONAL CRM</div>
+</div>
+</div>
+<div class="nav-scrollable">
+<div class="nav-group-title">GENERAL</div>
+<a class="nav-item" href="#dashboard">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Dashboard
+        </span>
+</a>
+<a class="nav-item active" href="#students">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Students
+        </span>
+<span class="nav-badge">248</span>
+</a>
+<a class="nav-item" href="#teachers">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Teachers
+        </span>
+<span class="nav-badge">18</span>
+</a>
+<div class="nav-group-title">ACADEMICS</div>
+<a class="nav-item" href="#courses">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Courses
+        </span>
+</a>
+<a class="nav-item" href="#batches">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+          Batches
+        </span>
+</a>
+<a class="nav-item" href="#attendance">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Attendance
+        </span>
+</a>
+<div class="nav-group-title">FINANCE &amp; COMMS</div>
+<a class="nav-item" href="#fees">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="16" rx="2" width="20" x="2" y="4"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+          Fees
+        </span>
+<span class="nav-badge" style="color: var(--primary);">₹1.2L</span>
+</a>
+<a class="nav-item" href="#payments">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><line x1="12" x2="12" y1="1" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Payments
+        </span>
+</a>
+<a class="nav-item" href="#reports">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg>
+          Reports
+        </span>
+</a>
+<a class="nav-item" href="#announcements">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+          Announcements
+        </span>
+</a>
+<a class="nav-item" href="#whatsapp">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          WhatsApp
+        </span>
+</a>
+<a class="nav-item" href="#settings">
+<span class="nav-item-content">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Settings
+        </span>
+</a>
+</div>
+<div class="sidebar-footer">
+<span>Academy Engine v2.4</span>
+<div class="status-indicator">
+<span class="status-dot"></span>
+<span>Online</span>
+</div>
+</div>
+</aside>
+<!-- END: LeftNavigationSidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="main-wrapper">
+<!-- Top Sticky Header -->
+<header class="top-header" data-purpose="top-navigation-header">
+<div class="page-title-group">
+<h1>Students</h1>
+<p>Manage enrolled students and their academic records.</p>
+</div>
+<div class="header-actions">
+<button class="icon-btn" onclick="document.getElementById('searchInput').focus()" title="Search Students">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+</button>
+<button class="icon-btn" title="Notifications">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+<span class="badge-dot"></span>
+</button>
+<button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleAppTheme()">
+<svg fill="none" height="14" stroke="currentColor" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="5"></circle><line x1="12" x2="12" y1="1" y2="3"></line><line x1="12" x2="12" y1="21" y2="23"></line><line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line><line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line><line x1="1" x2="3" y1="12" y2="12"></line><line x1="21" x2="23" y1="12" y2="12"></line><line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line><line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line></svg>
+<span id="themeLabel">Light Mode</span>
+</button>
+<div class="user-pill">
+<div class="avatar-circle">RS</div>
+<div class="user-info">
+<div class="user-name">R. Sharma</div>
+<div class="user-role">Administrator</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="content-container">
+<!-- View Header with Primary CTA -->
+<section class="view-header">
+<div>
+<h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Students Directory</h2>
+<p style="font-size: 13px; color: var(--text-muted);">View, filter, and manage all active enrollments and fee standings.</p>
+</div>
+<button class="btn-primary" onclick="openModal('addStudentModal')">
+<svg fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+          + Add Student
+        </button>
+</section>
+<!-- 4 Crisp KPI Summary Cards -->
+<section class="kpi-grid" data-purpose="summary-kpis">
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Total Students</span>
+<svg color="var(--primary)" fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+</div>
+<div>
+<div class="kpi-value">248</div>
+<div class="kpi-desc">Registered Athletes Enrolled</div>
+</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Active Athletes</span>
+<span class="kpi-badge badge-success">+12 this term</span>
+</div>
+<div>
+<div class="kpi-value">232</div>
+<div class="kpi-desc">Regular Daily Training</div>
+</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Inactive / Suspended</span>
+<svg color="var(--text-dim)" fill="none" height="18" stroke="currentColor" viewbox="0 0 24 24" width="18"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</div>
+<div>
+<div class="kpi-value">16</div>
+<div class="kpi-desc">Paused or On Leave</div>
+</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-top">
+<span class="kpi-title">Fee Clearance</span>
+<span class="kpi-badge badge-info">218 Paid</span>
+</div>
+<div>
+<div class="kpi-value">88%</div>
+<div class="kpi-desc">Dues Cleared Current Cycle</div>
+</div>
+</div>
+</section>
+<!-- Filter Toolbar -->
+<section class="filter-card" data-purpose="table-filter-bar">
+<div class="filter-inputs-group">
+<div class="search-box-wrapper">
+<svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+<input class="search-input" id="searchInput" oninput="handleSearchFilter(this.value)" placeholder="Search by student name, phone or ID..." type="text"/>
+</div>
+<select class="select-dropdown" id="filterCourse" onchange="applyFilters()">
+<option value="">All Courses</option>
+<option value="Cricket">Cricket</option>
+<option value="Badminton">Badminton</option>
+<option value="Athletics">Athletics</option>
+<option value="Swimming">Swimming</option>
+</select>
+<select class="select-dropdown" id="filterBatch" onchange="applyFilters()">
+<option value="">All Batches</option>
+<option value="Morning">Morning Batches</option>
+<option value="Evening">Evening Batches</option>
+<option value="Elite">Elite Squad</option>
+</select>
+<select class="select-dropdown" id="filterStatus" onchange="applyFilters()">
+<option value="">All Statuses</option>
+<option value="Active">Active</option>
+<option value="Inactive">Inactive</option>
+<option value="Pending">Pending</option>
+</select>
+<select class="select-dropdown" id="filterGender" onchange="applyFilters()">
+<option value="">All Genders</option>
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+</select>
+</div>
+<div class="filter-actions">
+<button class="btn-text-link" onclick="resetFilters()">Clear Filters</button>
+<div class="results-count-badge" id="resultsCountPill">Showing 6 of 248 Students</div>
+</div>
+</section>
+<!-- Table View: Normal Active Table -->
+<section class="table-container" data-purpose="directory-data-table" id="state-normal">
+<table>
+<thead>
+<tr>
+<th>STUDENT</th>
+<th>CONTACT</th>
+<th>COURSE &amp; DISCIPLINE</th>
+<th>BATCH</th>
+<th>JOINING DATE</th>
+<th>FEE STATUS</th>
+<th>STATUS</th>
+<th style="text-align: right;">ACTIONS</th>
+</tr>
+</thead>
+<tbody id="studentsTableBody">
+<!-- Row 1 -->
+<tr data-batch="Morning" data-course="Cricket" data-gender="Male" data-status="Active" data-student="Aarav Kumar">
+<td>
+<div class="student-cell">
+<div class="student-avatar">
+                    AK
+                    <span class="sport-badge-icon" title="Cricket">🏏</span>
+</div>
+<div>
+<div class="student-name">Aarav Kumar</div>
+<div class="student-id">#GSA-2024-89</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 98765 43210</div>
+<div class="contact-email">aarav.k@gurukul.org</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Cricket Senior</span>
+</td>
+<td>
+<span class="batch-chip">Morning Batch B</span>
+</td>
+<td>12 Jan 2024</td>
+<td>
+<span class="fee-badge overdue">Overdue</span>
+</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr data-batch="Evening" data-course="Badminton" data-gender="Female" data-status="Active" data-student="Priya Sharma">
+<td>
+<div class="student-cell">
+<div class="student-avatar">
+                    PS
+                    <span class="sport-badge-icon" title="Badminton">🏸</span>
+</div>
+<div>
+<div class="student-name">Priya Sharma</div>
+<div class="student-id">#GSA-2024-112</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 94521 87654</div>
+<div class="contact-email">priya.s@gmail.com</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Badminton Junior</span>
+</td>
+<td>
+<span class="batch-chip">Evening Batch A</span>
+</td>
+<td>18 Feb 2024</td>
+<td>
+<span class="fee-badge pending">Pending</span>
+</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr data-batch="Morning" data-course="Athletics" data-gender="Male" data-status="Active" data-student="Rohan Verma">
+<td>
+<div class="student-cell">
+<div class="student-avatar">
+                    RV
+                    <span class="sport-badge-icon" title="Athletics">🏃</span>
+</div>
+<div>
+<div class="student-name">Rohan Verma</div>
+<div class="student-id">#GSA-2024-45</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 91234 56789</div>
+<div class="contact-email">verma.rohan@outlook.com</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Athletics Sprint Pro</span>
+</td>
+<td>
+<span class="batch-chip">Morning Batch A</span>
+</td>
+<td>05 Mar 2024</td>
+<td>
+<span class="fee-badge overdue">Overdue</span>
+</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr data-batch="Elite" data-course="Swimming" data-gender="Female" data-status="Active" data-student="Simran Malik">
+<td>
+<div class="student-cell">
+<div class="student-avatar">
+                    SM
+                    <span class="sport-badge-icon" title="Swimming">🏊</span>
+</div>
+<div>
+<div class="student-name">Simran Malik</div>
+<div class="student-id">#GSA-2024-201</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 99887 76655</div>
+<div class="contact-email">simran.malik@gurukul.org</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Swimming Elite</span>
+</td>
+<td>
+<span class="batch-chip">Elite Squad A</span>
+</td>
+<td>10 Jan 2024</td>
+<td>
+<span class="fee-badge paid">Paid</span>
+</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr data-batch="Morning" data-course="Cricket" data-gender="Male" data-status="Active" data-student="Arjun Patel">
+<td>
+<div class="student-cell">
+<div class="student-avatar">
+                    AP
+                    <span class="sport-badge-icon" title="Cricket">🏏</span>
+</div>
+<div>
+<div class="student-name">Arjun Patel</div>
+<div class="student-id">#GSA-2024-104</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone">+91 97112 34567</div>
+<div class="contact-email">arjun.patel@gmail.com</div>
+</div>
+</td>
+<td>
+<span class="spec-badge">Cricket Senior</span>
+</td>
+<td>
+<span class="batch-chip">Morning Batch B</span>
+</td>
+<td>22 Feb 2024</td>
+<td>
+<span class="fee-badge paid">Paid</span>
+</td>
+<td>
+<span class="status-pill active">
+<span class="status-dot"></span> Active
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn danger" onclick="openModal('deactivateDialog')" title="Deactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"></line></svg>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr data-batch="Evening" data-course="Badminton" data-gender="Female" data-status="Inactive" data-student="Tanvi Deshmukh">
+<td>
+<div class="student-cell">
+<div class="student-avatar" style="opacity: 0.7;">
+                    TD
+                    <span class="sport-badge-icon" style="background-color: var(--text-dim);" title="Badminton">🏸</span>
+</div>
+<div>
+<div class="student-name" style="color: var(--text-muted);">Tanvi Deshmukh</div>
+<div class="student-id">#GSA-2023-77</div>
+</div>
+</div>
+</td>
+<td>
+<div class="contact-cell">
+<div class="contact-phone" style="color: var(--text-muted);">+91 93210 12345</div>
+<div class="contact-email">tanvi.d@yahoo.com</div>
+</div>
+</td>
+<td>
+<span class="spec-badge" style="opacity: 0.8;">Badminton Junior</span>
+</td>
+<td>
+<span class="batch-chip" style="background-color: var(--bg-surface-elevated); color: var(--text-muted); border-color: var(--border-color);">Evening Batch A</span>
+</td>
+<td>14 Dec 2023</td>
+<td>
+<span class="fee-badge partial">Partial</span>
+</td>
+<td>
+<span class="status-pill inactive" title="Suspended / Inactive">
+                  Inactive
+                </span>
+</td>
+<td style="text-align: right;">
+<div class="actions-group" style="justify-content: flex-end;">
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="View Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+<button class="action-icon-btn" onclick="openModal('editStudentModal')" title="Edit Profile">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+</button>
+<button class="action-icon-btn" onclick="alert('Student re-activated successfully');" title="Reactivate">
+<svg fill="none" height="15" stroke="currentColor" viewbox="0 0 24 24" width="15"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Skeleton Loading View (QA State) -->
+<section class="table-container" id="state-skeleton">
+<table>
+<thead>
+<tr>
+<th>STUDENT</th>
+<th>CONTACT</th>
+<th>COURSE &amp; DISCIPLINE</th>
+<th>BATCH</th>
+<th>JOINING DATE</th>
+<th>FEE STATUS</th>
+<th>STATUS</th>
+<th style="text-align: right;">ACTIONS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<div style="display:flex; align-items:center; gap:12px;">
+<div class="skeleton-box" style="width:40px; height:40px; border-radius:50%;"></div>
+<div>
+<div class="skeleton-box" style="width:130px; height:14px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:75px; height:10px;"></div>
+</div>
+</div>
+</td>
+<td>
+<div class="skeleton-box" style="width:110px; height:12px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:140px; height:10px;"></div>
+</td>
+<td><div class="skeleton-box" style="width:140px; height:24px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:110px; height:22px; border-radius:4px;"></div></td>
+<td><div class="skeleton-box" style="width:80px; height:14px;"></div></td>
+<td><div class="skeleton-box" style="width:65px; height:20px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:70px; height:20px; border-radius:12px;"></div></td>
+<td style="text-align: right;"><div class="skeleton-box" style="width:90px; height:24px; margin-left:auto;"></div></td>
+</tr>
+<tr>
+<td>
+<div style="display:flex; align-items:center; gap:12px;">
+<div class="skeleton-box" style="width:40px; height:40px; border-radius:50%;"></div>
+<div>
+<div class="skeleton-box" style="width:120px; height:14px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:70px; height:10px;"></div>
+</div>
+</div>
+</td>
+<td>
+<div class="skeleton-box" style="width:105px; height:12px; margin-bottom:6px;"></div>
+<div class="skeleton-box" style="width:130px; height:10px;"></div>
+</td>
+<td><div class="skeleton-box" style="width:150px; height:24px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:100px; height:22px; border-radius:4px;"></div></td>
+<td><div class="skeleton-box" style="width:80px; height:14px;"></div></td>
+<td><div class="skeleton-box" style="width:65px; height:20px; border-radius:12px;"></div></td>
+<td><div class="skeleton-box" style="width:70px; height:20px; border-radius:12px;"></div></td>
+<td style="text-align: right;"><div class="skeleton-box" style="width:90px; height:24px; margin-left:auto;"></div></td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Empty State View (QA State) -->
+<section class="state-card-empty" id="state-empty">
+<div class="state-icon-circle" style="background-color: var(--primary-subtle); color: var(--primary);">
+          🔍
+        </div>
+<h3 style="font-size: 18px; margin-bottom: 8px; color: var(--text-main);">No Students Found</h3>
+<p style="font-size: 13.5px; color: var(--text-muted); max-width: 440px; margin: 0 auto 20px auto;">
+          We couldn't find any students matching your active search or filter criteria. Try resetting the filters or register a new student.
+        </p>
+<button class="btn-primary" onclick="resetFilters(); setViewMode('normal')">Clear All Filters</button>
+</section>
+<!-- Error State View (QA State) -->
+<section class="state-card-error" id="state-error">
+<div class="state-icon-circle" style="background-color: var(--danger-subtle); color: var(--danger);">
+          ⚠️
+        </div>
+<h3 style="font-size: 18px; margin-bottom: 8px; color: var(--text-main);">Unable to Fetch Student Records</h3>
+<p style="font-size: 13.5px; color: var(--text-muted); max-width: 440px; margin: 0 auto 20px auto;">
+          A connection timeout occurred while communicating with the academy database. Please retry your request.
+        </p>
+<button class="btn-primary" onclick="setViewMode('normal')">Retry Connection</button>
+</section>
+</main>
+</div>
+<!-- END: MainContentWrapper -->
+<!-- MODALS (Hidden by default, no blocking backdrops on initial render) -->
+<!-- 1. Add Student Modal -->
+<div class="modal-backdrop" id="addStudentModal">
+<div class="modal-box">
+<div class="modal-header">
+<div>
+<h3>Add New Student</h3>
+<p>Enroll an athlete into Gurukul Sports Academy cohorts.</p>
+</div>
+<button class="btn-close" onclick="closeModal('addStudentModal')">✕</button>
+</div>
+<div class="modal-body">
+<form id="addStudentForm" onsubmit="event.preventDefault(); alert('Student enrolled successfully!'); closeModal('addStudentModal');">
+<div class="form-section-title">1. Personal Information</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Full Name *</label>
+<input class="form-control" placeholder="e.g. Virat Sharma" required="" type="text"/>
+</div>
+<div class="form-group">
+<label>Gender *</label>
+<select class="form-control" required="">
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="form-group">
+<label>Phone Number *</label>
+<input class="form-control" placeholder="+91 98765 XXXXX" required="" type="tel"/>
+</div>
+<div class="form-group">
+<label>Email Address</label>
+<input class="form-control" placeholder="student@example.com" type="email"/>
+</div>
+</div>
+<div class="form-section-title">2. Discipline &amp; Cohort Enrollment</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Course Discipline *</label>
+<select class="form-control" required="">
+<option value="Cricket">Cricket Academy</option>
+<option value="Badminton">Badminton Foundation</option>
+<option value="Athletics">Athletics Sprint Pro</option>
+<option value="Swimming">Swimming Elite Squad</option>
+</select>
+</div>
+<div class="form-group">
+<label>Assigned Batch *</label>
+<select class="form-control" required="">
+<option value="Morning Batch A">Morning Batch A</option>
+<option value="Morning Batch B">Morning Batch B</option>
+<option value="Evening Batch A">Evening Batch A</option>
+<option value="Elite Squad A">Elite Squad A</option>
+</select>
+</div>
+<div class="form-group">
+<label>Joining Date *</label>
+<input class="form-control" required="" type="date" value="2025-03-24"/>
+</div>
+<div class="form-group">
+<label>Account Status</label>
+<select class="form-control">
+<option value="Active">Active Enrolled</option>
+<option value="Pending">Pending Verification</option>
+</select>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('addStudentModal')" type="button">Cancel</button>
+<button class="btn-primary" form="addStudentForm" type="submit">Save Student Record</button>
+</div>
+</div>
+</div>
+<!-- 2. Edit Student Modal -->
+<div class="modal-backdrop" id="editStudentModal">
+<div class="modal-box">
+<div class="modal-header">
+<div>
+<h3>Edit Student Record</h3>
+<p>Modify contact details, discipline, and fee tracking.</p>
+</div>
+<button class="btn-close" onclick="closeModal('editStudentModal')">✕</button>
+</div>
+<div class="modal-body">
+<div class="form-section-title">General Information</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Student Name</label>
+<input class="form-control" type="text" value="Aarav Kumar"/>
+</div>
+<div class="form-group">
+<label>Student ID</label>
+<input class="form-control" readonly="" style="opacity: 0.7; font-family: monospace;" type="text" value="#GSA-2024-89"/>
+</div>
+<div class="form-group">
+<label>Phone Number</label>
+<input class="form-control" type="tel" value="+91 98765 43210"/>
+</div>
+<div class="form-group">
+<label>Email Address</label>
+<input class="form-control" type="email" value="aarav.k@gurukul.org"/>
+</div>
+</div>
+<div class="form-section-title">Batch &amp; Fees</div>
+<div class="form-grid-2">
+<div class="form-group">
+<label>Assigned Discipline</label>
+<select class="form-control">
+<option selected="" value="Cricket">Cricket Senior</option>
+<option value="Badminton">Badminton Junior</option>
+<option value="Athletics">Athletics Sprint Pro</option>
+<option value="Swimming">Swimming Elite</option>
+</select>
+</div>
+<div class="form-group">
+<label>Assigned Batch</label>
+<select class="form-control">
+<option selected="" value="Morning Batch B">Morning Batch B</option>
+<option value="Evening Batch A">Evening Batch A</option>
+<option value="Elite Squad A">Elite Squad A</option>
+</select>
+</div>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('editStudentModal')">Cancel</button>
+<button class="btn-primary" onclick="alert('Student record updated successfully!'); closeModal('editStudentModal');">Save Changes</button>
+</div>
+</div>
+</div>
+<!-- 3. Deactivate Student Dialog -->
+<div class="modal-backdrop" id="deactivateDialog">
+<div class="modal-box" style="max-width: 460px;">
+<div class="modal-header" style="border-bottom-color: rgba(245, 158, 11, 0.3);">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-size: 20px;">⚠️</span>
+<h3 style="color: var(--warning);">Deactivate Student Record</h3>
+</div>
+<button class="btn-close" onclick="closeModal('deactivateDialog')">✕</button>
+</div>
+<div class="modal-body">
+<p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+          Are you sure you want to deactivate <strong style="color: var(--text-main);">Aarav Kumar</strong>?
+        </p>
+<div style="background-color: var(--warning-subtle); border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 4px; font-size: 12px; color: #fde68a;">
+          This will suspend attendance checking and gate-pass access for his assigned cricket cohort.
+        </div>
+</div>
+<div class="modal-footer">
+<button class="btn-secondary" onclick="closeModal('deactivateDialog')">Cancel</button>
+<button class="btn-primary" onclick="alert('Student record suspended'); closeModal('deactivateDialog');" style="background-color: var(--warning); color: #000;">Confirm Deactivation</button>
+</div>
+</div>
+</div>
+<!-- Interactive QA Floating Bar -->
+<div class="qa-bar" data-purpose="qa-state-switcher">
+<span class="qa-label">QA STATES:</span>
+<button class="qa-btn active" id="btnStateNormal" onclick="setViewMode('normal')">1. Normal</button>
+<button class="qa-btn" id="btnStateSkeleton" onclick="setViewMode('skeleton')">2. Skeleton Loading</button>
+<button class="qa-btn" id="btnStateEmpty" onclick="setViewMode('empty')">3. Empty State</button>
+<button class="qa-btn" id="btnStateError" onclick="setViewMode('error')">4. Error State</button>
+<button class="qa-btn" onclick="openModal('addStudentModal')">5. Add Student Modal</button>
+<button class="qa-btn" onclick="openModal('editStudentModal')">6. Edit Student Modal</button>
+<button class="qa-btn" onclick="openModal('deactivateDialog')">7. Deactivate Dialog</button>
+</div>
+<!-- Application Logic -->
+<script>
+    // Theme Toggle Function
+    function toggleAppTheme() {
+      const htmlEl = document.documentElement;
+      const themeLabel = document.getElementById('themeLabel');
+      const isDark = htmlEl.getAttribute('data-theme') !== 'light';
+
+      if (isDark) {
+        htmlEl.setAttribute('data-theme', 'light');
+        themeLabel.textContent = 'Dark Mode';
+      } else {
+        htmlEl.removeAttribute('data-theme');
+        themeLabel.textContent = 'Light Mode';
+      }
+    }
+
+    // Modal Control Functions
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('is-open');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('is-open');
+    }
+
+    // Close modals on clicking outside overlay
+    window.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-backdrop')) {
+        e.target.classList.remove('is-open');
+      }
+    });
+
+    // View States Switcher
+    function setViewMode(mode) {
+      const normalEl = document.getElementById('state-normal');
+      const skeletonEl = document.getElementById('state-skeleton');
+      const emptyEl = document.getElementById('state-empty');
+      const errorEl = document.getElementById('state-error');
+
+      normalEl.style.display = 'none';
+      skeletonEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      document.querySelectorAll('.qa-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (mode === 'normal') {
+        normalEl.style.display = 'block';
+        document.getElementById('btnStateNormal').classList.add('active');
+      } else if (mode === 'skeleton') {
+        skeletonEl.style.display = 'block';
+        document.getElementById('btnStateSkeleton').classList.add('active');
+      } else if (mode === 'empty') {
+        emptyEl.style.display = 'block';
+        document.getElementById('btnStateEmpty').classList.add('active');
+      } else if (mode === 'error') {
+        errorEl.style.display = 'block';
+        document.getElementById('btnStateError').classList.add('active');
+      }
+    }
+
+    // Search and Dropdown Filtering Logic
+    function handleSearchFilter(term) {
+      const rows = document.querySelectorAll('#studentsTableBody tr');
+      const query = term.toLowerCase().trim();
+      let matchCount = 0;
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(query)) {
+          row.style.display = '';
+          matchCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      updateCountBadge(matchCount, rows.length);
+    }
+
+    function applyFilters() {
+      const course = document.getElementById('filterCourse').value;
+      const batch = document.getElementById('filterBatch').value;
+      const status = document.getElementById('filterStatus').value;
+      const gender = document.getElementById('filterGender').value;
+      const rows = document.querySelectorAll('#studentsTableBody tr');
+      let visible = 0;
+
+      rows.forEach(row => {
+        const rowCourse = row.getAttribute('data-course') || '';
+        const rowBatch = row.getAttribute('data-batch') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
+        const rowGender = row.getAttribute('data-gender') || '';
+
+        const matchesCourse = !course || rowCourse.includes(course);
+        const matchesBatch = !batch || rowBatch.includes(batch);
+        const matchesStatus = !status || rowStatus === status;
+        const matchesGender = !gender || rowGender === gender;
+
+        if (matchesCourse && matchesBatch && matchesStatus && matchesGender) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      updateCountBadge(visible, rows.length);
+
+      if (visible === 0) {
+        setViewMode('empty');
+      } else {
+        setViewMode('normal');
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterCourse').value = '';
+      document.getElementById('filterBatch').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterGender').value = '';
+      
+      const rows = document.querySelectorAll('#studentsTableBody tr');
+      rows.forEach(row => row.style.display = '');
+      updateCountBadge(rows.length, rows.length);
+      setViewMode('normal');
+    }
+
+    function updateCountBadge(visible, total) {
+      const pill = document.getElementById('resultsCountPill');
+      if (pill) {
+        pill.textContent = `Showing ${visible} of 248 Students`;
+      }
+    }
+  </script>
+</body></html>

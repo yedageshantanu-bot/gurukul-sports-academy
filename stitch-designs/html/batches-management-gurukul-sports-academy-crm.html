@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Batches Management — Gurukul Sports Academy CRM</title>
+<!-- BEGIN: Base Layout Stylesheet -->
+<style data-purpose="base-typography-and-reset">
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #050d1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-x: hidden;
+    }
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+    button, input, select, textarea {
+      font-family: inherit;
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+    button {
+      cursor: pointer;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #081628;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e334d;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2b496e;
+    }
+  </style>
+<!-- END: Base Layout Stylesheet -->
+<!-- BEGIN: Core Theme & Component Styles -->
+<style data-purpose="theme-palette-and-components">
+    :root {
+      --bg-main: #050d1a;
+      --bg-sidebar: #071322;
+      --bg-card: #0c1a2d;
+      --bg-card-hover: #10223b;
+      --bg-inner-panel: #071424;
+      --border-subtle: #162b46;
+      --border-focus: #f97316;
+      --text-muted: #8b9fb6;
+      --text-primary: #ffffff;
+      --accent-orange: #f97316;
+      --accent-orange-hover: #ea580c;
+      --accent-green: #22c55e;
+      --accent-amber: #f59e0b;
+      --accent-blue: #38bdf8;
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+    }
+
+    /* Layout Shell */
+    .app-shell {
+      display: flex;
+      width: 100vw;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 248px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 40;
+    }
+    .main-wrapper {
+      margin-left: 248px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding-bottom: 70px; /* Space for QA bottom switcher bar */
+    }
+
+    /* Top Navigation Header */
+    .top-header {
+      height: 64px;
+      background-color: #071322;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .top-header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .top-header-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* Common Card Styles */
+    .dashboard-container {
+      padding: 24px 28px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 16px 18px;
+      position: relative;
+    }
+    .kpi-card:hover {
+      border-color: #244166;
+    }
+    .kpi-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 8px 0 4px 0;
+      line-height: 1.1;
+    }
+    .kpi-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .badge-active {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .badge-upcoming {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .badge-inactive {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-category {
+      background: #11253d;
+      color: #f97316;
+      border: 1px solid rgba(249, 115, 22, 0.25);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Filter Toolbar */
+    .filter-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: var(--bg-inner-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 12px;
+      flex: 1;
+      min-width: 220px;
+    }
+    .search-box input {
+      width: 100%;
+      font-size: 12px;
+      color: #fff;
+      margin-left: 8px;
+    }
+    .search-box input::placeholder {
+      color: #556c88;
+    }
+    .filter-select {
+      background: var(--bg-inner-panel);
+      border: 1px solid var(--border-subtle);
+      color: #cbd5e1;
+      border-radius: 6px;
+      padding: 7px 24px 7px 10px;
+      font-size: 11.5px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 12px;
+      cursor: pointer;
+    }
+    .filter-select:hover {
+      border-color: #2a4c77;
+    }
+
+    /* Cards Grid */
+    .batches-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .batch-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .batch-card:hover {
+      border-color: #234673;
+      transform: translateY(-2px);
+    }
+    .batch-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .batch-tags-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .batch-code {
+      font-size: 10px;
+      color: #94a3b8;
+      background: #091727;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #162a44;
+      font-family: monospace;
+      font-weight: 600;
+    }
+    .batch-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .batch-coach {
+      font-size: 12px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    /* Inner schedule panel */
+    .schedule-panel {
+      background: #071526;
+      border: 1px solid #12243d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .schedule-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11.5px;
+      color: #cbd5e1;
+    }
+    .schedule-icon {
+      color: var(--text-muted);
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Capacity bar */
+    .capacity-section {
+      margin-bottom: 14px;
+    }
+    .capacity-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+    .progress-bar-bg {
+      height: 6px;
+      background: #132439;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    /* Card Action Footer */
+    .card-footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 14px;
+      border-top: 1px solid #11243b;
+    }
+    .btn-action-primary {
+      flex: 1;
+      background: #0d223c;
+      border: 1px solid #1e395e;
+      color: #f1f5f9;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .btn-action-primary:hover {
+      background: #14335a;
+      border-color: #2a5285;
+      color: #ffffff;
+    }
+    .btn-action-icon {
+      width: 31px;
+      height: 31px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: #091728;
+      border: 1px solid #172c47;
+      color: #94a3b8;
+      transition: all 0.15s ease;
+    }
+    .btn-action-icon:hover {
+      background: #132b49;
+      color: #fff;
+      border-color: #274771;
+    }
+
+    /* Modal / Drawer Overlays */
+    .overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 8, 16, 0.82);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-container {
+      background: #0b1c31;
+      border: 1px solid #1d3656;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    .drawer-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 520px;
+      background: #091a2e;
+      border-left: 1px solid #1d3656;
+      z-index: 110;
+      display: none;
+      flex-direction: column;
+      box-shadow: -10px 0 35px rgba(0, 0, 0, 0.6);
+      animation: drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes drawerSlideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    /* Form Styles inside Modals */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .form-control {
+      width: 100%;
+      background: #061322;
+      border: 1px solid #172d49;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #ffffff;
+      transition: border-color 0.15s;
+    }
+    .form-control:focus {
+      border-color: var(--accent-orange);
+    }
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    /* Interactive Bottom QA Bar */
+    .qa-bar-dock {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #061220;
+      border: 1px solid #203c62;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      border-radius: 50px;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 200;
+    }
+    .qa-title {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #f97316;
+      padding: 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-right: 1px solid #1c3350;
+    }
+    .qa-btn {
+      padding: 4px 10px;
+      border-radius: 30px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: #0a1829;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .qa-btn:hover {
+      color: #fff;
+      background: #11263f;
+    }
+    .qa-btn.active {
+      background: #f97316;
+      color: #ffffff;
+      font-weight: 700;
+    }
+  </style>
+<!-- END: Core Theme & Component Styles -->
+</head>
+<body>
+<!-- BEGIN: Application Shell -->
+<div class="app-shell" data-purpose="application-shell">
+<!-- BEGIN: Left Navigation Sidebar -->
+<aside class="sidebar" data-purpose="main-sidebar">
+<!-- Academy Branding -->
+<div style="padding: 18px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #11243b;">
+<img alt="Gurukul Sports Academy Logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJ4WcnYotKnxf47xOIm2-jVs1H6y-xRa3tbX5Kre7AstHf6pvnX9pJBGhjNoRmGlpAbi9XLP6WjBx9ZL06Lanu_0vT3gIItgh9VXQXp0Syat2YH4J4JBdK7syEEwpdgOXnSvCl3Y764GShsKwZdHZmmDSS1LAaBapSjQLa1HbhaD9zT6vWESz62XFr9CYmKUU-PHE7Fr-6_lojSHzLYoqagfKjvCNfNKZww46LR6pZlR25Zyi4lV26T7rsDcXSFke0sA" style="width: 36px; height: 36px; object-fit: contain; border-radius: 6px;"/>
+<div>
+<div style="font-weight: 800; font-size: 13.5px; color: #ffffff; letter-spacing: 0.2px;">Gurukul Academy</div>
+<div style="font-size: 9.5px; color: #f97316; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;">OPERATIONAL CRM</div>
+</div>
+</div>
+<!-- Navigation Links Container -->
+<div style="flex: 1; overflow-y: auto; padding: 18px 12px; display: flex; flex-direction: column; gap: 18px;">
+<!-- GENERAL SECTION -->
+<div>
+<div style="font-size: 9px; font-weight: 800; color: #586e88; text-transform: uppercase; letter-spacing: 0.8px; padding-left: 10px; margin-bottom: 6px;">GENERAL</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<!-- Dashboard Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Dashboard</span>
+</a>
+<!-- Students Link -->
+<a href="#" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Students</span>
+</div>
+<span style="font-size: 10px; background: #132439; color: #cbd5e1; padding: 1px 6px; border-radius: 10px;">248</span>
+</a>
+<!-- Teachers Link -->
+<a href="#" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Teachers</span>
+</div>
+<span style="font-size: 10px; background: #132439; color: #cbd5e1; padding: 1px 6px; border-radius: 10px;">18</span>
+</a>
+</div>
+</div>
+<!-- ACADEMICS SECTION -->
+<div>
+<div style="font-size: 9px; font-weight: 800; color: #586e88; text-transform: uppercase; letter-spacing: 0.8px; padding-left: 10px; margin-bottom: 6px;">ACADEMICS</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<!-- Courses Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Courses</span>
+</a>
+<!-- Batches Link (ACTIVE STATE with Orange Highlight) -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; background-color: #f97316; color: #ffffff; font-size: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Batches</span>
+</a>
+<!-- Attendance Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Attendance</span>
+</a>
+</div>
+</div>
+<!-- FINANCE & COMMS SECTION -->
+<div>
+<div style="font-size: 9px; font-weight: 800; color: #586e88; text-transform: uppercase; letter-spacing: 0.8px; padding-left: 10px; margin-bottom: 6px;">FINANCE &amp; COMMS</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<!-- Fees Link -->
+<a href="#" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Fees</span>
+</div>
+<span style="font-size: 10px; background: rgba(249, 115, 22, 0.15); color: #f97316; font-weight: 700; padding: 1px 6px; border-radius: 10px; border: 1px solid rgba(249, 115, 22, 0.25);">₹1.2L</span>
+</a>
+<!-- Payments Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Payments</span>
+</a>
+<!-- Reports Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Reports</span>
+</a>
+<!-- Announcements Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Announcements</span>
+</a>
+<!-- WhatsApp Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>WhatsApp</span>
+</a>
+<!-- Settings Link -->
+<a href="#" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #94a3b8; font-size: 12px;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Settings</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Sidebar Status Footer -->
+<div style="padding: 12px 16px; border-top: 1px solid #11243b; font-size: 11px; display: flex; align-items: center; justify-content: space-between; color: #64748b;">
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span>
+<span>Academy Engine v2.4</span>
+</div>
+<span style="color: #22c55e; font-weight: 600; font-size: 10.5px;">Connected</span>
+</div>
+</aside>
+<!-- END: Left Navigation Sidebar -->
+<!-- BEGIN: Main Page Content Wrapper -->
+<div class="main-wrapper" data-purpose="main-content-wrapper">
+<!-- BEGIN: Global Top Header Bar -->
+<header class="top-header" data-purpose="top-header">
+<div>
+<h1 class="top-header-title">Batches</h1>
+<p class="top-header-subtitle">Organize schedules, faculty assignments and student groups.</p>
+</div>
+<div style="display: flex; align-items: center; gap: 14px;">
+<!-- Notification Bell -->
+<button style="width: 34px; height: 34px; border-radius: 8px; background: #0c1a2d; border: 1px solid #162b46; display: flex; align-items: center; justify-content: center; color: #94a3b8; position: relative;" title="Notifications">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; background: #f97316; border-radius: 50%;"></span>
+</button>
+<!-- Theme switcher -->
+<button style="display: flex; align-items: center; gap: 6px; background: #0c1a2d; border: 1px solid #162b46; padding: 6px 12px; border-radius: 8px; font-size: 11.5px; color: #94a3b8;">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Light Mode</span>
+</button>
+<!-- User profile pill -->
+<div style="display: flex; align-items: center; gap: 8px; background: #0c1a2d; border: 1px solid #162b46; padding: 4px 10px 4px 5px; border-radius: 20px;">
+<div style="width: 26px; height: 26px; border-radius: 50%; background: #ea580c; color: #ffffff; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+              RS
+            </div>
+<div>
+<div style="font-size: 11.5px; font-weight: 700; color: #ffffff; line-height: 1.1;">R. Sharma</div>
+<div style="font-size: 9.5px; color: #738aa6;">Administrator</div>
+</div>
+</div>
+</div>
+</header>
+<!-- END: Global Top Header Bar -->
+<!-- BEGIN: Batches Dashboard Content -->
+<main class="dashboard-container" data-purpose="batches-dashboard">
+<!-- Page Sub-Header & Primary Action -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px;">
+<div>
+<h2 style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px;">Batches</h2>
+<p style="font-size: 12.5px; color: #8499b2; margin-top: 2px;">Create and manage the athletic cohorts, training slots and faculty allocations.</p>
+</div>
+<button onclick="openModal('createBatchModal')" style="background: #f97316; hover:background: #ea580c; color: #ffffff; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4); transition: background 0.15s ease;">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24" width="16"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>+ Create Batch</span>
+</button>
+</div>
+<!-- 4 Summary KPI Metric Cards -->
+<div class="kpi-grid" data-purpose="metric-cards">
+<!-- Card 1: Total Batches -->
+<div class="kpi-card">
+<div class="kpi-title">
+<span>TOTAL BATCHES</span>
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" style="color: #627d9d;" viewbox="0 0 24 24" width="15"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div class="kpi-value">24</div>
+<div class="kpi-desc">Accredited cohorts across 5 sports</div>
+</div>
+<!-- Card 2: Active Batches -->
+<div class="kpi-card">
+<div class="kpi-title">
+<span>ACTIVE BATCHES</span>
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" style="color: #22c55e;" viewbox="0 0 24 24" width="15"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div class="kpi-value" style="color: #22c55e;">21</div>
+<div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+<span class="badge badge-active">87.5% Active</span>
+<span class="kpi-desc">In session</span>
+</div>
+</div>
+<!-- Card 3: Upcoming Batches -->
+<div class="kpi-card">
+<div class="kpi-title">
+<span>UPCOMING BATCHES</span>
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" style="color: #38bdf8;" viewbox="0 0 24 24" width="15"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div class="kpi-value" style="color: #38bdf8;">3</div>
+<div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+<span class="badge badge-upcoming">Starting Soon</span>
+<span class="kpi-desc">Admissions closing</span>
+</div>
+</div>
+<!-- Card 4: Total Enrolled -->
+<div class="kpi-card">
+<div class="kpi-title">
+<span>TOTAL ENROLLED</span>
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" style="color: #f97316;" viewbox="0 0 24 24" width="15"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div class="kpi-value">248</div>
+<div class="kpi-desc">86.1% overall academy capacity</div>
+</div>
+</div>
+<!-- Search & Filter Controls Toolbar -->
+<div class="filter-bar" data-purpose="filter-bar">
+<!-- Text Search input -->
+<div class="search-box">
+<svg fill="none" height="14" stroke="#627d9d" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<input id="batchSearchInput" oninput="handleSearch(this.value)" placeholder="Search by batch name, code or sport..." type="text"/>
+</div>
+<!-- Courses filter -->
+<select class="filter-select" id="courseFilter" onchange="applyFilters()">
+<option value="all">All Courses</option>
+<option value="cricket">Cricket Mastery</option>
+<option value="badminton">Junior Badminton</option>
+<option value="athletics">Sprint &amp; Track</option>
+<option value="swimming">Competitive Swimming</option>
+<option value="football">Tactical Football</option>
+<option value="strength">Strength &amp; Conditioning</option>
+</select>
+<!-- Teachers / Coach filter -->
+<select class="filter-select" id="coachFilter" onchange="applyFilters()">
+<option value="all">All Coaches</option>
+<option value="devendra">Devendra Rawat</option>
+<option value="malini">Malini Sen</option>
+<option value="vikram">Vikram Rathore</option>
+<option value="ananya">Ananya Deshmukh</option>
+<option value="gurpreet">Gurpreet Singh</option>
+<option value="rajesh">Rajesh Kulkarni</option>
+</select>
+<!-- Status filter -->
+<select class="filter-select" id="statusFilter" onchange="applyFilters()">
+<option value="all">All Statuses</option>
+<option value="active">Active</option>
+<option value="upcoming">Upcoming</option>
+<option value="inactive">Inactive</option>
+</select>
+<!-- Days filter -->
+<select class="filter-select" id="daysFilter" onchange="applyFilters()">
+<option value="all">All Days</option>
+<option value="mwf">Mon / Wed / Fri</option>
+<option value="tts">Tue / Thu / Sat</option>
+<option value="wknd">Weekend (Sat / Sun)</option>
+</select>
+<!-- Reset Filter Button -->
+<button onclick="resetFilters()" style="color: #f97316; font-size: 11.5px; font-weight: 600; padding: 4px 8px; margin-left: 4px;">
+            Clear Filters
+          </button>
+<!-- Results counter -->
+<div style="margin-left: auto; font-size: 11.5px; color: #778ea9;">
+            Showing <strong id="visibleCount" style="color: #ffffff;">6</strong> of 24 Batches
+          </div>
+</div>
+<!-- Empty State Container (Hidden by default) -->
+<div id="emptyStatePlaceholder" style="display: none; text-align: center; padding: 60px 20px; background: #0c1a2d; border: 1px dashed #1e395e; border-radius: 12px; margin-bottom: 30px;">
+<div style="width: 50px; height: 50px; border-radius: 50%; background: #132742; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+<svg fill="none" height="24" stroke="#64748b" stroke-width="2" viewbox="0 0 24 24" width="24"><path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<h3 style="font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px;">No Batches Found</h3>
+<p style="font-size: 12.5px; color: #8499b2; max-width: 420px; margin: 0 auto 16px;">There are no training cohorts matching your active filter criteria. Adjust your search or clear filters.</p>
+<button onclick="resetFilters()" style="background: #f97316; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 16px; border-radius: 6px;">Reset All Filters</button>
+</div>
+<!-- Batches Grid Section -->
+<div class="batches-grid" data-purpose="batches-grid" id="batchesGrid">
+<!-- BATCH CARD 1: CRICKET -->
+<div class="batch-card" data-coach="devendra" data-purpose="batch-card" data-sport="cricket" data-status="active">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">CRICKET</span>
+<span class="batch-code">CRK-B02</span>
+<span class="badge badge-active">Active</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('CRK-B02', 'Cricket Senior — Morning Batch B')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">Cricket Senior — Morning Batch B</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Devendra Rawat</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Mon, Wed, Fri • 06:30 AM – 08:30 AM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Main Oval Turf Nets (Pitch 2)</span>
+</div>
+<div class="schedule-row" style="color: #38bdf8;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Next Session: Tomorrow at 06:30 AM</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #fbbf24; font-weight: 700;">18 / 20 (90%)</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 90%; background: #f59e0b;"></div>
+</div>
+<div style="font-size: 10px; color: #fbbf24; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #fbbf24;"></span>
+                Near Capacity (2 spots remaining)
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('Cricket Senior — Morning Batch B', 'CRK-B02', 'Devendra Rawat', '18 / 20')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('Cricket Senior — Morning Batch B', 18, 20)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('CRK-B02', 'Cricket Senior — Morning Batch B')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="openConfirmModal('Cricket Senior — Morning Batch B')" title="Deactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+<!-- BATCH CARD 2: BADMINTON -->
+<div class="batch-card" data-coach="malini" data-purpose="batch-card" data-sport="badminton" data-status="active">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">BADMINTON</span>
+<span class="batch-code">BDM-J01</span>
+<span class="badge badge-active">Active</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('BDM-J01', 'Junior Badminton — Evening Colts')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">Junior Badminton — Evening Colts</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Malini Sen</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Tue, Thu, Sat • 04:30 PM – 06:30 PM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Indoor Wooden Court 1</span>
+</div>
+<div class="schedule-row" style="color: #22c55e;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Next Session: Today at 04:30 PM</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #ef4444; font-weight: 700;">16 / 16 (100%)</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 100%; background: #ef4444;"></div>
+</div>
+<div style="font-size: 10px; color: #ef4444; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #ef4444;"></span>
+                Batch Full • Capacity Reached
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('Junior Badminton — Evening Colts', 'BDM-J01', 'Malini Sen', '16 / 16')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('Junior Badminton — Evening Colts', 16, 16)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('BDM-J01', 'Junior Badminton — Evening Colts')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="openConfirmModal('Junior Badminton — Evening Colts')" title="Deactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+<!-- BATCH CARD 3: ATHLETICS -->
+<div class="batch-card" data-coach="vikram" data-purpose="batch-card" data-sport="athletics" data-status="active">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">ATHLETICS</span>
+<span class="batch-code">ATH-S03</span>
+<span class="badge badge-active">Active</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('ATH-S03', 'Speed &amp; Track Sprint Accelerator')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">Speed &amp; Track Sprint Accelerator</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Vikram Rathore</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Mon, Tue, Thu, Fri • 05:45 AM – 07:15 AM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Synthetic Track A (100m Lane)</span>
+</div>
+<div class="schedule-row" style="color: #38bdf8;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Next Session: Tomorrow at 05:45 AM</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #38bdf8; font-weight: 700;">14 / 20 (70%)</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 70%; background: #38bdf8;"></div>
+</div>
+<div style="font-size: 10px; color: #38bdf8; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #38bdf8;"></span>
+                6 spots open for enrolment
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('Speed &amp; Track Sprint Accelerator', 'ATH-S03', 'Vikram Rathore', '14 / 20')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('Speed &amp; Track Sprint Accelerator', 14, 20)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('ATH-S03', 'Speed &amp; Track Sprint Accelerator')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="openConfirmModal('Speed &amp; Track Sprint Accelerator')" title="Deactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+<!-- BATCH CARD 4: SWIMMING -->
+<div class="batch-card" data-coach="ananya" data-purpose="batch-card" data-sport="swimming" data-status="active">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">SWIMMING</span>
+<span class="batch-code">SWM-E01</span>
+<span class="badge badge-active">Active</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('SWM-E01', 'Elite Competitive Squad A')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">Elite Competitive Squad A</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Ananya Deshmukh</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Mon, Wed, Fri • 06:00 AM – 08:00 AM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Olympic Pool Lane 1-4</span>
+</div>
+<div class="schedule-row" style="color: #38bdf8;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Next Session: Friday at 06:00 AM</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #22c55e; font-weight: 700;">12 / 15 (80%)</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 80%; background: #22c55e;"></div>
+</div>
+<div style="font-size: 10px; color: #22c55e; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #22c55e;"></span>
+                3 slots available
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('Elite Competitive Squad A', 'SWM-E01', 'Ananya Deshmukh', '12 / 15')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('Elite Competitive Squad A', 12, 15)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('SWM-E01', 'Elite Competitive Squad A')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="openConfirmModal('Elite Competitive Squad A')" title="Deactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+<!-- BATCH CARD 5: FOOTBALL (Upcoming) -->
+<div class="batch-card" data-coach="gurpreet" data-purpose="batch-card" data-sport="football" data-status="upcoming">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">FOOTBALL</span>
+<span class="batch-code">FTB-M02</span>
+<span class="badge badge-upcoming">Upcoming</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('FTB-M02', 'Tactical Youth Football Academy')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">Tactical Youth Football Academy</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Gurpreet Singh</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Sat, Sun • 07:00 AM – 09:30 AM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>North Turf Pitch (Sub-Junior Zone)</span>
+</div>
+<div class="schedule-row" style="color: #f59e0b;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Starts: 1st Next Month</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #38bdf8; font-weight: 700;">8 / 22 (36%)</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 36%; background: #38bdf8;"></div>
+</div>
+<div style="font-size: 10px; color: #38bdf8; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #38bdf8;"></span>
+                Open for Admissions (14 slots open)
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('Tactical Youth Football Academy', 'FTB-M02', 'Gurpreet Singh', '8 / 22')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('Tactical Youth Football Academy', 8, 22)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('FTB-M02', 'Tactical Youth Football Academy')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="openConfirmModal('Tactical Youth Football Academy')" title="Deactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+<!-- BATCH CARD 6: STRENGTH (Inactive/Archived) -->
+<div class="batch-card" data-coach="rajesh" data-purpose="batch-card" data-sport="strength" data-status="inactive">
+<div class="batch-card-header">
+<div class="batch-tags-group">
+<span class="badge badge-category">STRENGTH</span>
+<span class="batch-code">SNC-B01</span>
+<span class="badge badge-inactive">Inactive</span>
+</div>
+<button class="btn-action-icon" onclick="openEditModal('SNC-B01', 'High-Performance Athletic Conditioning')" style="width: 24px; height: 24px;">
+<svg fill="currentColor" height="13" viewbox="0 0 24 24" width="13"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+</button>
+</div>
+<div class="batch-title">High-Performance Athletic Conditioning</div>
+<div class="batch-coach">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Coach Rajesh Kulkarni</span>
+</div>
+<div class="schedule-panel">
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Tue, Thu • 05:00 PM – 06:30 PM</span>
+</div>
+<div class="schedule-row">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Gym &amp; Conditioning Lab</span>
+</div>
+<div class="schedule-row" style="color: #94a3b8;">
+<svg class="schedule-icon" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Status: Archived / Off-Season</span>
+</div>
+</div>
+<!-- Capacity Progress -->
+<div class="capacity-section">
+<div class="capacity-label-row">
+<span style="color: #94a3b8;">Enrolled Capacity</span>
+<span style="color: #94a3b8; font-weight: 700;">0 / 18 Enrolled</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-fill" style="width: 0%; background: #64748b;"></div>
+</div>
+<div style="font-size: 10px; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+<span style="width: 5px; height: 5px; border-radius: 50%; background: #64748b;"></span>
+                No active students
+              </div>
+</div>
+<!-- Actions Bar -->
+<div class="card-footer-actions">
+<button class="btn-action-primary" onclick="openDrawerRoster('High-Performance Athletic Conditioning', 'SNC-B01', 'Rajesh Kulkarni', '0 / 18')">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>View Roster</span>
+</button>
+<button class="btn-action-primary" onclick="openManageStudentsModal('High-Performance Athletic Conditioning', 0, 18)">
+<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>Manage</span>
+</button>
+<button class="btn-action-icon" onclick="openEditModal('SNC-B01', 'High-Performance Athletic Conditioning')" title="Edit Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<button class="btn-action-icon" onclick="alert('Reactivating batch: High-Performance Athletic Conditioning')" title="Reactivate Batch">
+<svg fill="none" height="13" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- END: Batches Grid Section -->
+</main>
+<!-- END: Batches Dashboard Content -->
+</div>
+<!-- END: Main Page Content Wrapper -->
+</div>
+<!-- END: Application Shell -->
+<!-- BEGIN: Modal 1 - Create Batch Modal -->
+<div class="overlay-backdrop" data-purpose="create-batch-modal" id="createBatchModal">
+<div class="modal-container">
+<div style="padding: 16px 20px; border-bottom: 1px solid #162b46; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(249, 115, 22, 0.15); display: flex; align-items: center; justify-content: center; color: #f97316;">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<h3 style="font-size: 15px; font-weight: 700; color: #fff;">Create New Training Batch</h3>
+</div>
+<button onclick="closeModal('createBatchModal')" style="color: #64748b; font-size: 18px; line-height: 1;">×</button>
+</div>
+<form onsubmit="event.preventDefault(); closeModal('createBatchModal'); alert('New Batch created successfully!');" style="padding: 20px;">
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Batch Name *</label>
+<input class="form-control" placeholder="e.g. Cricket Senior Fast Bowlers Batch" required="" type="text"/>
+</div>
+<div class="form-group" style="max-width: 140px;">
+<label class="form-label">Batch Code *</label>
+<input class="form-control" placeholder="CRK-B03" required="" type="text"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Parent Course</label>
+<select class="form-control">
+<option>Elite Cricket Mastery (Senior)</option>
+<option>Junior Badminton Academy Program</option>
+<option>Speed &amp; Track Sprint Accelerator</option>
+<option>Elite Competitive Swimming Track</option>
+<option>Tactical Youth Football Program</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Assigned Head Coach</label>
+<select class="form-control">
+<option>Coach Devendra Rawat</option>
+<option>Coach Malini Sen</option>
+<option>Coach Vikram Rathore</option>
+<option>Coach Ananya Deshmukh</option>
+<option>Coach Gurpreet Singh</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Training Days</label>
+<select class="form-control">
+<option>Mon, Wed, Fri</option>
+<option>Tue, Thu, Sat</option>
+<option>Weekend (Sat &amp; Sun)</option>
+<option>Daily (Mon - Sat)</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Session Timings</label>
+<input class="form-control" placeholder="e.g. 06:30 AM – 08:30 AM" required="" type="text"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Ground / Facility Location</label>
+<input class="form-control" placeholder="e.g. Oval Nets / Court 2" required="" type="text"/>
+</div>
+<div class="form-group" style="max-width: 130px;">
+<label class="form-label">Max Capacity</label>
+<input class="form-control" max="50" min="1" type="number" value="20"/>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #162b46;">
+<button onclick="closeModal('createBatchModal')" style="padding: 7px 16px; border-radius: 6px; font-size: 12px; color: #94a3b8; background: #081628;" type="button">Cancel</button>
+<button style="padding: 7px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff; background: #f97316;" type="submit">Create Batch</button>
+</div>
+</form>
+</div>
+</div>
+<!-- END: Modal 1 - Create Batch Modal -->
+<!-- BEGIN: Modal 2 - Edit Batch Modal -->
+<div class="overlay-backdrop" data-purpose="edit-batch-modal" id="editBatchModal">
+<div class="modal-container">
+<div style="padding: 16px 20px; border-bottom: 1px solid #162b46; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+<svg fill="none" height="15" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="15"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<div>
+<h3 style="font-size: 14.5px; font-weight: 700; color: #fff;">Edit Batch Settings</h3>
+<span id="editModalSubtitle" style="font-size: 11px; color: #7f95af;">Batch Code</span>
+</div>
+</div>
+<button onclick="closeModal('editBatchModal')" style="color: #64748b; font-size: 18px; line-height: 1;">×</button>
+</div>
+<form onsubmit="event.preventDefault(); closeModal('editBatchModal'); alert('Batch updated successfully!');" style="padding: 20px;">
+<div class="form-group">
+<label class="form-label">Batch Title</label>
+<input class="form-control" id="editModalTitleInput" type="text" value="Cricket Senior — Morning Batch B"/>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Faculty / Coach Assigned</label>
+<select class="form-control">
+<option selected="">Coach Devendra Rawat</option>
+<option>Coach Vikram Rathore</option>
+<option>Coach Malini Sen</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Batch Operational Status</label>
+<select class="form-control">
+<option selected="" value="active">Active</option>
+<option value="upcoming">Upcoming</option>
+<option value="inactive">Inactive / On Hold</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Time Slot</label>
+<input class="form-control" type="text" value="06:30 AM – 08:30 AM"/>
+</div>
+<div class="form-group">
+<label class="form-label">Max Student Capacity</label>
+<input class="form-control" type="number" value="20"/>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #162b46;">
+<button onclick="closeModal('editBatchModal')" style="padding: 7px 16px; border-radius: 6px; font-size: 12px; color: #94a3b8; background: #081628;" type="button">Discard</button>
+<button style="padding: 7px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff; background: #f97316;" type="submit">Save Changes</button>
+</div>
+</form>
+</div>
+</div>
+<!-- END: Modal 2 - Edit Batch Modal -->
+<!-- BEGIN: Modal 3 - Manage Batch Students Modal (Enroll / Transfer) -->
+<div class="overlay-backdrop" data-purpose="manage-batch-students-modal" id="manageStudentsModal">
+<div class="modal-container" style="max-width: 720px;">
+<div style="padding: 16px 20px; border-bottom: 1px solid #162b46; display: flex; align-items: center; justify-content: space-between;">
+<div>
+<h3 style="font-size: 15px; font-weight: 700; color: #fff;">Manage Batch Students • <span id="manageBatchTargetName" style="color: #f97316;">Cricket Senior</span></h3>
+<p style="font-size: 11px; color: #8499b2; margin-top: 2px;">Enroll new trainees or transfer student records between cohorts.</p>
+</div>
+<button onclick="closeModal('manageStudentsModal')" style="color: #64748b; font-size: 18px; line-height: 1;">×</button>
+</div>
+<!-- Capacity Alert Notice -->
+<div style="margin: 16px 20px 0; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<svg fill="none" height="16" stroke="#f59e0b" stroke-width="2" viewbox="0 0 24 24" width="16"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-size: 11.5px; color: #fbbf24;">Current Enrollment: <strong id="manageCapacityRatio">18 / 20</strong> athletes. Only <strong>2 openings</strong> left before capacity lockout.</span>
+</div>
+</div>
+<!-- Action Mode Toggle -->
+<div style="padding: 14px 20px 0; display: flex; gap: 8px;">
+<button id="enrollTabBtn" onclick="switchStudentActionTab('enroll')" style="padding: 6px 14px; border-radius: 6px; font-size: 11.5px; font-weight: 700; background: #f97316; color: #fff;">+ Enroll Unassigned</button>
+<button id="transferTabBtn" onclick="switchStudentActionTab('transfer')" style="padding: 6px 14px; border-radius: 6px; font-size: 11.5px; font-weight: 600; background: #0a1829; color: #94a3b8; border: 1px solid #1c324e;">Transfer From Batch</button>
+</div>
+<!-- Search and Student List Table -->
+<div style="padding: 14px 20px;">
+<div class="search-box" style="margin-bottom: 12px; background: #071526;">
+<svg fill="none" height="14" stroke="#627d9d" stroke-width="2" viewbox="0 0 24 24" width="14"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<input placeholder="Filter academy athletes by name or ID..." type="text"/>
+</div>
+<div style="max-height: 230px; overflow-y: auto; border: 1px solid #14273f; border-radius: 6px; background: #061220;">
+<table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+<thead>
+<tr style="background: #08182c; border-bottom: 1px solid #162b46; color: #778ea9;">
+<th style="padding: 8px 12px; width: 34px;"><input type="checkbox"/></th>
+<th style="padding: 8px 10px;">STUDENT</th>
+<th style="padding: 8px 10px;">CURRENT ENROLMENT</th>
+<th style="padding: 8px 10px;">ATTENDANCE</th>
+<th style="padding: 8px 10px;">FEE STATUS</th>
+</tr>
+</thead>
+<tbody style="color: #cbd5e1;">
+<tr style="border-bottom: 1px solid #0f2035;">
+<td style="padding: 8px 12px;"><input checked="" type="checkbox"/></td>
+<td style="padding: 8px 10px;">
+<div style="font-weight: 700; color: #fff;">Aarav Kumar</div>
+<div style="font-size: 9.5px; color: #64748b;">#STU-8821 • Age 16</div>
+</td>
+<td style="padding: 8px 10px; color: #94a3b8;">Unassigned / General Pool</td>
+<td style="padding: 8px 10px; color: #22c55e; font-weight: 600;">94%</td>
+<td style="padding: 8px 10px;"><span class="badge badge-active">PAID</span></td>
+</tr>
+<tr style="border-bottom: 1px solid #0f2035;">
+<td style="padding: 8px 12px;"><input checked="" type="checkbox"/></td>
+<td style="padding: 8px 10px;">
+<div style="font-weight: 700; color: #fff;">Priya Sharma</div>
+<div style="font-size: 9.5px; color: #64748b;">#STU-8845 • Age 15</div>
+</td>
+<td style="padding: 8px 10px; color: #94a3b8;">Unassigned / General Pool</td>
+<td style="padding: 8px 10px; color: #22c55e; font-weight: 600;">91%</td>
+<td style="padding: 8px 10px;"><span class="badge badge-active">PAID</span></td>
+</tr>
+<tr style="border-bottom: 1px solid #0f2035;">
+<td style="padding: 8px 12px;"><input type="checkbox"/></td>
+<td style="padding: 8px 10px;">
+<div style="font-weight: 700; color: #fff;">Rohan Verma</div>
+<div style="font-size: 9.5px; color: #64748b;">#STU-8910 • Age 17</div>
+</td>
+<td style="padding: 8px 10px; color: #94a3b8;">Cricket Sub-Junior (Transfer candidate)</td>
+<td style="padding: 8px 10px; color: #fbbf24; font-weight: 600;">78%</td>
+<td style="padding: 8px 10px;"><span class="badge badge-warning">DUE</span></td>
+</tr>
+<tr>
+<td style="padding: 8px 12px;"><input type="checkbox"/></td>
+<td style="padding: 8px 10px;">
+<div style="font-weight: 700; color: #fff;">Simran Malik</div>
+<div style="font-size: 9.5px; color: #64748b;">#STU-8992 • Age 16</div>
+</td>
+<td style="padding: 8px 10px; color: #94a3b8;">Unassigned / General Pool</td>
+<td style="padding: 8px 10px; color: #22c55e; font-weight: 600;">88%</td>
+<td style="padding: 8px 10px;"><span class="badge badge-active">PAID</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid #162b46;">
+<span style="font-size: 11.5px; color: #7f95af;">Selected <strong>2 students</strong> to enroll into batch.</span>
+<div style="display: flex; gap: 8px;">
+<button onclick="closeModal('manageStudentsModal')" style="padding: 7px 14px; border-radius: 6px; font-size: 12px; color: #94a3b8; background: #081628;" type="button">Cancel</button>
+<button onclick="closeModal('manageStudentsModal'); alert('2 Athletes enrolled into batch successfully!');" style="padding: 7px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff; background: #f97316;" type="button">Confirm Batch Assignment</button>
+</div>
+</div>
+</div>
+</div>
+<!-- END: Modal 3 - Manage Batch Students Modal -->
+<!-- BEGIN: Modal 4 - Deactivate Confirmation Modal -->
+<div class="overlay-backdrop" data-purpose="deactivate-confirm-modal" id="deactivateConfirmModal">
+<div class="modal-container" style="max-width: 440px;">
+<div style="padding: 22px; text-align: center;">
+<div style="width: 46px; height: 46px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
+<svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+<h3 style="font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 6px;">Deactivate Training Batch?</h3>
+<p style="font-size: 12px; color: #8ea1b8; margin-bottom: 16px;">
+          Are you sure you want to deactivate <strong id="deactivateTargetName" style="color: #fff;">Cricket Senior</strong>? Active students will receive an off-schedule notification.
+        </p>
+<div style="display: flex; gap: 8px; justify-content: center;">
+<button onclick="closeModal('deactivateConfirmModal')" style="padding: 8px 18px; border-radius: 6px; font-size: 12px; background: #0f2238; color: #cbd5e1;">Cancel</button>
+<button onclick="closeModal('deactivateConfirmModal'); alert('Batch status set to Inactive.');" style="padding: 8px 20px; border-radius: 6px; font-size: 12px; font-weight: 700; background: #ef4444; color: #ffffff;">Yes, Deactivate</button>
+</div>
+</div>
+</div>
+</div>
+<!-- END: Modal 4 - Deactivate Confirmation Modal -->
+<!-- BEGIN: Drawer - Batch Roster Quick View -->
+<div class="drawer-container" data-purpose="roster-quick-view-drawer" id="rosterDrawer">
+<div style="padding: 18px 20px; border-bottom: 1px solid #162b46; display: flex; align-items: center; justify-content: space-between; background: #071526;">
+<div>
+<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+<span class="badge badge-active" id="drawerStatusBadge">Active Batch</span>
+<span class="batch-code" id="drawerBatchCode">CRK-B02</span>
+</div>
+<h3 id="drawerBatchTitle" style="font-size: 15px; font-weight: 800; color: #fff;">Cricket Senior — Morning Batch B</h3>
+</div>
+<button onclick="closeDrawer()" style="color: #64748b; font-size: 20px; line-height: 1;">×</button>
+</div>
+<!-- Quick Meta strip -->
+<div style="padding: 12px 20px; background: #06111f; border-bottom: 1px solid #12243d; display: flex; justify-content: space-between; font-size: 11.5px;">
+<div>
+<span style="color: #627d9d;">Lead Coach:</span>
+<strong id="drawerCoachName" style="color: #38bdf8; margin-left: 4px;">Coach Devendra Rawat</strong>
+</div>
+<div>
+<span style="color: #627d9d;">Roster Size:</span>
+<strong id="drawerEnrollCount" style="color: #f97316; margin-left: 4px;">18 / 20</strong>
+</div>
+</div>
+<!-- Student Roster List -->
+<div style="flex: 1; overflow-y: auto; padding: 16px 20px;">
+<div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">ENROLLED ATHLETES ROSTER (18)</div>
+<!-- Athlete Row 1 -->
+<div style="padding: 10px 12px; background: #0b1a2d; border: 1px solid #162b46; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #16365c; color: #38bdf8; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+            AK
+          </div>
+<div>
+<div style="font-weight: 700; color: #fff; font-size: 12px;">Aarav Kumar</div>
+<div style="font-size: 10px; color: #64748b;">ID: #STU-8821 • +91 98765-43210</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-size: 11px; font-weight: 700; color: #22c55e;">94% Attendance</div>
+<span class="badge badge-active" style="margin-top: 2px;">FEES PAID</span>
+</div>
+</div>
+<!-- Athlete Row 2 -->
+<div style="padding: 10px 12px; background: #0b1a2d; border: 1px solid #162b46; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #2f1d47; color: #c084fc; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+            PS
+          </div>
+<div>
+<div style="font-weight: 700; color: #fff; font-size: 12px;">Priya Sharma</div>
+<div style="font-size: 10px; color: #64748b;">ID: #STU-8845 • +91 98112-54321</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-size: 11px; font-weight: 700; color: #22c55e;">91% Attendance</div>
+<span class="badge badge-active" style="margin-top: 2px;">FEES PAID</span>
+</div>
+</div>
+<!-- Athlete Row 3 -->
+<div style="padding: 10px 12px; background: #0b1a2d; border: 1px solid #162b46; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #452a12; color: #fb923c; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+            SM
+          </div>
+<div>
+<div style="font-weight: 700; color: #fff; font-size: 12px;">Simran Malik</div>
+<div style="font-size: 10px; color: #64748b;">ID: #STU-8992 • +91 97654-32109</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-size: 11px; font-weight: 700; color: #22c55e;">88% Attendance</div>
+<span class="badge badge-active" style="margin-top: 2px;">FEES PAID</span>
+</div>
+</div>
+<!-- Athlete Row 4 -->
+<div style="padding: 10px 12px; background: #0b1a2d; border: 1px solid #162b46; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="width: 32px; height: 32px; border-radius: 50%; background: #133929; color: #4ade80; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+            RV
+          </div>
+<div>
+<div style="font-weight: 700; color: #fff; font-size: 12px;">Rohan Verma</div>
+<div style="font-size: 10px; color: #64748b;">ID: #STU-8910 • +91 99887-12345</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-size: 11px; font-weight: 700; color: #fbbf24;">78% Attendance</div>
+<span class="badge badge-warning" style="margin-top: 2px;">FEE DUE</span>
+</div>
+</div>
+</div>
+<!-- Drawer Action Footer -->
+<div style="padding: 14px 20px; border-top: 1px solid #162b46; background: #071526; display: flex; gap: 10px;">
+<button onclick="closeDrawer(); openManageStudentsModal('Cricket Senior — Morning Batch B', 18, 20);" style="flex: 1; padding: 9px; background: #f97316; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; text-align: center;">
+        + Manage Roster &amp; Transfers
+      </button>
+<button onclick="closeDrawer()" style="padding: 9px 14px; background: #0d223a; color: #94a3b8; font-size: 12px; border-radius: 6px;">Close</button>
+</div>
+</div>
+<!-- END: Drawer - Batch Roster Quick View -->
+<!-- BEGIN: Interactive QA States Switcher Dock -->
+<aside class="qa-bar-dock" data-purpose="qa-state-switcher">
+<span class="qa-title">QA STATES</span>
+<button class="qa-btn active" id="btnQaNormal" onclick="setQAState('normal')">1. Normal View</button>
+<button class="qa-btn" id="btnQaCreate" onclick="setQAState('create')">2. Create Batch Modal</button>
+<button class="qa-btn" id="btnQaEdit" onclick="setQAState('edit')">3. Edit Batch Modal</button>
+<button class="qa-btn" id="btnQaManage" onclick="setQAState('manage')">4. Manage Students Modal</button>
+<button class="qa-btn" id="btnQaDrawer" onclick="setQAState('drawer')">5. Batch Roster Drawer</button>
+<button class="qa-btn" id="btnQaDeactivate" onclick="setQAState('deactivate')">6. Deactivate Modal</button>
+<button class="qa-btn" id="btnQaEmpty" onclick="setQAState('empty')">7. Empty State</button>
+</aside>
+<!-- END: Interactive QA States Switcher Dock -->
+<!-- BEGIN: Functional Client Controller Script -->
+<script data-purpose="page-controller">
+    // Helper modal control functions
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    function openEditModal(code, title) {
+      document.getElementById('editModalSubtitle').innerText = 'Batch Code: ' + code;
+      document.getElementById('editModalTitleInput').value = title;
+      openModal('editBatchModal');
+    }
+
+    function openManageStudentsModal(batchName, current, max) {
+      document.getElementById('manageBatchTargetName').innerText = batchName;
+      document.getElementById('manageCapacityRatio').innerText = current + ' / ' + max;
+      openModal('manageStudentsModal');
+    }
+
+    function openConfirmModal(batchName) {
+      document.getElementById('deactivateTargetName').innerText = batchName;
+      openModal('deactivateConfirmModal');
+    }
+
+    function openDrawerRoster(title, code, coach, capacity) {
+      document.getElementById('drawerBatchTitle').innerText = title;
+      document.getElementById('drawerBatchCode').innerText = code;
+      document.getElementById('drawerCoachName').innerText = 'Coach ' + coach;
+      document.getElementById('drawerEnrollCount').innerText = capacity;
+      document.getElementById('rosterDrawer').style.display = 'flex';
+    }
+
+    function closeDrawer() {
+      document.getElementById('rosterDrawer').style.display = 'none';
+    }
+
+    // Modal action tab toggle in Manage Students
+    function switchStudentActionTab(tab) {
+      const enrollBtn = document.getElementById('enrollTabBtn');
+      const transferBtn = document.getElementById('transferTabBtn');
+      if (tab === 'enroll') {
+        enrollBtn.style.background = '#f97316';
+        enrollBtn.style.color = '#fff';
+        transferBtn.style.background = '#0a1829';
+        transferBtn.style.color = '#94a3b8';
+      } else {
+        transferBtn.style.background = '#f97316';
+        transferBtn.style.color = '#fff';
+        enrollBtn.style.background = '#0a1829';
+        enrollBtn.style.color = '#94a3b8';
+      }
+    }
+
+    // Filters and Live Search logic
+    function applyFilters() {
+      const query = document.getElementById('batchSearchInput').value.toLowerCase().trim();
+      const courseVal = document.getElementById('courseFilter').value;
+      const coachVal = document.getElementById('coachFilter').value;
+      const statusVal = document.getElementById('statusFilter').value;
+
+      const cards = document.querySelectorAll('#batchesGrid .batch-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        const sport = card.getAttribute('data-sport') || '';
+        const status = card.getAttribute('data-status') || '';
+        const coach = card.getAttribute('data-coach') || '';
+
+        const matchesQuery = !query || text.includes(query);
+        const matchesCourse = (courseVal === 'all') || sport.includes(courseVal);
+        const matchesCoach = (coachVal === 'all') || coach.includes(coachVal);
+        const matchesStatus = (statusVal === 'all') || status === statusVal;
+
+        if (matchesQuery && matchesCourse && matchesCoach && matchesStatus) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      document.getElementById('visibleCount').innerText = visibleCount;
+      const emptyState = document.getElementById('emptyStatePlaceholder');
+      const grid = document.getElementById('batchesGrid');
+
+      if (visibleCount === 0) {
+        emptyState.style.display = 'block';
+        grid.style.display = 'none';
+      } else {
+        emptyState.style.display = 'none';
+        grid.style.display = 'grid';
+      }
+    }
+
+    function handleSearch(val) {
+      applyFilters();
+    }
+
+    function resetFilters() {
+      document.getElementById('batchSearchInput').value = '';
+      document.getElementById('courseFilter').value = 'all';
+      document.getElementById('coachFilter').value = 'all';
+      document.getElementById('statusFilter').value = 'all';
+      document.getElementById('daysFilter').value = 'all';
+      applyFilters();
+    }
+
+    // QA States Switcher Orchestration
+    function setQAState(state) {
+      // Clear modals and drawers
+      closeModal('createBatchModal');
+      closeModal('editBatchModal');
+      closeModal('manageStudentsModal');
+      closeModal('deactivateConfirmModal');
+      closeDrawer();
+
+      // Reset QA active buttons
+      document.querySelectorAll('.qa-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (state === 'normal') {
+        document.getElementById('btnQaNormal').classList.add('active');
+        resetFilters();
+      } else if (state === 'create') {
+        document.getElementById('btnQaCreate').classList.add('active');
+        openModal('createBatchModal');
+      } else if (state === 'edit') {
+        document.getElementById('btnQaEdit').classList.add('active');
+        openEditModal('CRK-B02', 'Cricket Senior — Morning Batch B');
+      } else if (state === 'manage') {
+        document.getElementById('btnQaManage').classList.add('active');
+        openManageStudentsModal('Cricket Senior — Morning Batch B', 18, 20);
+      } else if (state === 'drawer') {
+        document.getElementById('btnQaDrawer').classList.add('active');
+        openDrawerRoster('Cricket Senior — Morning Batch B', 'CRK-B02', 'Devendra Rawat', '18 / 20');
+      } else if (state === 'deactivate') {
+        document.getElementById('btnQaDeactivate').classList.add('active');
+        openConfirmModal('Cricket Senior — Morning Batch B');
+      } else if (state === 'empty') {
+        document.getElementById('btnQaEmpty').classList.add('active');
+        document.getElementById('batchSearchInput').value = 'non-existing-cohort-name-filter';
+        applyFilters();
+      }
+    }
+  </script>
+<!-- END: Functional Client Controller Script -->
+</body></html>

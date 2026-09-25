@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Teacher Dashboard - Gurukul Sports Academy CRM</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Inter Google Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-surface-variant": "#e0c0b1",
+            "error-container": "#93000a",
+            "primary-fixed-dim": "#ffb690",
+            "inverse-surface": "#d3e4fe",
+            "surface-bright": "#2a3a4f",
+            "primary": "#ffb690",
+            "on-tertiary-fixed-variant": "#005321",
+            "inverse-on-surface": "#213145",
+            "on-secondary-fixed-variant": "#3f465c",
+            "on-primary-fixed-variant": "#783200",
+            "on-background": "#d3e4fe",
+            "surface-dim": "#031427",
+            "on-secondary": "#283044",
+            "error": "#ffb4ab",
+            "surface-tint": "#ffb690",
+            "surface": "#031427",
+            "secondary-fixed": "#dae2fd",
+            "on-error-container": "#ffdad6",
+            "background": "#031427",
+            "tertiary-fixed-dim": "#4ae176",
+            "surface-container-highest": "#26364a",
+            "on-tertiary-container": "#003b16",
+            "secondary-container": "#3f465c",
+            "outline-variant": "#584237",
+            "primary-container": "#f97316",
+            "on-primary-container": "#582200",
+            "on-surface": "#d3e4fe",
+            "surface-variant": "#26364a",
+            "surface-container-lowest": "#000f21",
+            "on-primary-fixed": "#341100",
+            "secondary-fixed-dim": "#bec6e0",
+            "on-secondary-container": "#adb4ce",
+            "surface-container-high": "#1b2b3f",
+            "surface-container": "#102034",
+            "on-secondary-fixed": "#131b2e",
+            "tertiary-fixed": "#6bff8f",
+            "outline": "#a78b7d",
+            "on-tertiary": "#003915",
+            "tertiary": "#4ae176",
+            "secondary": "#bec6e0",
+            "inverse-primary": "#9d4300",
+            "primary-fixed": "#ffdbca",
+            "on-tertiary-fixed": "#002109",
+            "on-primary": "#552100",
+            "surface-container-low": "#0b1c30"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin-mobile": "1rem",
+            "space-xs": "0.25rem",
+            "space-md": "0.75rem",
+            "margin": "1.5rem",
+            "space-lg": "1.25rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "space-xl": "2rem",
+            "gutter-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "table-header": ["Inter"],
+            "badge-micro": ["Inter"],
+            "headline-md": ["Inter"],
+            "body-medium": ["Inter"],
+            "display-kpi": ["Inter"],
+            "body-compact": ["Inter"],
+            "title-card": ["Inter"],
+            "table-data": ["Inter"],
+            "headline-xl": ["Inter"],
+            "headline-lg": ["Inter"],
+            "display-kpi-mobile": ["Inter"],
+            "label-field": ["Inter"],
+            "body-default": ["Inter"]
+          },
+          "fontSize": {
+            "table-header": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+            "badge-micro": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-medium": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "display-kpi": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-compact": ["13px", { "lineHeight": "18px", "letterSpacing": "0.005em", "fontWeight": "400" }],
+            "title-card": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "table-data": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "headline-xl": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-lg": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "display-kpi-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "label-field": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "body-default": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b1c30;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #26364a;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #3f465c;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-default antialiased min-h-screen flex selection:bg-primary-container selection:text-white">
+<!-- Fixed Master SideNavBar -->
+<aside class="fixed top-0 left-0 h-screen w-64 z-40 bg-surface dark:bg-surface border-r border-outline-variant dark:border-outline-variant flex flex-col justify-between p-4 select-none">
+<!-- Top Brand & Navigation Block -->
+<div class="flex flex-col space-y-4">
+<!-- Brand Crest & Identity -->
+<div class="flex items-center space-x-3 px-2 py-2">
+<div class="w-10 h-10 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center p-1.5 shadow-sm">
+<svg class="w-full h-full text-tertiary-container" fill="none" viewbox="0 0 100 100">
+<path d="M50 8C74 8 88 18 90 44C90 74 50 94 50 94C50 94 10 74 10 44C12 18 26 8 50 8Z" fill="#102034" stroke="#00b251" stroke-width="6"></path>
+<path d="M26 40C34 26 50 20 66 22" stroke="#EF4444" stroke-linecap="round" stroke-width="5"></path>
+<path d="M30 46C38 32 54 26 72 30" stroke="#00b251" stroke-linecap="round" stroke-width="5"></path>
+<circle cx="62" cy="38" fill="#ffb690" r="7"></circle>
+<path d="M48 54C54 50 64 50 68 54L58 72L42 78" stroke="#ffb690" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"></path>
+</svg>
+</div>
+<div>
+<h1 class="text-headline-md font-headline-md font-bold text-on-surface dark:text-on-surface leading-tight">Gurukul Academy</h1>
+<div class="flex items-center space-x-1.5">
+<span class="text-label-field font-label-field text-on-surface-variant dark:text-on-surface-variant">Sports CRM Pro</span>
+</div>
+</div>
+</div>
+<!-- Teacher Workspace Context Pill -->
+<div class="bg-surface-container-high border border-outline-variant/60 rounded-lg px-3 py-2 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="text-table-header font-table-header text-tertiary">TEACHER WORKSPACE</span>
+</div>
+<span class="text-badge-micro font-badge-micro px-1.5 py-0.5 rounded bg-surface-container-highest text-secondary">COACH</span>
+</div>
+<!-- Navigation Tabs -->
+<nav class="space-y-1 pt-1">
+<!-- Dashboard (ACTIVE) -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg bg-surface-container-highest dark:bg-surface-container-highest text-primary dark:text-primary font-bold border-l-4 border-primary dark:border-primary transition-colors duration-150 ease-in-out" href="#dashboard">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span class="text-body-medium font-body-medium">Dashboard</span>
+</a>
+<!-- My Batches -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#batches">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="groups">groups</span>
+<span class="text-body-medium font-body-medium">My Batches</span>
+<span class="ml-auto text-badge-micro font-badge-micro bg-surface-container px-2 py-0.5 rounded-full text-secondary">3</span>
+</a>
+<!-- Mark Attendance -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#attendance">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="how_to_reg">how_to_reg</span>
+<span class="text-body-medium font-body-medium">Mark Attendance</span>
+<span class="ml-auto w-2 h-2 rounded-full bg-primary-container" title="Pending roll call"></span>
+</a>
+<!-- Attendance History -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#attendance-history">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="receipt_long">receipt_long</span>
+<span class="text-body-medium font-body-medium">Attendance History</span>
+</a>
+<!-- Training Plans -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#plans">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="menu_book">menu_book</span>
+<span class="text-body-medium font-body-medium">Training Plans</span>
+</a>
+<!-- Performance Reviews -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#reviews">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="school">school</span>
+<span class="text-body-medium font-body-medium">Performance Reviews</span>
+</a>
+<!-- Schedule & Fixtures -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#schedule">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="campaign">campaign</span>
+<span class="text-body-medium font-body-medium">Schedule &amp; Fixtures</span>
+</a>
+<!-- WhatsApp Support -->
+<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface dark:hover:text-on-surface transition-colors duration-150 ease-in-out group" href="#whatsapp">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="chat">chat</span>
+<span class="text-body-medium font-body-medium">WhatsApp Dispatch</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Coach Profile Card -->
+<div class="pt-4 border-t border-outline-variant/60 flex flex-col space-y-3">
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/50 flex items-center space-x-3 hover:border-primary/40 transition-colors">
+<div class="relative">
+<img class="w-11 h-11 rounded-lg object-cover border border-outline-variant" data-alt="High quality headshot portrait of Coach Sharma, an experienced athletic cricket director in navy polo sports team jersey against modern indoor cricket academy training pitch background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7NfTNeleiVJbI2jISWJfG3fP9pPpSiaBbb2Efu_PQhoZbHv7UBQlISZsq8j7hYwKOMvzbjMl8KLiBsk2xYLlPNjQBTulMe-w30gMr-db2yBfrLaoJb_lWSDLXVuq46Y9pLntP1TUQh4J1O_GwH_XUdGtjDhDzghFhJ0iKInMGwDZtnAW79z7HjH12Xv6hU539R0IB8ZQMkMGTq01H1tEZqdpjSKr0IJ_cU8wOqR8ikz8QDXz5MBo0zFpyuKLAkWVSiuwSANfGAG0"/>
+<span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-tertiary border-2 border-surface rounded-full" title="Active on Field"></span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-title-card font-title-card text-on-surface truncate">Coach Sharma</p>
+<p class="text-label-field font-label-field text-on-surface-variant truncate">Head Cricket Coach</p>
+<span class="inline-block mt-0.5 text-badge-micro font-badge-micro text-tertiary font-medium">BCCI Certified • Level 3</span>
+</div>
+<button class="text-secondary hover:text-primary transition-colors p-1" title="Settings">
+<span class="material-symbols-outlined text-[18px]" data-icon="settings">settings</span>
+</button>
+</div>
+<div class="flex items-center justify-between text-label-field font-label-field text-secondary px-1">
+<span>v2.8 SportsCore</span>
+<span class="flex items-center gap-1 text-tertiary"><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Sync Live</span>
+</div>
+</div>
+</aside>
+<!-- Top Fixed Header Bar -->
+<header class="fixed top-0 right-0 left-64 h-16 z-30 bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-6">
+<!-- Left: Breadcrumb & Context -->
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-2 text-label-field font-label-field">
+<span class="text-on-surface-variant">Coach Workspace</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-bold">Dashboard</span>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center space-x-2 text-label-field font-label-field text-secondary">
+<span class="material-symbols-outlined text-[16px]" data-icon="dashboard">calendar_today</span>
+<span>Wednesday, Sep 24, 2026</span>
+</div>
+</div>
+<!-- Center Search -->
+<div class="relative w-80">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-[18px]" data-icon="person">search</span>
+</span>
+<input class="w-full h-10 pl-9 pr-12 rounded-xl bg-surface-container-low border border-outline-variant text-body-compact font-body-compact text-on-surface placeholder-secondary focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all" placeholder="Search athletes, jersey, or session..." type="text"/>
+<span class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+<kbd class="text-badge-micro font-badge-micro px-1.5 py-0.5 rounded bg-surface-container-highest text-secondary border border-outline-variant/50">⌘K</kbd>
+</span>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center space-x-3">
+<!-- Dark/Theme Indicator -->
+<button class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant flex items-center justify-center text-secondary hover:text-primary transition-colors" title="Dark Mode Active">
+<span class="material-symbols-outlined text-[18px]" data-icon="dark_mode">dark_mode</span>
+</button>
+<!-- Notifications -->
+<div class="relative">
+<button class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant flex items-center justify-center text-secondary hover:text-on-surface transition-colors" title="3 Notifications">
+<span class="material-symbols-outlined text-[18px]" data-icon="notifications">notifications</span>
+<span class="absolute -top-1 -right-1 w-4 h-4 bg-primary-container text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-surface">3</span>
+</button>
+</div>
+<!-- Quick Action: Log Performance Note -->
+<button class="h-10 px-4 rounded-xl bg-primary-container hover:bg-[#ea580c] text-white font-title-card text-title-card flex items-center space-x-2 transition-transform duration-150 active:scale-95 shadow-sm" onclick="openPerformanceModal()">
+<span class="material-symbols-outlined text-[18px]" data-icon="school">add</span>
+<span>+ Log Performance Note</span>
+</button>
+<!-- Announcement Settings -->
+<button class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant flex items-center justify-center text-secondary hover:text-on-surface transition-colors" title="Announcement Settings">
+<span class="material-symbols-outlined text-[18px]" data-icon="campaign">tune</span>
+</button>
+</div>
+</header>
+<!-- Main Scrollable Canvas -->
+<main class="ml-64 mt-16 flex-1 p-6 overflow-y-auto custom-scrollbar bg-background">
+<div class="max-w-[1600px] mx-auto space-y-6">
+<!-- Top Coach Welcome & Status Strip -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low border border-outline-variant/60 rounded-xl p-4">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[28px]" data-icon="sports_cricket">sports_cricket</span>
+</div>
+<div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">Cricket Performance &amp; Nets Operations</h2>
+<p class="text-body-medium font-body-medium text-on-surface-variant">Lead Instructor: Turf Pitch 01, Main Pavilion &amp; Indoor Ground 2</p>
+</div>
+</div>
+<div class="flex items-center space-x-3">
+<div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant text-label-field font-label-field">
+<span class="material-symbols-outlined text-tertiary text-[16px]" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface">BCCI Biometrics: Synced</span>
+</div>
+<div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant text-label-field font-label-field">
+<span class="material-symbols-outlined text-primary text-[16px]" data-icon="schedule">schedule</span>
+<span class="text-on-surface">Next Session in: <strong class="text-primary">1h 15m</strong></span>
+</div>
+</div>
+</div>
+<!-- 4-Column KPI Summary Row -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- KPI 1: Assigned Batches -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:border-outline transition-colors relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="text-table-header font-table-header text-secondary">TODAY'S ASSIGNED BATCHES</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="groups">groups</span>
+</div>
+</div>
+<div class="mt-3">
+<div class="text-display-kpi font-display-kpi text-on-surface">3 Batches</div>
+<p class="text-label-field font-label-field text-on-surface-variant mt-1">Morning Nets • Junior Cohort • Evening Pace</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between text-badge-micro font-badge-micro">
+<span class="text-tertiary flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> 100% on schedule</span>
+<span class="text-secondary">Cricket Division</span>
+</div>
+</div>
+<!-- KPI 2: Athletes Trained -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:border-outline transition-colors relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="text-table-header font-table-header text-secondary">ATHLETES TRAINED TODAY</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[18px]" data-icon="school">school</span>
+</div>
+</div>
+<div class="mt-3">
+<div class="text-display-kpi font-display-kpi text-on-surface">64 Athletes</div>
+<p class="text-label-field font-label-field text-on-surface-variant mt-1">Across 3 active training sessions</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between text-badge-micro font-badge-micro">
+<span class="text-tertiary">↑ 8% vs yesterday</span>
+<span class="text-secondary">40 Checked In</span>
+</div>
+</div>
+<!-- KPI 3: Roll Call Status -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:border-outline transition-colors relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="text-table-header font-table-header text-secondary">ROLL CALL STATUS</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]" data-icon="how_to_reg">how_to_reg</span>
+</div>
+</div>
+<div class="mt-3">
+<div class="text-display-kpi font-display-kpi text-on-surface">2 Done / 1 Due</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="px-2 py-0.5 rounded-full text-badge-micro font-badge-micro bg-primary-container/15 text-primary border border-primary-container/30">Pending Evening Batch</span>
+</div>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between text-badge-micro font-badge-micro">
+<span class="text-primary-container font-semibold">Action Required at 04:30 PM</span>
+<span class="text-secondary">24 Athletes</span>
+</div>
+</div>
+<!-- KPI 4: Upcoming Tournament Camp -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:border-outline transition-colors relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="text-table-header font-table-header text-secondary">UPCOMING TOURNAMENT CAMP</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[18px]" data-icon="emoji_events">emoji_events</span>
+</div>
+</div>
+<div class="mt-3">
+<div class="text-headline-xl font-headline-xl text-on-surface truncate">State U-16 Trials</div>
+<p class="text-label-field font-label-field text-on-surface-variant mt-1">In 4 Days • Oval Pitch A</p>
+</div>
+<div class="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between text-badge-micro font-badge-micro">
+<span class="text-secondary font-medium">14 Shortlisted from Batch A</span>
+<span class="text-tertiary">Final Camp</span>
+</div>
+</div>
+</div>
+<!-- Main Operational Layout (Split Grid: 8 Cols Left / 4 Cols Right) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Operations Column (8 Cols) -->
+<div class="lg:col-span-8 space-y-6">
+<!-- Main Schedule Card: Today's Training Schedule & Session Roster -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="px-6 py-4 border-b border-outline-variant flex items-center justify-between bg-surface-container">
+<div>
+<h3 class="text-headline-md font-headline-md text-on-surface">Today's Training Schedule &amp; Session Roster</h3>
+<p class="text-label-field font-label-field text-on-surface-variant">Detailed timeline, venue allocation, and live roll call dispatches</p>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-badge-micro font-badge-micro px-2.5 py-1 rounded-full bg-surface-container-highest text-secondary border border-outline-variant">
+                  3 SESSIONS TIMED
+                </span>
+</div>
+</div>
+<!-- Session Blocks List -->
+<div class="p-6 space-y-4">
+<!-- Session 1 (Completed) -->
+<div class="border border-outline-variant/80 rounded-xl p-4 bg-surface-container-lowest hover:border-outline-variant transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start space-x-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high border border-outline-variant flex flex-col items-center justify-center text-center">
+<span class="text-[10px] uppercase font-bold text-secondary">MORNING</span>
+<span class="text-title-card font-title-card text-on-surface">06:30</span>
+</div>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="text-title-card font-title-card text-on-surface">U-16 Cricket Nets Session</h4>
+<span class="px-2 py-0.5 rounded-full text-badge-micro font-badge-micro bg-tertiary-container/15 text-tertiary border border-tertiary-container/30">100% Completed</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-label-field font-label-field text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">stadium</span> Turf Pitch 01</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">timer</span> 06:30 AM - 08:30 AM</span>
+<span class="flex items-center gap-1 text-on-surface"><span class="material-symbols-outlined text-[14px]">groups</span> 22 / 22 Athletes Present</span>
+</div>
+</div>
+</div>
+<div class="flex items-center space-x-2 self-end md:self-center">
+<button class="h-9 px-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant text-label-field font-label-field text-on-surface flex items-center space-x-1.5 transition-colors" onclick="alert('Viewing archived roster for U-16 Morning Nets (22 Athletes verified)')">
+<span class="material-symbols-outlined text-[16px]" data-icon="receipt_long">visibility</span>
+<span>View Roster</span>
+</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant flex items-center justify-center text-secondary hover:text-primary transition-colors" title="Export session report">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+</button>
+</div>
+</div>
+<!-- Session 2 (Completed) -->
+<div class="border border-outline-variant/80 rounded-xl p-4 bg-surface-container-lowest hover:border-outline-variant transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-start space-x-4">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high border border-outline-variant flex flex-col items-center justify-center text-center">
+<span class="text-[10px] uppercase font-bold text-secondary">MID-DAY</span>
+<span class="text-title-card font-title-card text-on-surface">10:00</span>
+</div>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="text-title-card font-title-card text-on-surface">Junior Fielding Drills &amp; Agility</h4>
+<span class="px-2 py-0.5 rounded-full text-badge-micro font-badge-micro bg-tertiary-container/15 text-tertiary border border-tertiary-container/30">Completed</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-label-field font-label-field text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sports_cricket</span> Indoor Ground 2</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">timer</span> 10:00 AM - 11:30 AM</span>
+<span class="flex items-center gap-1 text-on-surface"><span class="material-symbols-outlined text-[14px]">groups</span> 18 Athletes Checked In</span>
+</div>
+</div>
+</div>
+<div class="flex items-center space-x-2 self-end md:self-center">
+<button class="h-9 px-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant text-label-field font-label-field text-on-surface flex items-center space-x-1.5 transition-colors" onclick="alert('Viewing roster for Junior Fielding Drills (18 Athletes verified)')">
+<span class="material-symbols-outlined text-[16px]" data-icon="receipt_long">visibility</span>
+<span>View Roster</span>
+</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant flex items-center justify-center text-secondary hover:text-primary transition-colors" title="Export session report">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+</button>
+</div>
+</div>
+<!-- Session 3 (PENDING / CURRENT FOCUS) -->
+<div class="border-2 border-primary-container/80 rounded-xl p-4 bg-surface-container-high shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary-container/10 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-start space-x-4">
+<div class="w-12 h-12 rounded-xl bg-primary-container/20 border border-primary-container/40 flex flex-col items-center justify-center text-center">
+<span class="text-[10px] uppercase font-bold text-primary">EVENING</span>
+<span class="text-title-card font-title-card text-on-surface">16:30</span>
+</div>
+<div>
+<div class="flex items-center space-x-2">
+<h4 class="text-title-card font-title-card text-on-surface">Advanced Bowling Drills &amp; Match Sim</h4>
+<span class="px-2 py-0.5 rounded-full text-badge-micro font-badge-micro bg-primary-container/20 text-primary border border-primary-container/40 font-bold animate-pulse">Ready for Roll Call</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-label-field font-label-field text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">stadium</span> Main Pitch &amp; Pavilion</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">timer</span> 04:30 PM - 06:30 PM</span>
+<span class="flex items-center gap-1 text-primary"><span class="material-symbols-outlined text-[14px]">groups</span> 24 Athletes Expected</span>
+</div>
+</div>
+</div>
+<div class="flex items-center space-x-2 self-end md:self-center">
+<button class="h-10 px-4 rounded-xl bg-primary-container hover:bg-[#ea580c] text-white font-title-card text-title-card flex items-center space-x-2 transition-transform duration-150 active:scale-95 shadow-md" onclick="scrollToRollCall()">
+<span class="material-symbols-outlined text-[18px]" data-icon="how_to_reg">how_to_reg</span>
+<span>Start Roll Call</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Batch Roster Drawer / Interactive Check-in Module -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden shadow-sm" id="rollCallSection">
+<div class="px-6 py-4 border-b border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface-container">
+<div>
+<div class="flex items-center space-x-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-ping"></span>
+<h3 class="text-headline-md font-headline-md text-on-surface">Live Roster Dispatch: 04:30 PM Pace Cohort</h3>
+</div>
+<p class="text-label-field font-label-field text-on-surface-variant">Main Pitch &amp; Pavilion • 24 Registered Fast Bowlers</p>
+</div>
+<div class="flex items-center space-x-2">
+<button class="h-8 px-2.5 rounded-lg bg-surface-container-high border border-outline-variant hover:border-tertiary text-label-field font-label-field text-tertiary transition-colors flex items-center space-x-1" onclick="markAllPresent()">
+<span class="material-symbols-outlined text-[16px]">done_all</span>
+<span>Mark All Present</span>
+</button>
+<button class="h-8 px-3 rounded-lg bg-primary-container text-white text-label-field font-label-field font-bold hover:bg-[#ea580c] transition-colors" onclick="saveAttendance()">
+                  Submit &amp; Lock
+                </button>
+</div>
+</div>
+<!-- Athlete Table (Compact Operational Density: 38-48px) -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="h-10 bg-surface-container-high border-b border-outline-variant text-table-header font-table-header text-secondary uppercase">
+<th class="pl-6 pr-3 w-16">BIB #</th>
+<th class="px-3">Athlete</th>
+<th class="px-3">Specialization</th>
+<th class="px-3">Medical Status</th>
+<th class="px-3">Last Speed</th>
+<th class="pr-6 pl-3 text-right">Attendance Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/40 text-table-data font-table-data">
+<!-- Row 1 -->
+<tr class="h-12 hover:bg-surface-container-high/50 transition-colors">
+<td class="pl-6 pr-3 font-mono text-secondary">#07</td>
+<td class="px-3">
+<div class="flex items-center space-x-3">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center font-bold text-on-surface text-xs">AP</div>
+<span class="font-title-card text-title-card text-on-surface">Aarav Patil</span>
+</div>
+</td>
+<td class="px-3 text-on-surface-variant">Right-Arm Fast (Outswing)</td>
+<td class="px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-badge-micro font-badge-micro text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/25">
+                        Cleared
+                      </span>
+</td>
+<td class="px-3 text-on-surface font-mono">132 km/h</td>
+<td class="pr-6 pl-3 text-right">
+<div class="inline-flex items-center space-x-1 bg-surface-container rounded-lg p-0.5 border border-outline-variant">
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-tertiary-container text-white shadow-sm" onclick="toggleStatus(this, 'P')">P</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'A')">A</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'L')">L</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="h-12 hover:bg-surface-container-high/50 transition-colors">
+<td class="pl-6 pr-3 font-mono text-secondary">#14</td>
+<td class="px-3">
+<div class="flex items-center space-x-3">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center font-bold text-on-surface text-xs">KJ</div>
+<span class="font-title-card text-title-card text-on-surface">Kabir Jadhav</span>
+</div>
+</td>
+<td class="px-3 text-on-surface-variant">Left-Arm Seam / Yorker Spec</td>
+<td class="px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-badge-micro font-badge-micro text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/25">
+                        Cleared
+                      </span>
+</td>
+<td class="px-3 text-on-surface font-mono">128 km/h</td>
+<td class="pr-6 pl-3 text-right">
+<div class="inline-flex items-center space-x-1 bg-surface-container rounded-lg p-0.5 border border-outline-variant">
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-tertiary-container text-white shadow-sm" onclick="toggleStatus(this, 'P')">P</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'A')">A</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'L')">L</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="h-12 hover:bg-surface-container-high/50 transition-colors">
+<td class="pl-6 pr-3 font-mono text-secondary">#22</td>
+<td class="px-3">
+<div class="flex items-center space-x-3">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center font-bold text-on-surface text-xs">RV</div>
+<span class="font-title-card text-title-card text-on-surface">Rohan Verma</span>
+</div>
+</td>
+<td class="px-3 text-on-surface-variant">Right-Arm Medium Pace</td>
+<td class="px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-badge-micro font-badge-micro text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/25">
+                        Shin Splint Monitor
+                      </span>
+</td>
+<td class="px-3 text-on-surface font-mono">124 km/h</td>
+<td class="pr-6 pl-3 text-right">
+<div class="inline-flex items-center space-x-1 bg-surface-container rounded-lg p-0.5 border border-outline-variant">
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'P')">P</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-error text-white shadow-sm" onclick="toggleStatus(this, 'A')">A</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'L')">L</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="h-12 hover:bg-surface-container-high/50 transition-colors">
+<td class="pl-6 pr-3 font-mono text-secondary">#31</td>
+<td class="px-3">
+<div class="flex items-center space-x-3">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center font-bold text-on-surface text-xs">DD</div>
+<span class="font-title-card text-title-card text-on-surface">Devendra Deshmukh</span>
+</div>
+</td>
+<td class="px-3 text-on-surface-variant">Right-Arm Fast Express</td>
+<td class="px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-badge-micro font-badge-micro text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/25">
+                        Cleared
+                      </span>
+</td>
+<td class="px-3 text-on-surface font-mono">136 km/h</td>
+<td class="pr-6 pl-3 text-right">
+<div class="inline-flex items-center space-x-1 bg-surface-container rounded-lg p-0.5 border border-outline-variant">
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-tertiary-container text-white shadow-sm" onclick="toggleStatus(this, 'P')">P</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'A')">A</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'L')">L</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="h-12 hover:bg-surface-container-high/50 transition-colors">
+<td class="pl-6 pr-3 font-mono text-secondary">#45</td>
+<td class="px-3">
+<div class="flex items-center space-x-3">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center font-bold text-on-surface text-xs">SM</div>
+<span class="font-title-card text-title-card text-on-surface">Samar Merchant</span>
+</div>
+</td>
+<td class="px-3 text-on-surface-variant">Right-Arm Leg Spin Variation</td>
+<td class="px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-badge-micro font-badge-micro text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/25">
+                        Cleared
+                      </span>
+</td>
+<td class="px-3 text-on-surface font-mono">92 km/h</td>
+<td class="pr-6 pl-3 text-right">
+<div class="inline-flex items-center space-x-1 bg-surface-container rounded-lg p-0.5 border border-outline-variant">
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'P')">P</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white" onclick="toggleStatus(this, 'A')">A</button>
+<button class="px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-primary-container text-white shadow-sm" onclick="toggleStatus(this, 'L')">L</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer Indicator -->
+<div class="px-6 py-3 bg-surface-container-lowest border-t border-outline-variant flex items-center justify-between text-label-field font-label-field text-secondary">
+<span>Showing 5 of 24 Bowlers in Evening Roster</span>
+<button class="text-primary hover:underline flex items-center space-x-1">
+<span>Expand Full 24 Roster</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Right Operations & Intelligence Column (4 Cols) -->
+<div class="lg:col-span-4 space-y-6">
+<!-- Urgent Academy Broadcast Alert -->
+<div class="bg-surface-container-low border-l-4 border-[#F59E0B] border-y border-r border-outline-variant rounded-xl p-4 shadow-sm relative">
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-lg bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]" data-icon="campaign">campaign</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="text-table-header font-table-header text-[#F59E0B]">ACADEMY ADMIN BROADCAST</span>
+<span class="text-badge-micro font-badge-micro text-secondary">10m ago</span>
+</div>
+<h4 class="text-title-card font-title-card text-on-surface mt-1">Ground Maintenance Notice</h4>
+<p class="text-body-compact font-body-compact text-on-surface-variant mt-1">
+                  Turf Pitch 2 closed on Thursday for drainage re-lining &amp; laser leveling. Evening fixtures shifted to Oval Pitch A.
+                </p>
+<div class="mt-3 flex items-center space-x-2">
+<button class="text-label-field font-label-field text-primary hover:underline flex items-center gap-1">
+<span>Acknowledge Notice</span>
+<span class="material-symbols-outlined text-[14px]">check</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Athlete Performance Notes Feed -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="px-5 py-3.5 border-b border-outline-variant flex items-center justify-between bg-surface-container">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="school">edit_note</span>
+<h3 class="text-title-card font-title-card text-on-surface">Recent Performance Notes</h3>
+</div>
+<button class="text-label-field font-label-field text-primary hover:underline font-semibold" onclick="openPerformanceModal()">+ Add Note</button>
+</div>
+<div class="p-4 space-y-3">
+<!-- Note Item 1 -->
+<div class="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/60 hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between">
+<span class="text-title-card font-title-card text-on-surface">Aarav Patil (#07)</span>
+<span class="text-badge-micro font-badge-micro text-secondary">Today, 08:35 AM</span>
+</div>
+<p class="text-body-compact font-body-compact text-on-surface-variant mt-1.5 leading-relaxed">
+                  "Excellent upright seam position during 2nd spell. Release point elevated by 4 degrees, resulting in sharp bounce off the good length marker."
+                </p>
+<div class="mt-2 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded text-badge-micro font-badge-micro bg-tertiary-container/15 text-tertiary">Pace Dynamics</span>
+<span class="px-2 py-0.5 rounded text-badge-micro font-badge-micro bg-surface-container-highest text-secondary">U-16 Cricket Nets</span>
+</div>
+</div>
+<!-- Note Item 2 -->
+<div class="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/60 hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between">
+<span class="text-title-card font-title-card text-on-surface">Kabir Jadhav (#14)</span>
+<span class="text-badge-micro font-badge-micro text-secondary">Yesterday, 06:15 PM</span>
+</div>
+<p class="text-body-compact font-body-compact text-on-surface-variant mt-1.5 leading-relaxed">
+                  "Recommended 3x weekly stamina &amp; hip mobility drills. Drop in ball velocity recorded on overs 6 through 8 during match sim."
+                </p>
+<div class="mt-2 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded text-badge-micro font-badge-micro bg-primary-container/15 text-primary">Conditioning Flag</span>
+<span class="px-2 py-0.5 rounded text-badge-micro font-badge-micro bg-surface-container-highest text-secondary">Evening Pace</span>
+</div>
+</div>
+<!-- Note Item 3 -->
+<div class="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/60 hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between">
+<span class="text-title-card font-title-card text-on-surface">Rohan Verma (#22)</span>
+<span class="text-badge-micro font-badge-micro text-secondary">Sep 22, 2026</span>
+</div>
+<p class="text-body-compact font-body-compact text-on-surface-variant mt-1.5 leading-relaxed">
+                  "Physio check requested. Minor shin soreness after hard turf landing. Session intensity capped at 60% workload."
+                </p>
+<div class="mt-2 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded text-badge-micro font-badge-micro bg-[#F59E0B]/15 text-[#F59E0B]">Medical Review</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Coach Action Tools -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 shadow-sm space-y-3">
+<h3 class="text-title-card font-title-card text-on-surface">Quick Coach Tools</h3>
+<div class="grid grid-cols-1 gap-2.5">
+<button class="w-full h-11 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant text-body-medium font-body-medium text-on-surface flex items-center justify-between transition-colors group" onclick="alert('Downloading Match Sheet &amp; Lineup for State U-16 Trials...')">
+<div class="flex items-center space-x-3">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="receipt_long">description</span>
+<span>Download Match Sheet</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-secondary">chevron_right</span>
+</button>
+<button class="w-full h-11 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant text-body-medium font-body-medium text-on-surface flex items-center justify-between transition-colors group" onclick="alert('Equipment maintenance report ticket modal triggered.')">
+<div class="flex items-center space-x-3">
+<span class="material-symbols-outlined text-[20px] text-secondary group-hover:text-primary" data-icon="sports_cricket">build</span>
+<span>Report Equipment Issue</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-secondary">chevron_right</span>
+</button>
+<button class="w-full h-11 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant text-body-medium font-body-medium text-on-surface flex items-center justify-between transition-colors group" onclick="alert('Opening Parent WhatsApp Broadcast Dispatcher...')">
+<div class="flex items-center space-x-3">
+<span class="material-symbols-outlined text-[20px] text-tertiary" data-icon="chat">chat</span>
+<span>Message Batch Parents</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-secondary">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Log Performance Note Modal (Accessible via '+ Log Performance Note' trigger) -->
+<div class="fixed inset-0 z-50 hidden bg-[#0F172A]/80 backdrop-blur-sm flex items-center justify-center p-4" id="performanceModal">
+<div class="bg-surface-container border border-outline-variant rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+<!-- Modal Header -->
+<div class="px-6 py-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-high">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[20px]">school</span>
+<h3 class="text-headline-md font-headline-md text-on-surface">Log Athlete Performance Note</h3>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low text-secondary hover:text-on-surface flex items-center justify-center" onclick="closePerformanceModal()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<form class="p-6 space-y-4" onsubmit="handleNoteSubmit(event)">
+<div>
+<label class="block text-label-field font-label-field text-on-surface mb-1.5">Select Athlete</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-body-medium font-body-medium text-on-surface focus:border-primary-container outline-none">
+<option>Aarav Patil (#07) - Fast Bowling</option>
+<option>Kabir Jadhav (#14) - Left Arm Seam</option>
+<option>Rohan Verma (#22) - Medium Pace</option>
+<option>Devendra Deshmukh (#31) - Fast Express</option>
+<option>Samar Merchant (#45) - Leg Spin</option>
+</select>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-label-field font-label-field text-on-surface mb-1.5">Training Batch</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-body-medium font-body-medium text-on-surface focus:border-primary-container outline-none">
+<option>Advanced Bowling Drills</option>
+<option>U-16 Cricket Nets</option>
+<option>Junior Fielding Drills</option>
+</select>
+</div>
+<div>
+<label class="block text-label-field font-label-field text-on-surface mb-1.5">Category Tag</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-outline-variant text-body-medium font-body-medium text-on-surface focus:border-primary-container outline-none">
+<option>Biomechanical Mechanics</option>
+<option>Tactical Match Play</option>
+<option>Fitness / Conditioning</option>
+<option>Disciplinary &amp; Attitude</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-label-field font-label-field text-on-surface mb-1.5">Coaching Observations &amp; Recommendations</label>
+<textarea class="w-full p-3 rounded-xl bg-surface-container-low border border-outline-variant text-body-medium font-body-medium text-on-surface placeholder-secondary focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all" placeholder="Enter specific drills, run-up observations, hand positions, or physical recommendations..." rows="4"></textarea>
+</div>
+<div class="flex items-center space-x-2 pt-2">
+<input class="rounded bg-surface-container-low border-outline-variant text-primary-container focus:ring-0" id="shareWithParents" type="checkbox"/>
+<label class="text-label-field font-label-field text-on-surface-variant cursor-pointer" for="shareWithParents">Make available on Athlete Portal for Parent / Guardian</label>
+</div>
+<!-- Modal Footer -->
+<div class="pt-4 border-t border-outline-variant/60 flex items-center justify-end space-x-3">
+<button class="px-4 py-2 rounded-xl bg-transparent border border-outline-variant text-label-field font-label-field text-on-surface hover:bg-surface-container-high transition-colors" onclick="closePerformanceModal()" type="button">
+            Cancel
+          </button>
+<button class="px-5 py-2 rounded-xl bg-primary-container hover:bg-[#ea580c] text-white font-title-card text-title-card shadow-sm transition-transform active:scale-95" type="submit">
+            Save Performance Note
+          </button>
+</div>
+</form>
+</div>
+</div>
+<!-- Micro-interactions JavaScript -->
+<script>
+    function scrollToRollCall() {
+      const el = document.getElementById('rollCallSection');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary-container');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary-container'), 1800);
+      }
+    }
+
+    function toggleStatus(btn, code) {
+      const container = btn.parentElement;
+      const buttons = container.querySelectorAll('button');
+      buttons.forEach(b => {
+        b.className = 'px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded text-secondary hover:text-white';
+      });
+
+      if (code === 'P') {
+        btn.className = 'px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-tertiary-container text-white shadow-sm';
+      } else if (code === 'A') {
+        btn.className = 'px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-error text-white shadow-sm';
+      } else if (code === 'L') {
+        btn.className = 'px-2.5 py-1 text-badge-micro font-badge-micro font-bold rounded bg-primary-container text-white shadow-sm';
+      }
+    }
+
+    function markAllPresent() {
+      const rows = document.querySelectorAll('#rollCallSection tbody tr');
+      rows.forEach(r => {
+        const pBtn = r.querySelector('td:last-child button:first-child');
+        if (pBtn) toggleStatus(pBtn, 'P');
+      });
+    }
+
+    function saveAttendance() {
+      alert('Attendance for Advanced Bowling Drills (04:30 PM) submitted and synchronized to Gurukul Sports CRM Server.');
+    }
+
+    function openPerformanceModal() {
+      document.getElementById('performanceModal').classList.remove('hidden');
+    }
+
+    function closePerformanceModal() {
+      document.getElementById('performanceModal').classList.add('hidden');
+    }
+
+    function handleNoteSubmit(e) {
+      e.preventDefault();
+      alert('Performance note logged successfully and queued for Academy Director digest.');
+      closePerformanceModal();
+    }
+  </script>
+</body></html>

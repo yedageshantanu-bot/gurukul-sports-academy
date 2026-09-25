@@ -1,0 +1,2498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courses Management — Gurukul Sports Academy CRM</title>
+  <style>
+    /* CSS Reset & Variables */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --primary-light: rgba(249, 115, 22, 0.12);
+      --primary-border: rgba(249, 115, 22, 0.3);
+
+      --bg: #0b1329;
+      --bg-surface: #0f172a;
+      --card-bg: #1e293b;
+      --card-hover: #24344d;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.12);
+      --success-border: rgba(34, 197, 94, 0.25);
+
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --warning-border: rgba(245, 158, 11, 0.25);
+
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --danger-border: rgba(239, 68, 68, 0.25);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+
+      --sidebar-width: 256px;
+      --header-height: 70px;
+    }
+
+    /* Light Mode */
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --bg-surface: #ffffff;
+      --card-bg: #ffffff;
+      --card-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --border-subtle: #edf2f7;
+
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+
+      --primary-light: rgba(249, 115, 22, 0.08);
+      --primary-border: rgba(249, 115, 22, 0.35);
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Global CRM Shell */
+    .app-sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 40;
+    }
+
+    .brand-section {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-logo-img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+
+    .brand-text h1 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .brand-text p {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+
+    .nav-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .nav-group-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      padding: 0 0.65rem 0.4rem;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background: var(--primary-light);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(255, 255, 255, 0.15);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.12rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    .nav-badge.orange-badge {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .system-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    /* Main Layout */
+    .app-main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      width: calc(100% - var(--sidebar-width));
+    }
+
+    .app-header {
+      height: var(--header-height);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 7px;
+      height: 7px;
+      background: var(--primary);
+      border-radius: 50%;
+    }
+
+    .theme-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.85rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--primary-border);
+      color: var(--primary);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .user-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .user-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .user-role {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+    }
+
+    /* Content Area */
+    .content-container {
+      padding: 1.75rem 2rem 5rem;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Page Header & Summary Indicators */
+    .page-header-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .page-headline h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.015em;
+    }
+
+    .page-headline p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 0.65rem 1.25rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+      transition: all 0.15s ease;
+    }
+
+    .primary-btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    /* KPI Summary Cards Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.2rem 1.35rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+
+    .metric-card:hover {
+      border-color: var(--primary-border);
+    }
+
+    .metric-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .metric-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .metric-val {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .metric-footer {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .badge-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    .badge-success {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+
+    .badge-warning {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning-border);
+    }
+
+    .badge-neutral {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* Search & Filter Toolbar */
+    .filter-toolbar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.85rem 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-left-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 380px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.55rem 0.85rem 0.55rem 2.25rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-border);
+    }
+
+    .filter-selects {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .select-dropdown {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.55rem 0.85rem;
+      color: var(--text);
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .select-dropdown:focus {
+      border-color: var(--primary);
+    }
+
+    .clear-filters-btn {
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.4rem 0.6rem;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s ease;
+    }
+
+    .clear-filters-btn:hover {
+      background: var(--primary-light);
+    }
+
+    .filter-meta-count {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* Course Display — Responsive Card Grid */
+    .courses-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .course-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 1.35rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1.15rem;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+
+    .course-card:hover {
+      border-color: rgba(249, 115, 22, 0.4);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .course-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .course-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .category-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(249, 115, 22, 0.1);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+    }
+
+    .code-pill {
+      font-family: monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .card-actions-menu {
+      position: relative;
+    }
+
+    .dots-menu-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .dots-menu-btn:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    .course-info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .course-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .course-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Course Metrics Rows */
+    .course-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 0.65rem;
+      text-align: center;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .stat-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-dim);
+    }
+
+    .stat-val {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .course-fee-status-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+    }
+
+    .fee-badge-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .fee-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .fee-amount {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .fee-period {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* Card Footer Buttons */
+    .course-card-footer {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+      color: #ffffff;
+    }
+
+    .btn-action-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-action-icon:hover {
+      color: var(--primary);
+      border-color: var(--primary-border);
+    }
+
+    .btn-toggle-deactivate:hover {
+      color: var(--warning);
+      border-color: var(--warning-border);
+    }
+
+    .btn-toggle-activate:hover {
+      color: var(--success);
+      border-color: var(--success-border);
+    }
+
+    /* Modals & Backdrop */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 19, 41, 0.78);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(12px) scale(0.98);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-backdrop.open .modal-dialog {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .modal-header p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .modal-close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .modal-close-btn:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .form-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-label .req {
+      color: var(--primary);
+    }
+
+    .form-input, .form-textarea, .form-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.55rem 0.85rem;
+      font-size: 0.85rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-border);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 70px;
+    }
+
+    .modal-footer {
+      padding: 1.15rem 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .btn-cancel {
+      padding: 0.6rem 1.1rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-cancel:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    /* Expandable Course Details Drawer */
+    .detail-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 480px;
+      max-width: 90vw;
+      background: var(--card-bg);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .detail-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drawer-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.35rem;
+    }
+
+    .drawer-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .drawer-metric-box {
+      background: var(--bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+    }
+
+    .drawer-metric-box .label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .drawer-metric-box .val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 0.2rem;
+    }
+
+    /* Confirmation Dialog */
+    .confirm-dialog {
+      max-width: 460px;
+    }
+
+    .confirm-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .confirm-warning {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning-border);
+    }
+
+    .confirm-success {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+
+    /* Floating QA Test Bar */
+    .qa-bar {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      z-index: 80;
+    }
+
+    .qa-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      padding: 0 0.5rem;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .qa-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .qa-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .qa-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* Skeleton Loading State View */
+    .skeleton-view {
+      display: none;
+    }
+
+    .skeleton-view.active {
+      display: block;
+    }
+
+    .skeleton-box {
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+
+    @keyframes skeleton-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Empty State View */
+    .empty-view {
+      display: none;
+      background: var(--card-bg);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-xl);
+      padding: 4rem 2rem;
+      text-align: center;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .empty-view.active {
+      display: flex;
+    }
+
+    .empty-icon-wrap {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Responsive Rules */
+    @media (max-width: 1200px) {
+      .courses-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .app-sidebar {
+        display: none;
+      }
+      .app-main {
+        margin-left: 0;
+        width: 100%;
+      }
+      .courses-grid {
+        grid-template-columns: 1fr;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .qa-bar {
+        width: 90%;
+        overflow-x: auto;
+        border-radius: var(--radius-lg);
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Global Application Shell Sidebar -->
+  <aside class="app-sidebar">
+    <div class="brand-section">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlAazmHwlvFDlselZjix2zOZDC6pCnJVC6lYg5_SLzP_TdHe_fUw9e4ItK3Pa3J0_OCJQb-pD_0CUlqEm1_d4pIpd442nlVG23XS-5ShOcZwlpMxOX5woQWMuPbY-Wk1jwb-xns1Fi8GqQiyePTPQWNlzwtIgmCl8VjmXwzqJRNnneWujatw457rbdgcyzE2sDH1S-uzb6jVv0e8mlztRsipDpS7-uMK35_dsgYYDoEjXAVy9wLny-u37qcs9lBfsJLw" alt="Gurukul Sports Academy" class="brand-logo-img">
+      <div class="brand-text">
+        <h1>Gurukul Academy</h1>
+        <p>Operational CRM</p>
+      </div>
+    </div>
+
+    <div class="nav-scroll">
+      <div>
+        <div class="nav-group-title">General</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Students</span>
+              <span class="nav-badge">248</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              <span>Teachers</span>
+              <span class="nav-badge">18</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="nav-group-title">Academics</div>
+        <ul class="nav-list">
+          <li>
+            <!-- Actively selected Courses module -->
+            <a class="nav-item active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Courses</span>
+              <span class="nav-badge orange-badge">9</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Batches</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Attendance</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="nav-group-title">Finance & Comms</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              <span>Fees</span>
+              <span class="nav-badge orange-badge">₹1.2L</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span>Payments</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span>Reports</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span>Announcements</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              <span>WhatsApp</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="system-status">
+        <span class="status-dot"></span>
+        <span>Academy Engine v2.4</span>
+      </span>
+      <span>Connected</span>
+    </div>
+  </aside>
+
+  <!-- Application Main Section -->
+  <main class="app-main">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="header-title">
+          <span>Courses</span>
+        </div>
+        <div class="header-desc">Manage academy programs, courses and fee structures.</div>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" title="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge"></span>
+        </button>
+
+        <!-- Theme Switcher -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">
+          <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabel">Light Mode</span>
+        </button>
+
+        <div class="user-pill">
+          <div class="user-avatar">RS</div>
+          <div class="user-meta">
+            <span class="user-name">R. Sharma</span>
+            <span class="user-role">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <div class="content-container">
+      
+      <!-- Page Headline & Add Course Action -->
+      <div class="page-header-row">
+        <div class="page-headline">
+          <h2>Courses</h2>
+          <p>Create and manage the athletic programs offered by your academy.</p>
+        </div>
+        <button class="primary-btn" onclick="openModal('addCourseModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Add Course</span>
+        </button>
+      </div>
+
+      <!-- 4 Summary Indicators -->
+      <div class="summary-grid">
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Total Courses</span>
+            <div class="metric-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+          </div>
+          <div class="metric-val" id="totalCoursesCount">9</div>
+          <div class="metric-footer">
+            <span>Accredited curriculum across 5 sports</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Active Courses</span>
+            <div class="metric-icon" style="color: var(--success);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div class="metric-val" style="color: var(--success);">8</div>
+          <div class="metric-footer">
+            <span class="badge-pill badge-success">88.8% Operational</span>
+            <span>Open for admissions</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">Inactive Courses</span>
+            <div class="metric-icon" style="color: var(--warning);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            </div>
+          </div>
+          <div class="metric-val" style="color: var(--warning);">1</div>
+          <div class="metric-footer">
+            <span class="badge-pill badge-warning">Archived</span>
+            <span>Off-season program</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-top">
+            <span class="metric-label">With Active Batches</span>
+            <div class="metric-icon" style="color: var(--primary);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+            </div>
+          </div>
+          <div class="metric-val" style="color: var(--primary);">7</div>
+          <div class="metric-footer">
+            <span>24 active training batches in session</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search & Filter Toolbar -->
+      <div class="filter-toolbar">
+        <div class="filter-left-group">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="courseSearchInput" class="search-input" placeholder="Search by course name or code (e.g. CRK-ADV)..." oninput="handleSearchFilter()">
+          </div>
+
+          <div class="filter-selects">
+            <select id="statusFilter" class="select-dropdown" onchange="handleSearchFilter()">
+              <option value="ALL">All Statuses</option>
+              <option value="Active">Active Courses</option>
+              <option value="Inactive">Inactive Courses</option>
+            </select>
+
+            <select id="categoryFilter" class="select-dropdown" onchange="handleSearchFilter()">
+              <option value="ALL">All Categories</option>
+              <option value="Sports Coaching">Sports Coaching</option>
+              <option value="Fitness Training">Fitness Training</option>
+              <option value="Strength & Conditioning">Strength & Conditioning</option>
+              <option value="Skill Development">Skill Development</option>
+              <option value="Personal Training">Personal Training</option>
+            </select>
+
+            <select id="durationFilter" class="select-dropdown" onchange="handleSearchFilter()">
+              <option value="ALL">All Durations</option>
+              <option value="3 Months">3 Months</option>
+              <option value="6 Months">6 Months</option>
+              <option value="12 Months">12 Months (Annual)</option>
+            </select>
+
+            <button class="clear-filters-btn" onclick="resetFilters()">Clear Filters</button>
+          </div>
+        </div>
+
+        <div class="filter-meta-count" id="filterResultCount">Showing 6 of 9 Courses</div>
+      </div>
+
+      <!-- Normal State: Course Display Grid -->
+      <div class="courses-grid" id="coursesGrid">
+        
+        <!-- Course Card 1 -->
+        <div class="course-card" data-category="Sports Coaching" data-status="Active" data-duration="12 Months" data-code="CRK-PRO" data-name="Elite Cricket Mastery (Senior)">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Sports Coaching</span>
+                <span class="code-pill">CRK-PRO</span>
+                <span class="badge-pill badge-success">Active</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('CRK-PRO')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">Elite Cricket Mastery (Senior)</h3>
+              <p class="course-desc">Comprehensive match simulation, turf net sessions, stroke mechanics, and high-performance tactical bowling protocols.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">12 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">3 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">54 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹3,000 <span class="fee-period">/ month</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Created</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">15 Jan 2023</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('CRK-PRO')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('CRK-PRO')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-deactivate" title="Deactivate Course" onclick="openConfirmDialog('CRK-PRO', 'deactivate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Card 2 -->
+        <div class="course-card" data-category="Sports Coaching" data-status="Active" data-duration="6 Months" data-code="BDM-JNR" data-name="Junior Badminton Academy Program">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Sports Coaching</span>
+                <span class="code-pill">BDM-JNR</span>
+                <span class="badge-pill badge-success">Active</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('BDM-JNR')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">Junior Badminton Academy Program</h3>
+              <p class="course-desc">Footwork conditioning, court positioning, smashes, and drop shot fundamentals led by national medalists.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">6 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">2 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">38 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹2,800 <span class="fee-period">/ month</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Created</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">10 Mar 2023</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('BDM-JNR')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('BDM-JNR')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-deactivate" title="Deactivate Course" onclick="openConfirmDialog('BDM-JNR', 'deactivate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Card 3 -->
+        <div class="course-card" data-category="Strength & Conditioning" data-status="Active" data-duration="6 Months" data-code="SNC-PRO" data-name="High-Performance Athletic Conditioning">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Strength & Conditioning</span>
+                <span class="code-pill">SNC-PRO</span>
+                <span class="badge-pill badge-success">Active</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('SNC-PRO')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">High-Performance Athletic Conditioning</h3>
+              <p class="course-desc">Explosive agility drills, VO2 max endurance training, core stabilization, and injury prevention protocols.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">6 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">2 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">42 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹3,500 <span class="fee-period">/ month</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Created</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">02 Jun 2023</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('SNC-PRO')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('SNC-PRO')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-deactivate" title="Deactivate Course" onclick="openConfirmDialog('SNC-PRO', 'deactivate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Card 4 -->
+        <div class="course-card" data-category="Sports Coaching" data-status="Active" data-duration="12 Months" data-code="SWM-ELT" data-name="Elite Competitive Swimming Track">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Sports Coaching</span>
+                <span class="code-pill">SWM-ELT</span>
+                <span class="badge-pill badge-success">Active</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('SWM-ELT')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">Elite Competitive Swimming Track</h3>
+              <p class="course-desc">Stroke biomechanics, Olympic turn technique, lane endurance, and sprint rhythm pacing in standard 50m pool.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">12 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">2 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">32 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹4,200 <span class="fee-period">/ month</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Created</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">20 Aug 2023</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('SWM-ELT')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('SWM-ELT')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-deactivate" title="Deactivate Course" onclick="openConfirmDialog('SWM-ELT', 'deactivate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Card 5 -->
+        <div class="course-card" data-category="Skill Development" data-status="Active" data-duration="3 Months" data-code="ATH-SPR" data-name="Speed & Track Sprint Accelerator">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Skill Development</span>
+                <span class="code-pill">ATH-SPR</span>
+                <span class="badge-pill badge-success">Active</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('ATH-SPR')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">Speed & Track Sprint Accelerator</h3>
+              <p class="course-desc">Starting block reaction time, 100m/200m stride efficiency, cadence optimization, and laser gate split testing.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">3 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">1 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">26 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹2,400 <span class="fee-period">/ month</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Created</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">05 Nov 2023</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('ATH-SPR')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('ATH-SPR')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-deactivate" title="Deactivate Course" onclick="openConfirmDialog('ATH-SPR', 'deactivate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Card 6 (Inactive Status) -->
+        <div class="course-card" data-category="Fitness Training" data-status="Inactive" data-duration="3 Months" data-code="FTN-BOOT" data-name="Summer High-Altitude Bootcamp">
+          <div>
+            <div class="course-card-top">
+              <div class="course-badge-row">
+                <span class="category-tag">Fitness Training</span>
+                <span class="code-pill">FTN-BOOT</span>
+                <span class="badge-pill badge-warning">Inactive</span>
+              </div>
+              <div class="card-actions-menu">
+                <button class="dots-menu-btn" title="Options" onclick="openEditModal('FTN-BOOT')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="course-info-block" style="margin-top: 0.85rem;">
+              <h3 class="course-title">Summer High-Altitude Bootcamp</h3>
+              <p class="course-desc">Intensive off-season aerobic conditioning program held in hill stations during the summer recess.</p>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="course-stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Duration</span>
+                <span class="stat-val">3 Mo</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Batches</span>
+                <span class="stat-val">0 Active</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Athletes</span>
+                <span class="stat-val">0 Enrolled</span>
+              </div>
+            </div>
+
+            <div class="course-fee-status-line">
+              <div class="fee-badge-container">
+                <span class="fee-label">Default Fee</span>
+                <span class="fee-amount">₹5,000 <span class="fee-period">/ course</span></span>
+              </div>
+              <div style="text-align:right;">
+                <span class="fee-label">Archived</span>
+                <div style="font-size:0.75rem; color:var(--text-muted);">14 Feb 2024</div>
+              </div>
+            </div>
+
+            <div class="course-card-footer">
+              <button class="btn-secondary" onclick="openDetailDrawer('FTN-BOOT')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>View Details</span>
+              </button>
+              <button class="btn-action-icon" title="Edit Course" onclick="openEditModal('FTN-BOOT')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </button>
+              <button class="btn-action-icon btn-toggle-activate" title="Activate Course" onclick="openConfirmDialog('FTN-BOOT', 'activate')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Skeleton Loading State (QA State) -->
+      <div class="skeleton-view" id="skeletonView">
+        <div class="courses-grid">
+          <div class="course-card" style="min-height: 280px; gap: 1rem;">
+            <div class="skeleton-box" style="height: 24px; width: 45%;"></div>
+            <div class="skeleton-box" style="height: 32px; width: 85%;"></div>
+            <div class="skeleton-box" style="height: 48px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 60px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 38px; width: 100%;"></div>
+          </div>
+          <div class="course-card" style="min-height: 280px; gap: 1rem;">
+            <div class="skeleton-box" style="height: 24px; width: 40%;"></div>
+            <div class="skeleton-box" style="height: 32px; width: 75%;"></div>
+            <div class="skeleton-box" style="height: 48px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 60px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 38px; width: 100%;"></div>
+          </div>
+          <div class="course-card" style="min-height: 280px; gap: 1rem;">
+            <div class="skeleton-box" style="height: 24px; width: 50%;"></div>
+            <div class="skeleton-box" style="height: 32px; width: 80%;"></div>
+            <div class="skeleton-box" style="height: 48px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 60px; width: 100%;"></div>
+            <div class="skeleton-box" style="height: 38px; width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State View (QA State) -->
+      <div class="empty-view" id="emptyView">
+        <div class="empty-icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text);">No matching courses found</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 420px;">We couldn't find any courses matching your filter criteria. Try adjusting your query or resetting filters.</p>
+        <button class="primary-btn" onclick="resetFilters()">Reset All Filters</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 7. ADD COURSE MODAL -->
+  <div class="modal-backdrop" id="addCourseModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3>Add New Course</h3>
+          <p>Define a new athletic curriculum, session structure, and tuition fee schedule.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('addCourseModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Basic Information -->
+        <div>
+          <div class="form-section-title">1. Basic Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Course Name <span class="req">*</span></label>
+              <input type="text" class="form-input" placeholder="e.g. Football Academy — Under 16" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Course Code <span class="req">*</span></label>
+              <input type="text" class="form-input" placeholder="e.g. FTB-U16" style="text-transform: uppercase;" required>
+            </div>
+          </div>
+
+          <div class="form-grid-2" style="margin-top: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Course Category <span class="req">*</span></label>
+              <select class="form-select" required>
+                <option value="Sports Coaching">Sports Coaching</option>
+                <option value="Fitness Training">Fitness Training</option>
+                <option value="Strength & Conditioning">Strength & Conditioning</option>
+                <option value="Personal Training">Personal Training</option>
+                <option value="Skill Development">Skill Development</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Initial Status</label>
+              <select class="form-select">
+                <option value="Active">Active (Available for Enrollment)</option>
+                <option value="Inactive">Inactive (Draft / Upcoming)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.85rem;">
+            <label class="form-label">Short Description <span class="req">*</span></label>
+            <input type="text" class="form-input" placeholder="One-line summary for student cards and portals" required>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.85rem;">
+            <label class="form-label">Detailed Description</label>
+            <textarea class="form-textarea" placeholder="Comprehensive curriculum milestones, physical requirements, and certification details..."></textarea>
+          </div>
+        </div>
+
+        <!-- Course Structure -->
+        <div>
+          <div class="form-section-title">2. Course Structure</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Duration <span class="req">*</span></label>
+              <select class="form-select">
+                <option value="3 Months">3 Months (Foundation)</option>
+                <option value="6 Months">6 Months (Intermediate)</option>
+                <option value="12 Months">12 Months (Annual Track)</option>
+                <option value="Custom">Custom / Term-based</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Course Level</label>
+              <select class="form-select">
+                <option value="Beginner">Beginner / Grassroots</option>
+                <option value="Intermediate" selected>Intermediate / Development</option>
+                <option value="Advanced">Advanced / Elite State Level</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2" style="margin-top: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Session Frequency</label>
+              <input type="text" class="form-input" placeholder="e.g. 3 Sessions / Week">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Typical Session Duration</label>
+              <input type="text" class="form-input" placeholder="e.g. 90 Minutes">
+            </div>
+          </div>
+        </div>
+
+        <!-- Fee Information -->
+        <div>
+          <div class="form-section-title">3. Fee Information</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Default Fee (₹) <span class="req">*</span></label>
+              <input type="number" class="form-input" placeholder="e.g. 3000" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fee Frequency <span class="req">*</span></label>
+              <select class="form-select">
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Annual">Annual One-time</option>
+                <option value="Per Session">Per Session</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.85rem;">
+            <label class="form-label">One-Time Registration Fee (₹)</label>
+            <input type="number" class="form-input" placeholder="e.g. 1500 (Includes official training kit)">
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('addCourseModal')">Cancel</button>
+        <button class="primary-btn" onclick="saveNewCourse()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Create Course</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. EDIT COURSE MODAL -->
+  <div class="modal-backdrop" id="editCourseModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3>Edit Course: <span id="editCourseHeaderTitle" style="color:var(--primary);">CRK-PRO</span></h3>
+          <p>Update program credentials, fee structures, and operational status.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('editCourseModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div>
+          <div class="form-section-title">1. Course Identification</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Course Name</label>
+              <input type="text" id="editCourseNameInput" class="form-input" value="Elite Cricket Mastery (Senior)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Course Code</label>
+              <input type="text" id="editCourseCodeInput" class="form-input" value="CRK-PRO" readonly style="opacity: 0.85; background: rgba(0,0,0,0.15);">
+            </div>
+          </div>
+
+          <div class="form-grid-2" style="margin-top: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="editCourseCategorySelect" class="form-select">
+                <option value="Sports Coaching" selected>Sports Coaching</option>
+                <option value="Fitness Training">Fitness Training</option>
+                <option value="Strength & Conditioning">Strength & Conditioning</option>
+                <option value="Skill Development">Skill Development</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Operational Status</label>
+              <select id="editCourseStatusSelect" class="form-select">
+                <option value="Active" selected>Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.85rem;">
+            <label class="form-label">Short Description</label>
+            <input type="text" id="editCourseDescInput" class="form-input" value="Comprehensive match simulation, turf net sessions, stroke mechanics, and bowling protocols.">
+          </div>
+        </div>
+
+        <div>
+          <div class="form-section-title">2. Curriculum Structure & Level</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Duration</label>
+              <select id="editCourseDurationSelect" class="form-select">
+                <option value="3 Months">3 Months</option>
+                <option value="6 Months">6 Months</option>
+                <option value="12 Months" selected>12 Months</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Course Level</label>
+              <select class="form-select">
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced" selected>Advanced Elite</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-2" style="margin-top: 0.85rem;">
+            <div class="form-group">
+              <label class="form-label">Session Frequency</label>
+              <input type="text" class="form-input" value="4 Sessions / Week">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Typical Session Duration</label>
+              <input type="text" class="form-input" value="120 Minutes">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-section-title">3. Fee Structure</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Default Fee (₹)</label>
+              <input type="number" id="editCourseFeeInput" class="form-input" value="3000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fee Frequency</label>
+              <select class="form-select">
+                <option value="Monthly" selected>Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Annual">Annual</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('editCourseModal')">Cancel</button>
+        <button class="primary-btn" onclick="saveCourseEdits()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Save Changes</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. ACTIVATE / DEACTIVATE CONFIRMATION DIALOG -->
+  <div class="modal-backdrop" id="confirmStatusModal">
+    <div class="modal-dialog confirm-dialog">
+      <div class="modal-body" style="text-align: center; align-items: center;">
+        <div id="confirmIconBox" class="confirm-icon-box confirm-warning">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 id="confirmActionTitle" style="font-size: 1.2rem; font-weight: 700; color: var(--text);">Deactivate Course?</h3>
+        <p id="confirmActionDesc" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-top: 0.4rem;">
+          Deactivating <strong id="confirmCourseName" style="color:var(--text);">CRK-PRO</strong> will prevent new athlete admissions into this program. Existing enrolled batches will remain accessible.
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content: center; gap: 1rem;">
+        <button class="btn-cancel" onclick="closeModal('confirmStatusModal')">Cancel</button>
+        <button id="confirmExecuteBtn" class="primary-btn" onclick="executeStatusChange()">
+          <span>Confirm Action</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. EXPANDABLE COURSE DETAILS DRAWER -->
+  <div class="detail-drawer" id="courseDetailDrawer">
+    <div class="drawer-header">
+      <div>
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--primary);" id="drawerCourseCode">CRK-PRO</div>
+        <h3 id="drawerCourseTitle" style="font-size: 1.15rem; font-weight: 700; color: var(--text); margin-top: 0.2rem;">Elite Cricket Mastery (Senior)</h3>
+      </div>
+      <button class="modal-close-btn" onclick="closeDetailDrawer()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <div>
+        <div class="form-section-title">Course Description & Goals</div>
+        <p id="drawerDescText" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+          An advanced cricket developmental program engineered for athletes aspiring towards state championships and BCCI junior trials. Includes intensive biomechanics stroke tracking, high-speed camera delivery analysis, match situations under floodlights, and mental fortitude conditioning.
+        </p>
+      </div>
+
+      <div class="drawer-metric-grid">
+        <div class="drawer-metric-box">
+          <div class="label">Course Status</div>
+          <div class="val" id="drawerStatusVal" style="color: var(--success);">Active</div>
+        </div>
+        <div class="drawer-metric-box">
+          <div class="label">Duration</div>
+          <div class="val" id="drawerDurationVal">12 Months</div>
+        </div>
+        <div class="drawer-metric-box">
+          <div class="label">Default Fee</div>
+          <div class="val" id="drawerFeeVal">₹3,000 / mo</div>
+        </div>
+        <div class="drawer-metric-box">
+          <div class="label">Course Level</div>
+          <div class="val">Advanced Elite</div>
+        </div>
+        <div class="drawer-metric-box">
+          <div class="label">Active Batches</div>
+          <div class="val" id="drawerBatchesVal">3 Batches</div>
+        </div>
+        <div class="drawer-metric-box">
+          <div class="label">Enrolled Athletes</div>
+          <div class="val" id="drawerStudentsVal">54 Athletes</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="form-section-title">Assigned Active Batches</div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 600; color: var(--text);">Cricket Senior — Batch B</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim);">Mon, Wed, Fri • 06:30 AM – 08:30 AM</div>
+            </div>
+            <span class="badge-pill badge-neutral">22 Students</span>
+          </div>
+          <div style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 600; color: var(--text);">Junior Colts — Batch A</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim);">Tue, Thu, Sat • 04:30 PM – 06:30 PM</div>
+            </div>
+            <span class="badge-pill badge-neutral">18 Students</span>
+          </div>
+          <div style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 600; color: var(--text);">Weekend Power Masterclass</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim);">Sat, Sun • 07:00 AM – 09:00 AM</div>
+            </div>
+            <span class="badge-pill badge-neutral">14 Students</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="form-section-title">Audit Log</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); display: flex; flex-direction: column; gap: 0.35rem;">
+          <div>Created: <strong>15 Jan 2023</strong> by Head Coach D. Rawat</div>
+          <div>Last Updated: <strong>12 Feb 2024</strong> by R. Sharma (Admin)</div>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; display: flex; gap: 0.75rem;">
+        <button class="primary-btn" style="flex: 1;" onclick="openEditModalFromDrawer()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Edit This Course</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QA Profile States Floating Controller -->
+  <div class="qa-bar">
+    <span class="qa-title">Course QA States</span>
+    <button class="qa-btn active" onclick="switchQAState('normal')">1. Normal View</button>
+    <button class="qa-btn" onclick="switchQAState('skeleton')">2. Skeleton Loading</button>
+    <button class="qa-btn" onclick="switchQAState('empty')">3. Empty Filtered</button>
+    <button class="qa-btn" onclick="switchQAState('drawer')">4. Detail Drawer</button>
+    <button class="qa-btn" onclick="switchQAState('addModal')">5. Add Course Modal</button>
+    <button class="qa-btn" onclick="switchQAState('confirmModal')">6. Status Modal</button>
+  </div>
+
+  <!-- Vanilla Interaction Logic -->
+  <script>
+    // Theme toggle
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      
+      const themeLabel = document.getElementById('themeLabel');
+      const themeIcon = document.getElementById('themeIcon');
+      
+      if (newTheme === 'light') {
+        themeLabel.textContent = 'Dark Mode';
+        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      } else {
+        themeLabel.textContent = 'Light Mode';
+        themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+      }
+    }
+
+    // Modal Control
+    function openModal(id) {
+      document.getElementById(id).classList.add('open');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    // Drawer Control
+    function openDetailDrawer(code) {
+      const drawer = document.getElementById('courseDetailDrawer');
+      drawer.classList.add('open');
+      document.getElementById('drawerCourseCode').innerText = code;
+    }
+
+    function closeDetailDrawer() {
+      document.getElementById('courseDetailDrawer').classList.remove('open');
+    }
+
+    function openEditModalFromDrawer() {
+      closeDetailDrawer();
+      openEditModal(document.getElementById('drawerCourseCode').innerText);
+    }
+
+    // Edit Modal pre-fill
+    function openEditModal(code) {
+      document.getElementById('editCourseHeaderTitle').innerText = code;
+      document.getElementById('editCourseCodeInput').value = code;
+      openModal('editCourseModal');
+    }
+
+    function saveCourseEdits() {
+      closeModal('editCourseModal');
+      alert('Course details saved successfully!');
+    }
+
+    function saveNewCourse() {
+      closeModal('addCourseModal');
+      alert('New course created successfully and added to the catalog!');
+    }
+
+    // Status Confirmation Dialog
+    let pendingStatusAction = { code: '', action: '' };
+
+    function openConfirmDialog(code, action) {
+      pendingStatusAction = { code, action };
+      const title = document.getElementById('confirmActionTitle');
+      const desc = document.getElementById('confirmActionDesc');
+      const iconBox = document.getElementById('confirmIconBox');
+      const execBtn = document.getElementById('confirmExecuteBtn');
+
+      if (action === 'deactivate') {
+        title.innerText = 'Deactivate Course?';
+        desc.innerHTML = `Deactivating <strong>${code}</strong> will mark it as off-season and hide it from new registrations. Active batches will remain intact.`;
+        iconBox.className = 'confirm-icon-box confirm-warning';
+        iconBox.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+        execBtn.style.background = 'var(--warning)';
+        execBtn.querySelector('span').innerText = 'Deactivate Course';
+      } else {
+        title.innerText = 'Activate Course?';
+        desc.innerHTML = `Activating <strong>${code}</strong> will publish the curriculum and open intake for upcoming academy batches.`;
+        iconBox.className = 'confirm-icon-box confirm-success';
+        iconBox.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+        execBtn.style.background = 'var(--success)';
+        execBtn.querySelector('span').innerText = 'Activate Course';
+      }
+
+      openModal('confirmStatusModal');
+    }
+
+    function executeStatusChange() {
+      closeModal('confirmStatusModal');
+      alert(`Status of course ${pendingStatusAction.code} updated to ${pendingStatusAction.action === 'deactivate' ? 'Inactive' : 'Active'}!`);
+    }
+
+    // Search and Filter logic
+    function handleSearchFilter() {
+      const q = document.getElementById('courseSearchInput').value.toLowerCase().trim();
+      const status = document.getElementById('statusFilter').value;
+      const cat = document.getElementById('categoryFilter').value;
+      const dur = document.getElementById('durationFilter').value;
+
+      const cards = document.querySelectorAll('.course-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const name = (card.dataset.name || '').toLowerCase();
+        const code = (card.dataset.code || '').toLowerCase();
+        const cardCat = card.dataset.category;
+        const cardStatus = card.dataset.status;
+        const cardDur = card.dataset.duration;
+
+        const matchesQuery = !q || name.includes(q) || code.includes(q);
+        const matchesStatus = status === 'ALL' || cardStatus === status;
+        const matchesCat = cat === 'ALL' || cardCat === cat;
+        const matchesDur = dur === 'ALL' || cardDur === dur;
+
+        if (matchesQuery && matchesStatus && matchesCat && matchesDur) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      document.getElementById('filterResultCount').innerText = `Showing ${visibleCount} of ${cards.length} Courses`;
+
+      const emptyView = document.getElementById('emptyView');
+      const grid = document.getElementById('coursesGrid');
+      if (visibleCount === 0) {
+        grid.style.display = 'none';
+        emptyView.classList.add('active');
+      } else {
+        grid.style.display = 'grid';
+        emptyView.classList.remove('active');
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('courseSearchInput').value = '';
+      document.getElementById('statusFilter').value = 'ALL';
+      document.getElementById('categoryFilter').value = 'ALL';
+      document.getElementById('durationFilter').value = 'ALL';
+      handleSearchFilter();
+    }
+
+    // QA State Bar Controller
+    function switchQAState(state) {
+      document.querySelectorAll('.qa-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const grid = document.getElementById('coursesGrid');
+      const skeleton = document.getElementById('skeletonView');
+      const empty = document.getElementById('emptyView');
+
+      // Close all modals/drawers first
+      closeModal('addCourseModal');
+      closeModal('editCourseModal');
+      closeModal('confirmStatusModal');
+      closeDetailDrawer();
+
+      if (state === 'normal') {
+        grid.style.display = 'grid';
+        skeleton.classList.remove('active');
+        empty.classList.remove('active');
+        resetFilters();
+      } else if (state === 'skeleton') {
+        grid.style.display = 'none';
+        empty.classList.remove('active');
+        skeleton.classList.add('active');
+      } else if (state === 'empty') {
+        grid.style.display = 'none';
+        skeleton.classList.remove('active');
+        empty.classList.add('active');
+      } else if (state === 'drawer') {
+        grid.style.display = 'grid';
+        skeleton.classList.remove('active');
+        empty.classList.remove('active');
+        openDetailDrawer('CRK-PRO');
+      } else if (state === 'addModal') {
+        grid.style.display = 'grid';
+        skeleton.classList.remove('active');
+        empty.classList.remove('active');
+        openModal('addCourseModal');
+      } else if (state === 'confirmModal') {
+        grid.style.display = 'grid';
+        skeleton.classList.remove('active');
+        empty.classList.remove('active');
+        openConfirmDialog('CRK-PRO', 'deactivate');
+      }
+    }
+  </script>
+</body>
+</html>

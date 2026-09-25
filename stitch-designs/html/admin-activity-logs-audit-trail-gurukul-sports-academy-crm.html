@@ -1,0 +1,2460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Activity Logs & Audit Trail — Gurukul Sports Academy CRM</title>
+  <style>
+    /* CSS Reset & Variables */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-dark: #0B0F19;
+      --surface-card: #111827;
+      --surface-subtle: #1E293B;
+      --surface-hover: #1f293d;
+      --border-color: #1E293B;
+      --primary-orange: #F97316;
+      --primary-orange-hover: #ea580c;
+      --primary-orange-subtle: rgba(249, 115, 22, 0.12);
+      --navy-deep: #0F172A;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --success-green: #22C55E;
+      --success-subtle: rgba(34, 197, 94, 0.12);
+      --warning-amber: #F59E0B;
+      --warning-subtle: rgba(245, 158, 11, 0.12);
+      --danger-red: #EF4444;
+      --danger-subtle: rgba(239, 68, 68, 0.12);
+      --info-blue: #38BDF8;
+      --info-subtle: rgba(56, 189, 248, 0.12);
+      --radius-sm: 8px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      font-size: 14px;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* SVG Icon utility */
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    /* GLOBAL SIDEBAR NAVIGATION */
+    .sidebar {
+      width: 250px;
+      background-color: var(--navy-deep);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-col: column;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 40;
+    }
+
+    .brand-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-img {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      object-fit: contain;
+      background: #031427;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .brand-text h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary-orange);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      background-color: var(--surface-subtle);
+      color: #FFFFFF;
+    }
+
+    .nav-item.active {
+      background-color: var(--primary-orange-subtle);
+      color: var(--primary-orange);
+      font-weight: 600;
+      border-left: 3px solid var(--primary-orange);
+    }
+
+    .badge-count {
+      margin-left: auto;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .badge-count.accent {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success-green);
+    }
+
+    .sidebar-footer {
+      padding: 14px;
+      border-top: 1px solid var(--border-color);
+      background: rgba(11, 15, 25, 0.4);
+    }
+
+    .admin-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .admin-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-full);
+      background: var(--primary-orange);
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .admin-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .admin-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .admin-role {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* MAIN APP SHELL */
+    .app-main {
+      margin-left: 250px;
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--bg-dark);
+    }
+
+    /* TOP GLOBAL HEADER */
+    .top-header {
+      height: 64px;
+      background: var(--navy-deep);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .header-breadcrumb span.current {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-search-bar {
+      position: relative;
+      width: 280px;
+    }
+
+    .header-search-bar input {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px 7px 34px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .header-search-bar .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      width: 15px;
+      height: 15px;
+    }
+
+    .header-search-bar .shortcut-pill {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      background: var(--surface-subtle);
+      color: var(--text-dim);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .header-icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--surface-card);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .header-icon-btn:hover {
+      background: var(--surface-subtle);
+      color: #FFFFFF;
+    }
+
+    .header-icon-btn .notify-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 7px;
+      height: 7px;
+      background: var(--primary-orange);
+      border-radius: 50%;
+      border: 1.5px solid var(--navy-deep);
+    }
+
+    .header-profile-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 4px 12px 4px 5px;
+    }
+
+    .chip-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-full);
+      background: #2563EB;
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chip-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .chip-badge {
+      font-size: 10px;
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success-green);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* CONTENT WRAPPER */
+    .content-area {
+      padding: 24px 28px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* PAGE ACTION BAR */
+    .page-title-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .page-title-bar .title-group h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+    }
+
+    .page-title-bar .title-group p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .breadcrumb-trail {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .breadcrumb-trail a {
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
+    .breadcrumb-trail a:hover {
+      color: var(--primary-orange);
+    }
+
+    .action-button-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface-card);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-subtle);
+      border-color: #334155;
+    }
+
+    .btn-primary {
+      background: var(--primary-orange);
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-orange-hover);
+    }
+
+    /* SECURITY NOTICE BANNER */
+    .security-notice-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1E293B;
+      border-left: 4px solid var(--info-blue);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .security-notice-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: var(--info-subtle);
+      color: var(--info-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .security-notice-text h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .security-notice-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* KPI CARDS GRID */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: #334155;
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-icon-wrap {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kpi-card.kpi-total .kpi-icon-wrap {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--primary-orange);
+    }
+
+    .kpi-card.kpi-today .kpi-icon-wrap {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--info-blue);
+    }
+
+    .kpi-card.kpi-security .kpi-icon-wrap {
+      background: var(--warning-subtle);
+      color: var(--warning-amber);
+    }
+
+    .kpi-card.kpi-failed .kpi-icon-wrap {
+      background: var(--danger-subtle);
+      color: var(--danger-red);
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+
+    .kpi-subtext {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .kpi-subtext span.trend {
+      color: var(--success-green);
+      font-weight: 600;
+    }
+
+    /* FILTER AND SEARCH TOOLBAR */
+    .filter-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .filter-top-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-box-large {
+      position: relative;
+      flex: 2;
+      min-width: 260px;
+    }
+
+    .search-box-large input {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 14px 9px 36px;
+      color: #FFFFFF;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-box-large input:focus {
+      border-color: var(--primary-orange);
+    }
+
+    .search-box-large .icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+    }
+
+    .filter-selects-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 3;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .custom-select {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+
+    .custom-select:focus {
+      border-color: var(--primary-orange);
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .btn-apply {
+      background: var(--primary-orange);
+      color: #FFFFFF;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-apply:hover {
+      background: var(--primary-orange-hover);
+    }
+
+    .btn-clear {
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 12px;
+      border: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      text-decoration: underline;
+    }
+
+    .btn-clear:hover {
+      color: var(--text-main);
+    }
+
+    /* TABLE CONTAINER CARD */
+    .table-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-header-bar {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-header-bar h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-header-bar .pill-live {
+      font-size: 11px;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success-green);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .table-header-bar .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    table.data-table th {
+      background: var(--navy-deep);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid #1E293B;
+      color: var(--text-main);
+      font-size: 13px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    table.data-table tbody tr {
+      transition: background-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    table.data-table tbody tr:hover {
+      background-color: var(--surface-hover);
+    }
+
+    .col-datetime {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-cell-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      background: #334155;
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-cell-name {
+      font-weight: 600;
+      color: #FFFFFF;
+      font-size: 13px;
+    }
+
+    .user-cell-role {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .module-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .record-link {
+      color: #FFFFFF;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .record-link:hover {
+      color: var(--primary-orange);
+      text-decoration: underline;
+    }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-info {
+      background: var(--info-subtle);
+      color: var(--info-blue);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .badge-warning {
+      background: var(--warning-subtle);
+      color: var(--warning-amber);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .badge-critical {
+      background: var(--danger-subtle);
+      color: var(--danger-red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-success {
+      background: var(--success-subtle);
+      color: var(--success-green);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .badge-failed {
+      background: var(--danger-subtle);
+      color: var(--danger-red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* ACTION THREE DOTS */
+    .more-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .more-btn:hover {
+      background: var(--surface-subtle);
+      color: #FFFFFF;
+      border-color: var(--border-color);
+    }
+
+    /* PAGINATION BAR */
+    .pagination-bar {
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .pagination-info {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--surface-subtle);
+      border-color: #334155;
+    }
+
+    .page-btn.active {
+      background: var(--primary-orange);
+      color: #FFFFFF;
+      border-color: var(--primary-orange);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .rows-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .rows-select {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* RIGHT SIDE ACTIVITY DETAILS DRAWER (OVERLAY) */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: rgba(3, 7, 18, 0.7);
+      backdrop-filter: blur(3px);
+      z-index: 60;
+      display: flex;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer-panel {
+      width: 520px;
+      max-width: 90vw;
+      background: var(--navy-deep);
+      height: 100%;
+      border-left: 1px solid var(--border-color);
+      box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+
+    .drawer-overlay.open .drawer-panel {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-card);
+    }
+
+    .drawer-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close-drawer-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .close-drawer-btn:hover {
+      color: #FFFFFF;
+      background: #334155;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .detail-card-box {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .detail-card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .meta-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meta-label {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .meta-val {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .meta-val.code {
+      font-family: monospace;
+      color: var(--primary-orange);
+      font-size: 12px;
+    }
+
+    /* Before / After Comparison */
+    .diff-table {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: var(--bg-dark);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .diff-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .diff-header {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .diff-header.prev { color: var(--danger-red); }
+    .diff-header.next { color: var(--success-green); }
+
+    .diff-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .diff-badge.prev-val {
+      background: var(--danger-subtle);
+      color: var(--danger-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .diff-badge.next-val {
+      background: var(--success-subtle);
+      color: var(--success-green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .drawer-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: var(--surface-card);
+    }
+
+    /* EXPORT MODAL (MODAL DIALOG) */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: rgba(3, 7, 18, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .modal-header p {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .format-pills {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .format-radio-btn {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-dark);
+      transition: all 0.15s ease;
+    }
+
+    .format-radio-btn.selected {
+      border-color: var(--primary-orange);
+      background: var(--primary-orange-subtle);
+      color: var(--primary-orange);
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background: var(--bg-dark);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .checkbox-label input {
+      accent-color: var(--primary-orange);
+    }
+
+    .modal-footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    /* SUCCESS TOAST NOTIFICATION */
+    .toast-notification {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-card);
+      border: 1px solid var(--success-green);
+      color: #FFFFFF;
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 99;
+      transform: translateY(120%);
+      transition: transform 0.25s ease;
+      font-size: 13px;
+    }
+
+    .toast-notification.show {
+      transform: translateY(0);
+    }
+
+    .toast-icon {
+      color: var(--success-green);
+    }
+
+    /* DEMO INTERACTION TABS / PREVIEW STATE SWITCHER AT BOTTOM */
+    .state-dock {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid #334155;
+      border-radius: var(--radius-full);
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      z-index: 50;
+      backdrop-filter: blur(8px);
+    }
+
+    .state-dock-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+
+    .state-pill-btn {
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .state-pill-btn:hover {
+      color: #FFFFFF;
+      background: var(--surface-subtle);
+    }
+
+    .state-pill-btn.active {
+      background: var(--primary-orange);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    /* EMPTY STATE (Hidden by default, shown via state switcher) */
+    .empty-state-view {
+      padding: 64px 20px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .empty-state-view.visible {
+      display: flex;
+    }
+
+    .empty-icon-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--surface-subtle);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-state-view h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .empty-state-view p {
+      font-size: 13px;
+      color: var(--text-dim);
+      max-width: 360px;
+    }
+
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 1080px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .sidebar {
+        display: none;
+      }
+      .app-main {
+        margin-left: 0;
+      }
+      .top-header {
+        padding: 0 16px;
+      }
+      .content-area {
+        padding: 16px;
+      }
+      .filter-top-row {
+        flex-direction: column;
+      }
+      .search-box-large {
+        width: 100%;
+      }
+      .drawer-panel {
+        width: 100%;
+        max-width: 100vw;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .header-search-bar {
+        display: none;
+      }
+      .filter-selects-row {
+        flex-direction: column;
+        width: 100%;
+      }
+      .filter-group {
+        width: 100%;
+      }
+      .pagination-bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. PERSISTENT GLOBAL CRM SIDEBAR -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand-header">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPuJ2_j6ksZEWDUD1UOZJMMprk4nVrrI2zY-13zcScI69qY0kjHHLC3cMjtq4U5q-kFsTlHro9XlJA8V22o4kU3axDjUNC2MZTjsd2K03wTAXj2_7T1VFqEPX-nHOJFE03uAmt2HOVspvS_NArUWsuRofzbBCUeSQP7v63h-Bsq1xCfsQ68O7wjabXVcBpQXkatgQpASquaQ9u7wYMdqiKN7Z8qRz1PjRPvUfJH28MNLIi-K_GZf6eQkBpTVmiWVTMIg" alt="Gurukul Sports Academy Logo" class="brand-logo-img">
+        <div class="brand-text">
+          <h1>Gurukul Academy</h1>
+          <p>Sports CRM Pro</p>
+        </div>
+      </div>
+
+      <nav class="nav-scroll">
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <span>Students</span>
+          <span class="badge-count">248</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Teachers</span>
+          <span class="badge-count">18</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          <span>Courses</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Batches</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/><path d="m9 16 2 2 4-4"/></svg>
+          <span>Attendance</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+          <span>Fees</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          <span>Payments</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          <span>Reports</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span>Announcements</span>
+        </a>
+        <a class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          <span>WhatsApp</span>
+          <span class="badge-count accent">18</span>
+        </a>
+        <!-- SETTINGS ACTIVE -->
+        <a class="nav-item active">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Settings</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="admin-pill">
+        <div class="admin-avatar">RS</div>
+        <div class="admin-info">
+          <div class="admin-name">Rajesh Sharma</div>
+          <div class="admin-role">Super Administrator</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 2. MAIN APP SHELL -->
+  <main class="app-main">
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-breadcrumb">
+        <span>Settings</span>
+        <span>/</span>
+        <span>Security</span>
+        <span>/</span>
+        <span class="current">Activity Logs</span>
+      </div>
+
+      <div class="header-right">
+        <div class="header-search-bar">
+          <svg class="icon search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" placeholder="Search records, athletes, batches...">
+          <span class="shortcut-pill">Ctrl+K</span>
+        </div>
+
+        <button class="header-icon-btn" title="Academy Alerts">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="notify-dot"></span>
+        </button>
+
+        <button class="header-icon-btn" title="Theme Mode">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+
+        <div class="header-profile-chip">
+          <div class="chip-avatar">RS</div>
+          <span class="chip-title">Rajesh Sharma</span>
+          <span class="chip-badge">Super Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT AREA -->
+    <div class="content-area">
+
+      <!-- PAGE HEADER BAR -->
+      <div class="page-title-bar">
+        <div class="title-group">
+          <div class="breadcrumb-trail">
+            <a href="#settings">Settings</a>
+            <span>/</span>
+            <a href="#security">Security</a>
+            <span>/</span>
+            <span>Activity Logs</span>
+          </div>
+          <h2>Activity Logs</h2>
+          <p>Track administrative actions, security events, and important changes across your academy.</p>
+        </div>
+
+        <div class="action-button-group">
+          <button class="btn btn-secondary" onclick="triggerRefresh()" id="refreshBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+            <span>Refresh</span>
+          </button>
+          <button class="btn btn-primary" onclick="openExportModal()">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span>Export Logs</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- READ-ONLY SECURITY NOTICE -->
+      <div class="security-notice-card">
+        <div class="security-notice-icon">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="security-notice-text">
+          <h4>Activity logs are read-only</h4>
+          <p>Important administrative and security events are recorded for transparency and accountability. Log entries cannot be edited or deleted from this interface.</p>
+        </div>
+      </div>
+
+      <!-- SUMMARY KPI CARDS (4 COLUMNS) -->
+      <div class="kpi-grid">
+        <!-- CARD 1 -->
+        <div class="kpi-card kpi-total">
+          <div class="kpi-header">
+            <span class="kpi-title">Total Events</span>
+            <div class="kpi-icon-wrap">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M9 14h6M9 18h6M9 10h6"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">1,284</div>
+          <div class="kpi-subtext">All recorded activities across CRM</div>
+        </div>
+
+        <!-- CARD 2 -->
+        <div class="kpi-card kpi-today">
+          <div class="kpi-header">
+            <span class="kpi-title">Today's Events</span>
+            <div class="kpi-icon-wrap">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">48</div>
+          <div class="kpi-subtext"><span class="trend">+12%</span> Actions recorded today</div>
+        </div>
+
+        <!-- CARD 3 -->
+        <div class="kpi-card kpi-security">
+          <div class="kpi-header">
+            <span class="kpi-title">Security Events</span>
+            <div class="kpi-icon-wrap">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-subtext">Login and access events</div>
+        </div>
+
+        <!-- CARD 4 -->
+        <div class="kpi-card kpi-failed">
+          <div class="kpi-header">
+            <span class="kpi-title">Failed Actions</span>
+            <div class="kpi-icon-wrap">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value">3</div>
+          <div class="kpi-subtext" style="color: var(--danger-red);">Requires attention & audit</div>
+        </div>
+      </div>
+
+      <!-- FILTER AND SEARCH TOOLBAR -->
+      <div class="filter-card">
+        <div class="filter-top-row">
+          <div class="search-box-large">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="searchInput" placeholder="Search admin, action, module, or record..." onkeyup="handleFilterChange()">
+          </div>
+
+          <div class="filter-selects-row">
+            <!-- Module Dropdown -->
+            <div class="filter-group">
+              <select class="custom-select" id="filterModule" onchange="handleFilterChange()">
+                <option value="All">All Modules</option>
+                <option value="Students">Students</option>
+                <option value="Teachers">Teachers</option>
+                <option value="Courses">Courses</option>
+                <option value="Batches">Batches</option>
+                <option value="Attendance">Attendance</option>
+                <option value="Fees">Fees</option>
+                <option value="Payments">Payments</option>
+                <option value="Reports">Reports</option>
+                <option value="Announcements">Announcements</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Settings">Settings</option>
+                <option value="Authentication">Authentication</option>
+              </select>
+            </div>
+
+            <!-- Event Type -->
+            <div class="filter-group">
+              <select class="custom-select" id="filterEvent">
+                <option value="All">All Events</option>
+                <option value="Create">Create</option>
+                <option value="Update">Update</option>
+                <option value="Delete">Delete</option>
+                <option value="Login">Login</option>
+                <option value="Logout">Logout</option>
+                <option value="Export">Export</option>
+                <option value="Payment">Payment</option>
+                <option value="Permission Change">Permission Change</option>
+                <option value="Status Change">Status Change</option>
+                <option value="Security Event">Security Event</option>
+              </select>
+            </div>
+
+            <!-- Severity -->
+            <div class="filter-group">
+              <select class="custom-select" id="filterSeverity" onchange="handleFilterChange()">
+                <option value="All">All Severities</option>
+                <option value="Informational">Informational</option>
+                <option value="Warning">Warning</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+
+            <!-- Date Range -->
+            <div class="filter-group">
+              <select class="custom-select" id="filterDate">
+                <option value="Today">Today</option>
+                <option value="Last 7 Days">Last 7 Days</option>
+                <option value="Last 30 Days" selected>Last 30 Days</option>
+                <option value="This Year">This Year</option>
+                <option value="Custom Range">Custom Range</option>
+              </select>
+            </div>
+
+            <!-- Status -->
+            <div class="filter-group">
+              <select class="custom-select" id="filterStatus" onchange="handleFilterChange()">
+                <option value="All">All Statuses</option>
+                <option value="Successful">Successful</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn-apply" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn-clear" onclick="resetFilters()">Clear Filters</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY LOGS DATA TABLE -->
+      <div class="table-card">
+        <div class="table-header-bar">
+          <h3>
+            <span>Recent Activity</span>
+            <span class="pill-live"><span class="live-dot"></span> Realtime Audit</span>
+          </h3>
+          <span style="font-size: 12px; color: var(--text-dim);">Auto-logging active · Retention 365 Days</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="activityTable">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Admin / User</th>
+                <th>Action</th>
+                <th>Module</th>
+                <th>Target Record</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th style="text-align: right;">More</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- ROW 1 -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0048')">
+                <td class="col-datetime">Sep 24, 2026 · 08:42 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar">AU</div>
+                    <div>
+                      <div class="user-cell-name">Admin User</div>
+                      <div class="user-cell-role">admin@gurukulsports.in</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Updated student profile</td>
+                <td><span class="module-tag">Students</span></td>
+                <td><span class="record-link">Rahul Patil (GSA-1048)</span></td>
+                <td><span class="badge badge-info">Informational</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0048')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 2 -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0047')">
+                <td class="col-datetime">Sep 24, 2026 · 08:25 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar" style="background: #0284c7;">CA</div>
+                    <div>
+                      <div class="user-cell-name">Coach Amit</div>
+                      <div class="user-cell-role">Cricket Senior Faculty</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Marked attendance</td>
+                <td><span class="module-tag">Attendance</span></td>
+                <td><span class="record-link">Batch A — Evening</span></td>
+                <td><span class="badge badge-info">Informational</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0047')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 3 -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0046')">
+                <td class="col-datetime">Sep 24, 2026 · 07:58 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar">AU</div>
+                    <div>
+                      <div class="user-cell-name">Admin User</div>
+                      <div class="user-cell-role">superadmin@gurukulsports.in</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Recorded fee payment</td>
+                <td><span class="module-tag">Payments</span></td>
+                <td><span class="record-link">Receipt #RC-1048</span></td>
+                <td><span class="badge badge-info">Informational</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0046')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 4 -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0045')">
+                <td class="col-datetime">Sep 24, 2026 · 07:34 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar">AU</div>
+                    <div>
+                      <div class="user-cell-name">Admin User</div>
+                      <div class="user-cell-role">admin@gurukulsports.in</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Exported student report</td>
+                <td><span class="module-tag">Reports</span></td>
+                <td><span class="record-link">Student Performance Report</span></td>
+                <td><span class="badge badge-info">Informational</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0045')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 5 (CRITICAL FAILED) -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0044')">
+                <td class="col-datetime">Sep 24, 2026 · 06:52 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar" style="background: #991b1b;">UU</div>
+                    <div>
+                      <div class="user-cell-name" style="color: var(--danger-red);">Unknown User</div>
+                      <div class="user-cell-role">IP: 185.220.101.5</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 600; color: var(--danger-red);">Failed login attempt</td>
+                <td><span class="module-tag" style="background: rgba(239, 68, 68, 0.15); color: var(--danger-red);">Authentication</span></td>
+                <td><span class="record-link" style="color: var(--danger-red);">Admin Portal (/login)</span></td>
+                <td><span class="badge badge-critical">Critical</span></td>
+                <td><span class="badge badge-failed"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg> Failed</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0044')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 6 (WARNING) -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0043')">
+                <td class="col-datetime">Sep 24, 2026 · 06:20 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar">AU</div>
+                    <div>
+                      <div class="user-cell-name">Admin User</div>
+                      <div class="user-cell-role">Finance Head</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Changed fee plan status</td>
+                <td><span class="module-tag">Fees</span></td>
+                <td><span class="record-link">Monthly Training Plan</span></td>
+                <td><span class="badge badge-warning">Warning</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0043')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 7 -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0042')">
+                <td class="col-datetime">Sep 24, 2026 · 05:48 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar" style="background: #059669;">CN</div>
+                    <div>
+                      <div class="user-cell-name">Coach Neha</div>
+                      <div class="user-cell-role">Badminton Academy</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Updated batch schedule</td>
+                <td><span class="module-tag">Batches</span></td>
+                <td><span class="record-link">Morning Fitness Batch</span></td>
+                <td><span class="badge badge-info">Informational</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0042')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ROW 8 (CRITICAL SETTINGS) -->
+              <tr onclick="openActivityDrawer('EVT-20260924-0041')">
+                <td class="col-datetime">Sep 24, 2026 · 05:16 PM</td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-cell-avatar">AU</div>
+                    <div>
+                      <div class="user-cell-name">Admin User</div>
+                      <div class="user-cell-role">Super Administrator</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="font-weight: 500;">Changed account security settings</td>
+                <td><span class="module-tag">Settings</span></td>
+                <td><span class="record-link">Password Policy</span></td>
+                <td><span class="badge badge-critical">Critical</span></td>
+                <td><span class="badge badge-success"><svg class="icon" style="width:12px; height:12px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Successful</span></td>
+                <td style="text-align: right;">
+                  <button class="more-btn" onclick="event.stopPropagation(); openActivityDrawer('EVT-20260924-0041')">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- EMPTY STATE CONTAINER (Hidden by default) -->
+          <div class="empty-state-view" id="emptyStateView">
+            <div class="empty-icon-circle">
+              <svg class="icon" style="width:32px; height:32px;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
+            </div>
+            <h4>No activity found</h4>
+            <p>Try changing your filters or search terms to view more activity records.</p>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="resetFilters()">Clear Filters</button>
+          </div>
+        </div>
+
+        <!-- PAGINATION BAR -->
+        <div class="pagination-bar" id="paginationBar">
+          <div class="pagination-info">
+            Showing <strong style="color: #FFFFFF;">1–8</strong> of <strong style="color: #FFFFFF;">1,284</strong> activities
+          </div>
+
+          <div class="pagination-controls">
+            <button class="page-btn" disabled>
+              <svg class="icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">...</button>
+            <button class="page-btn">161</button>
+            <button class="page-btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <div class="rows-selector">
+            <span>Rows per page:</span>
+            <select class="rows-select">
+              <option>10</option>
+              <option>25</option>
+              <option>50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 3. ACTIVITY DETAILS RIGHT-SIDE DRAWER -->
+  <div class="drawer-overlay" id="activityDrawerOverlay" onclick="closeActivityDrawer()">
+    <div class="drawer-panel" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <div>
+          <h3>
+            <svg class="icon" style="color: var(--primary-orange);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Activity Details
+          </h3>
+          <span style="font-size: 11px; color: var(--text-dim);">Immutable security audit trail</span>
+        </div>
+        <button class="close-drawer-btn" onclick="closeActivityDrawer()">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+        <!-- Event Overview -->
+        <div class="detail-card-box">
+          <div class="detail-card-title">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+            Event Overview
+          </div>
+          <div class="grid-2col">
+            <div class="meta-field">
+              <span class="meta-label">Event ID</span>
+              <span class="meta-val code" id="drawerEventId">EVT-20260924-0043</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Date & Time</span>
+              <span class="meta-val" id="drawerDate">Sep 24, 2026 · 06:20 PM</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Event Type</span>
+              <span class="meta-val" id="drawerType">Status Change</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Severity</span>
+              <span id="drawerSeverity"><span class="badge badge-warning">Warning</span></span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Execution Status</span>
+              <span id="drawerStatus"><span class="badge badge-success">Successful</span></span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Module Target</span>
+              <span class="meta-val" id="drawerModule">Fees Management</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performed By -->
+        <div class="detail-card-box">
+          <div class="detail-card-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Performed By
+          </div>
+          <div class="grid-2col">
+            <div class="meta-field">
+              <span class="meta-label">User Name</span>
+              <span class="meta-val" id="drawerUserName">Admin User (Rajesh Sharma)</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">System Role</span>
+              <span class="meta-val">Super Administrator</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Email Address</span>
+              <span class="meta-val">admin@gurukulsports.in</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Device Type</span>
+              <span class="meta-val">Desktop (MacBook Pro 16")</span>
+            </div>
+            <div class="meta-field" style="grid-column: span 2;">
+              <span class="meta-label">Origin IP Address</span>
+              <span class="meta-val code">103.24.120.45 (Pune, Maharashtra, IN)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Information -->
+        <div class="detail-card-box">
+          <div class="detail-card-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Activity Information
+          </div>
+          <div class="meta-field">
+            <span class="meta-label">Action Performed</span>
+            <span class="meta-val" style="font-size: 14px; font-weight: 600;" id="drawerAction">Changed fee plan status</span>
+          </div>
+          <div class="meta-field" style="margin-top: 6px;">
+            <span class="meta-label">Target Record</span>
+            <span class="meta-val" id="drawerRecord">Monthly Training Plan (PLAN-CRIC-002)</span>
+          </div>
+          <div class="meta-field" style="margin-top: 6px;">
+            <span class="meta-label">Action Description</span>
+            <span class="meta-val" style="color: var(--text-muted); line-height: 1.4;" id="drawerDesc">
+              Administrator updated the active status of the Monthly Training Plan to enable online parent payment gateways via HDFC integration.
+            </span>
+          </div>
+        </div>
+
+        <!-- Change Summary (Before & After) -->
+        <div class="detail-card-box" id="changeSummaryBox">
+          <div class="detail-card-title">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" x2="21" y1="20" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" x2="21" y1="15" y2="21"/><line x1="4" x2="9" y1="4" y2="9"/></svg>
+            Change Summary
+          </div>
+          <div class="diff-table">
+            <div class="diff-box">
+              <span class="diff-header prev">Previous Value</span>
+              <div><span class="diff-badge prev-val">Inactive</span></div>
+              <span style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Disabled for student registrations</span>
+            </div>
+            <div class="diff-box">
+              <span class="diff-header next">New Value</span>
+              <div><span class="diff-badge next-val">Active</span></div>
+              <span style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Open for enrollments & payments</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technical Metadata -->
+        <div class="detail-card-box">
+          <div class="detail-card-title">
+            <svg class="icon" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+            Technical Metadata
+          </div>
+          <div class="grid-2col">
+            <div class="meta-field">
+              <span class="meta-label">Browser Client</span>
+              <span class="meta-val">Chrome 128.0.0.0 (x86_64)</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Host OS</span>
+              <span class="meta-val">macOS Sonoma 14.5</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Session ID</span>
+              <span class="meta-val code">SESSION-1048-SEC</span>
+            </div>
+            <div class="meta-field">
+              <span class="meta-label">Event Source</span>
+              <span class="meta-val">Admin Dashboard / ERP Core</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <button class="btn btn-secondary" onclick="closeActivityDrawer()">Close</button>
+        <button class="btn btn-primary" onclick="copyEventId()">
+          <svg class="icon" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          <span>Copy Event ID</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. EXPORT LOGS MODAL -->
+  <div class="modal-backdrop" id="exportModalBackdrop" onclick="closeExportModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3>Export Activity Logs</h3>
+          <p>Choose the records and format you want to export.</p>
+        </div>
+        <button class="close-drawer-btn" onclick="closeExportModal()">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Date Range -->
+        <div class="form-group">
+          <label class="form-label">Date Range</label>
+          <select class="custom-select">
+            <option>Current filtered range (Sep 24, 2026)</option>
+            <option>Today</option>
+            <option>Last 7 Days</option>
+            <option selected>Last 30 Days (1,284 records)</option>
+            <option>Custom Range</option>
+          </select>
+        </div>
+
+        <!-- Modules Included -->
+        <div class="form-group">
+          <label class="form-label">Modules Included</label>
+          <select class="custom-select">
+            <option selected>All Modules (Students, Fees, Attendance, Settings...)</option>
+            <option>Selected Modules Only</option>
+            <option>Security & Authentication Only</option>
+          </select>
+        </div>
+
+        <!-- File Format Pills -->
+        <div class="form-group">
+          <label class="form-label">Export Format</label>
+          <div class="format-pills">
+            <div class="format-radio-btn selected" onclick="selectFormat(this, 'CSV')">CSV</div>
+            <div class="format-radio-btn" onclick="selectFormat(this, 'Excel')">Excel (.xlsx)</div>
+            <div class="format-radio-btn" onclick="selectFormat(this, 'PDF')">PDF Document</div>
+          </div>
+        </div>
+
+        <!-- Checkbox Inclusions -->
+        <div class="form-group">
+          <label class="form-label">Include Metadata Fields</label>
+          <div class="checkbox-grid">
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Date & Time
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Admin / User
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Action info
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Target Record
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Severity & Status
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Technical metadata
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmExport()">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <span>Export Logs</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. SUCCESS TOAST -->
+  <div class="toast-notification" id="toastNotice">
+    <svg class="icon toast-icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span id="toastMessage">Export prepared successfully.</span>
+  </div>
+
+  <!-- 6. DEMO PREVIEW STATE SWITCHER DOCK (Interactive Testing) -->
+  <div class="state-dock">
+    <span class="state-dock-label">Preview State:</span>
+    <button class="state-pill-btn active" id="btnStateTable" onclick="setDemoState('table')">1. Activity Table</button>
+    <button class="state-pill-btn" id="btnStateDrawer" onclick="setDemoState('drawer')">2. Event Details Drawer</button>
+    <button class="state-pill-btn" id="btnStateExport" onclick="setDemoState('export')">3. Export Modal</button>
+    <button class="state-pill-btn" id="btnStateEmpty" onclick="setDemoState('empty')">4. Empty State</button>
+  </div>
+
+  <!-- JS Logic for Complete Interactions -->
+  <script>
+    // Drawer handlers
+    function openActivityDrawer(eventId) {
+      const overlay = document.getElementById('activityDrawerOverlay');
+      const idEl = document.getElementById('drawerEventId');
+      const actionEl = document.getElementById('drawerAction');
+      const recordEl = document.getElementById('drawerRecord');
+      const descEl = document.getElementById('drawerDesc');
+      const severityEl = document.getElementById('drawerSeverity');
+      const diffBox = document.getElementById('changeSummaryBox');
+
+      if (eventId === 'EVT-20260924-0044') {
+        idEl.textContent = 'EVT-20260924-0044';
+        actionEl.textContent = 'Failed login attempt';
+        recordEl.textContent = 'Admin Portal (/login)';
+        descEl.textContent = 'Three consecutive invalid password submissions detected from an unverified IP address (185.220.101.5). Account lockout threshold not reached.';
+        severityEl.innerHTML = '<span class="badge badge-critical">Critical</span>';
+        diffBox.style.display = 'none';
+      } else {
+        idEl.textContent = eventId || 'EVT-20260924-0043';
+        actionEl.textContent = 'Changed fee plan status';
+        recordEl.textContent = 'Monthly Training Plan (PLAN-CRIC-002)';
+        descEl.textContent = 'Administrator updated the active status of the Monthly Training Plan to enable online parent payment gateways via HDFC integration.';
+        severityEl.innerHTML = '<span class="badge badge-warning">Warning</span>';
+        diffBox.style.display = 'flex';
+      }
+
+      overlay.classList.add('open');
+      updateStateDock('drawer');
+    }
+
+    function closeActivityDrawer() {
+      document.getElementById('activityDrawerOverlay').classList.remove('open');
+      updateStateDock('table');
+    }
+
+    function copyEventId() {
+      const id = document.getElementById('drawerEventId').textContent;
+      showToast('Event ID ' + id + ' copied to clipboard!');
+    }
+
+    // Export Modal handlers
+    function openExportModal() {
+      document.getElementById('exportModalBackdrop').classList.add('open');
+      updateStateDock('export');
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModalBackdrop').classList.remove('open');
+      updateStateDock('table');
+    }
+
+    function selectFormat(elem, formatName) {
+      document.querySelectorAll('.format-radio-btn').forEach(btn => btn.classList.remove('selected'));
+      elem.classList.add('selected');
+    }
+
+    function confirmExport() {
+      closeExportModal();
+      showToast('Export prepared successfully.');
+    }
+
+    // Refresh trigger
+    function triggerRefresh() {
+      const btn = document.getElementById('refreshBtn');
+      btn.style.opacity = '0.5';
+      setTimeout(() => {
+        btn.style.opacity = '1';
+        showToast('Audit trail refreshed · All 1,284 events synced.');
+      }, 400);
+    }
+
+    // Toast notification
+    function showToast(message) {
+      const toast = document.getElementById('toastNotice');
+      const text = document.getElementById('toastMessage');
+      text.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Filters
+    function handleFilterChange() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const mod = document.getElementById('filterModule').value;
+      const sev = document.getElementById('filterSeverity').value;
+      const status = document.getElementById('filterStatus').value;
+      
+      const rows = document.querySelectorAll('#tableBody tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const matchesQuery = !query || text.includes(query);
+        const matchesMod = (mod === 'All') || text.includes(mod.toLowerCase());
+        const matchesSev = (sev === 'All') || text.includes(sev.toLowerCase());
+        const matchesStatus = (status === 'All') || text.includes(status.toLowerCase());
+
+        if (matchesQuery && matchesMod && matchesSev && matchesStatus) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const emptyView = document.getElementById('emptyStateView');
+      const pagination = document.getElementById('paginationBar');
+      if (visibleCount === 0) {
+        emptyView.classList.add('visible');
+        pagination.style.display = 'none';
+      } else {
+        emptyView.classList.remove('visible');
+        pagination.style.display = 'flex';
+      }
+    }
+
+    function applyFilters() {
+      handleFilterChange();
+      showToast('Filters applied.');
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterModule').value = 'All';
+      document.getElementById('filterSeverity').value = 'All';
+      document.getElementById('filterStatus').value = 'All';
+      handleFilterChange();
+      showToast('Filters reset.');
+      updateStateDock('table');
+    }
+
+    // State Dock for visual presentation
+    function setDemoState(state) {
+      if (state === 'table') {
+        closeActivityDrawer();
+        closeExportModal();
+        resetFilters();
+      } else if (state === 'drawer') {
+        closeExportModal();
+        openActivityDrawer('EVT-20260924-0043');
+      } else if (state === 'export') {
+        closeActivityDrawer();
+        openExportModal();
+      } else if (state === 'empty') {
+        closeActivityDrawer();
+        closeExportModal();
+        // Force empty state
+        document.querySelectorAll('#tableBody tr').forEach(r => r.style.display = 'none');
+        document.getElementById('emptyStateView').classList.add('visible');
+        document.getElementById('paginationBar').style.display = 'none';
+      }
+      updateStateDock(state);
+    }
+
+    function updateStateDock(state) {
+      document.querySelectorAll('.state-pill-btn').forEach(btn => btn.classList.remove('active'));
+      if (state === 'table') document.getElementById('btnStateTable').classList.add('active');
+      if (state === 'drawer') document.getElementById('btnStateDrawer').classList.add('active');
+      if (state === 'export') document.getElementById('btnStateExport').classList.add('active');
+      if (state === 'empty') document.getElementById('btnStateEmpty').classList.add('active');
+    }
+  </script>
+</body>
+</html>

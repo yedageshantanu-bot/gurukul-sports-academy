@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" class="h-full dark" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gurukul Sports Academy — CRM & Academy Management</title>
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('gurukul_sports_theme');
+          if (stored === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+
+        // Global early interceptor to completely eradicate "localhost:3000 says" browser alerts
+        window.alert = function(msg) {
+          try {
+            var text = typeof msg === 'object' ? JSON.stringify(msg) : String(msg || '');
+            var isSuccess = /success|promoted|queued|settled|updated|created|saved|dispatched/i.test(text);
+            var isErr = /error|failed|could not|unable|invalid/i.test(text);
+            var type = isSuccess ? 'success' : (isErr ? 'error' : 'info');
+            window.dispatchEvent(new CustomEvent('app-toast', {
+              detail: { message: text, type: type, title: isSuccess ? 'Success' : (isErr ? 'Notice' : 'Notification') }
+            }));
+          } catch(e) {}
+        };
+
+        window.confirm = function(msg) {
+          console.log('[Native confirm intercepted]:', msg);
+          return true;
+        };
+      })();
+    </script>
+    <!-- Modern typography: Inter font family -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="h-full antialiased font-sans text-slate-100 bg-slate-950 dark:bg-slate-950 selection:bg-indigo-500 selection:text-white dark" style="background-color: #0F172A; color: #F8FAFC; margin: 0; min-height: 100%;">
+    <div id="root" class="h-full">
+      <div style="min-height: 100vh; background-color: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #F8FAFC;">
+        <div style="width: 80px; height: 80px; border-radius: 16px; background-color: #1E293B; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+          <img src="/logo.png" alt="Gurukul Sports Academy" style="width: 64px; height: 64px; object-fit: contain;" />
+        </div>
+        <div style="width: 32px; height: 32px; border-radius: 50%; border: 3px solid #1E293B; border-top-color: #F97316; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
+        <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 4px;">Gurukul Sports Academy</div>
+        <div style="font-size: 13px; color: #94A3B8;">Loading workspace...</div>
+        <style>
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,422 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  :root {
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --brand-orange: #F97316;
+    --brand-orange-hover: #EA580C;
+    --brand-orange-light: rgba(249, 115, 22, 0.12);
+    --state-success: #22C55E;
+    --state-success-light: rgba(34, 197, 94, 0.12);
+    --state-warning: #F59E0B;
+    --state-warning-light: rgba(245, 158, 11, 0.12);
+    --state-danger: #EF4444;
+    --state-danger-light: rgba(239, 68, 68, 0.12);
+    --state-info: #38BDF8;
+    --state-info-light: rgba(56, 189, 248, 0.12);
+
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --radius-pill: 9999px;
+
+    --sidebar-width: 256px;
+    --header-height: 68px;
+
+    --bg-app: #0F172A;
+    --bg-sidebar: #0A1120;
+    --bg-surface: #1E293B;
+    --bg-surface-elevated: #273549;
+    --bg-surface-hover: #334155;
+    --bg-input: #162235;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-medium: rgba(255, 255, 255, 0.14);
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+  }
+
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Universal high-contrast text selection for light and dark modes across all elements */
+  ::selection {
+    background-color: #4f46e5 !important; /* Rich Indigo */
+    color: #ffffff !important;           /* Crisp Pure White */
+  }
+
+  ::-moz-selection {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+  }
+
+  .dark ::selection {
+    background-color: #6366f1 !important; /* Bright Indigo Accent */
+    color: #ffffff !important;           /* Crisp Pure White */
+  }
+
+  .dark ::-moz-selection {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+/* ==============================================================================
+   APPLICATION-WIDE SELECT & DROPDOWN STYLING (LIGHT & DARK MODE)
+   Fixes Windows/Chromium white popup and unreadable option text in dark mode
+   ============================================================================== */
+select {
+  color-scheme: light;
+}
+
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.dark select {
+  color-scheme: dark !important;
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+.dark select option,
+.dark select optgroup,
+.dark option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+select option:checked {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.dark select option:checked {
+  background-color: #312e81 !important;
+  color: #e0e7ff !important;
+}
+
+.dark select option:hover,
+.dark select option:focus {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+/* Custom subtle scrollbars - Light & Dark Mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark Mode Scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Firefox scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark * {
+  scrollbar-color: #334155 transparent;
+}
+
+/* Glassmorphic & Modern Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  background: linear-gradient(90deg, #F97316, #EA580C, #F59E0B);
+}
+
+/* ==============================================================================
+   STITCH SPORTS CRM DESIGN SYSTEM CLASSES
+   ============================================================================== */
+
+/* Layout Shell */
+.app-shell {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-app);
+}
+
+.stitch-sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+}
+
+.main-viewport {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--bg-app);
+}
+
+@media (max-width: 1024px) {
+  .stitch-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .stitch-sidebar.open {
+    transform: translateX(0);
+  }
+  .main-viewport {
+    margin-left: 0;
+  }
+}
+
+/* KPI Summary Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1280px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  border-color: var(--border-medium);
+}
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.kpi-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.kpi-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.kpi-sublabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 2-Column Split */
+.dash-columns {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+}
+
+.lower-columns {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .dash-columns, .lower-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stitch-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fee Summary */
+.fee-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.fee-stat-box {
+  background-color: var(--bg-surface-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.fee-stat-box .label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.fee-stat-box .amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.fee-stat-box.success .amount { color: var(--state-success); }
+.fee-stat-box.warning .amount { color: var(--state-warning); }
+.fee-stat-box.danger .amount { color: var(--state-danger); }
+
+/* Table */
+.crm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.crm-table th {
+  background-color: var(--bg-surface-elevated);
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.crm-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.crm-table tr:hover td {
+  background-color: var(--bg-surface-elevated);
+}
+

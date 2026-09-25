@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gurukul Sports Academy - Command Center &amp; Notifications</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    /* =====================================================================
+       GURUKUL SPORTS ACADEMY CRM - PURE SELF-CONTAINED CSS
+       ===================================================================== */
+    :root {
+      --bg-canvas: #0B0F19;
+      --surface-1: #111827;
+      --surface-2: #162032;
+      --surface-3: #1E293B;
+      --surface-hover: #26354D;
+      --border-subtle: #1E293B;
+      --border-focus: #F97316;
+      --border-highlight: #334155;
+      
+      --brand-orange: #F97316;
+      --brand-orange-glow: rgba(249, 115, 22, 0.22);
+      --brand-orange-light: #FFDBCA;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+
+      --status-success: #22C55E;
+      --status-success-bg: rgba(34, 197, 94, 0.12);
+      --status-success-border: rgba(34, 197, 94, 0.28);
+
+      --status-warning: #F59E0B;
+      --status-warning-bg: rgba(245, 158, 11, 0.12);
+      --status-warning-border: rgba(245, 158, 11, 0.28);
+
+      --status-danger: #EF4444;
+      --status-danger-bg: rgba(239, 68, 68, 0.12);
+      --status-danger-border: rgba(239, 68, 68, 0.28);
+
+      --status-info: #38BDF8;
+      --status-info-bg: rgba(56, 189, 248, 0.12);
+      --status-info-border: rgba(56, 189, 248, 0.28);
+
+      --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --shadow-modal: 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-stack);
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* MATERIAL SYMBOLS DEFAULT CLASS */
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 19px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+      vertical-align: middle;
+    }
+
+    /* LAYOUT WRAPPER */
+    .app-viewport {
+      display: flex;
+      width: 100vw;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* SIDEBAR NAVIGATION */
+    .sidebar {
+      width: 250px;
+      background: var(--surface-1);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 20;
+    }
+
+    .brand-cluster {
+      padding: 18px 18px 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(11, 15, 25, 0.35);
+    }
+
+    .brand-crest {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+    }
+
+    .brand-titles {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-titles h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #FFFFFF;
+      line-height: 1.2;
+    }
+
+    .brand-titles span {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--brand-orange);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .nav-scroll {
+      flex: 1;
+      padding: 14px 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-group-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--text-dim);
+      padding: 10px 10px 4px 10px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 13.5px;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .nav-link:hover {
+      background: var(--surface-hover);
+      color: var(--text-main);
+    }
+
+    .nav-link.active {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--brand-orange);
+      font-weight: 600;
+      border-left: 3.5px solid var(--brand-orange);
+      padding-left: 8.5px;
+    }
+
+    .nav-link.active .material-symbols-outlined {
+      color: var(--brand-orange);
+    }
+
+    .nav-pill-badge {
+      margin-left: auto;
+      background: var(--surface-3);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      line-height: 1.2;
+    }
+
+    .nav-pill-badge.active-badge {
+      background: var(--brand-orange);
+      color: #FFFFFF;
+    }
+
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(11, 15, 25, 0.4);
+    }
+
+    /* MAIN CONTENT WRAPPER */
+    .content-shell {
+      margin-left: 250px;
+      width: calc(100vw - 250px);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--bg-canvas);
+    }
+
+    /* TOP HEADER BAR */
+    .global-header {
+      height: 64px;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    .header-breadcrumb a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .header-breadcrumb a:hover {
+      color: var(--text-main);
+    }
+    .header-breadcrumb .separator {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+    .header-breadcrumb .current {
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* TOP SEARCH TRIGGER BUTTON (looks like search bar) */
+    .header-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 7px 14px;
+      width: 380px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--text-dim);
+    }
+
+    .header-search-bar:hover {
+      border-color: var(--brand-orange);
+      background: #0E1424;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .header-search-bar input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 13px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .header-search-bar input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .kbd-chip {
+      background: var(--surface-3);
+      border: 1px solid var(--border-highlight);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-main);
+      border-color: var(--border-highlight);
+    }
+
+    .badge-dot {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      background: var(--brand-orange);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 999px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--surface-1);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px 4px 4px;
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .user-pill:hover {
+      background: var(--surface-hover);
+    }
+
+    .user-avatar-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #F97316, #C2410C);
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .user-role {
+      font-size: 10.5px;
+      color: var(--brand-orange);
+      font-weight: 600;
+    }
+
+    /* DASHBOARD CANVAS (BEHIND OVERLAYS) */
+    .dashboard-canvas {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      opacity: 0.28;
+      pointer-events: none;
+      filter: blur(1.5px);
+      user-select: none;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+
+    .kpi-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      position: relative;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin: 10px 0 6px 0;
+    }
+
+    .kpi-meta {
+      font-size: 12px;
+      color: var(--status-success);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    .dummy-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+    }
+
+    .dummy-panel {
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      min-height: 380px;
+    }
+
+    /* =====================================================================
+       GLOBAL SEARCH MODAL OVERLAY & POPUP (COMMAND PALETTE)
+       ===================================================================== */
+    .command-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 10, 18, 0.76);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 50;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 50px;
+      padding-bottom: 90px;
+      overflow-y: auto;
+    }
+
+    .command-palette {
+      width: 100%;
+      max-width: 740px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      animation: modalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* SEARCH INPUT ZONE */
+    .search-input-zone {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      gap: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: #0E1422;
+      position: relative;
+    }
+
+    .search-input-zone .search-icon {
+      color: var(--brand-orange);
+      font-size: 24px;
+    }
+
+    .search-input-zone input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 16.5px;
+      font-weight: 500;
+      color: #FFFFFF;
+      font-family: inherit;
+    }
+
+    .search-input-zone input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .search-input-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clear-btn {
+      background: var(--surface-3);
+      border: none;
+      color: var(--text-muted);
+      border-radius: 999px;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .clear-btn:hover {
+      background: #334155;
+      color: #FFFFFF;
+    }
+
+    /* CATEGORY TABS */
+    .category-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      background: #0B101C;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .category-pill {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 5px 11px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .category-pill:hover {
+      background: var(--surface-2);
+      color: var(--text-main);
+    }
+
+    .category-pill.active {
+      background: rgba(249, 115, 22, 0.15);
+      border-color: rgba(249, 115, 22, 0.35);
+      color: var(--brand-orange);
+    }
+
+    .category-count {
+      font-size: 10.5px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      color: var(--text-muted);
+    }
+
+    .category-pill.active .category-count {
+      background: var(--brand-orange);
+      color: #FFFFFF;
+    }
+
+    /* QUICK ACTIONS STRIP */
+    .quick-actions-bar {
+      padding: 8px 18px;
+      background: rgba(22, 32, 50, 0.55);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow-x: auto;
+    }
+
+    .quick-action-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .action-tag-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 9px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .action-tag-btn:hover {
+      background: var(--surface-hover);
+      color: #FFFFFF;
+      border-color: var(--brand-orange);
+    }
+
+    .action-tag-btn .material-symbols-outlined {
+      font-size: 14px;
+      color: var(--brand-orange);
+    }
+
+    /* SEARCH RESULTS CONTAINER */
+    .results-scroll-container {
+      max-height: 480px;
+      overflow-y: auto;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .result-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .result-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4px 4px 4px;
+    }
+
+    .group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .group-title .material-symbols-outlined {
+      font-size: 14px;
+      color: var(--brand-orange);
+    }
+
+    .group-counter {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* RESULT ITEM CARD */
+    .result-card {
+      background: #0E1422;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+    }
+
+    .result-card:hover, .result-card.selected {
+      background: #172133;
+      border-color: rgba(249, 115, 22, 0.45);
+      transform: translateX(2px);
+    }
+
+    .result-card.selected::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 6px;
+      bottom: 6px;
+      width: 3.5px;
+      border-radius: 4px;
+      background: var(--brand-orange);
+    }
+
+    .result-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .avatar-icon-box {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--surface-3);
+      color: var(--brand-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+      border: 1px solid var(--border-highlight);
+    }
+
+    .avatar-icon-box.green {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--status-success);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .avatar-icon-box.blue {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--status-info);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .result-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .result-heading {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .highlight-match {
+      color: var(--brand-orange);
+      background: rgba(249, 115, 22, 0.16);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .id-tag {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--text-dim);
+      background: var(--surface-3);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .result-subline {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .result-subline span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .result-subline .dot {
+      color: var(--text-dim);
+    }
+
+    .result-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* BADGES */
+    .chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: 0.01em;
+    }
+
+    .chip-success {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+      border: 1px solid var(--status-success-border);
+    }
+
+    .chip-warning {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+      border: 1px solid var(--status-warning-border);
+    }
+
+    .chip-danger {
+      background: var(--status-danger-bg);
+      color: var(--status-danger);
+      border: 1px solid var(--status-danger-border);
+    }
+
+    .chip-neutral {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .chip-orange {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--brand-orange);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+    }
+
+    /* COMMAND FOOTER */
+    .command-footer {
+      background: #0B0F19;
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* =====================================================================
+       NOTIFICATIONS CENTER DROPDOWN PREVIEW (SIDE-BY-SIDE / FLOATING)
+       ===================================================================== */
+    .notifications-docked-preview {
+      position: absolute;
+      top: 66px;
+      right: 24px;
+      width: 410px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease;
+    }
+
+    .notif-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      background: #0E1422;
+    }
+
+    .notif-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .notif-title-wrap h3 {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .notif-unread-count {
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--brand-orange);
+      color: #FFFFFF;
+      padding: 2px 7px;
+      border-radius: 999px;
+    }
+
+    .notif-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .text-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--brand-orange);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .text-action-btn:hover {
+      text-decoration: underline;
+    }
+
+    /* NOTIF FILTER TABS */
+    .notif-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 14px;
+      background: #0B101C;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .notif-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .notif-tab:hover {
+      color: var(--text-main);
+      background: var(--surface-2);
+    }
+
+    .notif-tab.active {
+      color: var(--brand-orange);
+      background: rgba(249, 115, 22, 0.14);
+    }
+
+    /* NOTIFICATIONS LIST */
+    .notif-list {
+      max-height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notif-item {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .notif-item:hover {
+      background: #151E2E;
+    }
+
+    .notif-item.unread {
+      background: rgba(249, 115, 22, 0.03);
+    }
+
+    .notif-item.unread::before {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 18px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--brand-orange);
+    }
+
+    .notif-icon-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .notif-icon-circle.danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--status-danger);
+    }
+
+    .notif-icon-circle.success {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--status-success);
+    }
+
+    .notif-icon-circle.warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--status-warning);
+    }
+
+    .notif-icon-circle.info {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--status-info);
+    }
+
+    .notif-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .notif-msg {
+      font-size: 12.5px;
+      color: #FFFFFF;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .notif-msg strong {
+      color: var(--brand-orange-light);
+    }
+
+    .notif-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .notif-time {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .notif-footer {
+      padding: 10px 14px;
+      background: #0B0F19;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* EMPTY / RECENT SEARCH STATES (For switcher) */
+    .empty-search-state {
+      padding: 48px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .empty-icon-wrap {
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--brand-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-icon-wrap .material-symbols-outlined {
+      font-size: 28px;
+    }
+
+    .empty-search-state h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .empty-search-state p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      max-width: 320px;
+    }
+
+    /* RECENT SEARCH PILLS */
+    .recent-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .recent-chip {
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .recent-chip:hover {
+      border-color: var(--brand-orange);
+      color: var(--text-main);
+    }
+
+    /* BOTTOM STATE SWITCHER DOCK (Interactive Playground) */
+    .state-switcher-dock {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--border-highlight);
+      border-radius: 999px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .dock-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0 6px 0 8px;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    .state-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .state-btn:hover {
+      color: #FFFFFF;
+      background: var(--surface-3);
+    }
+
+    .state-btn.active {
+      background: var(--brand-orange);
+      color: #FFFFFF;
+      box-shadow: 0 0 12px var(--brand-orange-glow);
+    }
+
+    /* SCROLLBAR CUSTOMIZATION */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-highlight);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    @media (max-width: 992px) {
+      .notifications-docked-preview {
+        display: none;
+      }
+      .sidebar {
+        width: 70px;
+      }
+      .brand-titles, .nav-link span:not(.material-symbols-outlined), .nav-pill-badge, .nav-group-title {
+        display: none;
+      }
+      .content-shell {
+        margin-left: 70px;
+        width: calc(100vw - 70px);
+      }
+      .header-search-bar {
+        width: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-viewport">
+<!-- ==========================================
+         GURUKUL SPORTS ACADEMY CRM - LEFT SIDEBAR
+         ========================================== -->
+<aside class="sidebar">
+<div class="brand-cluster">
+<img alt="Gurukul Sports Academy Crest Emblem" class="brand-crest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZfU4EDQ1eowajMMKM7fg-4mWg_xEJPi6LZPlxAftD3auAqGBVm6teyrqva4xGIgonsHPjtOzPMBkAYAXfnYXWP9FCklSj3-Q8Luc3GADLRFbqUG3p7D3qkZNQDHvepIzoFcO63EHgQNE7vWLX4FpLH1y2FXmhlG2uCa0b13kTH4aytXsxl6A7yW5BIIy17T8nAOAhhZKyXrpbZ6hYisXpqKZqn2oZhF74mNZcvTpYpfHLIJtnWRddAqd2-NW-zkgmmA"/>
+<div class="brand-titles">
+<h1>Gurukul Academy</h1>
+<span>Sports CRM Pro</span>
+</div>
+</div>
+<nav class="nav-scroll">
+<div class="nav-group-title">Core Operations</div>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="nav-link active" href="#">
+<span class="material-symbols-outlined">school</span>
+<span>Students</span>
+<span class="nav-pill-badge active-badge">248</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">person</span>
+<span>Teachers</span>
+<span class="nav-pill-badge">18</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span>Courses</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Batches</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">how_to_reg</span>
+<span>Attendance</span>
+</a>
+<div class="nav-group-title">Financial &amp; Comms</div>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Fees</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span>Payments</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Reports</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">campaign</span>
+<span>Announcements</span>
+</a>
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">chat</span>
+<span>WhatsApp</span>
+<span class="nav-pill-badge">18</span>
+</a>
+</nav>
+<div class="sidebar-footer">
+<a class="nav-link" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</aside>
+<!-- ==========================================
+         CONTENT SHELL & GLOBAL HEADER
+         ========================================== -->
+<main class="content-shell">
+<!-- TOP NAVIGATION BAR -->
+<header class="global-header">
+<div class="header-breadcrumb">
+<a href="#">Gurukul Academy</a>
+<span class="separator">/</span>
+<a href="#">Athletes Management</a>
+<span class="separator">/</span>
+<span class="current">Global Search &amp; Feed</span>
+</div>
+<div class="header-actions">
+<!-- SEARCH TRIGGER -->
+<div class="header-search-bar" id="searchTrigger">
+<span class="material-symbols-outlined" style="font-size: 19px; color: var(--brand-orange);">search</span>
+<input placeholder="Search students, teachers, courses, batches, payments..." readonly="" type="text" value="Aarav"/>
+<span class="kbd-chip">Ctrl + K</span>
+</div>
+<!-- NOTIFICATION BELL ICON -->
+<button class="icon-btn" id="notifBellBtn" title="5 Unread Academy Alerts">
+<span class="material-symbols-outlined">notifications</span>
+<span class="badge-dot">5</span>
+</button>
+<!-- THEME TOGGLE ICON -->
+<button class="icon-btn" title="Dark / Light Theme">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<!-- USER PROFILE PILL -->
+<div class="user-pill">
+<div class="user-avatar-circle">RS</div>
+<div class="user-meta">
+<span class="user-name">Rajesh Sharma</span>
+<span class="user-role">Super Admin</span>
+</div>
+<span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-dim); margin-left: 2px;">expand_more</span>
+</div>
+</div>
+</header>
+<!-- BACKGROUND BLURRED DASHBOARD CANVAS (Provides Authentic SaaS Depth) -->
+<div class="dashboard-canvas">
+<div class="kpi-row">
+<div class="kpi-card">
+<div class="kpi-title">Active Enrolled Athletes <span class="material-symbols-outlined">sports_cricket</span></div>
+<div class="kpi-value">248</div>
+<div class="kpi-meta"><span class="material-symbols-outlined" style="font-size: 14px;">trending_up</span> +14 this month</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-title">Daily Field Attendance <span class="material-symbols-outlined">verified</span></div>
+<div class="kpi-value">92.4%</div>
+<div class="kpi-meta"><span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span> 229 checked in today</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-title">Monthly Fee Collection <span class="material-symbols-outlined">account_balance_wallet</span></div>
+<div class="kpi-value">₹8,42,000</div>
+<div class="kpi-meta"><span class="material-symbols-outlined" style="font-size: 14px;">arrow_upward</span> 88% collected</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-title">Active Batches <span class="material-symbols-outlined">timer</span></div>
+<div class="kpi-value">14 Batches</div>
+<div class="kpi-meta" style="color: var(--brand-orange);"><span class="material-symbols-outlined" style="font-size: 14px;">schedule</span> 3 underway now</div>
+</div>
+</div>
+<div class="dummy-grid">
+<div class="dummy-panel">
+<h3 style="font-size: 14px; font-weight: 600; color: #FFFFFF; margin-bottom: 16px;">Scheduled Training Sessions (Today)</h3>
+<div style="height: 280px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed #334155;"></div>
+</div>
+<div class="dummy-panel">
+<h3 style="font-size: 14px; font-weight: 600; color: #FFFFFF; margin-bottom: 16px;">Upcoming Academy Tournaments</h3>
+<div style="height: 280px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed #334155;"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- =====================================================================
+         GLOBAL SEARCH OVERLAY / COMMAND PALETTE (PRIMARY FOCUS)
+         ===================================================================== -->
+<div class="command-overlay" id="commandOverlay">
+<div class="command-palette">
+<!-- SEARCH INPUT HEADER -->
+<div class="search-input-zone">
+<span class="material-symbols-outlined search-icon">search</span>
+<input id="paletteInput" placeholder="Search athletes, coaches, batches, invoice ID, contact..." type="text" value="Aarav"/>
+<div class="search-input-actions">
+<button class="clear-btn" onclick="document.getElementById('paletteInput').value=''; document.getElementById('paletteInput').focus();" title="Clear input">✕</button>
+<span class="kbd-chip">ESC</span>
+</div>
+</div>
+<!-- CATEGORY FILTER BAR -->
+<div class="category-filter-bar">
+<button class="category-pill active">
+<span>All</span>
+<span class="category-count">5</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">school</span>
+<span>Students</span>
+<span class="category-count">2</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">person</span>
+<span>Teachers</span>
+<span class="category-count">0</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">menu_book</span>
+<span>Courses</span>
+<span class="category-count">1</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">groups</span>
+<span>Batches</span>
+<span class="category-count">1</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">receipt_long</span>
+<span>Payments</span>
+<span class="category-count">1</span>
+</button>
+<button class="category-pill">
+<span class="material-symbols-outlined" style="font-size: 14px;">campaign</span>
+<span>Announcements</span>
+<span class="category-count">1</span>
+</button>
+</div>
+<!-- QUICK ACTION DISPATCHES -->
+<div class="quick-actions-bar">
+<span class="quick-action-label">Quick Actions:</span>
+<button class="action-tag-btn">
+<span class="material-symbols-outlined">person_add</span>
+<span>+ Add Student</span>
+</button>
+<button class="action-tag-btn">
+<span class="material-symbols-outlined">badge</span>
+<span>+ Register Faculty</span>
+</button>
+<button class="action-tag-btn">
+<span class="material-symbols-outlined">add_alert</span>
+<span>+ Create Announcement</span>
+</button>
+<button class="action-tag-btn">
+<span class="material-symbols-outlined">add_card</span>
+<span>+ Record Payment</span>
+</button>
+</div>
+<!-- SEARCH RESULTS CONTAINER -->
+<div class="results-scroll-container" id="resultsViewContainer">
+<!-- GROUP 1: STUDENTS -->
+<div class="result-group">
+<div class="result-group-header">
+<span class="group-title">
+<span class="material-symbols-outlined">school</span>
+                Athletes / Students
+              </span>
+<span class="group-counter">2 results found</span>
+</div>
+<!-- RESULT 1 -->
+<div class="result-card selected">
+<div class="result-main">
+<div class="avatar-icon-box">AP</div>
+<div class="result-details">
+<div class="result-heading">
+<span><mark class="highlight-match">Aarav</mark> Patil</span>
+<span class="id-tag">ID: GSA-1024</span>
+</div>
+<div class="result-subline">
+<span><strong style="color: var(--brand-orange-light);">Cricket Advanced</strong> Masterclass</span>
+<span class="dot">•</span>
+<span>Roll #14</span>
+<span class="dot">•</span>
+<span style="color: var(--status-success);"><span class="material-symbols-outlined" style="font-size: 13px;">verified</span> 94% Attendance</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-success">Fee Paid</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">keyboard_return</span>
+</div>
+</div>
+<!-- RESULT 2 -->
+<div class="result-card">
+<div class="result-main">
+<div class="avatar-icon-box blue">RD</div>
+<div class="result-details">
+<div class="result-heading">
+<span>Riya Deshmukh</span>
+<span class="id-tag">ID: GSA-1088</span>
+</div>
+<div class="result-subline">
+<span>Badminton Academy Cohort B</span>
+<span class="dot">•</span>
+<span>Mentor: S. Nehwal Wing</span>
+<span class="dot">•</span>
+<span>88% Attendance</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-warning">Fee Pending</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- GROUP 2: BATCHES -->
+<div class="result-group">
+<div class="result-group-header">
+<span class="group-title">
+<span class="material-symbols-outlined">groups</span>
+                Active Training Batches
+              </span>
+<span class="group-counter">1 match</span>
+</div>
+<div class="result-card">
+<div class="result-main">
+<div class="avatar-icon-box green">
+<span class="material-symbols-outlined">fitness_center</span>
+</div>
+<div class="result-details">
+<div class="result-heading">
+<span>Morning Batch A — <mark class="highlight-match">Cricket Advanced</mark></span>
+</div>
+<div class="result-subline">
+<span>Coach: D. Rawat</span>
+<span class="dot">•</span>
+<span>Slot: 06:00 AM – 08:00 AM IST</span>
+<span class="dot">•</span>
+<span>Turf Pitch 02</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-neutral">24 Athletes</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- GROUP 3: PAYMENTS -->
+<div class="result-group">
+<div class="result-group-header">
+<span class="group-title">
+<span class="material-symbols-outlined">receipt_long</span>
+                Fee Invoices &amp; Receipts
+              </span>
+<span class="group-counter">1 record</span>
+</div>
+<div class="result-card">
+<div class="result-main">
+<div class="avatar-icon-box">
+<span class="material-symbols-outlined">credit_card</span>
+</div>
+<div class="result-details">
+<div class="result-heading">
+<span>Receipt #PAY-2026-00124</span>
+<span style="color: var(--brand-orange); font-weight: 700;">₹6,000</span>
+</div>
+<div class="result-subline">
+<span>Paid by: <mark class="highlight-match">Aarav</mark> Patil (Father: M. Patil)</span>
+<span class="dot">•</span>
+<span>HDFC PG Gateway</span>
+<span class="dot">•</span>
+<span>14 Feb 2026</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-success">Successful</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- GROUP 4: COURSES -->
+<div class="result-group">
+<div class="result-group-header">
+<span class="group-title">
+<span class="material-symbols-outlined">menu_book</span>
+                Curriculum &amp; Programs
+              </span>
+<span class="group-counter">1 course</span>
+</div>
+<div class="result-card">
+<div class="result-main">
+<div class="avatar-icon-box">
+<span class="material-symbols-outlined">sports_cricket</span>
+</div>
+<div class="result-details">
+<div class="result-heading">
+<span>Cricket Advanced Masterclass &amp; Pace Academy</span>
+</div>
+<div class="result-subline">
+<span>Head Coach: M. Khan</span>
+<span class="dot">•</span>
+<span>Duration: 6 Months (BCCI Certified)</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-orange">48 Enrolled</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- GROUP 5: ANNOUNCEMENTS -->
+<div class="result-group">
+<div class="result-group-header">
+<span class="group-title">
+<span class="material-symbols-outlined">campaign</span>
+                Academy Bulletins
+              </span>
+<span class="group-counter">1 item</span>
+</div>
+<div class="result-card">
+<div class="result-main">
+<div class="avatar-icon-box blue">
+<span class="material-symbols-outlined">campaign</span>
+</div>
+<div class="result-details">
+<div class="result-heading">
+<span>State Championship Trials 2026 — Under 19 Squad</span>
+</div>
+<div class="result-subline">
+<span>Mandatory registration deadline: 28 Feb 2026</span>
+<span class="dot">•</span>
+<span>All Advanced Batches</span>
+</div>
+</div>
+</div>
+<div class="result-badges">
+<span class="chip chip-neutral">Notice</span>
+<span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim);">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- COMMAND PALETTE FOOTER -->
+<div class="command-footer">
+<div class="footer-shortcuts">
+<span class="shortcut-item"><span class="kbd-chip">↑↓</span> to navigate</span>
+<span class="shortcut-item"><span class="kbd-chip">↵</span> to select</span>
+<span class="shortcut-item"><span class="kbd-chip">Tab</span> filter category</span>
+<span class="shortcut-item"><span class="kbd-chip">ESC</span> to dismiss</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px;">
+<span>Gurukul Sports Intelligence</span>
+<span class="chip chip-orange" style="font-size: 10px; padding: 1px 6px;">v2.6</span>
+</div>
+</div>
+</div>
+</div>
+<!-- =====================================================================
+         NOTIFICATIONS CENTER DROPDOWN PANEL (PREVIEW & CONTEXTUAL VISUAL)
+         ===================================================================== -->
+<div class="notifications-docked-preview" id="notificationsPanel">
+<div class="notif-header">
+<div class="notif-title-wrap">
+<span class="material-symbols-outlined" style="color: var(--brand-orange);">notifications_active</span>
+<h3>Academy Alerts</h3>
+<span class="notif-unread-count">5 new</span>
+</div>
+<div class="notif-header-actions">
+<button class="text-action-btn">Mark All as Read</button>
+<button class="icon-btn" style="width: 28px; height: 28px;" title="Notification Preferences">
+<span class="material-symbols-outlined" style="font-size: 16px;">tune</span>
+</button>
+</div>
+</div>
+<!-- FILTER CHIPS -->
+<div class="notif-tabs">
+<button class="notif-tab active">All (14)</button>
+<button class="notif-tab">Unread (5)</button>
+<button class="notif-tab">Fees (3)</button>
+<button class="notif-tab">Attendance (4)</button>
+<button class="notif-tab">Students</button>
+<button class="notif-tab">System</button>
+</div>
+<!-- NOTIFICATIONS FEED -->
+<div class="notif-list">
+<!-- ALERT 1: CRITICAL FEE -->
+<div class="notif-item unread">
+<div class="notif-icon-circle danger">
+<span class="material-symbols-outlined" style="font-size: 18px;">warning</span>
+</div>
+<div class="notif-content">
+<div class="notif-msg">
+<strong>Overdue Fee Alert:</strong> ₹4,500 pending for athlete <strong>Rohan Mehta</strong> (Batch 04).
+            </div>
+<div class="notif-sub">Second automated WhatsApp reminder dispatched.</div>
+<div class="notif-time">
+<span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+<span>12 mins ago</span>
+<span class="dot">•</span>
+<span style="color: var(--status-danger); font-weight: 600;">Critical</span>
+</div>
+</div>
+</div>
+<!-- ALERT 2: NEW ADMISSION -->
+<div class="notif-item unread">
+<div class="notif-icon-circle success">
+<span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
+</div>
+<div class="notif-content">
+<div class="notif-msg">
+<strong>New Admission Confirmed:</strong> Ananya Joshi joined <em>Badminton Junior Cohort</em>.
+            </div>
+<div class="notif-sub">Medical clearance verified by Dr. Kulkarni.</div>
+<div class="notif-time">
+<span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+<span>48 mins ago</span>
+<span class="dot">•</span>
+<span>Admissions</span>
+</div>
+</div>
+</div>
+<!-- ALERT 3: ATTENDANCE ANOMALY -->
+<div class="notif-item unread">
+<div class="notif-icon-circle warning">
+<span class="material-symbols-outlined" style="font-size: 18px;">how_to_reg</span>
+</div>
+<div class="notif-content">
+<div class="notif-msg">
+<strong>Attendance Reminder:</strong> Evening Pitch 1 Batch check-in incomplete (Coach Rawat).
+            </div>
+<div class="notif-sub">6 athletes unverified for today's net session.</div>
+<div class="notif-time">
+<span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+<span>1 hr ago</span>
+<span class="dot">•</span>
+<span>Faculty Alert</span>
+</div>
+</div>
+</div>
+<!-- ALERT 4: SYSTEM BROADCAST -->
+<div class="notif-item">
+<div class="notif-icon-circle info">
+<span class="material-symbols-outlined" style="font-size: 18px;">campaign</span>
+</div>
+<div class="notif-content">
+<div class="notif-msg">
+<strong>WhatsApp Campaign Sent:</strong> "State Trials 2026" delivered to 248 parents.
+            </div>
+<div class="notif-sub">98.2% delivery success rate via Twilio API.</div>
+<div class="notif-time">
+<span class="material-symbols-outlined" style="font-size: 12px;">schedule</span>
+<span>3 hrs ago</span>
+</div>
+</div>
+</div>
+</div>
+<div class="notif-footer">
+<button class="text-action-btn" style="color: var(--text-muted); font-size: 11px;">Clear All Alerts</button>
+<a href="#" style="color: var(--brand-orange); text-decoration: none; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+          View Full Notifications Center <span class="material-symbols-outlined" style="font-size: 14px;">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- =====================================================================
+       UI STATE SWITCHER DOCK (Interactive Playground for Reviewers)
+       ===================================================================== -->
+<div class="state-switcher-dock">
+<span class="dock-title">Demonstration State</span>
+<button class="state-btn active" id="btnState1" onclick="switchModuleState(1)">
+<span class="material-symbols-outlined" style="font-size: 15px;">manage_search</span>
+      1. Search Results (Active)
+    </button>
+<button class="state-btn" id="btnState2" onclick="switchModuleState(2)">
+<span class="material-symbols-outlined" style="font-size: 15px;">notifications_unread</span>
+      2. Notifications Panel Focus
+    </button>
+<button class="state-btn" id="btnState3" onclick="switchModuleState(3)">
+<span class="material-symbols-outlined" style="font-size: 15px;">history</span>
+      3. Recent Searches
+    </button>
+<button class="state-btn" id="btnState4" onclick="switchModuleState(4)">
+<span class="material-symbols-outlined" style="font-size: 15px;">search_off</span>
+      4. Search No Results
+    </button>
+</div>
+<!-- JAVASCRIPT FOR DOCK STATE SWITCHING & INTERACTIONS -->
+<script>
+    const searchOverlay = document.getElementById('commandOverlay');
+    const notifPanel = document.getElementById('notificationsPanel');
+    const paletteInput = document.getElementById('paletteInput');
+    const resultsContainer = document.getElementById('resultsViewContainer');
+    const headerSearchBar = document.getElementById('searchTrigger');
+
+    // Save initial rich results HTML for restoration
+    const defaultSearchHTML = resultsContainer.innerHTML;
+
+    function resetActiveButtons(btnId) {
+      document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(btnId).classList.add('active');
+    }
+
+    function switchModuleState(state) {
+      if (state === 1) {
+        // STATE 1: Rich Search Results
+        resetActiveButtons('btnState1');
+        searchOverlay.style.display = 'flex';
+        notifPanel.style.display = 'flex';
+        paletteInput.value = 'Aarav';
+        resultsContainer.innerHTML = defaultSearchHTML;
+      } 
+      else if (state === 2) {
+        // STATE 2: Notifications Center Focus
+        resetActiveButtons('btnState2');
+        searchOverlay.style.display = 'none';
+        notifPanel.style.display = 'flex';
+        notifPanel.scrollIntoView({ behavior: 'smooth' });
+      } 
+      else if (state === 3) {
+        // STATE 3: Recent Searches
+        resetActiveButtons('btnState3');
+        searchOverlay.style.display = 'flex';
+        notifPanel.style.display = 'none';
+        paletteInput.value = '';
+        paletteInput.placeholder = 'Search anything in Gurukul CRM...';
+        resultsContainer.innerHTML = `
+          <div class="result-group">
+            <div class="result-group-header">
+              <span class="group-title"><span class="material-symbols-outlined">history</span> Recent Searches</span>
+              <button class="text-action-btn" style="color: var(--text-dim); font-size: 11px;">Clear History</button>
+            </div>
+            <div class="result-card">
+              <div class="result-main">
+                <span class="material-symbols-outlined" style="color: var(--text-muted); font-size: 18px;">history</span>
+                <span style="font-weight: 500;">Cricket Advanced Batch A</span>
+              </div>
+              <span class="material-symbols-outlined" style="color: var(--text-dim); font-size: 16px;">north_west</span>
+            </div>
+            <div class="result-card">
+              <div class="result-main">
+                <span class="material-symbols-outlined" style="color: var(--text-muted); font-size: 18px;">history</span>
+                <span style="font-weight: 500;">Coach Devendra Rawat contact card</span>
+              </div>
+              <span class="material-symbols-outlined" style="color: var(--text-dim); font-size: 16px;">north_west</span>
+            </div>
+            <div class="result-card">
+              <div class="result-main">
+                <span class="material-symbols-outlined" style="color: var(--text-muted); font-size: 18px;">history</span>
+                <span style="font-weight: 500;">Pending fees February 2026</span>
+              </div>
+              <span class="material-symbols-outlined" style="color: var(--text-dim); font-size: 16px;">north_west</span>
+            </div>
+          </div>
+          <div class="result-group" style="margin-top: 10px;">
+            <div class="result-group-header">
+              <span class="group-title"><span class="material-symbols-outlined">trending_up</span> Frequent Shortcuts</span>
+            </div>
+            <div class="recent-chips-row" style="justify-content: flex-start;">
+              <span class="recent-chip"><span class="material-symbols-outlined" style="font-size: 14px; color: var(--brand-orange);">person</span> Aarav Patil (GSA-1024)</span>
+              <span class="recent-chip"><span class="material-symbols-outlined" style="font-size: 14px; color: var(--brand-orange);">payments</span> Fee Defaulter Report</span>
+              <span class="recent-chip"><span class="material-symbols-outlined" style="font-size: 14px; color: var(--brand-orange);">event_available</span> Daily Turf Attendance</span>
+              <span class="recent-chip"><span class="material-symbols-outlined" style="font-size: 14px; color: var(--brand-orange);">badge</span> Faculty Shift Schedule</span>
+            </div>
+          </div>
+        `;
+      } 
+      else if (state === 4) {
+        // STATE 4: No Results Found
+        resetActiveButtons('btnState4');
+        searchOverlay.style.display = 'flex';
+        notifPanel.style.display = 'none';
+        paletteInput.value = 'Zulqarnain 990';
+        resultsContainer.innerHTML = `
+          <div class="empty-search-state">
+            <div class="empty-icon-wrap">
+              <span class="material-symbols-outlined">search_off</span>
+            </div>
+            <h4>No Academy Records Found</h4>
+            <p>We couldn't find any athlete, instructor, batch, or invoice matching "<strong>Zulqarnain 990</strong>".</p>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <button class="action-tag-btn" onclick="switchModuleState(1)">
+                <span class="material-symbols-outlined">undo</span> Reset search
+              </button>
+              <button class="action-tag-btn">
+                <span class="material-symbols-outlined">person_add</span> Register new athlete
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Toggle Notifications Panel when Bell clicked
+    document.getElementById('notifBellBtn').addEventListener('click', () => {
+      if (notifPanel.style.display === 'none') {
+        notifPanel.style.display = 'flex';
+      } else {
+        notifPanel.style.display = 'none';
+      }
+    });
+
+    // Toggle Command Palette when Search Bar clicked
+    headerSearchBar.addEventListener('click', () => {
+      searchOverlay.style.display = 'flex';
+      paletteInput.focus();
+    });
+
+    // Keyboard shortcut handler (Ctrl + K or ESC)
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchOverlay.style.display = 'flex';
+        paletteInput.focus();
+      }
+      if (e.key === 'Escape') {
+        searchOverlay.style.display = 'none';
+      }
+    });
+
+    // Close overlay when clicking outside modal palette
+    searchOverlay.addEventListener('click', (e) => {
+      if (e.target === searchOverlay) {
+        searchOverlay.style.display = 'none';
+      }
+    });
+  </script>
+</body></html>
