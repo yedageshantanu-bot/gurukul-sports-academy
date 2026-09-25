@@ -83,7 +83,7 @@ export class WhatsAppAutomationService {
   async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
     const isReturning = await this.hasReceivedPriorMessages(phone);
     if (!isReturning) {
-      return `${baseBody}\n\n📌 _Note: Kripya yeh official ${academyName} number apne phone me save kar lijiye._`;
+      return `${baseBody}\n\n📌 _टीप: कृपया भविष्यातील सूचनांसाठी हा अधिकृत ${academyName} चा नंबर सेव्ह करून ठेवावा._`;
     }
     return baseBody;
   }
@@ -706,11 +706,12 @@ export class WhatsAppAutomationService {
   }) {
     try {
       const recipientPhone = queueService.normalizePhoneNumber(params.parentPhone);
-      const scheduleInfo = params.scheduleDays?.length ? `Schedule: ${params.scheduleDays.join(', ')}` : '';
-      const timeInfo = params.startTime && params.endTime ? `Time: ${params.startTime} - ${params.endTime}` : '';
+      const scheduleInfo = params.scheduleDays?.length ? `सराव दिवस: ${params.scheduleDays.join(', ')}` : '';
+      const timeInfo = params.startTime && params.endTime ? `वेळ: ${params.startTime} - ${params.endTime}` : '';
       const academyName = await this.getAcademyName();
 
-      const messageBody = `*Batch Enrollment Confirmed*\n\nDear Parent,\n*${params.studentName}* has been successfully enrolled into batch:\n*Batch:* ${params.batchName} (${params.subject || 'Core Academics'})\n${scheduleInfo}\n${timeInfo}\n\nWe look forward to an outstanding academic journey.\n- ${academyName}`;
+      const baseBody = `*सराव तुकडी (Batch) प्रवेश निश्चित*\n\nनमस्कार पालकमित्र,\n*${params.studentName}* चा खालील सराव तुकडीमध्ये यशस्वीरीत्या प्रवेश झाला आहे:\n*तुकडी (Batch):* ${params.batchName} (${params.subject || 'क्रीडा सराव'})\n${scheduleInfo}\n${timeInfo}\n\nआपल्या पाल्याच्या क्रीडा प्रवासासाठी मनःपूर्वक शुभेच्छा!\n- ${academyName}`;
+      const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
 
       const queued = await queueService.enqueueMessage({
         recipientPhone,
@@ -739,7 +740,7 @@ export class WhatsAppAutomationService {
     try {
       const recipientPhone = queueService.normalizePhoneNumber(params.parentPhone);
       const academyName = await this.getAcademyName();
-      const messageBody = `*Notice: ${academyName}*\n\nDear Parent,\n*${params.studentName}* has been unassigned from batch *${params.batchName}*.\n\nPlease contact academy administration if you have questions.\n- ${academyName}`;
+      const messageBody = `*सूचना: ${academyName}*\n\nनमस्कार पालकमित्र,\n*${params.studentName}* ला *${params.batchName}* या सराव तुकडीतून काढण्यात आले आहे.\n\nकाही अडचण किंवा चौकशी असल्यास कृपया अकादमी प्रशासनाशी संपर्क साधावा.\n- ${academyName}`;
 
       const queued = await queueService.enqueueMessage({
         recipientPhone,
@@ -772,10 +773,11 @@ export class WhatsAppAutomationService {
   }) {
     try {
       const recipientPhone = queueService.normalizePhoneNumber(params.parentPhone);
-      const feeInfo = params.monthlyFee ? `Monthly Tuition: ₹${params.monthlyFee}\nFee Due Date: 5th of every month` : '';
+      const feeInfo = params.monthlyFee ? `मासिक फी: ₹${params.monthlyFee}\nफी देय दिनांक: दर महिन्याची ५ तारीख` : '';
       const academyName = await this.getAcademyName();
 
-      const messageBody = `*Welcome to ${academyName}*\n\nDear ${params.parentName || 'Parent'},\nThank you for enrolling *${params.studentName}* in ${academyName}.\nProgram: ${params.course || 'Core Academics'}\n${feeInfo}\n\nWe are committed to providing the highest quality instruction for your child's academic success.\n- ${academyName} Administration`;
+      const baseBody = `*${academyName} मध्ये आपले सहर्ष स्वागत!* 🏆\n\nनमस्कार ${params.parentName || 'पालकमित्र'},\n*${params.studentName}* चा ${academyName} मध्ये प्रवेश घेतल्याबद्दल धन्यवाद.\nखेळ/प्रशिक्षण: ${params.course || 'क्रीडा प्रशिक्षण'}\n${feeInfo}\n\nआम्ही आपल्या पाल्यास दर्जेदार क्रीडा मार्गदर्शन देण्यासाठी कटिबद्ध आहोत.\n- ${academyName} प्रशासन`;
+      const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
 
       const queued = await queueService.enqueueMessage({
         recipientPhone,
@@ -965,7 +967,8 @@ export class WhatsAppAutomationService {
     const fileName = `${safeStudentName}_Monthly_Report_${reportData.fees.billingPeriod}.pdf`;
     const academyName = reportData.academyName || (await this.getAcademyName());
 
-    const caption = `*Official Monthly Progress & Fee Report: ${academyName}*\n\nDear Parent,\nPlease find attached the comprehensive monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${reportData.fees.currentMonthStatus}${reportData.fees.pendingAmount > 0 ? ` (Pending: Rs. ${reportData.fees.pendingAmount})` : ' (All clear)'}\n\nPlease review the attached document for full batch timings and records.\n\n- ${academyName} Administration`;
+    const feeStatusMarathi = reportData.fees.pendingAmount > 0 ? `थकीत: ₹${reportData.fees.pendingAmount}` : 'सर्व शुल्क जमा (Clear)';
+    const caption = `*मासिक प्रगती व उपस्थिती अहवाल: ${academyName}*\n\nनमस्कार पालकमित्र,\n*${reportData.studentName}* चा *${reportData.fees.billingPeriod}* या महिन्याचा अधिकृत मासिक प्रगती अहवाल सोबत जोडला आहे.\n\n*उपस्थिती प्रमाण:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} सत्रे)\n*फी स्थिती:* ${feeStatusMarathi}\n\nकृपया सविस्तर माहिती व वेळापत्रकासाठी जोडलेली PDF फाईल तपासावी.\n\n- ${academyName} प्रशासन`;
 
     // Dispatch via companion socket
     const sendResult = await prototypeLinkedDeviceSender.sendDocument({

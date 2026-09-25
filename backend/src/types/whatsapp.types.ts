@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const WHATSAPP_EVENT_TYPES = [
   'ATTENDANCE_ABSENT',
+  'ATTENDANCE_PRESENT',
   'ATTENDANCE_CORRECTION',
   'PAYMENT_SUCCESS',
   'FEE_DUE',

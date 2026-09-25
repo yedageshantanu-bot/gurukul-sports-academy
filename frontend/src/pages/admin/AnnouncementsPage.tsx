@@ -30,29 +30,29 @@ import { Announcement } from '../../types/announcement';
 
 const ANNOUNCEMENT_PRESETS = [
   {
-    label: '🌧️ Weather Delay',
-    title: 'Training Session Weather Update',
-    message: 'Dear Students & Parents, due to current weather conditions, today\'s outdoor training session has been rescheduled. We will inform you shortly about the alternate session slot. Stay safe!',
+    label: '🌧️ हवामान बदल',
+    title: 'सराव सत्राबाबत हवामान सूचना',
+    message: 'आदरणीय पालक व खेळाडू मित्रांनो, आज खराब हवामानामुळे मैदानी सराव सत्र पुढे ढकलण्यात आले आहे. पर्यायी सराव वेळेबाबत लवकरच कळवण्यात येईल. कृपया सुरक्षित राहा.',
   },
   {
-    label: '🏆 Tournament Notice',
-    title: 'Upcoming Tournament & Match Selections',
-    message: 'Exciting news! Selection trials for the upcoming Inter-Academy Tournament will take place this weekend during regular batch hours. Please ensure 100% attendance in official academy uniform.',
+    label: '🏆 स्पर्धा व निवड चाचणी',
+    title: 'आगामी स्पर्धा व निवड चाचणी सूचना',
+    message: 'सर्व खेळाडू व पालकांसाठी महत्त्वाची सूचना! आगामी आंतर-अकादमी क्रीडा स्पर्धेसाठी खेळाडूंची निवड चाचणी या शनिवार-रविवार नियमित सराव वेळेत घेतली जाईल. सर्व खेळाडूंनी अधिकृत गणवेशात वेळेवर उपस्थित राहावे.',
   },
   {
-    label: '⏰ Timing Revision',
-    title: 'Batch Schedule & Timing Revision',
-    message: 'Please note that starting next week, batch practice timings have been updated for optimized coaching sessions. Kindly consult your coach or check the academy board for slot details.',
+    label: '⏰ सराव वेळेत बदल',
+    title: 'सराव सत्राच्या वेळेत बदल',
+    message: 'सर्व पालकांनी व खेळाडूंनी नोंद घ्यावी की, पुढील आठवड्यापासून सराव सत्राच्या वेळेत सुधारणा करण्यात येत आहे. अचूक वेळेसाठी कृपया प्रशिक्षकांशी संपर्क साधावा किंवा सूचना फलक तपासावा.',
   },
   {
-    label: '🏖️ Academy Holiday',
-    title: 'Academy Closed Notice',
-    message: 'Dear Parents & Students, the academy will remain closed tomorrow on account of the public holiday. Regular training sessions will resume from the following day as per schedule.',
+    label: '🏖️ सुट्टीची सूचना',
+    title: 'अकादमी सुट्टीबाबत सूचना',
+    message: 'सर्व पालक व खेळाडूंनी नोंद घ्यावी की, उद्या सुट्टीनिमित्त अकादमीचे सराव सत्र बंद राहील. परवापासून नियमित वेळापत्रकानुसार सराव सत्र सुरू राहील.',
   },
   {
-    label: '🎽 Kit & Gear Reminder',
-    title: 'Sports Kit & Hydration Reminder',
-    message: 'Friendly reminder to all students to carry their complete training equipment, proper sports footwear, and personal water bottles to every training session.',
+    label: '🎽 किट व साहित्य आठवण',
+    title: 'क्रीडा साहित्य व गणवेश सूचना',
+    message: 'सर्व खेळाडूंनी सराव सत्रास येताना स्वतःचे संपूर्ण क्रीडा साहित्य, योग्य स्पोर्ट्स शूज आणि पाण्याची बाटली सोबत आणणे आवश्यक आहे.',
   },
 ];
 
