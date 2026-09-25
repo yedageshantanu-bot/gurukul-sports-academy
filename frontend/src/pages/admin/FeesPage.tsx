@@ -386,7 +386,7 @@ export const FeesPage: React.FC = () => {
       }
 
       setReminderSuccessMessage(
-        `WhatsApp fee reminder sent to ${fee.student?.name || 'student'} (${data.data?.recipient_phone || 'recipient'}) with payment link!`
+        `WhatsApp reminder sent to ${fee.student?.name || 'student'} (${data.data?.recipient_phone || 'recipient'})! Queued safely for dispatch.`
       );
       setTimeout(() => setReminderSuccessMessage(null), 6000);
     } catch (err: any) {
@@ -413,7 +413,7 @@ export const FeesPage: React.FC = () => {
       if (!res.ok) throw new Error(data.message || 'Failed to trigger monthly reminders');
 
       setReminderSuccessMessage(
-        `Monthly 5th Fee Reminders queued for ${data.data?.queuedCount || 0} students with 15s anti-ban throttle (${data.data?.escalatedCount || 0} escalated to Admin Dashboard).`
+        `Monthly fee reminders queued for ${data.data?.queuedCount || 0} students! Dispatched safely via WhatsApp queue.`
       );
       setTimeout(() => setReminderSuccessMessage(null), 8000);
     } catch (err: any) {

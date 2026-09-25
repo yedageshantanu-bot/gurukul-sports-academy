@@ -227,6 +227,16 @@ export const WhatsAppPage: React.FC = () => {
         </div>
       )}
 
+      {/* Safe Queue Info Banner */}
+      <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-start sm:items-center gap-3 text-xs text-slate-300">
+        <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 shrink-0">
+          <Clock className="w-4 h-4" />
+        </div>
+        <div className="flex-1">
+          <span className="font-semibold text-white">Smart Anti-Ban Queue Active:</span> Automated fee reminders and announcements are safely staggered with natural delays so your WhatsApp number stays 100% healthy. You can trigger reminders anytime without restrictions!
+        </div>
+      </div>
+
       {/* Main Grid: QR Code & Status */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Side: QR Scanner Box (7 cols) */}

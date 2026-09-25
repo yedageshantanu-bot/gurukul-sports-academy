@@ -113,23 +113,12 @@ export class WhatsAppQueueService {
     const idempotencyKey =
       params.idempotencyKey || this.generateIdempotencyKey(normalizedPhone, eventType, params.messageBody);
 
-    // Duplicate Check 1: In-memory queue duplicate check
+    // Rapid double-click guard: only reuse if the exact same message is currently waiting in PENDING or PROCESSING
     for (const item of this.inMemoryQueue.values()) {
       if (item.idempotency_key === idempotencyKey) {
         if (item.status === 'PENDING' || item.status === 'PROCESSING') {
-          console.warn(`[QueueService] Duplicate message detected in queue for ${normalizedPhone}. Reusing queued item.`);
+          console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Reusing queued item.`);
           return item;
-        }
-        if (item.status === 'SENT' || (item.status as string) === 'MOCK') {
-          // Check if sent in last 2 hours (duplicate cooldown)
-          const sentAgeMs = item.sent_at ? Date.now() - new Date(item.sent_at).getTime() : 0;
-          if (sentAgeMs < 2 * 60 * 60 * 1000) {
-            throw new AppError(
-              'Duplicate message protection: An identical message was already sent to this recipient recently.',
-              409,
-              'DUPLICATE_MESSAGE'
-            );
-          }
         }
       }
     }
@@ -241,23 +230,7 @@ export class WhatsAppQueueService {
       return { success: true, reason: 'Message already sent', status: 'SENT' };
     }
 
-    // --- SAFETY CHECK 6: Duplicate Protection: Is identical message already sent? ---
-    const identicalAlreadySent = Array.from(this.inMemoryQueue.values()).some(
-      (m) =>
-        m.id !== item.id &&
-        m.recipient_phone === item.recipient_phone &&
-        m.message_body === item.message_body &&
-        (m.status === 'SENT' || (m.status as string) === 'MOCK') &&
-        m.sent_at &&
-        Date.now() - new Date(m.sent_at).getTime() < 4 * 60 * 60 * 1000
-    );
-    if (identicalAlreadySent) {
-      const reason = 'Duplicate protection: identical message was already sent to recipient in last 4 hours';
-      await this.markItemFailed(item.id, reason, true);
-      return { success: false, reason, status: 'FAILED' };
-    }
-
-    // --- SAFETY CHECK 7: Is another message for this recipient currently processing? ---
+    // --- SAFETY CHECK 6: Is another message for this recipient currently processing? ---
     if (this.processingRecipients.has(item.recipient_phone)) {
       const reason = 'Another message for this recipient is currently processing';
       return { success: false, reason, status: 'PENDING' };
