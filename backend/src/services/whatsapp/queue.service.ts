@@ -52,10 +52,10 @@ export class WhatsAppQueueService {
     return crypto.createHash('sha256').update(raw).digest('hex').substring(0, 32);
   }
 
-  // Stagger an array of messages so they dispatch with a 15-second gap between each recipient
+  // Stagger an array of messages so they dispatch with a humanized 15-25 second gap between each recipient
   async enqueueBatchStaggered(
     items: EnqueueMessageParams[],
-    intervalMs: number = 15000
+    baseIntervalMs: number = 16000
   ): Promise<WhatsAppQueueItem[]> {
     if (env.DEMO_MODE || env.APP_ENV === 'demo' || !env.WHATSAPP_ENABLED) {
       console.log('[QueueService] WhatsApp is disabled in environment. Skipping batch enqueue.');
@@ -63,10 +63,15 @@ export class WhatsAppQueueService {
     }
 
     const results: WhatsAppQueueItem[] = [];
-    const baseTime = Date.now();
+    let currentSchedule = Date.now();
 
     for (let i = 0; i < items.length; i++) {
-      const scheduledTime = new Date(baseTime + i * intervalMs).toISOString();
+      if (i > 0) {
+        // Add random jitter of 3-7 seconds to prevent robotic periodic patterns
+        const jitter = Math.floor(Math.random() * 5000);
+        currentSchedule += baseIntervalMs + jitter;
+      }
+      const scheduledTime = new Date(currentSchedule).toISOString();
       const queued = await this.enqueueMessage({
         ...items[i],
         scheduledAt: scheduledTime,
@@ -267,8 +272,8 @@ export class WhatsAppQueueService {
 
     // --- SAFETY CHECK 9: Is the WhatsApp Sender Connected? ---
     const deviceStatus = await provider.getStatus();
-    if (provider.name === 'PROTOTYPE_LINKED_DEVICE' && deviceStatus.status !== 'CONNECTED') {
-      const reason = `WhatsApp prototype sender is not connected (Status: ${deviceStatus.status})`;
+    if ((provider.name === 'PROTOTYPE_LINKED_DEVICE' || provider.name === 'OPENWA') && deviceStatus.status !== 'CONNECTED') {
+      const reason = `WhatsApp sender is not connected (Status: ${deviceStatus.status})`;
       await this.markItemFailed(item.id, reason, false);
       return { success: false, reason, status: 'PENDING' };
     }
@@ -288,11 +293,12 @@ export class WhatsAppQueueService {
     await this.updateItemStatus(item.id, 'PROCESSING');
 
     try {
-      // Anti-Ban Rate Limiting: Minimum 15 seconds gap between consecutive WhatsApp deliveries
-      if (provider.name === 'PROTOTYPE_LINKED_DEVICE' && this.lastDispatchedAt > 0) {
+      // Anti-Ban Rate Limiting: Minimum 15-22 seconds randomized gap between consecutive WhatsApp deliveries
+      if ((provider.name === 'PROTOTYPE_LINKED_DEVICE' || provider.name === 'OPENWA') && this.lastDispatchedAt > 0) {
         const elapsed = Date.now() - this.lastDispatchedAt;
-        if (elapsed < this.MIN_DISPATCH_INTERVAL_MS) {
-          const waitMs = this.MIN_DISPATCH_INTERVAL_MS - elapsed;
+        const dynamicDelay = this.MIN_DISPATCH_INTERVAL_MS + Math.floor(Math.random() * 6000); // 15s to 21s
+        if (elapsed < dynamicDelay) {
+          const waitMs = dynamicDelay - elapsed;
           console.log(
             `[QueueService] Anti-Ban throttle: waiting ${Math.ceil(waitMs / 1000)}s before dispatching to ${item.recipient_phone}...`
           );
