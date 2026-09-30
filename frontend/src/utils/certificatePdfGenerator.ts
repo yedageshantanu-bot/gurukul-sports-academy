@@ -27,7 +27,7 @@ export interface CertificateData {
  * Sanitizes input strings so they strictly conform to standard PDF WinAnsi / Latin-1 encoding,
  * replacing unicode bullets, em-dashes, and stars with clean ASCII equivalents.
  */
-function cleanPdfText(text: string): string {
+export function cleanPdfText(text: string): string {
   if (!text) return '';
   return text
     .replace(/[•●]/g, '-')
