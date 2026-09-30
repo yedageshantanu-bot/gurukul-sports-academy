@@ -1094,19 +1094,27 @@ export const RanksPage: React.FC = () => {
               <p className="text-xs text-slate-300">This is to certify that athlete</p>
               <h3 className="text-2xl font-black text-amber-300">
                 {(() => {
+                  const sName = previewCert.student_name || '';
                   const fName = previewCert.fatherName || previewCert.parent_name || '';
-                  if (!fName) return previewCert.student_name;
-                  const sParts = (previewCert.student_name || '').trim().split(/\s+/);
-                  const fParts = fName.trim().split(/\s+/);
-                  const sSur = sParts.length > 1 ? sParts[sParts.length - 1] : '';
-                  const fSur = fParts.length > 1 ? fParts[fParts.length - 1] : '';
-                  if (sSur && fSur && sSur.toLowerCase() === fSur.toLowerCase()) {
-                    return `${sParts.slice(0, -1).join(' ')} S/O ${fName}`;
+
+                  // Split student name into first and surname
+                  const studentParts = sName.trim().split(/\s+/);
+                  const studentFirst = studentParts[0] || '';
+                  const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
+
+                  // Get just the father's first name
+                  const fatherParts = fName.trim().split(/\s+/);
+                  const fatherFirst = fatherParts[0] || '';
+
+                  // Build the new Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
+                  if (fatherFirst) {
+                    if (studentSurname && studentSurname !== studentFirst) {
+                      return `${studentFirst} ${fatherFirst} ${studentSurname}`;
+                    } else {
+                      return `${studentFirst} ${fatherFirst}`;
+                    }
                   }
-                  if (sSur && !fSur) {
-                    return `${sParts.slice(0, -1).join(' ')} S/O ${fName} ${sSur}`;
-                  }
-                  return `${previewCert.student_name} S/O ${fName}`;
+                  return sName;
                 })()}
               </h3>
               <p className="text-xs text-slate-400">
