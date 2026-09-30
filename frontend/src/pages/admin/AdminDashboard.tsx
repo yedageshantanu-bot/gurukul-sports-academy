@@ -26,7 +26,6 @@ import { Link } from 'react-router-dom';
 
 export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [activePeriod, setActivePeriod] = useState<'today' | 'week' | 'month'>('month');
   const [kpis, setKpis] = useState<AdminKPIs | null>(null);
   const [attendanceData, setAttendanceData] = useState<{
     todayPresent: number;
@@ -212,40 +211,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Segmented Period Filter */}
-          <div className="inline-flex bg-[#1E293B] border border-white/10 p-1 rounded-lg">
-            <button
-              onClick={() => setActivePeriod('today')}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                activePeriod === 'today'
-                  ? 'bg-[#273549] text-[#F97316] font-semibold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setActivePeriod('week')}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                activePeriod === 'week'
-                  ? 'bg-[#273549] text-[#F97316] font-semibold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              This Week
-            </button>
-            <button
-              onClick={() => setActivePeriod('month')}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                activePeriod === 'month'
-                  ? 'bg-[#273549] text-[#F97316] font-semibold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              This Month
-            </button>
-          </div>
-
           {/* Quick Action Pill Bar */}
           <div className="flex flex-wrap items-center gap-2">
             <Link
