@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../middlewares/errorHandler.js';
-import { queueService } from './whatsapp/queue.service.js';
+// NOTE: WhatsApp auto-notification intentionally removed per Rocky's request.
+// Rank-ups no longer dispatch WhatsApp messages to parents.
 
 export interface PromoteStudentDTO {
   studentId?: string;
@@ -176,7 +177,7 @@ export class RankService {
   }
 
   /**
-   * 1-Click Rank-Up Promotion with WhatsApp notification & Certificate log
+   * 1-Click Rank-Up Promotion with Certificate log (WhatsApp auto-notify removed per request)
    */
   static async promoteStudent(dto: PromoteStudentDTO) {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
@@ -287,31 +288,19 @@ export class RankService {
         promotion_date: promotionDate,
         promoted_by: promotedBy,
         certificate_number: certificateNumber,
-        whatsapp_sent: true,
+        whatsapp_sent: false, // WhatsApp auto-notify intentionally disabled per Rocky's request
         notes: dto.notes || null,
       });
 
     if (pErr) console.warn('[RankService] Warning logging promotion history:', pErr.message);
 
-    // 6. Trigger celebratory WhatsApp notification to Parent
-    const phone = student.parent_whatsapp || student.student_mobile;
-    if (phone) {
-      const disciplineName = disciplineCode === 'KALARIPPAYATTU' ? 'Kalarippayattu' : (disciplineCode === 'KARATE_WUSHU' ? 'Karate + Wushu' : 'Combat Arts');
-      const parent = student.parent_name || 'Parent/Guardian';
-      const msg = `🥋 *Gurukul Rank Promotion Honors*\n\nDear ${parent},\n\nWe are immensely proud to announce that *${student.name}* has officially earned a Rank Up promotion!\n\n• *Discipline:* ${disciplineName}\n• *New Rank Secured:* *${targetRank.rank_name}* (${targetRank.belt_color})\n• *Player Reg No:* ${regNumber}\n• *Exam Date:* ${promotionDate}\n• *Chief Examiner:* ${promotedBy}\n• *Certificate Ref:* ${certificateNumber}\n\nCongratulations on this martial arts milestone!\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-
-      queueService.enqueueMessage({
-        recipientPhone: phone,
-        messageBody: msg,
-        studentId: studentId,
-        eventType: 'RANK_PROMOTION',
-        idempotencyKey: `PROMOTION:${studentId}:${targetRank.id}:${promotionDate}`,
-      }).catch((e) => console.warn('[RankService] WhatsApp dispatch error:', e.message));
-    }
+    // 6. NOTE: WhatsApp notification intentionally REMOVED per Rocky's request.
+    // Rank-ups no longer dispatch celebratory messages to parents automatically.
+    // Certificates can be viewed and downloaded via the Certificate Registry tab.
 
     return {
       success: true,
-      message: `${student.name} promoted to ${targetRank.rank_name}! WhatsApp certificate notice dispatched.`,
+      message: `${student.name} promoted to ${targetRank.rank_name}!`,
       updatedRank,
       certificateNumber,
     };
