@@ -7,6 +7,10 @@ export interface CertificateData {
   student_code?: string;
   regNumber?: string;
   dob?: string;
+  fatherName?: string;
+  parentName?: string;
+  father_name?: string;
+  parent_name?: string;
   discipline_name?: string;
   disciplineName?: string;
   to_rank_name?: string;
@@ -57,7 +61,30 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
 
   // Normalize data fields with safe fallbacks and WinAnsi sanitization
-  const studentName = cleanPdfText(cert.student_name || cert.playerName || 'Athletic Trainee');
+  const studentFirstName = cleanPdfText(cert.student_name || cert.playerName || 'Athletic Trainee');
+  const fatherName = cleanPdfText(cert.fatherName || cert.parentName || cert.father_name || cert.parent_name || '');
+
+  // Format full student name with father name (Indian certificate standard: REYANSH S/O DATTATRAY DESHMUKH)
+  let formattedStudentName = studentFirstName;
+  if (fatherName) {
+    const studentParts = studentFirstName.trim().split(/\s+/);
+    const fatherParts = fatherName.trim().split(/\s+/);
+    const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
+    const fatherSurname = fatherParts.length > 1 ? fatherParts[fatherParts.length - 1] : '';
+
+    if (studentSurname && fatherSurname && studentSurname.toLowerCase() === fatherSurname.toLowerCase()) {
+      // Both share the same surname: "Reyansh Deshmukh" + "Dattatray Deshmukh" -> "Reyansh S/O Dattatray Deshmukh"
+      const studentGiven = studentParts.slice(0, -1).join(' ');
+      formattedStudentName = `${studentGiven} S/O ${fatherName}`;
+    } else if (studentSurname && !fatherSurname) {
+      // Student has surname but father doesn't: "Reyansh Deshmukh" + "Dattatray" -> "Reyansh S/O Dattatray Deshmukh"
+      const studentGiven = studentParts.slice(0, -1).join(' ');
+      formattedStudentName = `${studentGiven} S/O ${fatherName} ${studentSurname}`;
+    } else {
+      // Different surnames or single name: "Reyansh" + "Dattatray Deshmukh"
+      formattedStudentName = `${studentFirstName} S/O ${fatherName}`;
+    }
+  }
   const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'GSA-ATH-2026');
   const discipline = cleanPdfText(cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports');
   const rankName = cleanPdfText(cert.to_rank_name || cert.rankSecured || 'Advanced Grade');
@@ -202,7 +229,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
 
   // 9. Student Name in Majestic Headline Typography
   currentY -= 38;
-  const displayStudentName = studentName.toUpperCase();
+  const displayStudentName = formattedStudentName.toUpperCase();
 
   // Dynamic font sizing: size 32 for standard names, gracefully stepping down for long names
   let nameFontSize = 32;
