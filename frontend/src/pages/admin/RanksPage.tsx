@@ -67,6 +67,10 @@ interface CertificateRecord {
   examiner_name: string;
   represented_from: string;
   notes: string | null;
+  fatherName?: string;
+  parentName?: string;
+  parent_name?: string;
+  father_name?: string;
 }
 
 export const RanksPage: React.FC = () => {
@@ -182,6 +186,10 @@ export const RanksPage: React.FC = () => {
         student_id: r.student_id || r.studentId || '',
         student_name: r.student_name || r.playerName || 'Athlete Trainee',
         student_code: r.student_code || r.regNumber || 'GSA-ATH',
+        fatherName: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
+        parentName: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
+        parent_name: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
+        father_name: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
         dob: r.dob || '2012-05-14',
         contact_number: r.contact_number || r.parentWhatsapp || r.parent_whatsapp || r.student_mobile || '',
         discipline_code: r.discipline_code || r.disciplineCode || 'MARTIAL_ARTS',
@@ -196,7 +204,50 @@ export const RanksPage: React.FC = () => {
         notes: r.notes || null,
       }));
 
-      setCertificates(normalizedList);
+      // Defensive frontend deduplication: Group by student_id + discipline_code
+      // Keep only one per group, preferring the one with a non-null/non-empty student_code (reg_number)
+      const groupedCerts = new Map<string, CertificateRecord[]>();
+      for (const cert of normalizedList) {
+        const key = `${cert.student_id}:${cert.discipline_code}`;
+        if (!groupedCerts.has(key)) {
+          groupedCerts.set(key, []);
+        }
+        groupedCerts.get(key)!.push(cert);
+      }
+
+      const deduplicatedList: CertificateRecord[] = [];
+      for (const group of groupedCerts.values()) {
+        group.sort((a, b) => {
+          const aHasReg = Boolean(
+            a.student_code &&
+            a.student_code.trim() !== '' &&
+            a.student_code.toUpperCase() !== 'GSA-ATH'
+          );
+          const bHasReg = Boolean(
+            b.student_code &&
+            b.student_code.trim() !== '' &&
+            b.student_code.toUpperCase() !== 'GSA-ATH'
+          );
+          if (aHasReg !== bHasReg) {
+            return aHasReg ? -1 : 1;
+          }
+
+          const dateA = new Date(a.promoted_at || 0).getTime();
+          const dateB = new Date(b.promoted_at || 0).getTime();
+          return dateB - dateA;
+        });
+
+        deduplicatedList.push(group[0]);
+      }
+
+      // Sort the final list back by promoted_at DESC
+      deduplicatedList.sort((a, b) => {
+        const dateA = new Date(a.promoted_at || 0).getTime();
+        const dateB = new Date(b.promoted_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setCertificates(deduplicatedList);
     } catch (err) {
       console.error('Failed to load certificates:', err);
     } finally {
@@ -1041,7 +1092,23 @@ export const RanksPage: React.FC = () => {
 
             <div className="py-3 border-y border-white/10 space-y-2">
               <p className="text-xs text-slate-300">This is to certify that athlete</p>
-              <h3 className="text-2xl font-black text-amber-300">{previewCert.student_name}</h3>
+              <h3 className="text-2xl font-black text-amber-300">
+                {(() => {
+                  const fName = previewCert.fatherName || previewCert.parent_name || '';
+                  if (!fName) return previewCert.student_name;
+                  const sParts = (previewCert.student_name || '').trim().split(/\s+/);
+                  const fParts = fName.trim().split(/\s+/);
+                  const sSur = sParts.length > 1 ? sParts[sParts.length - 1] : '';
+                  const fSur = fParts.length > 1 ? fParts[fParts.length - 1] : '';
+                  if (sSur && fSur && sSur.toLowerCase() === fSur.toLowerCase()) {
+                    return `${sParts.slice(0, -1).join(' ')} S/O ${fName}`;
+                  }
+                  if (sSur && !fSur) {
+                    return `${sParts.slice(0, -1).join(' ')} S/O ${fName} ${sSur}`;
+                  }
+                  return `${previewCert.student_name} S/O ${fName}`;
+                })()}
+              </h3>
               <p className="text-xs text-slate-400">
                 Registration No: <span className="font-mono text-white font-semibold">{previewCert.student_code || 'GSA-ATH'}</span> | DOB: <span className="text-white font-semibold">{previewCert.dob ? new Date(previewCert.dob).toLocaleDateString('en-IN') : 'On File'}</span>
               </p>
