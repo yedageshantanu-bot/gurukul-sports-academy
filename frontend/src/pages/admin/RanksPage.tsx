@@ -22,6 +22,7 @@ import { Modal } from '../../components/ui/Modal';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { useToast } from '../../contexts/ToastContext';
 import { downloadCertificatePdf } from '../../utils/certificatePdfGenerator';
+import { downloadCombinedCertificatesPdf } from '../../utils/certificateBundlePdf';
 
 interface MartialRank {
   id: string;
@@ -244,7 +245,7 @@ export const RanksPage: React.FC = () => {
 
     try {
       setPromoting(true);
-      await apiClient('/ranks/promote', {
+      const res = await apiClient<any>('/ranks/promote', {
         method: 'POST',
         body: JSON.stringify({
           student_id: selectedStudentForPromotion.student_id,
@@ -263,9 +264,11 @@ export const RanksPage: React.FC = () => {
       });
 
       setIsPromoteModalOpen(false);
+      const studentName = selectedStudentForPromotion.student_name;
       setSelectedStudentForPromotion(null);
       fetchStudentRanks();
-      toast.success(`Success! Athlete promoted to ${chosenRank.rank_name}. Celebratory WhatsApp notice dispatched to parents!`);
+
+      toast.success(res?.message || `Success! ${studentName} promoted to ${chosenRank.rank_name}.`);
     } catch (err: any) {
       console.error('Promotion failed:', err);
       toast.error(err.message || 'Could not promote student. Please retry.');
@@ -299,6 +302,35 @@ export const RanksPage: React.FC = () => {
     }
   };
 
+  // Download combined multi-page PDF bundle for all currently filtered certificates
+  const [generatingBundle, setGeneratingBundle] = useState(false);
+  const handleDownloadCombinedCertificates = async () => {
+    if (!certificates.length) {
+      toast.warning('No certificates to download in current filter.');
+      return;
+    }
+    try {
+      setGeneratingBundle(true);
+      const rangeLabel =
+        certStartDate && certEndDate
+          ? `${certStartDate}_to_${certEndDate}`
+          : certStartDate
+          ? `from_${certStartDate}`
+          : certEndDate
+          ? `until_${certEndDate}`
+          : 'all';
+
+      toast.info(`Generating combined PDF bundle for ${certificates.length} certificate(s)...`);
+      await downloadCombinedCertificatesPdf(certificates, rangeLabel);
+      toast.success(`Combined certificate bundle downloaded (${certificates.length} certificates).`);
+    } catch (err: any) {
+      console.error('Failed to generate combined certificates bundle:', err);
+      toast.error('Could not generate combined certificate PDF. Please retry.');
+    } finally {
+      setGeneratingBundle(false);
+    }
+  };
+
   // Print Certificate Registry sheet
   const handlePrintRegistry = () => {
     window.print();
@@ -328,7 +360,7 @@ export const RanksPage: React.FC = () => {
             Martial Arts Belt Promotion & Certificate Registry
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Manage Kalarippayattu and Karate + Wushu belt progression, promote students with 1 click, dispatch WhatsApp congratulatory notices, and export date-filtered certificate registers.
+            Manage Kalarippayattu and Karate + Wushu belt progression, promote students with 1 click, and export date-filtered certificate registers (single or combined PDF bundle).
           </p>
         </div>
 
@@ -542,6 +574,16 @@ export const RanksPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleDownloadCombinedCertificates}
+                  disabled={generatingBundle || certificates.length === 0}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs py-2 px-3 font-bold shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  {generatingBundle
+                    ? 'Generating...'
+                    : `Download Combined PDF (${certificates.length})`}
+                </Button>
                 <Button
                   onClick={handlePrintRegistry}
                   className="bg-slate-800 hover:bg-slate-700 text-white border border-white/10 text-xs py-2 px-3"
@@ -876,9 +918,9 @@ export const RanksPage: React.FC = () => {
             />
           </div>
 
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-300 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-            <span>Automatic celebratory WhatsApp notification will be dispatched to the parent immediately upon confirmation!</span>
+          <div className="p-3 bg-slate-800/80 border border-white/10 rounded-lg text-xs text-slate-300 flex items-center gap-2">
+            <Award className="w-4 h-4 flex-shrink-0 text-amber-400" />
+            <span>Rank will be updated and logged in the Certificate Registry. Download certificates from the Certificate Registry tab.</span>
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
@@ -894,7 +936,7 @@ export const RanksPage: React.FC = () => {
               disabled={promoting}
               className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold"
             >
-              {promoting ? 'Promoting & Notifying...' : 'Confirm Promotion & Notify Parents'}
+              {promoting ? 'Promoting...' : 'Confirm Promotion'}
             </Button>
           </div>
         </form>
