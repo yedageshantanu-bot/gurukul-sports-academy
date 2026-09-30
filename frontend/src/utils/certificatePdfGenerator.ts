@@ -201,29 +201,82 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   drawCenteredText('This is to certify that athlete / martial artist', currentY, 11, fontItalic, rgb(71 / 255, 85 / 255, 105 / 255));
 
   // 9. Student Name in Majestic Headline Typography
-  currentY -= 32;
+  currentY -= 38;
   const displayStudentName = studentName.toUpperCase();
-  drawCenteredText(displayStudentName, currentY, 24, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
 
-  // Double underline under student name
-  const nameWidth = fontBold.widthOfTextAtSize(displayStudentName, 24);
-  const nameUnderlineStart = (width - nameWidth) / 2 - 10;
-  const nameUnderlineWidth = nameWidth + 20;
+  // Dynamic font sizing: size 32 for standard names, gracefully stepping down for long names
+  let nameFontSize = 32;
+  if (displayStudentName.length > 28) {
+    nameFontSize = 24;
+  } else if (displayStudentName.length > 22) {
+    nameFontSize = 28;
+  }
+
+  // Safety guard: ensure the name fits comfortably within printable margins
+  while (fontBold.widthOfTextAtSize(displayStudentName, nameFontSize) > 560 && nameFontSize > 18) {
+    nameFontSize -= 1;
+  }
+
+  const nameWidth = fontBold.widthOfTextAtSize(displayStudentName, nameFontSize);
+  const nameX = (width - nameWidth) / 2;
+  const nameNavyColor = rgb(10 / 255, 17 / 255, 32 / 255);
+
+  // Subtle soft depth shadow behind the name to create a premium elevated effect
+  page.drawText(displayStudentName, {
+    x: nameX + 0.8,
+    y: currentY - 0.8,
+    size: nameFontSize,
+    font: fontBold,
+    color: rgb(15 / 255, 23 / 255, 42 / 255),
+    opacity: 0.22,
+  });
+
+  // Visually simulate extra-bold / heavy typeface weight by multi-drawing with horizontal and vertical micro-offsets
+  const microOffsets = [
+    { dx: -0.3, dy: 0 },
+    { dx: 0.3, dy: 0 },
+    { dx: -0.15, dy: 0 },
+    { dx: 0.15, dy: 0 },
+    { dx: 0, dy: -0.15 },
+    { dx: 0, dy: 0.15 },
+  ];
+  for (const offset of microOffsets) {
+    page.drawText(displayStudentName, {
+      x: nameX + offset.dx,
+      y: currentY + offset.dy,
+      size: nameFontSize,
+      font: fontBold,
+      color: nameNavyColor,
+    });
+  }
+
+  // Primary crisp center text
+  page.drawText(displayStudentName, {
+    x: nameX,
+    y: currentY,
+    size: nameFontSize,
+    font: fontBold,
+    color: nameNavyColor,
+  });
+
+  // Double underline under student name (accurately computed from nameFontSize)
+  const nameUnderlineStart = (width - nameWidth) / 2 - 12;
+  const nameUnderlineWidth = nameWidth + 24;
   page.drawLine({
-    start: { x: nameUnderlineStart, y: currentY - 4 },
-    end: { x: nameUnderlineStart + nameUnderlineWidth, y: currentY - 4 },
-    thickness: 1.2,
+    start: { x: nameUnderlineStart, y: currentY - 5 },
+    end: { x: nameUnderlineStart + nameUnderlineWidth, y: currentY - 5 },
+    thickness: 1.4,
     color: rgb(217 / 255, 119 / 255, 6 / 255),
   });
   page.drawLine({
-    start: { x: nameUnderlineStart + 20, y: currentY - 7 },
-    end: { x: nameUnderlineStart + nameUnderlineWidth - 20, y: currentY - 7 },
-    thickness: 0.6,
+    start: { x: nameUnderlineStart + 22, y: currentY - 8.5 },
+    end: { x: nameUnderlineStart + nameUnderlineWidth - 22, y: currentY - 8.5 },
+    thickness: 0.7,
     color: rgb(245 / 255, 158 / 255, 11 / 255),
   });
 
   // 10. Commendation / Syllabus Text
-  currentY -= 24;
+  currentY -= 26;
   const commendationP1 = 'has demonstrated exemplary technical proficiency, combat readiness, syllabus mastery,';
   const commendationP2 = 'and honorable athletic sportsmanship, and is hereby promoted to the prestigious rank of';
   drawCenteredText(commendationP1, currentY, 10, fontRegular, rgb(51 / 255, 65 / 255, 85 / 255));
