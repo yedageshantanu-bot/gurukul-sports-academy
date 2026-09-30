@@ -158,6 +158,8 @@ export class RankService {
         student_code: sr.reg_number,
         dob: sr.dob,
         contact_number: studentObj?.parent_whatsapp || studentObj?.student_mobile || '',
+        parent_name: studentObj?.parent_name || '',
+        fatherName: studentObj?.parent_name || '',
         discipline_code: sr.discipline_code,
         discipline_name: sr.discipline_code === 'KALARIPPAYATTU'
           ? 'Kalarippayattu'
@@ -298,11 +300,55 @@ export class RankService {
     // Rank-ups no longer dispatch celebratory messages to parents automatically.
     // Certificates can be viewed and downloaded via the Certificate Registry tab.
 
+    const certificateData = {
+      certificateNumber,
+      certificate_number: certificateNumber,
+      studentId,
+      student_id: studentId,
+      playerName: student.name,
+      student_name: student.name,
+      studentName: student.name,
+      parentName: student.parent_name || '',
+      parent_name: student.parent_name || '',
+      fatherName: student.parent_name || '',
+      father_name: student.parent_name || '',
+      parentWhatsapp: student.parent_whatsapp || student.student_mobile || '',
+      contact_number: student.parent_whatsapp || student.student_mobile || '',
+      dob,
+      regNumber,
+      student_code: regNumber,
+      disciplineCode,
+      discipline_code: disciplineCode,
+      disciplineName: disciplineCode === 'KALARIPPAYATTU'
+        ? 'Kalarippayattu'
+        : disciplineCode === 'KARATE_WUSHU'
+        ? 'Karate + Wushu'
+        : 'Martial Arts',
+      discipline_name: disciplineCode === 'KALARIPPAYATTU'
+        ? 'Kalarippayattu'
+        : disciplineCode === 'KARATE_WUSHU'
+        ? 'Karate + Wushu'
+        : 'Martial Arts',
+      rankSecured: targetRank.rank_name,
+      to_rank_name: targetRank.rank_name,
+      previousRank: previousRankName,
+      from_rank_name: previousRankName,
+      beltColor: targetRank.belt_color || 'Yellow',
+      belt_color: targetRank.belt_color || 'Yellow',
+      representedFrom,
+      represented_from: representedFrom,
+      promotionDate,
+      promoted_at: promotionDate,
+      promotedBy,
+      examiner_name: promotedBy,
+    };
+
     return {
       success: true,
       message: `${student.name} promoted to ${targetRank.rank_name}!`,
       updatedRank,
       certificateNumber,
+      certificateData,
     };
   }
 
@@ -365,7 +411,48 @@ export class RankService {
     const { data, error } = await query;
     if (error) throw new AppError(`Failed to fetch certificate registry: ${error.message}`, 500);
 
-    const records = (data || []).map((r: any) => {
+    // Group records by key = student_id + ':' + discipline_code
+    // Keep record with strongest reg_number (non-null and non-empty preferred), then promotion_date DESC
+    const grouped = new Map<string, any[]>();
+    for (const item of data || []) {
+      const key = `${item.student_id}:${item.discipline_code}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(item);
+    }
+
+    const deduplicatedData: any[] = [];
+    for (const group of grouped.values()) {
+      group.sort((a, b) => {
+        const aHasReg = Boolean(a.reg_number && String(a.reg_number).trim() !== '' && String(a.reg_number).trim().toUpperCase() !== 'GSA-ATH');
+        const bHasReg = Boolean(b.reg_number && String(b.reg_number).trim() !== '' && String(b.reg_number).trim().toUpperCase() !== 'GSA-ATH');
+        if (aHasReg !== bHasReg) {
+          return aHasReg ? -1 : 1;
+        }
+
+        const aHasStudent = Boolean(a.students?.name && String(a.students.name).trim() !== '' && a.students.name !== 'Player');
+        const bHasStudent = Boolean(b.students?.name && String(b.students.name).trim() !== '' && b.students.name !== 'Player');
+        if (aHasStudent !== bHasStudent) {
+          return aHasStudent ? -1 : 1;
+        }
+
+        const dateA = new Date(a.promotion_date || a.created_at || 0).getTime();
+        const dateB = new Date(b.promotion_date || b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      deduplicatedData.push(group[0]);
+    }
+
+    // Preserve the original sort order (promotion_date DESC)
+    deduplicatedData.sort((a, b) => {
+      const dateA = new Date(a.promotion_date || a.created_at || 0).getTime();
+      const dateB = new Date(b.promotion_date || b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+
+    const records = deduplicatedData.map((r: any) => {
       const studentName = r.students?.name || 'Player';
       const regNo = r.reg_number || 'GSA-ATH';
       const discName = r.discipline_code === 'KALARIPPAYATTU'
@@ -388,6 +475,7 @@ export class RankService {
         studentId: r.student_id,
         playerName: studentName,
         parentName: r.students?.parent_name || '',
+        fatherName: r.students?.parent_name || '',
         parentWhatsapp: r.students?.parent_whatsapp || r.students?.student_mobile || '',
         dob: dobVal,
         regNumber: regNo,
@@ -404,6 +492,8 @@ export class RankService {
         // Snake_case aliases for 100% frontend and PDF exporter compatibility
         student_id: r.student_id,
         student_name: studentName,
+        parent_name: r.students?.parent_name || '',
+        father_name: r.students?.parent_name || '',
         student_code: regNo,
         discipline_code: r.discipline_code,
         discipline_name: discName,
