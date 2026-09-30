@@ -64,26 +64,26 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const studentFirstName = cleanPdfText(cert.student_name || cert.playerName || 'Athletic Trainee');
   const fatherName = cleanPdfText(cert.fatherName || cert.parentName || cert.father_name || cert.parent_name || '');
 
-  // Format full student name with father name (Indian certificate standard: REYANSH S/O DATTATRAY DESHMUKH)
-  let formattedStudentName = studentFirstName;
-  if (fatherName) {
-    const studentParts = studentFirstName.trim().split(/\s+/);
-    const fatherParts = fatherName.trim().split(/\s+/);
-    const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
-    const fatherSurname = fatherParts.length > 1 ? fatherParts[fatherParts.length - 1] : '';
+  // Format student name according to Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
+  // Split student name into first and surname
+  const studentParts = studentFirstName.trim().split(/\s+/);
+  const studentFirst = studentParts[0] || '';
+  const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
 
-    if (studentSurname && fatherSurname && studentSurname.toLowerCase() === fatherSurname.toLowerCase()) {
-      // Both share the same surname: "Reyansh Deshmukh" + "Dattatray Deshmukh" -> "Reyansh S/O Dattatray Deshmukh"
-      const studentGiven = studentParts.slice(0, -1).join(' ');
-      formattedStudentName = `${studentGiven} S/O ${fatherName}`;
-    } else if (studentSurname && !fatherSurname) {
-      // Student has surname but father doesn't: "Reyansh Deshmukh" + "Dattatray" -> "Reyansh S/O Dattatray Deshmukh"
-      const studentGiven = studentParts.slice(0, -1).join(' ');
-      formattedStudentName = `${studentGiven} S/O ${fatherName} ${studentSurname}`;
+  // Get just the father's first name
+  const fatherParts = fatherName.trim().split(/\s+/);
+  const fatherFirst = fatherParts[0] || '';
+
+  // Build the new Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
+  let formattedStudentName: string;
+  if (fatherFirst) {
+    if (studentSurname && studentSurname !== studentFirst) {
+      formattedStudentName = `${studentFirst} ${fatherFirst} ${studentSurname}`;
     } else {
-      // Different surnames or single name: "Reyansh" + "Dattatray Deshmukh"
-      formattedStudentName = `${studentFirstName} S/O ${fatherName}`;
+      formattedStudentName = `${studentFirst} ${fatherFirst}`;
     }
+  } else {
+    formattedStudentName = studentFirstName; // fallback
   }
   const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'GSA-ATH-2026');
   const discipline = cleanPdfText(cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports');
