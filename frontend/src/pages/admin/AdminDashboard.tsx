@@ -21,6 +21,7 @@ import {
   Megaphone,
   Smartphone,
   QrCode,
+  MessageSquare,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -54,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
+  const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number } | null>(null);
 
   const fetchDashboard = async () => {
     try {
@@ -74,6 +76,9 @@ export const AdminDashboard: React.FC = () => {
         const waData = waRes?.data !== undefined ? waRes.data : waRes;
         if (waData?.device) {
           setWhatsappStatus(waData.device);
+        }
+        if (waData?.stats) {
+          setWhatsappStats(waData.stats);
         }
       } catch (e) {
         console.warn('Could not query WhatsApp status for dashboard:', e);
@@ -204,6 +209,10 @@ export const AdminDashboard: React.FC = () => {
                 WhatsApp Linked {whatsappStatus.phoneNumber ? `(${whatsappStatus.phoneNumber})` : ''}
               </span>
             )}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 shadow-xs">
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+              <span>WhatsApp Messages: <b>{whatsappStats?.totalSent ?? 0} Dispatched</b> ({whatsappStats?.sent ?? 0} Today)</span>
+            </span>
           </div>
           <p className="text-sm text-slate-400 mt-0.5">
             Real-time analytics for batches, fee disbursements, and daily attendance.

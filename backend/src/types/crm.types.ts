@@ -43,6 +43,9 @@ export const createStudentSchema = z.object({
   whatsappOptIn: z.boolean().default(true).optional(),
   backfillPastFees: z.boolean().default(false).optional(),
   pastFeesStatus: z.enum(['PAID', 'PENDING']).default('PAID').optional(),
+  initialPaymentAmount: z.number().nonnegative().optional().default(0),
+  paymentMethod: z.enum(['CASH', 'UPI', 'ONLINE', 'BANK_TRANSFER']).default('CASH').optional(),
+  paymentNotes: z.string().optional().or(z.literal('')),
 });
 
 export type CreateStudentDTO = z.infer<typeof createStudentSchema>;

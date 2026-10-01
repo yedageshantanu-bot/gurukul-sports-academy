@@ -216,6 +216,7 @@ export interface WhatsAppSettings {
 
 export interface TodayStats {
   sent: number;
+  totalSent: number;
   pending: number;
   processing: number;
   failed: number;

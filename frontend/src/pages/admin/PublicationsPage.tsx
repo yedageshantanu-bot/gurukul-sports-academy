@@ -83,28 +83,92 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [searchTerm, setSearchTerm] = useState('');
   const [feeFilter, setFeeFilter] = useState('ALL');
   const [deliveryFilter, setDeliveryFilter] = useState('ALL');
-  const [sendingWaId, setSendingWaId] = useState<string | null>(null);
 
-  const handleDirectWhatsApp = async (s: PublicationStudent) => {
+  // Multi-select & Custom WhatsApp Composer State
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [isWaComposerOpen, setIsWaComposerOpen] = useState(false);
+  const [waRecipients, setWaRecipients] = useState<PublicationStudent[]>([]);
+  const [waMessageTemplate, setWaMessageTemplate] = useState('');
+  const [isSendingBatch, setIsSendingBatch] = useState(false);
+
+  const handleOpenSingleWa = (s: PublicationStudent) => {
     if (!s.contact_number) {
       toast.error('No contact number available.');
       return;
     }
-    setSendingWaId(s.id);
-    try {
-      await apiClient<any>('/whatsapp/send', {
-        method: 'POST',
-        body: JSON.stringify({
-          phone: s.contact_number,
-          message: `Hello ${s.student_name}, this is an update regarding your publication materials "${s.publication_title}" (${s.academic_year}) from Gurukul Sports Academy. Delivery Status: ${s.delivery_status}, Fee Status: ${s.fee_status}.`,
-        }),
-      });
-      toast.success(`Direct WhatsApp update dispatched to ${s.student_name} via OpenWA gateway!`);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to dispatch WhatsApp message via OpenWA');
-    } finally {
-      setSendingWaId(null);
+    setWaRecipients([s]);
+    setWaMessageTemplate(
+      `Hello ${s.student_name}, this is an update regarding your publication materials "${s.publication_title}" (${s.academic_year}) from Gurukul Sports Academy. Delivery Status: ${s.delivery_status}, Fee Status: ${s.fee_status}.`
+    );
+    setIsWaComposerOpen(true);
+  };
+
+  const handleOpenBatchWa = () => {
+    const targets = filteredStudents.filter((s) => selectedStudentIds.includes(s.id) && s.contact_number);
+    if (targets.length === 0) {
+      toast.error('No selected students with valid contact numbers.');
+      return;
     }
+    setWaRecipients(targets);
+    setWaMessageTemplate(
+      `Hello {student_name}, this is an update regarding your publication materials "{publication_title}" ({academic_year}) from Gurukul Sports Academy. Delivery Status: {delivery_status}, Fee Status: {fee_status}.`
+    );
+    setIsWaComposerOpen(true);
+  };
+
+  const handleSendWaFromComposer = async () => {
+    if (waRecipients.length === 0 || !waMessageTemplate.trim()) return;
+    setIsSendingBatch(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const r of waRecipients) {
+      const personalizedBody = waMessageTemplate
+        .replace(/{student_name}/g, r.student_name)
+        .replace(/{publication_title}/g, r.publication_title)
+        .replace(/{academic_year}/g, r.academic_year)
+        .replace(/{delivery_status}/g, r.delivery_status)
+        .replace(/{fee_status}/g, r.fee_status);
+
+      try {
+        await apiClient('/whatsapp/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            recipientPhone: r.contact_number,
+            messageBody: personalizedBody,
+            studentId: r.student_id || undefined,
+            eventType: 'CUSTOM_NOTIFICATION',
+          }),
+        });
+        successCount++;
+      } catch (e) {
+        failCount++;
+      }
+    }
+
+    setIsSendingBatch(false);
+    setIsWaComposerOpen(false);
+    setSelectedStudentIds([]);
+    if (successCount > 0) {
+      toast.success(`Dispatched ${successCount} WhatsApp message(s) successfully!`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to dispatch ${failCount} message(s).`);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map((s) => s.id));
+    }
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
   };
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INTERNAL, EXTERNAL
 
@@ -502,6 +566,35 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         </div>
       </Card>
 
+      {/* Multi-Select Floating Bar */}
+      {selectedStudentIds.length > 0 && (
+        <div className="p-3.5 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border border-indigo-500/40 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-2xl animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5 text-xs text-indigo-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              <b>{selectedStudentIds.length}</b> student(s) selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedStudentIds([])}
+              className="px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Clear Selection
+            </button>
+            <Button
+              type="button"
+              onClick={handleOpenBatchWa}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-1.5 font-bold shadow-md shadow-emerald-500/20"
+            >
+              <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+              <span>Compose & Send WhatsApp ({selectedStudentIds.length})</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Publication Students Table */}
       {loading ? (
         <SkeletonLoader variant="table" rows={5} />
@@ -518,6 +611,14 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <table className="w-full text-left text-sm text-slate-300">
               <thead className="bg-[#0F172A] text-slate-400 uppercase text-[11px] font-bold border-b border-white/10">
                 <tr>
+                  <th className="px-4 py-3.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length}
+                      onChange={toggleSelectAll}
+                      className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-5 py-3.5">Student / Subscriber</th>
                   <th className="px-5 py-3.5">Contact (WhatsApp)</th>
                   <th className="px-5 py-3.5">Document / Edition</th>
@@ -531,6 +632,14 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   const pendingDue = Math.max(0, Number(s.annual_fee) - Number(s.amount_paid));
                   return (
                     <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.includes(s.id)}
+                          onChange={() => toggleSelectStudent(s.id)}
+                          className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
@@ -556,10 +665,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                           <span className="font-mono text-slate-300">{s.contact_number}</span>
                           <button
                             type="button"
-                            onClick={() => handleDirectWhatsApp(s)}
-                            disabled={sendingWaId === s.id}
-                            title="Send direct WhatsApp message via OpenWA Gateway"
-                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors cursor-pointer disabled:opacity-50"
+                            onClick={() => handleOpenSingleWa(s)}
+                            title="Edit & send WhatsApp message"
+                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors cursor-pointer"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -919,6 +1027,132 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* WhatsApp Message Composer Modal for Published Students */}
+      <Modal
+        isOpen={isWaComposerOpen}
+        onClose={() => setIsWaComposerOpen(false)}
+        title="Compose WhatsApp Message"
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-slate-400">Recipients: </span>
+              <span className="font-bold text-white">
+                {waRecipients.length === 1
+                  ? `${waRecipients[0].student_name} (${waRecipients[0].contact_number})`
+                  : `${waRecipients.length} Students Selected`}
+              </span>
+            </div>
+            {waRecipients.length > 1 && (
+              <span className="text-[11px] text-emerald-400 font-mono">
+                Tokens like &#123;student_name&#125; will be auto-replaced per student
+              </span>
+            )}
+          </div>
+
+          {/* Quick Presets */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">
+              Select Preset or Edit Freely:
+            </label>
+            <Select
+              value=""
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'DELIVERY') {
+                  setWaMessageTemplate(
+                    'Hello {student_name}, your publication materials "{publication_title}" ({academic_year}) are updated! Delivery Status: {delivery_status}. Fee Status: {fee_status}. Please contact Gurukul Sports Academy for queries.'
+                  );
+                } else if (val === 'PICKUP') {
+                  setWaMessageTemplate(
+                    'Namaskar {student_name} ji, your publication guide & kit "{publication_title}" is ready for pickup at the Gurukul Combat Arena reception desk!'
+                  );
+                } else if (val === 'FEE') {
+                  setWaMessageTemplate(
+                    'Hello {student_name}, this is a gentle reminder regarding the publication fee for "{publication_title}" ({academic_year}). Kindly clear pending fee dues at your earliest.'
+                  );
+                } else if (val === 'BLANK') {
+                  setWaMessageTemplate('');
+                }
+              }}
+              className="text-xs bg-[#0F172A] border-white/10 text-white"
+            >
+              <option value="">-- Choose Template Preset or Keep Current --</option>
+              <option value="DELIVERY">Delivery & Fee Status Update</option>
+              <option value="PICKUP">Ready for Pickup Announcement</option>
+              <option value="FEE">Annual Fee Renewal Notice</option>
+              <option value="BLANK">Clear / Blank Message</option>
+            </Select>
+          </div>
+
+          {/* Message Area */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">
+              Message Content (Full freedom to edit) *
+            </label>
+            <textarea
+              rows={6}
+              value={waMessageTemplate}
+              onChange={(e) => setWaMessageTemplate(e.target.value)}
+              className="w-full text-xs p-3 rounded-xl border border-white/10 bg-[#0F172A] text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none leading-relaxed"
+              placeholder="Write your custom message here..."
+            />
+            <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
+              <div className="flex gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setWaMessageTemplate((prev) => prev + ' {student_name}')}
+                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
+                >
+                  + &#123;student_name&#125;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWaMessageTemplate((prev) => prev + ' {publication_title}')}
+                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
+                >
+                  + &#123;publication_title&#125;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWaMessageTemplate((prev) => prev + ' {delivery_status}')}
+                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
+                >
+                  + &#123;delivery_status&#125;
+                </button>
+              </div>
+              <span>{waMessageTemplate.length} chars</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsWaComposerOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSendWaFromComposer}
+              disabled={isSendingBatch || !waMessageTemplate.trim()}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+              <span>
+                {isSendingBatch
+                  ? 'Dispatching Messages...'
+                  : waRecipients.length > 1
+                  ? `Send to ${waRecipients.length} Students`
+                  : 'Send WhatsApp'}
+              </span>
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

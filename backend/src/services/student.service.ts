@@ -506,7 +506,7 @@ export class StudentService {
         const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
         const isPastPeriod = curY < currentYear || (curY === currentYear && curM < currentMonth);
 
-        let feeStatus: 'PAID' | 'PENDING' = 'PENDING';
+        let feeStatus: 'PAID' | 'PENDING' | 'PARTIALLY_PAID' = 'PENDING';
         let amountPaid = 0;
 
         if (isPastPeriod) {
@@ -518,9 +518,16 @@ export class StudentService {
             amountPaid = 0;
           }
         } else {
-          // Current month is PENDING by default
-          feeStatus = 'PENDING';
-          amountPaid = 0;
+          // Current month: Apply initial payment amount if provided
+          const initialPaid = Number(dto.initialPaymentAmount) || 0;
+          amountPaid = initialPaid;
+          if (initialPaid >= Number(dto.monthlyFee) && Number(dto.monthlyFee) > 0) {
+            feeStatus = 'PAID';
+          } else if (initialPaid > 0) {
+            feeStatus = 'PARTIALLY_PAID';
+          } else {
+            feeStatus = 'PENDING';
+          }
         }
 
         feeRecordsToInsert.push({
@@ -543,18 +550,48 @@ export class StudentService {
       // Fallback: if no records were generated, ensure current month is present
       if (feeRecordsToInsert.length === 0) {
         const dueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
+        const initialPaid = Number(dto.initialPaymentAmount) || 0;
+        let fallbackStatus: 'PAID' | 'PENDING' | 'PARTIALLY_PAID' = 'PENDING';
+        if (initialPaid >= Number(dto.monthlyFee) && Number(dto.monthlyFee) > 0) {
+          fallbackStatus = 'PAID';
+        } else if (initialPaid > 0) {
+          fallbackStatus = 'PARTIALLY_PAID';
+        }
+
         feeRecordsToInsert.push({
           student_id: student.id,
           billing_period: currentBillingPeriod,
           amount_due: Number(dto.monthlyFee),
-          amount_paid: 0,
+          amount_paid: initialPaid,
           due_date: dueDate,
-          status: 'PENDING',
+          status: fallbackStatus,
         });
       }
 
       try {
         await supabaseAdmin.from('student_fees').insert(feeRecordsToInsert);
+
+        // If an initial payment amount was collected during admission, log it in payments table
+        const initialPaid = Number(dto.initialPaymentAmount) || 0;
+        if (initialPaid > 0) {
+          const { data: createdFee } = await supabaseAdmin
+            .from('student_fees')
+            .select('id')
+            .eq('student_id', student.id)
+            .eq('billing_period', currentBillingPeriod)
+            .maybeSingle();
+
+          const method = dto.paymentMethod || 'CASH';
+          await supabaseAdmin.from('payments').insert({
+            student_id: student.id,
+            student_fee_id: createdFee?.id || null,
+            amount: initialPaid,
+            payment_method: method,
+            status: 'SUCCESS',
+            notes: dto.paymentNotes || 'Admission fee settlement at enrollment',
+            transaction_id: `adm_pay_${Date.now()}`,
+          });
+        }
       } catch (err: any) {
         console.warn('[StudentService] Fee assignment notice:', err?.message || err);
       }

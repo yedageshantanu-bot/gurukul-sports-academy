@@ -514,8 +514,32 @@ export class WhatsAppQueueService {
     const processing = items.filter((i) => i.status === 'PROCESSING').length;
     const failedToday = items.filter((i) => i.status === 'FAILED' && i.updated_at.startsWith(today)).length;
 
+    let totalSentAllTime = items.filter((i) => i.status === 'SENT' || (i.status as string) === 'MOCK').length;
+    if (this.supabase) {
+      try {
+        const { count: msgCount } = await this.supabase
+          .from('whatsapp_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'SENT');
+        if (typeof msgCount === 'number' && msgCount > 0) {
+          totalSentAllTime = msgCount;
+        } else {
+          const { count: queueCount } = await this.supabase
+            .from('whatsapp_queue')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'SENT');
+          if (typeof queueCount === 'number') {
+            totalSentAllTime = Math.max(totalSentAllTime, queueCount);
+          }
+        }
+      } catch {
+        // Fallback to in-memory count
+      }
+    }
+
     return {
       sent: sentToday,
+      totalSent: totalSentAllTime,
       pending,
       processing,
       failed: failedToday,

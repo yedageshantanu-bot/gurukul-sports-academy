@@ -27,6 +27,8 @@ import {
   ShieldCheck,
   ExternalLink,
   Calendar,
+  CreditCard,
+  Send,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -93,6 +95,17 @@ export const StudentsPage: React.FC = () => {
   const [course, setCourse] = useState('');
   const [monthlyFee, setMonthlyFee] = useState<number>(0);
   const [feeDueDay, setFeeDueDay] = useState<number>(5);
+
+  // Initial Payment & Balance Settlement on Admission
+  const [initialPaymentAmount, setInitialPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'ONLINE' | 'BANK_TRANSFER'>('CASH');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+
+  // Custom WhatsApp message sender modal
+  const [isWaModalOpen, setIsWaModalOpen] = useState(false);
+  const [waTargetStudent, setWaTargetStudent] = useState<StudentItem | null>(null);
+  const [waCustomMessage, setWaCustomMessage] = useState('');
+  const [sendingWa, setSendingWa] = useState(false);
 
   const fetchData = async (silent = false) => {
     try {
@@ -170,11 +183,50 @@ export const StudentsPage: React.FC = () => {
     setCourse('');
     setMonthlyFee(0);
     setFeeDueDay(5);
+    setInitialPaymentAmount('');
+    setPaymentMethod('CASH');
+    setPaymentNotes('');
     setAdmissionDate(new Date().toISOString().split('T')[0]);
     setBackfillPastFees(false);
     setPastFeesStatus('PAID');
     setFormError('');
     setIsAddModalOpen(true);
+  };
+
+  const handleOpenWhatsAppModal = (s: StudentItem) => {
+    if (!s.parentWhatsapp) {
+      toast.error('Student does not have a registered WhatsApp number.');
+      return;
+    }
+    setWaTargetStudent(s);
+    setWaCustomMessage(`Namaskar ${s.parentName || s.name} ji, this is an update regarding ${s.name}'s classes at Gurukul Sports Academy.`);
+    setIsWaModalOpen(true);
+  };
+
+  const handleSendCustomWhatsApp = async () => {
+    if (!waTargetStudent || !waTargetStudent.parentWhatsapp) return;
+    if (!waCustomMessage.trim()) {
+      toast.error('Message body cannot be empty.');
+      return;
+    }
+    setSendingWa(true);
+    try {
+      await apiClient('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          recipientPhone: waTargetStudent.parentWhatsapp,
+          messageBody: waCustomMessage.trim(),
+          studentId: waTargetStudent.id,
+          eventType: 'CUSTOM_NOTIFICATION',
+        }),
+      });
+      toast.success(`WhatsApp message sent to ${waTargetStudent.name}!`);
+      setIsWaModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch WhatsApp message');
+    } finally {
+      setSendingWa(false);
+    }
   };
 
   const handleOpenEdit = (s: StudentItem) => {
@@ -250,9 +302,15 @@ export const StudentsPage: React.FC = () => {
           admissionDate: admissionDate || undefined,
           backfillPastFees: isPastAdmission && backfillPastFees,
           pastFeesStatus: pastFeesStatus,
+          initialPaymentAmount: Number(initialPaymentAmount) || 0,
+          paymentMethod,
+          paymentNotes: paymentNotes.trim() || undefined,
         }),
       });
       setIsAddModalOpen(false);
+      setInitialPaymentAmount('');
+      setPaymentMethod('CASH');
+      setPaymentNotes('');
       toast.success(`Student "${name.trim()}" enrolled successfully!`);
       fetchData(true);
     } catch (err: any) {
@@ -533,10 +591,15 @@ export const StudentsPage: React.FC = () => {
                         </div>
                         <div className="mt-1 flex items-center gap-2">
                           {s.parentWhatsapp ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenWhatsAppModal(s)}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer"
+                              title="Click to send custom WhatsApp message"
+                            >
                               <MessageSquare className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               {s.parentWhatsapp}
-                            </span>
+                            </button>
                           ) : (
                             <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-[11px]">
                               <AlertCircle className="w-3 h-3" />
@@ -819,6 +882,73 @@ export const StudentsPage: React.FC = () => {
                   required
                   placeholder="e.g. 700"
                 />
+              </div>
+
+              {/* Admission Payment Settlement & Balance Due */}
+              <div className="pt-3 border-t border-indigo-200/50 dark:border-indigo-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Admission Payment & Balance Due</span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Total Fee: ₹{Number(monthlyFee) || 0}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Input
+                      label="Payment Received Now (₹)"
+                      type="number"
+                      min="0"
+                      max={monthlyFee ? Number(monthlyFee) : undefined}
+                      value={initialPaymentAmount}
+                      onChange={(e) => setInitialPaymentAmount(e.target.value)}
+                      placeholder="0 (if paying later)"
+                    />
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">
+                      Kitna payment abhi diya hai
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Payment Mode
+                    </label>
+                    <Select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    >
+                      <option value="CASH">Cash (Front Desk)</option>
+                      <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                      <option value="ONLINE">Online Transfer</option>
+                      <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Live Balance Due Calculation */}
+                <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
+                  (Number(initialPaymentAmount) || 0) >= (Number(monthlyFee) || 0) && (Number(monthlyFee) || 0) > 0
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                    : (Number(initialPaymentAmount) || 0) > 0
+                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                    : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
+                  <div>
+                    <span className="font-semibold">Baki Balance (Due Amount): </span>
+                    <span className="font-bold text-sm">
+                      ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(initialPaymentAmount) || 0)).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/60 dark:bg-black/40">
+                    {(Number(initialPaymentAmount) || 0) >= (Number(monthlyFee) || 0) && (Number(monthlyFee) || 0) > 0
+                      ? 'Fully Paid'
+                      : (Number(initialPaymentAmount) || 0) > 0
+                      ? 'Partial Paid'
+                      : 'Pending (Due Later)'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1141,6 +1271,63 @@ export const StudentsPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Custom WhatsApp Composer Modal for Students */}
+      <Modal
+        isOpen={isWaModalOpen}
+        onClose={() => setIsWaModalOpen(false)}
+        title="Compose WhatsApp Message"
+        maxWidth="md"
+      >
+        {waTargetStudent && (
+          <div className="space-y-4">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">Recipient: </span>
+                <span className="font-bold text-slate-900 dark:text-white">{waTargetStudent.name}</span>
+                {waTargetStudent.parentName && (
+                  <span className="text-slate-500 dark:text-slate-400"> ({waTargetStudent.parentName})</span>
+                )}
+              </div>
+              <div className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                {waTargetStudent.parentWhatsapp}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Message Body (Editable) *
+              </label>
+              <textarea
+                rows={5}
+                value={waCustomMessage}
+                onChange={(e) => setWaCustomMessage(e.target.value)}
+                className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none leading-relaxed"
+                placeholder="Type your message here..."
+              />
+              <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
+                <span>Direct delivery via Gurukul WhatsApp bridge</span>
+                <span>{waCustomMessage.length} characters</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button type="button" variant="outline" onClick={() => setIsWaModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSendCustomWhatsApp}
+                disabled={sendingWa || !waCustomMessage.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                <span>{sendingWa ? 'Sending...' : 'Send WhatsApp'}</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

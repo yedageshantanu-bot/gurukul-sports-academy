@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useSettings } from '../../contexts/SettingsContext';
 import { apiClient } from '../../lib/api';
 import {
@@ -15,10 +16,31 @@ import {
   Sparkles,
   Upload,
   Trash2,
+  MessageSquare,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { settings, refreshSettings } = useSettings();
+
+  const [whatsappStats, setWhatsappStats] = useState<{
+    isConnected: boolean;
+    sent: number;
+    totalSent: number;
+    queued: number;
+    failed: number;
+    dailyLimit: number;
+    remainingLimit: number;
+  }>({
+    isConnected: false,
+    sent: 0,
+    totalSent: 0,
+    queued: 0,
+    failed: 0,
+    dailyLimit: 100,
+    remainingLimit: 100,
+  });
 
   const [formData, setFormData] = useState({
     academy_name: '',
@@ -47,6 +69,41 @@ export const SettingsPage: React.FC = () => {
         currency: settings.currency || 'INR',
       });
     }
+
+    const fetchWhatsappStats = async () => {
+      try {
+        const res = await apiClient<{
+          success: boolean;
+          data: {
+            isConnected: boolean;
+            todayStats: {
+              sent: number;
+              totalSent?: number;
+              failed: number;
+              queued: number;
+              dailyLimit: number;
+              remainingLimit: number;
+            };
+          };
+        }>('/whatsapp/status');
+
+        if (res.data) {
+          setWhatsappStats({
+            isConnected: !!res.data.isConnected,
+            sent: res.data.todayStats?.sent || 0,
+            totalSent: res.data.todayStats?.totalSent || 0,
+            queued: res.data.todayStats?.queued || 0,
+            failed: res.data.todayStats?.failed || 0,
+            dailyLimit: res.data.todayStats?.dailyLimit || 100,
+            remainingLimit: res.data.todayStats?.remainingLimit || 100,
+          });
+        }
+      } catch (err) {
+        // Silently continue if gateway offline
+      }
+    };
+
+    fetchWhatsappStats();
   }, [settings]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -234,7 +291,13 @@ export const SettingsPage: React.FC = () => {
 
           {/* Quick System Status Card */}
           <div className="bg-[#1E293B] border border-white/10 rounded-xl p-5 shadow-lg space-y-3">
-            <h2 className="text-sm font-bold text-white">Instance Status</h2>
+            <h2 className="text-sm font-bold text-white flex items-center justify-between">
+              <span>Instance Status</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Operational
+              </span>
+            </h2>
             <div className="space-y-2.5 text-xs text-slate-300">
               <div className="flex items-center justify-between py-1.5 border-b border-white/5">
                 <span className="text-slate-400">Database Engine</span>
@@ -249,6 +312,83 @@ export const SettingsPage: React.FC = () => {
                 <span className="font-semibold text-orange-400">JWT + RBAC Enforced</span>
               </div>
             </div>
+          </div>
+
+          {/* WhatsApp Messaging Dispatch & Analytics Card */}
+          <div className="bg-[#1E293B] border border-emerald-500/20 rounded-xl p-5 shadow-lg space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white leading-none">WhatsApp Messaging</h2>
+                  <span className="text-[10px] text-slate-400">System Gateway Dispatch Counter</span>
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                whatsappStats.isConnected
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+              }`}>
+                {whatsappStats.isConnected ? 'Connected' : 'Standby'}
+              </span>
+            </div>
+
+            {/* Total Messages Highlight Grid */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-3 bg-[#0F172A] border border-white/5 rounded-xl text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                  Total Dispatched
+                </span>
+                <span className="text-xl font-black text-emerald-400 block mt-0.5">
+                  {whatsappStats.totalSent || whatsappStats.sent || 0}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">All-time count</span>
+              </div>
+
+              <div className="p-3 bg-[#0F172A] border border-white/5 rounded-xl text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                  Sent Today
+                </span>
+                <span className="text-xl font-black text-white block mt-0.5">
+                  {whatsappStats.sent || 0}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Limit: {whatsappStats.dailyLimit}/day
+                </span>
+              </div>
+            </div>
+
+            {/* Details List */}
+            <div className="space-y-2 text-xs text-slate-300 pt-1">
+              <div className="flex items-center justify-between py-1 border-b border-white/5">
+                <span className="text-slate-400">Remaining Quota Today</span>
+                <span className="font-semibold text-white">{whatsappStats.remainingLimit} msgs</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-white/5">
+                <span className="text-slate-400">Queue Backlog</span>
+                <span className="font-semibold text-slate-300">{whatsappStats.queued} pending</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-slate-400">Dispatch Status</span>
+                <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Anti-Ban Engine Active
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Link to WhatsApp Manager */}
+            <Link
+              to="/admin/whatsapp"
+              className="inline-flex items-center justify-center gap-2 w-full px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
+            >
+              <span>Manage WhatsApp Gateway & Logs</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
 
