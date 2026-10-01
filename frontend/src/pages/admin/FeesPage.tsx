@@ -21,7 +21,6 @@ import { FeePlan, StudentFee } from '../../types/fee';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
-import { ReceiptModal } from '../../components/common/ReceiptModal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
@@ -120,7 +119,6 @@ export const FeesPage: React.FC = () => {
     dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 10).toISOString().split('T')[0],
   });
 
-  const [createdReceiptId, setCreatedReceiptId] = useState<string | null>(null);
   const [payForm, setPayForm] = useState({
     amount: '',
     paymentMethod: 'CASH',
@@ -280,7 +278,6 @@ export const FeesPage: React.FC = () => {
 
     try {
       const amountNum = parseFloat(payForm.amount);
-      let newReceiptId: string | null = null;
 
       if (payForm.provider === 'MANUAL') {
         const res = await fetch(`${API_BASE}/payments/manual`, {
@@ -300,7 +297,6 @@ export const FeesPage: React.FC = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || 'Payment recording failed');
 
-        newReceiptId = data.data?.receipt?.id || null;
         const receiptNo = data.data?.receipt?.receipt_number || 'Issued';
         setModalSuccessMessage(`Payment recorded successfully! Receipt: ${receiptNo}`);
       } else {
@@ -339,7 +335,6 @@ export const FeesPage: React.FC = () => {
         const verifyData = await verifyRes.json();
         if (!verifyRes.ok) throw new Error(verifyData.error?.message || 'Payment verification failed');
 
-        newReceiptId = verifyData.data?.receipt?.id || null;
         const receiptNo = verifyData.data?.receipt?.receipt_number || 'Generated';
         setModalSuccessMessage(
           `Verified & Completed! Receipt #${receiptNo} (Provider: MOCK)`
@@ -349,9 +344,6 @@ export const FeesPage: React.FC = () => {
       await fetchData();
       setTimeout(() => {
         setIsPayModalOpen(false);
-        if (newReceiptId) {
-          setCreatedReceiptId(newReceiptId);
-        }
       }, 700);
     } catch (err: any) {
       setError(err.message);
@@ -1258,12 +1250,6 @@ export const FeesPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-
-      {/* Official Receipt Modal Popup */}
-      <ReceiptModal
-        receiptId={createdReceiptId}
-        onClose={() => setCreatedReceiptId(null)}
-      />
         </>
       )}
     </div>
