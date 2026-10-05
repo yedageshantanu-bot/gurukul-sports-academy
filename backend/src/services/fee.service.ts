@@ -337,6 +337,95 @@ export class FeeService {
       pending_amount: Math.max(0, Number(data.amount_due) - Number(data.amount_paid)),
     };
   }
+
+  /**
+   * Automatically generate/sync monthly fee records for all active monthly students.
+   * If October (or November/any month) starts, this ensures every active student gets their
+   * billing record without manual entry. Active yearly students are protected and skipped.
+   */
+  async syncMonthlyFeesForAllStudents(targetPeriod?: string) {
+    const now = new Date();
+    const period = targetPeriod || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const [periodYear, periodMonth] = period.split('-').map((v) => parseInt(v, 10));
+
+    // 1. Fetch all active students with monthly fee > 0
+    const { data: students, error: sErr } = await this.supabase
+      .from('students')
+      .select('id, name, monthly_fee, fee_due_day, admission_date, status')
+      .eq('status', 'ACTIVE')
+      .gt('monthly_fee', 0);
+
+    if (sErr) throw new AppError(`Failed to fetch active students: ${sErr.message}`, 500);
+    if (!students || students.length === 0) {
+      return { syncedPeriod: period, createdCount: 0, totalActive: 0 };
+    }
+
+    // 2. Fetch existing fees for this billing period
+    const { data: existingFees } = await this.supabase
+      .from('student_fees')
+      .select('student_id, billing_period')
+      .eq('billing_period', period);
+
+    const existingStudentIds = new Set((existingFees || []).map((f) => f.student_id));
+
+    // 3. Fetch any active YEARLY fees
+    const { data: yearlyFees } = await this.supabase
+      .from('student_fees')
+      .select('student_id, billing_period, due_date')
+      .like('billing_period', '%_YEARLY%')
+      .eq('status', 'PAID');
+
+    const yearlyStudentIds = new Set((yearlyFees || []).map((yf) => yf.student_id));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const newBillsToInsert: any[] = [];
+
+    for (const student of students) {
+      if (existingStudentIds.has(student.id) || yearlyStudentIds.has(student.id)) {
+        continue;
+      }
+
+      // Check if admission date is strictly in a future month beyond period
+      if (student.admission_date) {
+        const admPeriod = student.admission_date.slice(0, 7);
+        if (admPeriod > period) {
+          continue; // Student hasn't joined yet in this period
+        }
+      }
+
+      const dueDay = student.fee_due_day || 5;
+      const dueDate = new Date(periodYear, periodMonth - 1, Math.min(dueDay, 28)).toISOString().split('T')[0];
+      const isOverdue = new Date(dueDate) < today;
+
+      newBillsToInsert.push({
+        student_id: student.id,
+        billing_period: period,
+        amount_due: Number(student.monthly_fee),
+        amount_paid: 0,
+        due_date: dueDate,
+        status: isOverdue ? 'OVERDUE' : 'PENDING',
+      });
+    }
+
+    if (newBillsToInsert.length > 0) {
+      const { error: insErr } = await this.supabase
+        .from('student_fees')
+        .insert(newBillsToInsert);
+
+      if (insErr) {
+        console.error('[FeeService.syncMonthlyFeesForAllStudents] Insert error:', insErr);
+        throw new AppError(`Failed to insert monthly fees: ${insErr.message}`, 500);
+      }
+    }
+
+    return {
+      syncedPeriod: period,
+      createdCount: newBillsToInsert.length,
+      totalActive: students.length,
+    };
+  }
 }
 
 export const feeService = new FeeService();

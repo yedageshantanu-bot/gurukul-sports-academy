@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../types/auth.types.js';
 import { CreateStudentDTO, UpdateStudentDTO } from '../types/crm.types.js';
 import { normalizePhoneNumber, validatePhoneNumber } from '../utils/phone.js';
 import { automationService } from './whatsapp/automation.service.js';
+import { RankService } from './rank.service.js';
 
 export class StudentService {
   /**
@@ -292,7 +293,7 @@ export class StudentService {
     let currentMonthPendingAmount: number | undefined = undefined;
     let feeHistory: any[] | undefined = undefined;
 
-    if (requestingUser.role === ROLES.ADMIN) {
+    if (requestingUser.role === ROLES.ADMIN || requestingUser.role === ROLES.DEMO_ADMIN) {
       const { data: fees } = await supabaseAdmin
         .from('student_fees')
         .select('id, billing_period, amount_due, amount_paid, due_date, status, created_at')
@@ -337,6 +338,90 @@ export class StudentService {
         currentMonthFeeStatus = 'NOT_ASSIGNED';
         currentMonthPendingAmount = 0;
       }
+    }
+
+    // Query martial arts ranks and promotion history for this student
+    let martialArtsRanks: any[] = [];
+    let rankHistory: any[] = [];
+    try {
+      const { data: srData } = await supabaseAdmin
+        .from('student_ranks')
+        .select(`
+          id,
+          discipline_code,
+          reg_number,
+          dob,
+          represented_from,
+          promoted_at,
+          promoted_by,
+          martial_arts_ranks (
+            id,
+            rank_order,
+            rank_name,
+            belt_color,
+            badge_bg,
+            badge_text
+          )
+        `)
+        .eq('student_id', id);
+
+      if (srData) {
+        martialArtsRanks = srData.map((sr: any) => ({
+          id: sr.id,
+          disciplineCode: sr.discipline_code,
+          disciplineName: sr.discipline_code === 'KALARIPPAYATTU'
+            ? 'Kalarippayattu'
+            : sr.discipline_code === 'KARATE_WUSHU'
+            ? 'Karate + Wushu'
+            : 'Both (Dual Discipline)',
+          regNumber: sr.reg_number,
+          dob: sr.dob,
+          representedFrom: sr.represented_from,
+          promotedAt: sr.promoted_at,
+          promotedBy: sr.promoted_by,
+          rankName: (sr.martial_arts_ranks as any)?.rank_name || 'Beginner',
+          beltColor: (sr.martial_arts_ranks as any)?.belt_color || 'Yellow',
+          rankOrder: (sr.martial_arts_ranks as any)?.rank_order || 1,
+        }));
+      }
+
+      const { data: promData } = await supabaseAdmin
+        .from('rank_promotions')
+        .select(`
+          id,
+          discipline_code,
+          previous_rank_name,
+          new_rank_id,
+          new_rank_name,
+          reg_number,
+          promotion_date,
+          promoted_by,
+          certificate_number,
+          created_at,
+          martial_arts_ranks (
+            belt_color,
+            badge_bg,
+            badge_text
+          )
+        `)
+        .eq('student_id', id)
+        .order('promotion_date', { ascending: false });
+
+      if (promData) {
+        rankHistory = promData.map((p: any) => ({
+          id: p.id,
+          disciplineCode: p.discipline_code,
+          previousRankName: p.previous_rank_name || 'Beginner',
+          newRankName: p.new_rank_name,
+          regNumber: p.reg_number,
+          promotionDate: p.promotion_date || p.created_at,
+          promotedBy: p.promoted_by,
+          certificateNumber: p.certificate_number,
+          beltColor: (p.martial_arts_ranks as any)?.belt_color || 'Yellow',
+        }));
+      }
+    } catch (rErr) {
+      console.warn('Rank query fallback in getStudentById:', rErr);
     }
 
     // Query attendance records for this student
@@ -387,6 +472,8 @@ export class StudentService {
       currentMonthFeeStatus,
       currentMonthPendingAmount,
       feeHistory,
+      martialArtsRanks,
+      rankHistory,
       attendanceStats: {
         totalSessions,
         presentCount,
@@ -468,82 +555,179 @@ export class StudentService {
         .upsert(enrollments, { onConflict: 'batch_id,student_id' });
     }
 
-    // Generate fee records: support both past/historical students and new enrollments
+    // 1. Martial Arts / Sports Direct Enrollment into Belt Registry
+    if (dto.sportDiscipline && dto.sportDiscipline !== 'NONE') {
+      try {
+        await RankService.assignStudentRank({
+          studentId: student.id,
+          disciplineCode: dto.sportDiscipline,
+          rankName: dto.initialBeltRank || undefined,
+        });
+      } catch (err: any) {
+        console.warn('[StudentService] Martial Arts Belt enrollment notice:', err?.message || err);
+      }
+    }
+
+    // 2. Generate fee records: Support Zero-Confusion Paid-Up-To, Yearly Packages, and Monthly cycles
     if (dto.monthlyFee && Number(dto.monthlyFee) > 0) {
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-indexed
       const currentBillingPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
       const dueDay = dto.feeDueDay || 5;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       const feeRecordsToInsert: any[] = [];
 
-      // Determine starting year & month if student has historical admissionDate and backfill is requested
-      let startYear = currentYear;
-      let startMonth = currentMonth;
-
-      if (dto.admissionDate && dto.backfillPastFees) {
-        const parts = dto.admissionDate.split('-');
-        if (parts.length >= 2) {
-          const admY = parseInt(parts[0], 10);
-          const admM = parseInt(parts[1], 10);
-          if (!isNaN(admY) && !isNaN(admM) && admM >= 1 && admM <= 12) {
-            // Don't backfill more than 2 years in the past for sanity
-            if (admY >= currentYear - 2) {
-              startYear = admY;
-              startMonth = admM - 1;
-            }
-          }
-        }
-      }
-
-      // Loop month-by-month from startMonth up to currentMonth
-      let curY = startYear;
-      let curM = startMonth;
-
-      while (curY < currentYear || (curY === currentYear && curM <= currentMonth)) {
-        const periodStr = `${curY}-${String(curM + 1).padStart(2, '0')}`;
-        const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
-        const isPastPeriod = curY < currentYear || (curY === currentYear && curM < currentMonth);
-
-        let feeStatus: 'PAID' | 'PENDING' | 'PARTIALLY_PAID' = 'PENDING';
-        let amountPaid = 0;
-
-        if (isPastPeriod) {
-          if (dto.pastFeesStatus === 'PAID') {
-            feeStatus = 'PAID';
-            amountPaid = Number(dto.monthlyFee);
-          } else {
-            feeStatus = 'PENDING';
-            amountPaid = 0;
-          }
-        } else {
-          // Current month: Apply initial payment amount if provided
-          const initialPaid = Number(dto.initialPaymentAmount) || 0;
-          amountPaid = initialPaid;
-          if (initialPaid >= Number(dto.monthlyFee) && Number(dto.monthlyFee) > 0) {
-            feeStatus = 'PAID';
-          } else if (initialPaid > 0) {
-            feeStatus = 'PARTIALLY_PAID';
-          } else {
-            feeStatus = 'PENDING';
-          }
-        }
+      // CASE A: YEARLY FEE PACKAGE (1 full year prepaid)
+      if (dto.feeFrequency === 'YEARLY' || dto.feePaymentType === 'YEARLY_PAID') {
+        const nextYear = currentYear + 1;
+        const yearlyPeriodStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}_YEARLY`;
+        const yearlyDueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
 
         feeRecordsToInsert.push({
           student_id: student.id,
-          billing_period: periodStr,
+          billing_period: yearlyPeriodStr,
           amount_due: Number(dto.monthlyFee),
-          amount_paid: amountPaid,
-          due_date: dueDate,
-          status: feeStatus,
+          amount_paid: Number(dto.monthlyFee),
+          due_date: yearlyDueDate,
+          status: 'PAID',
         });
 
-        // Advance to next month
-        curM++;
-        if (curM > 11) {
-          curM = 0;
-          curY++;
+        // Also ensure current month identifier exists as PAID so monthly checks see it cleared
+        feeRecordsToInsert.push({
+          student_id: student.id,
+          billing_period: currentBillingPeriod,
+          amount_due: Number(dto.monthlyFee),
+          amount_paid: Number(dto.monthlyFee),
+          due_date: yearlyDueDate,
+          status: 'PAID',
+        });
+      }
+      // CASE B: "PAID UP TO" SMART SELECTOR (Zero math: e.g. paid up to Sept 2026, Oct 2026 is due)
+      else if (dto.feePaymentType === 'PAID_UP_TO' && dto.paidUpToMonth) {
+        let startYear = currentYear;
+        let startMonth = currentMonth;
+
+        if (dto.admissionDate) {
+          const parts = dto.admissionDate.split('-');
+          if (parts.length >= 2) {
+            const admY = parseInt(parts[0], 10);
+            const admM = parseInt(parts[1], 10);
+            if (!isNaN(admY) && !isNaN(admM) && admM >= 1 && admM <= 12) {
+              if (admY >= currentYear - 2) {
+                startYear = admY;
+                startMonth = admM - 1;
+              }
+            }
+          }
+        }
+
+        // Loop month-by-month from startMonth up to currentMonth
+        let curY = startYear;
+        let curM = startMonth;
+
+        while (curY < currentYear || (curY === currentYear && curM <= currentMonth)) {
+          const periodStr = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+          const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
+          const isCleared = periodStr <= dto.paidUpToMonth;
+
+          let feeStatus: 'PAID' | 'PENDING' | 'OVERDUE' | 'PARTIALLY_PAID' = 'PENDING';
+          let amountPaid = 0;
+
+          if (isCleared) {
+            feeStatus = 'PAID';
+            amountPaid = Number(dto.monthlyFee);
+          } else {
+            // Unpaid month (e.g. current month October if paidUpTo was September)
+            feeStatus = new Date(dueDate) < today ? 'OVERDUE' : 'PENDING';
+            amountPaid = 0;
+          }
+
+          feeRecordsToInsert.push({
+            student_id: student.id,
+            billing_period: periodStr,
+            amount_due: Number(dto.monthlyFee),
+            amount_paid: amountPaid,
+            due_date: dueDate,
+            status: feeStatus,
+          });
+
+          curM++;
+          if (curM > 11) {
+            curM = 0;
+            curY++;
+          }
+        }
+      }
+      // CASE C: STANDARD MONTHLY / ADMISSION BACKFILL FLOW
+      else {
+        let startYear = currentYear;
+        let startMonth = currentMonth;
+
+        if (dto.admissionDate && dto.backfillPastFees) {
+          const parts = dto.admissionDate.split('-');
+          if (parts.length >= 2) {
+            const admY = parseInt(parts[0], 10);
+            const admM = parseInt(parts[1], 10);
+            if (!isNaN(admY) && !isNaN(admM) && admM >= 1 && admM <= 12) {
+              if (admY >= currentYear - 2) {
+                startYear = admY;
+                startMonth = admM - 1;
+              }
+            }
+          }
+        }
+
+        let curY = startYear;
+        let curM = startMonth;
+
+        while (curY < currentYear || (curY === currentYear && curM <= currentMonth)) {
+          const periodStr = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+          const dueDate = new Date(curY, curM, Math.min(dueDay, 28)).toISOString().split('T')[0];
+          const isPastPeriod = curY < currentYear || (curY === currentYear && curM < currentMonth);
+
+          let feeStatus: 'PAID' | 'PENDING' | 'OVERDUE' | 'PARTIALLY_PAID' = 'PENDING';
+          let amountPaid = 0;
+
+          if (isPastPeriod) {
+            if (dto.pastFeesStatus === 'PAID') {
+              feeStatus = 'PAID';
+              amountPaid = Number(dto.monthlyFee);
+            } else {
+              feeStatus = 'OVERDUE';
+              amountPaid = 0;
+            }
+          } else {
+            // Current month: Apply initial payment amount if provided
+            const initialPaid = Number(dto.initialPaymentAmount) || 0;
+            amountPaid = initialPaid;
+            if (initialPaid >= Number(dto.monthlyFee) && Number(dto.monthlyFee) > 0) {
+              feeStatus = 'PAID';
+            } else if (initialPaid > 0) {
+              feeStatus = 'PARTIALLY_PAID';
+            } else if (new Date(dueDate) < today) {
+              feeStatus = 'OVERDUE';
+            } else {
+              feeStatus = 'PENDING';
+            }
+          }
+
+          feeRecordsToInsert.push({
+            student_id: student.id,
+            billing_period: periodStr,
+            amount_due: Number(dto.monthlyFee),
+            amount_paid: amountPaid,
+            due_date: dueDate,
+            status: feeStatus,
+          });
+
+          curM++;
+          if (curM > 11) {
+            curM = 0;
+            curY++;
+          }
         }
       }
 
@@ -551,11 +735,13 @@ export class StudentService {
       if (feeRecordsToInsert.length === 0) {
         const dueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
         const initialPaid = Number(dto.initialPaymentAmount) || 0;
-        let fallbackStatus: 'PAID' | 'PENDING' | 'PARTIALLY_PAID' = 'PENDING';
+        let fallbackStatus: 'PAID' | 'PENDING' | 'OVERDUE' | 'PARTIALLY_PAID' = 'PENDING';
         if (initialPaid >= Number(dto.monthlyFee) && Number(dto.monthlyFee) > 0) {
           fallbackStatus = 'PAID';
         } else if (initialPaid > 0) {
           fallbackStatus = 'PARTIALLY_PAID';
+        } else if (new Date(dueDate) < today) {
+          fallbackStatus = 'OVERDUE';
         }
 
         feeRecordsToInsert.push({
@@ -573,22 +759,27 @@ export class StudentService {
 
         // If an initial payment amount was collected during admission, log it in payments table
         const initialPaid = Number(dto.initialPaymentAmount) || 0;
-        if (initialPaid > 0) {
+        const totalPaidToLog = dto.feeFrequency === 'YEARLY' || dto.feePaymentType === 'YEARLY_PAID'
+          ? Number(dto.monthlyFee)
+          : initialPaid;
+
+        if (totalPaidToLog > 0) {
           const { data: createdFee } = await supabaseAdmin
             .from('student_fees')
             .select('id')
             .eq('student_id', student.id)
-            .eq('billing_period', currentBillingPeriod)
+            .order('created_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           const method = dto.paymentMethod || 'CASH';
           await supabaseAdmin.from('payments').insert({
             student_id: student.id,
             student_fee_id: createdFee?.id || null,
-            amount: initialPaid,
+            amount: totalPaidToLog,
             payment_method: method,
             status: 'SUCCESS',
-            notes: dto.paymentNotes || 'Admission fee settlement at enrollment',
+            notes: dto.paymentNotes || (dto.feeFrequency === 'YEARLY' ? 'Annual / Yearly Course Fee Settlement' : 'Admission fee settlement at enrollment'),
             transaction_id: `adm_pay_${Date.now()}`,
           });
         }

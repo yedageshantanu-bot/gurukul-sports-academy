@@ -39,9 +39,38 @@ export const StudentProfilePage: React.FC = () => {
   const [student, setStudent] = useState<StudentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'fees' | 'batches'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ranks' | 'attendance' | 'fees' | 'batches'>('overview');
   const [pdfSending, setPdfSending] = useState(false);
   const [pdfSendResult, setPdfSendResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime())
+        ? String(dateStr)
+        : d.toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          });
+    } catch {
+      return String(dateStr);
+    }
+  };
+
+  const getBeltColorBadge = (beltColor?: string) => {
+    const c = (beltColor || '').toLowerCase();
+    if (c.includes('yellow')) return 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-700';
+    if (c.includes('orange')) return 'bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950/80 dark:text-orange-300 dark:border-orange-700';
+    if (c.includes('green')) return 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-700';
+    if (c.includes('blue')) return 'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/80 dark:text-sky-300 dark:border-sky-700';
+    if (c.includes('purple')) return 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-700';
+    if (c.includes('brown')) return 'bg-amber-900/20 text-amber-900 border-amber-700 dark:bg-amber-950/90 dark:text-amber-200 dark:border-amber-700';
+    if (c.includes('black')) return 'bg-slate-900 text-white border-slate-700 dark:bg-black dark:text-slate-100 dark:border-slate-600';
+    if (c.includes('red')) return 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-700';
+    return 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700';
+  };
 
   const handleSendMonthlyReport = async () => {
     if (!id) return;
@@ -114,9 +143,14 @@ export const StudentProfilePage: React.FC = () => {
           <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Student Not Found</h2>
           <p className="text-slate-500 dark:text-slate-400 mb-6">{error || 'The requested student profile could not be located.'}</p>
-          <Button onClick={() => navigate('/admin/students')} variant="secondary">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
-          </Button>
+          <div className="flex justify-center items-center gap-3">
+            <Button onClick={fetchStudentDetails} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              Try Again
+            </Button>
+            <Button onClick={() => navigate('/admin/students')} variant="secondary">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -126,6 +160,7 @@ export const StudentProfilePage: React.FC = () => {
     ? student.name
         .split(' ')
         .map((n) => n[0])
+        .filter(Boolean)
         .join('')
         .toUpperCase()
         .substring(0, 2)
@@ -141,6 +176,8 @@ export const StudentProfilePage: React.FC = () => {
   const attendanceHistory = student.attendanceHistory || [];
   const feeHistory = student.feeHistory || [];
   const enrolledBatches = student.enrolledBatches || [];
+  const martialArtsRanks = student.martialArtsRanks || [];
+  const rankHistory = student.rankHistory || [];
 
   const handleDownloadOfficialPdf = () => {
     if (!id) return;
@@ -283,10 +320,36 @@ export const StudentProfilePage: React.FC = () => {
                 {student.admissionDate && (
                   <span className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    Enrolled: {new Date(student.admissionDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    Enrolled: {formatDate(student.admissionDate)}
                   </span>
                 )}
               </div>
+
+              {/* Martial Arts Belts Hero Chips */}
+              {martialArtsRanks.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {martialArtsRanks.map((r: any, idx: number) => {
+                    const discipline = r.sport_discipline || r.disciplineCode || r.disciplineName || 'Kalarippayattu';
+                    const rankName = r.rank_name || r.rankName || 'Level 1';
+                    const beltColor = r.belt_color || r.beltColor || 'White';
+                    const regNum = r.reg_number || r.regNumber || '';
+                    return (
+                      <span
+                        key={r.id || idx}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25"
+                      >
+                        <Award className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="font-extrabold">
+                          {discipline === 'KALARIPPAYATTU' ? 'Kalari' : discipline === 'KARATE_WUSHU' ? 'Karate/Wushu' : discipline}:
+                        </span>
+                        <span>{rankName}</span>
+                        {beltColor && <span className="opacity-90 font-medium">({beltColor} Belt)</span>}
+                        {regNum && <span className="opacity-75 font-mono text-[11px] ml-1">#{regNum}</span>}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -421,6 +484,18 @@ export const StudentProfilePage: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('ranks')}
+          className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+            activeTab === 'ranks'
+              ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Award className="w-4 h-4 text-amber-500" />
+          Belt & Ranks ({martialArtsRanks.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('attendance')}
           className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === 'attendance'
@@ -537,12 +612,7 @@ export const StudentProfilePage: React.FC = () => {
                     <div key={att.id} className="py-3 flex items-center justify-between">
                       <div>
                         <span className="text-sm font-semibold text-slate-900 dark:text-white block">
-                          {new Date(att.attendanceDate).toLocaleDateString('en-IN', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
+                          {formatDate(att.attendanceDate)}
                         </span>
                         <span className="text-xs text-slate-400">{att.batchName}</span>
                       </div>
@@ -572,7 +642,7 @@ export const StudentProfilePage: React.FC = () => {
                 Monthly Progress & Fee PDF
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
-                Parents receive an official monthly statement PDF directly to their WhatsApp: Batch names & schedule, attendance rate %, and fee receipt status.
+                Parents receive an official monthly statement PDF directly to their WhatsApp: Batch names & schedule, attendance rate %, martial arts belt & grading results, and fee receipt status.
               </p>
 
               {pdfSendResult && (
@@ -635,6 +705,198 @@ export const StudentProfilePage: React.FC = () => {
         </div>
       )}
 
+      {/* TAB CONTENT: Belt & Ranks Progression */}
+      {activeTab === 'ranks' && (
+        <div className="space-y-6">
+          <Card className="p-6 border-slate-200/80 dark:border-slate-800 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-500" />
+                  Martial Arts Belt & Examination Progression
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Official discipline registrations, active belt grades, and complete chronological promotion history.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/admin/ranks')}
+                className="gap-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+              >
+                Open Belt Registry & Promotion Desk <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {martialArtsRanks.length === 0 ? (
+              <EmptyState
+                icon={Award}
+                title="No Belt Rank Assigned Yet"
+                description="This student is not yet registered in Kalarippayattu or Karate & Wushu belt progression. Assign their starting belt to track exams and certificates."
+                actionLabel="Assign Belt in Registry"
+                onAction={() => navigate('/admin/ranks')}
+                accentColor="amber"
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {martialArtsRanks.map((r: any, idx: number) => {
+                  const discipline = r.sport_discipline || r.disciplineCode || r.disciplineName || 'Kalarippayattu';
+                  const rankName = r.rank_name || r.rankName || 'Level 1';
+                  const beltColor = r.belt_color || r.beltColor || 'White';
+                  const regNum = r.reg_number || r.regNumber || '';
+                  const promoDate = r.last_promoted_date || r.promotedAt || r.promotion_date || r.promotionDate;
+                  const certNum = r.certificate_number || r.certificateNumber || '';
+
+                  return (
+                    <div
+                      key={r.id || idx}
+                      className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-slate-50/70 to-white dark:from-slate-900/60 dark:to-slate-900/90 shadow-sm relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            {discipline === 'KALARIPPAYATTU'
+                              ? 'Kalarippayattu'
+                              : discipline === 'KARATE_WUSHU'
+                              ? 'Karate & Wushu'
+                              : discipline}
+                          </span>
+                          <h4 className="text-lg font-black text-slate-900 dark:text-white mt-1">
+                            {rankName}
+                          </h4>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${getBeltColorBadge(
+                            beltColor
+                          )}`}
+                        >
+                          {beltColor || 'Current'} Belt
+                        </span>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Registration / Athlete #</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            #{regNum || 'PENDING'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Last Promoted Date</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {formatDate(promoDate)}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Certificate Number</span>
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
+                            {certNum || 'GSA-VERIFIED'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Standing</span>
+                          <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Active Athlete
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          {/* Promotion & Examination Timeline */}
+          <Card className="p-6 border-slate-200/80 dark:border-slate-800 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-indigo-600" />
+                  Examination & Rank-Up History (Date & Progression)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Complete record of prior belt (kya thi) ➔ upgraded belt (kya rank hai), examination dates, and examiners.
+                </p>
+              </div>
+            </div>
+
+            {rankHistory.length === 0 ? (
+              <div className="p-6 text-center rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                Starting belt enrolled. When this student passes grading exams and ranks up, historical records will appear here.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3.5">Exam / Promotion Date</th>
+                      <th className="px-5 py-3.5">Discipline</th>
+                      <th className="px-5 py-3.5">Belt Progression (From ➔ To)</th>
+                      <th className="px-5 py-3.5">Certificate #</th>
+                      <th className="px-5 py-3.5">Graded By / Examiner</th>
+                      <th className="px-5 py-3.5">Grading Result</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {rankHistory.map((item: any, idx: number) => {
+                      const promoDate = item.promotion_date || item.promotionDate || item.created_at;
+                      const discipline = item.sport_discipline || item.disciplineCode;
+                      const prevRank = item.previous_rank || item.previousRankName || 'Initial Belt';
+                      const newRank = item.new_rank || item.newRankName;
+                      const certNum = item.certificate_number || item.certificateNumber || 'N/A';
+                      const examiner = item.examiner_name || item.promotedBy || 'Chief Examiner';
+
+                      return (
+                        <tr key={item.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                          <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                            {formatDate(promoDate)}
+                          </td>
+                          <td className="px-5 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            {discipline === 'KALARIPPAYATTU'
+                              ? 'Kalari'
+                              : discipline === 'KARATE_WUSHU'
+                              ? 'Karate/Wushu'
+                              : discipline || 'Martial Arts'}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2 font-bold text-xs">
+                              <span className="text-slate-400 line-through">
+                                {prevRank}
+                              </span>
+                              <span className="text-indigo-600 dark:text-indigo-400">➔</span>
+                              <span className="text-slate-900 dark:text-white font-extrabold">
+                                {newRank}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">
+                            {certNum}
+                          </td>
+                          <td className="px-5 py-4 text-xs text-slate-600 dark:text-slate-300">
+                            {examiner}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                              PASSED
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* TAB CONTENT: Attendance */}
       {activeTab === 'attendance' && (
         <Card className="p-6 border-slate-200/80 dark:border-slate-800 shadow-card">
@@ -678,12 +940,7 @@ export const StudentProfilePage: React.FC = () => {
                   {attendanceHistory.map((att) => (
                     <tr key={att.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                       <td className="px-6 py-4 font-semibold text-slate-900 dark:text-white">
-                        {new Date(att.attendanceDate).toLocaleDateString('en-IN', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
+                        {formatDate(att.attendanceDate)}
                       </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{att.batchName}</td>
                       <td className="px-5 py-4">
@@ -805,11 +1062,7 @@ export const StudentProfilePage: React.FC = () => {
                         ₹{Number(fee.pendingAmount).toLocaleString('en-IN')}
                       </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                        {new Date(fee.dueDate).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {formatDate(fee.dueDate)}
                       </td>
                       <td className="px-5 py-4">
                         <span

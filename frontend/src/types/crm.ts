@@ -89,6 +89,30 @@ export interface StudentItem {
     attendanceDate: string;
     status: 'PRESENT' | 'ABSENT';
   }>;
+  martialArtsRanks?: Array<{
+    id: string;
+    disciplineCode: string;
+    disciplineName: string;
+    regNumber?: string;
+    dob?: string;
+    representedFrom?: string;
+    promotedAt?: string;
+    promotedBy?: string;
+    rankName: string;
+    beltColor: string;
+    rankOrder: number;
+  }>;
+  rankHistory?: Array<{
+    id: string;
+    disciplineCode: string;
+    previousRankName: string;
+    newRankName: string;
+    regNumber?: string;
+    promotionDate: string;
+    promotedBy?: string;
+    certificateNumber?: string;
+    beltColor: string;
+  }>;
   createdAt: string;
   updatedAt?: string;
 }

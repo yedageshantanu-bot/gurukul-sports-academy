@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -26,9 +27,9 @@ import {
   AlertCircle,
   ShieldCheck,
   ExternalLink,
-  Calendar,
   CreditCard,
   Send,
+  Award,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -100,6 +101,39 @@ export const StudentsPage: React.FC = () => {
   const [initialPaymentAmount, setInitialPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'ONLINE' | 'BANK_TRANSFER'>('CASH');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
+
+  // Martial Arts & Belt Progression (Auto-enrolled in Belt Registry)
+  const [sportDiscipline, setSportDiscipline] = useState<'NONE' | 'KALARIPPAYATTU' | 'KARATE_WUSHU' | 'BOTH'>('KALARIPPAYATTU');
+  const [initialBeltRank, setInitialBeltRank] = useState('Meythari Level 1 (Body Control)');
+
+  // Zero-Confusion Fee Frequency & Payment Settlement
+  const [feeFrequency, setFeeFrequency] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [feePaymentType, setFeePaymentType] = useState<'PAID_UP_TO' | 'YEARLY_PAID' | 'FRESH_TODAY' | 'UNPAID_PENDING'>('PAID_UP_TO');
+
+  const previousMonthStr = useMemo(() => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const [paidUpToMonth, setPaidUpToMonth] = useState(previousMonthStr);
+
+  const monthOptions = useMemo(() => {
+    const list: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 1; i >= -12; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const name = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+      let tag = '';
+      if (i === 1) tag = ' (Advance / Next Month)';
+      else if (i === 0) tag = ' (Current Month - Up To Date)';
+      else if (i === -1) tag = ' (Last Month - Current Month Due)';
+      else tag = ` (${Math.abs(i)} Months Due)`;
+      list.push({ value, label: `${name}${tag}` });
+    }
+    return list;
+  }, []);
 
   // Custom WhatsApp message sender modal
   const [isWaModalOpen, setIsWaModalOpen] = useState(false);
@@ -179,9 +213,8 @@ export const StudentsPage: React.FC = () => {
     setStudentMobile('');
     setBatchId(batches.length > 0 ? batches[0].id : '');
     setWhatsappOptIn(true);
-    setStatus('ACTIVE');
-    setCourse('');
-    setMonthlyFee(0);
+    setCourse(course || 'Kalarippayattu (Regular)');
+    setMonthlyFee(monthlyFee || 700);
     setFeeDueDay(5);
     setInitialPaymentAmount('');
     setPaymentMethod('CASH');
@@ -189,6 +222,11 @@ export const StudentsPage: React.FC = () => {
     setAdmissionDate(new Date().toISOString().split('T')[0]);
     setBackfillPastFees(false);
     setPastFeesStatus('PAID');
+    setSportDiscipline('KALARIPPAYATTU');
+    setInitialBeltRank('Meythari Level 1 (Body Control)');
+    setFeeFrequency('MONTHLY');
+    setFeePaymentType('PAID_UP_TO');
+    setPaidUpToMonth(previousMonthStr);
     setFormError('');
     setIsAddModalOpen(true);
   };
@@ -302,9 +340,13 @@ export const StudentsPage: React.FC = () => {
           admissionDate: admissionDate || undefined,
           backfillPastFees: isPastAdmission && backfillPastFees,
           pastFeesStatus: pastFeesStatus,
-          initialPaymentAmount: Number(initialPaymentAmount) || 0,
           paymentMethod,
           paymentNotes: paymentNotes.trim() || undefined,
+          sportDiscipline,
+          initialBeltRank: sportDiscipline !== 'NONE' ? initialBeltRank : undefined,
+          feeFrequency,
+          paidUpToMonth: feePaymentType === 'PAID_UP_TO' ? paidUpToMonth : undefined,
+          feePaymentType,
         }),
       });
       setIsAddModalOpen(false);
@@ -746,26 +788,116 @@ export const StudentsPage: React.FC = () => {
             />
 
             {/* 3. Parent WhatsApp Number (Primary contact) */}
-            <div>
-              <Input
-                label="Parent WhatsApp Number * (Primary contact)"
-                value={parentWhatsapp}
-                onChange={(e) => setParentWhatsapp(e.target.value)}
-                required
-                placeholder="e.g. 9876543210 or +91 9876543210"
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Attendance and fee receipts will be dispatched to this WhatsApp number.
-              </p>
-            </div>
+            <PhoneInput
+              label="Parent WhatsApp Number (Primary contact)"
+              required
+              value={parentWhatsapp}
+              onChange={setParentWhatsapp}
+              placeholder="98765 43210"
+              helperText="Attendance alerts and fee receipts will be dispatched to this WhatsApp number."
+            />
 
             {/* 4. Student Mobile Number (Optional) */}
-            <Input
+            <PhoneInput
               label="Student Mobile Number (Optional)"
               value={studentMobile}
-              onChange={(e) => setStudentMobile(e.target.value)}
-              placeholder="e.g. 9876543211 (Only if student has personal phone)"
+              onChange={setStudentMobile}
+              placeholder="98765 43211"
+              helperText="Only if student carries a personal mobile."
             />
+
+            {/* 4. Sport / Martial Arts Discipline & Starting Belt Rank */}
+            <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 rounded-xl border border-amber-500/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                    Sport & Martial Arts Belt Progression *
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200">
+                  Auto-Enrolled in Belt Registry
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Sport / Discipline
+                  </label>
+                  <Select
+                    value={sportDiscipline}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setSportDiscipline(val);
+                      if (val === 'KALARIPPAYATTU') {
+                        setInitialBeltRank('Meythari Level 1 (Body Control)');
+                        setCourse('Kalarippayattu (Regular)');
+                      } else if (val === 'KARATE_WUSHU') {
+                        setInitialBeltRank('White Belt (10th Kyu)');
+                        setCourse('Karate & Wushu Training');
+                      } else if (val === 'BOTH') {
+                        setInitialBeltRank('Meythari Level 1 & Karate White');
+                        setCourse('Dual Discipline (Kalari + Karate)');
+                      } else {
+                        setInitialBeltRank('');
+                        setCourse('General Sports & Fitness');
+                      }
+                    }}
+                  >
+                    <option value="KALARIPPAYATTU">Kalarippayattu (Meythari / Weapons)</option>
+                    <option value="KARATE_WUSHU">Karate & Wushu (Belts & Kata)</option>
+                    <option value="BOTH">Dual Discipline (Kalari + Karate/Wushu)</option>
+                    <option value="NONE">General Athletics / Fitness Only</option>
+                  </Select>
+                </div>
+
+                {sportDiscipline !== 'NONE' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Starting Belt / Level Rank
+                    </label>
+                    <Select
+                      value={initialBeltRank}
+                      onChange={(e) => setInitialBeltRank(e.target.value)}
+                    >
+                      {sportDiscipline === 'KALARIPPAYATTU' && (
+                        <>
+                          <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
+                          <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
+                          <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
+                          <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
+                          <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
+                          <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
+                        </>
+                      )}
+                      {sportDiscipline === 'KARATE_WUSHU' && (
+                        <>
+                          <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
+                          <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
+                          <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
+                          <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
+                          <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
+                          <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
+                          <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
+                          <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
+                        </>
+                      )}
+                      {sportDiscipline === 'BOTH' && (
+                        <>
+                          <option value="Meythari Level 1 & Karate White">Meythari Level 1 & Karate White</option>
+                          <option value="Meythari Level 2 & Karate Yellow">Meythari Level 2 & Karate Yellow</option>
+                          <option value="Intermediate Kalari & Karate">Intermediate Kalari & Karate</option>
+                        </>
+                      )}
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Directly assigns student to Belt & Ranks page with registration code, eliminating duplicate data entry.
+              </p>
+            </div>
 
             {/* 5. Admission / Joining Date */}
             <div className="space-y-1.5">
@@ -777,178 +909,198 @@ export const StudentsPage: React.FC = () => {
                 onChange={(e) => setAdmissionDate(e.target.value)}
               />
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                For older/existing students, select their original enrollment date (e.g. January 2026 or earlier).
+                For older/existing students, select their original enrollment date.
               </p>
             </div>
 
-            {/* Smart Historical Fee Records Generator for Past Admissions */}
-            {isPastAdmission && (
-              <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 rounded-xl border border-amber-500/30 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
-                    Past Admission Detected ({admissionDate})
-                  </span>
-                </div>
-                <label className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={backfillPastFees}
-                    onChange={(e) => setBackfillPastFees(e.target.checked)}
-                    className="mt-0.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span>
-                    Generate historical monthly fee records from joining month ({admissionDate.slice(0, 7)}) up to current month.
-                  </span>
-                </label>
-
-                {backfillPastFees && (
-                  <div className="pt-2 border-t border-amber-500/20">
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Status for previous months:
-                    </label>
-                    <Select
-                      value={pastFeesStatus}
-                      onChange={(e) => setPastFeesStatus(e.target.value as any)}
-                      className="text-xs h-8 bg-white dark:bg-slate-900 border-amber-400/40"
-                    >
-                      <option value="PAID">All Past Months Already PAID (Clean history, zero pending dues)</option>
-                      <option value="PENDING">Past Months PENDING (Mark as Overdue / Unpaid dues)</option>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Course & Fee Plan Selection */}
-            <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3">
+            {/* 6. ZERO-CONFUSION FEE PLAN & SETTLEMENT */}
+            <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Course / Fee Plan *</span>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateCourseModalOpen(true)}
-                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add New Course</span>
-                </button>
-              </div>
-              <div>
-                <Select
-                  value={selectedPlanId}
-                  onChange={(e) => {
-                    const planId = e.target.value;
-                    setSelectedPlanId(planId);
-                    if (planId === 'CUSTOM') {
-                      // Manual entry mode
-                    } else if (planId) {
-                      const found = feePlans.find((p) => p.id === planId);
-                      if (found) {
-                        setCourse(found.name);
-                        setMonthlyFee(Number(found.amount));
-                        if (found.due_day) setFeeDueDay(found.due_day);
-                      }
-                    } else {
-                      setCourse('');
-                      setMonthlyFee(0);
-                    }
-                  }}
-                >
-                  <option value="">-- Select Course / Fee Plan --</option>
-                  {feePlans.filter((p) => p.active !== false).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
-                    </option>
-                  ))}
-                  <option value="CUSTOM">Custom Course / Other Entry</option>
-                </Select>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  Zero-Confusion Tuition Fee Setup *
+                </span>
+
+                {/* Plan Frequency Switcher: Monthly vs Yearly */}
+                <div className="inline-flex rounded-lg p-0.5 bg-slate-200 dark:bg-slate-800 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeeFrequency('MONTHLY');
+                      if (feePaymentType === 'YEARLY_PAID') setFeePaymentType('PAID_UP_TO');
+                      if (monthlyFee === 7000) setMonthlyFee(700);
+                    }}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      feeFrequency === 'MONTHLY'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Monthly Plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeeFrequency('YEARLY');
+                      setFeePaymentType('YEARLY_PAID');
+                      if (monthlyFee <= 1000) setMonthlyFee(7000);
+                    }}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      feeFrequency === 'YEARLY'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    1-Year Annual
+                  </button>
+                </div>
               </div>
 
+              {/* Course Name & Fee Amount */}
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="Course Name *"
+                  label="Course / Training Package *"
                   value={course}
                   onChange={(e) => setCourse(e.target.value)}
                   required
-                  placeholder="e.g. Kalarippayattu (Monthly)"
+                  placeholder="e.g. Kalarippayattu (Regular)"
                 />
                 <Input
-                  label="Fee Amount (₹) *"
+                  label={feeFrequency === 'YEARLY' ? 'Annual Fee Amount (₹) *' : 'Monthly Fee (₹) *'}
                   type="number"
                   min="0"
                   step="1"
                   value={monthlyFee === 0 ? '' : monthlyFee}
                   onChange={(e) => setMonthlyFee(Number(e.target.value))}
                   required
-                  placeholder="e.g. 700"
+                  placeholder={feeFrequency === 'YEARLY' ? 'e.g. 7000' : 'e.g. 700'}
                 />
               </div>
 
-              {/* Admission Payment Settlement & Balance Due */}
-              <div className="pt-3 border-t border-indigo-200/50 dark:border-indigo-900/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Admission Payment & Balance Due</span>
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    Total Fee: ₹{Number(monthlyFee) || 0}
-                  </span>
+              {/* Smart Payment Settlement Selector */}
+              <div className="pt-3 border-t border-indigo-200/50 dark:border-indigo-900/50 space-y-2.5">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Payment Status at Enrollment (Zero Math):
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {feeFrequency === 'MONTHLY' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setFeePaymentType('PAID_UP_TO')}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          feePaymentType === 'PAID_UP_TO'
+                            ? 'bg-white dark:bg-slate-900 border-indigo-600 dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                            : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>📅 Paid Up To [Month]</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          For existing students: Past fees already taken, automatically starts due from next/current month.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFeePaymentType('FRESH_TODAY')}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          feePaymentType === 'FRESH_TODAY'
+                            ? 'bg-white dark:bg-slate-900 border-indigo-600 dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                            : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>💵 Paid Today (Desk / UPI)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          New student paying fees now in Cash or UPI.
+                        </p>
+                      </button>
+                    </>
+                  )}
+
+                  {feeFrequency === 'YEARLY' && (
+                    <button
+                      type="button"
+                      onClick={() => setFeePaymentType('YEARLY_PAID')}
+                      className="col-span-2 p-3 rounded-xl border text-left bg-white dark:bg-slate-900 border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs"
+                    >
+                      <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        <span>1-Year Prepaid Package (Prepaid for 365 Days)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                        Active for 12 months. Zero fake monthly overdue notices will be generated.
+                      </p>
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Input
-                      label="Payment Received Now (₹)"
-                      type="number"
-                      min="0"
-                      max={monthlyFee ? Number(monthlyFee) : undefined}
-                      value={initialPaymentAmount}
-                      onChange={(e) => setInitialPaymentAmount(e.target.value)}
-                      placeholder="0 (if paying later)"
-                    />
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">
-                      Kitna payment abhi diya hai
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Payment Mode
+                {/* Sub-Panel: PAID_UP_TO Month Picker */}
+                {feePaymentType === 'PAID_UP_TO' && feeFrequency === 'MONTHLY' && (
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-2">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Select Month Student Has Already Paid Up To:
                     </label>
                     <Select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      value={paidUpToMonth}
+                      onChange={(e) => setPaidUpToMonth(e.target.value)}
+                      className="text-xs"
                     >
-                      <option value="CASH">Cash (Front Desk)</option>
-                      <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                      <option value="ONLINE">Online Transfer</option>
-                      <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                      {monthOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </Select>
+                    <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                      💡 <strong>Smart Rollover Active:</strong> All past months through{' '}
+                      <strong>{paidUpToMonth}</strong> will be logged as <strong>PAID</strong> in fee history. If current month is after {paidUpToMonth}, it will automatically become <strong>DUE (₹{monthlyFee})</strong> without you doing any manual calculations! When calendar month turns to November/December, rollover happens automatically.
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Live Balance Due Calculation */}
-                <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
-                  (Number(initialPaymentAmount) || 0) >= (Number(monthlyFee) || 0) && (Number(monthlyFee) || 0) > 0
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                    : (Number(initialPaymentAmount) || 0) > 0
-                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300'
-                    : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                }`}>
-                  <div>
-                    <span className="font-semibold">Baki Balance (Due Amount): </span>
-                    <span className="font-bold text-sm">
-                      ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(initialPaymentAmount) || 0)).toLocaleString('en-IN')}
-                    </span>
+                {/* Sub-Panel: FRESH_TODAY Payment Details */}
+                {feePaymentType === 'FRESH_TODAY' && (
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Input
+                          label="Amount Paid Today (₹)"
+                          type="number"
+                          min="0"
+                          value={initialPaymentAmount}
+                          onChange={(e) => setInitialPaymentAmount(e.target.value)}
+                          placeholder="e.g. 700"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Payment Mode
+                        </label>
+                        <Select
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value as any)}
+                        >
+                          <option value="CASH">Cash (Front Desk)</option>
+                          <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                          <option value="ONLINE">Online Transfer</option>
+                          <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span>Remaining Balance:</span>
+                      <strong className="text-slate-900 dark:text-white">
+                        ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(initialPaymentAmount) || 0)).toLocaleString('en-IN')}
+                      </strong>
+                    </div>
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/60 dark:bg-black/40">
-                    {(Number(initialPaymentAmount) || 0) >= (Number(monthlyFee) || 0) && (Number(monthlyFee) || 0) > 0
-                      ? 'Fully Paid'
-                      : (Number(initialPaymentAmount) || 0) > 0
-                      ? 'Partial Paid'
-                      : 'Pending (Due Later)'}
-                  </span>
-                </div>
+                )}
               </div>
             </div>
 
@@ -1042,24 +1194,22 @@ export const StudentsPage: React.FC = () => {
             />
 
             {/* 3. Parent WhatsApp Number */}
-            <div>
-              <Input
-                label="Parent WhatsApp Number * (Primary contact)"
-                value={parentWhatsapp}
-                onChange={(e) => setParentWhatsapp(e.target.value)}
-                required
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                E.164 format supported (e.g. +91 9404849500).
-              </p>
-            </div>
+            <PhoneInput
+              label="Parent WhatsApp Number (Primary contact)"
+              required
+              value={parentWhatsapp}
+              onChange={setParentWhatsapp}
+              placeholder="98765 43210"
+              helperText="Attendance and receipts are dispatched to this WhatsApp number."
+            />
 
             {/* 4. Student Mobile Number */}
-            <Input
+            <PhoneInput
               label="Student Mobile Number (Optional)"
               value={studentMobile}
-              onChange={(e) => setStudentMobile(e.target.value)}
-              placeholder="Leave empty if not required"
+              onChange={setStudentMobile}
+              placeholder="98765 43211"
+              helperText="Leave empty if not required"
             />
 
             {/* Admission / Joining Date */}

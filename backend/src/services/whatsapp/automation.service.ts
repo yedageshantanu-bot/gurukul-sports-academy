@@ -932,6 +932,44 @@ export class WhatsAppAutomationService {
       .maybeSingle();
     const academyName = academy?.academy_name || (await this.getAcademyName());
 
+    // Martial Arts Belt & Rank Progression Result
+    let martialArtsRank = undefined;
+    try {
+      const { data: srData } = await this.supabase
+        .from('student_ranks')
+        .select(`
+          discipline_code,
+          reg_number,
+          promoted_at,
+          promoted_by,
+          martial_arts_ranks (
+            rank_name,
+            belt_color
+          )
+        `)
+        .eq('student_id', studentId)
+        .order('promoted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (srData) {
+        martialArtsRank = {
+          disciplineName: srData.discipline_code === 'KALARIPPAYATTU'
+            ? 'Kalarippayattu'
+            : srData.discipline_code === 'KARATE_WUSHU'
+            ? 'Karate + Wushu'
+            : 'Martial Arts',
+          currentRankName: (srData.martial_arts_ranks as any)?.rank_name || 'Novice / Trainee',
+          beltColor: (srData.martial_arts_ranks as any)?.belt_color || 'Yellow',
+          regNumber: srData.reg_number || undefined,
+          promotedAt: srData.promoted_at || undefined,
+          examinerName: srData.promoted_by || 'Chief Master (Gurukul Academy)',
+        };
+      }
+    } catch (rErr) {
+      console.warn('Rank query fallback in generateStudentReportData:', rErr);
+    }
+
     return {
       studentName: student.name,
       parentName: student.parent_name || undefined,
@@ -953,6 +991,7 @@ export class WhatsAppAutomationService {
         pendingAmount,
         billingPeriod,
       },
+      martialArtsRank,
       academyName,
       recipientPhone,
       logoUrl: academy?.logo_url || undefined,

@@ -86,6 +86,7 @@ export const RanksPage: React.FC = () => {
   const [certStartDate, setCertStartDate] = useState('');
   const [certEndDate, setCertEndDate] = useState('');
   const [certDisciplineFilter, setCertDisciplineFilter] = useState('ALL');
+  const [certSearchTerm, setCertSearchTerm] = useState('');
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [loadingCerts, setLoadingCerts] = useState(false);
   const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
@@ -391,9 +392,37 @@ export const RanksPage: React.FC = () => {
   const filteredStudentRanks = (studentRanks || []).filter((sr) => {
     const studentName = (sr.student_name || '').toLowerCase();
     const studentCode = (sr.student_code || '').toLowerCase();
-    const matchesSearch = !q || studentName.includes(q) || studentCode.includes(q);
+    const contact = (sr.contact_number || '').toLowerCase();
+    const currentRank = (sr.current_rank_name || '').toLowerCase();
+    const belt = (sr.belt_color || '').toLowerCase();
+    const matchesSearch =
+      !q ||
+      studentName.includes(q) ||
+      studentCode.includes(q) ||
+      contact.includes(q) ||
+      currentRank.includes(q) ||
+      belt.includes(q);
     const matchesDiscipline = disciplineFilter === 'ALL' || sr.discipline_code === disciplineFilter;
     return matchesSearch && matchesDiscipline;
+  });
+
+  const certQ = (certSearchTerm || '').trim().toLowerCase();
+  const filteredCertificates = (certificates || []).filter((cert) => {
+    if (!certQ) return true;
+    const name = (cert.student_name || '').toLowerCase();
+    const reg = (cert.student_code || '').toLowerCase();
+    const certNum = (cert.certificate_number || '').toLowerCase();
+    const rank = (cert.to_rank_name || '').toLowerCase();
+    const phone = (cert.contact_number || '').toLowerCase();
+    const parent = (cert.parentName || cert.fatherName || '').toLowerCase();
+    return (
+      name.includes(certQ) ||
+      reg.includes(certQ) ||
+      certNum.includes(certQ) ||
+      rank.includes(certQ) ||
+      phone.includes(certQ) ||
+      parent.includes(certQ)
+    );
   });
 
   return (
@@ -715,16 +744,27 @@ export const RanksPage: React.FC = () => {
             </Card>
           ) : (
             <div className="bg-[#0F172A] rounded-xl border border-white/10 overflow-hidden shadow-xl print:bg-white print:text-black print:border-black">
-              <div className="p-4 bg-[#0A1120] border-b border-white/10 flex items-center justify-between print:hidden">
+              <div className="p-4 bg-[#0A1120] border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">Showing {certificates.length} Certificate Records</span>
+                  <span className="text-xs font-bold text-white">
+                    Showing {filteredCertificates.length} {filteredCertificates.length !== certificates.length ? `(filtered from ${certificates.length})` : ''} Certificate Records
+                  </span>
                   <span className="text-[11px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                     Ready for Inscription
                   </span>
                 </div>
-                <span className="text-xs text-slate-400">
-                  Data format mirrors official Gurukul Certificate template
-                </span>
+
+                {/* Instant Search Bar */}
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name, reg no, cert #..."
+                    value={certSearchTerm}
+                    onChange={(e) => setCertSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-[#0F172A] border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -743,7 +783,14 @@ export const RanksPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 bg-[#0F172A]/70 print:divide-slate-300">
-                    {certificates.map((cert) => (
+                    {filteredCertificates.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="text-center py-8 text-slate-400">
+                          No certificate records found matching "{certSearchTerm}".
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCertificates.map((cert) => (
                       <tr key={cert.id} className="hover:bg-white/5 transition-colors print:text-black">
                         <td className="py-3 px-3 font-mono font-bold text-amber-400 print:text-black">
                           {cert.student_code || 'GSA-ATH'}
@@ -797,7 +844,7 @@ export const RanksPage: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>

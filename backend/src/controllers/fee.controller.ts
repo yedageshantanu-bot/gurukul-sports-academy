@@ -161,6 +161,20 @@ export class FeeController {
       next(err);
     }
   }
+
+  async syncMonthlyFees(req: Request, res: Response, next: NextFunction) {
+    try {
+      const targetPeriod = req.body?.billingPeriod || (typeof req.query.billingPeriod === 'string' ? req.query.billingPeriod : undefined);
+      const result = await feeService.syncMonthlyFeesForAllStudents(targetPeriod);
+      res.status(200).json({
+        success: true,
+        message: `Monthly fees successfully synced for period ${result.syncedPeriod}. Generated ${result.createdCount} new billing records.`,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const feeController = new FeeController();

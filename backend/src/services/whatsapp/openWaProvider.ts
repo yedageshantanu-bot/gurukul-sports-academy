@@ -280,20 +280,44 @@ export class OpenWaProvider implements WhatsAppSender {
     const session = await this.getActiveSession();
 
     if (session) {
+      // 1. Explicitly log out WhatsApp account from bridge
+      try {
+        await fetch(`${baseUrl}/api/sessions/${session.id}/logout`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          signal: AbortSignal.timeout(8000),
+        });
+        console.log(`[OpenWA] Successfully called logout for session ${session.id}`);
+      } catch (err: any) {
+        console.warn('[OpenWA] Logout notice:', err.message);
+      }
+
+      // 2. Stop the session socket
       try {
         await fetch(`${baseUrl}/api/sessions/${session.id}/stop`, {
           method: 'POST',
           headers: this.getHeaders(),
+          signal: AbortSignal.timeout(8000),
         });
       } catch (err: any) {
-        console.warn('[OpenWA] Disconnect error:', err.message);
+        console.warn('[OpenWA] Disconnect/Stop error:', err.message);
       }
     }
 
-    const status = await this.getStatus();
+    this.cachedSessionId = null;
+    this.cachedSessionInfo = null;
+
+    const status: WhatsAppDeviceStatus = {
+      status: 'DISCONNECTED',
+      providerName: 'OpenWA REST API Gateway',
+      isConfigured: this.isConfigured(),
+      sessionStatus: 'Disconnected & Logged out',
+      details: 'Device unlinked cleanly. Ready for new QR code scan.',
+    };
+
     return {
       success: true,
-      message: 'OpenWA session stopped successfully',
+      message: 'WhatsApp session logged out and disconnected successfully',
       status,
     };
   }

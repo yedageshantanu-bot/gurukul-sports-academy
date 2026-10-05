@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -10,6 +11,7 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { apiClient } from '../../lib/api';
 import { TeacherItem, BatchItem } from '../../types/crm';
+import { normalizePhoneNumber } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
 import {
   GraduationCap,
@@ -95,11 +97,12 @@ export const TeacherProfilePage: React.FC = () => {
     setEditLoading(true);
     setEditError('');
     try {
+      const normalizedPhone = editPhone.trim() ? normalizePhoneNumber(editPhone.trim()) : undefined;
       await apiClient(`/teachers/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: editFullName.trim(),
-          phone: editPhone.trim() || undefined,
+          phone: normalizedPhone,
           subject: editSubject.trim(),
           status: editStatus,
         }),
@@ -715,11 +718,12 @@ export const TeacherProfilePage: React.FC = () => {
             placeholder="e.g. Dr. Ramesh Sharma"
           />
 
-          <Input
+          <PhoneInput
             label="Phone / WhatsApp"
             value={editPhone}
-            onChange={(e) => setEditPhone(e.target.value)}
-            placeholder="e.g. +91 98765 43210"
+            onChange={setEditPhone}
+            placeholder="98765 43210"
+            helperText="Faculty's registered mobile number for notifications."
           />
 
           <Input

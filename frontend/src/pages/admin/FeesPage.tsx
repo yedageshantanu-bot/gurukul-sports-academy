@@ -15,6 +15,7 @@ import {
   Edit2,
   BookMarked,
   Trophy,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FeePlan, StudentFee } from '../../types/fee';
@@ -415,6 +416,39 @@ export const FeesPage: React.FC = () => {
     }
   };
 
+  const [syncingMonthly, setSyncingMonthly] = useState(false);
+  const handleSyncMonthlyFees = async () => {
+    if (!token) return;
+    setSyncingMonthly(true);
+    setError(null);
+    try {
+      const now = new Date();
+      const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const res = await fetch(`${API_BASE}/fees/sync-monthly`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ billingPeriod: currentPeriod }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReminderSuccessMessage(
+          `Monthly fees synchronized for ${data.data?.period || currentPeriod}! Generated: ${data.data?.createdCount || 0} active student bills, Verified: ${data.data?.existingCount || 0} students.`
+        );
+        setTimeout(() => setReminderSuccessMessage(null), 8000);
+        await fetchData();
+      } else {
+        throw new Error(data.message || 'Failed to sync monthly fees');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error syncing monthly fees');
+    } finally {
+      setSyncingMonthly(false);
+    }
+  };
+
   const handleOpenEditPlan = (plan: FeePlan) => {
     setEditingPlan(plan);
     setEditPlanForm({
@@ -585,6 +619,17 @@ export const FeesPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap">
+              <Button
+                variant="secondary"
+                onClick={handleSyncMonthlyFees}
+                disabled={syncingMonthly}
+                className="gap-2 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold text-xs sm:text-sm"
+                title="Automatically generate current month bills for all active monthly students"
+              >
+                <RotateCcw className={`w-4 h-4 text-indigo-600 ${syncingMonthly ? 'animate-spin' : ''}`} />
+                <span>{syncingMonthly ? 'Syncing...' : 'Sync Current Month Bills'}</span>
+              </Button>
+
               <Button
                 variant="secondary"
                 onClick={handleTriggerMonthlyReminders}

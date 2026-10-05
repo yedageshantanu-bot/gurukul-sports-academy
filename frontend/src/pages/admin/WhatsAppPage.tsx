@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../lib/api';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import {
   Smartphone,
   RefreshCw,
@@ -200,6 +201,17 @@ export const WhatsAppPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isConnected && (
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              disabled={refreshing || loading}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 border border-rose-500/50 text-white shadow-sm transition-all cursor-pointer active:scale-95"
+            >
+              <Power className="w-3.5 h-3.5" />
+              <span>Disconnect WhatsApp</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={fetchStatus}
@@ -278,6 +290,22 @@ export const WhatsAppPage: React.FC = () => {
                       {device.phoneNumber}
                     </div>
                   )}
+
+                  {/* Dedicated Client Handover / Disconnect Box */}
+                  <div className="mt-6 pt-5 border-t border-white/10 max-w-sm mx-auto space-y-3">
+                    <p className="text-xs text-slate-400">
+                      Testing finished? Click below to cleanly disconnect your phone before giving access to your client.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDisconnect}
+                      disabled={refreshing}
+                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md transition-all cursor-pointer active:scale-95 border border-rose-500/40"
+                    >
+                      <Power className="w-4 h-4" />
+                      <span>{refreshing ? 'Disconnecting...' : 'Disconnect / Unlink WhatsApp'}</span>
+                    </button>
+                  </div>
                 </div>
               ) : device.qrCode ? (
                 <div className="text-center space-y-4">
@@ -327,21 +355,33 @@ export const WhatsAppPage: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {!isConnected ? (
-                <button
-                  type="button"
-                  onClick={handleConnectOrRefresh}
-                  disabled={refreshing}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-orange-400 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span>Regenerate QR Code</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    disabled={refreshing}
+                    title="Clear/Reset current session"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <Power className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Reset</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConnectOrRefresh}
+                    disabled={refreshing}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-orange-400 ${refreshing ? 'animate-spin' : ''}`} />
+                    <span>Regenerate QR Code</span>
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
                   onClick={handleDisconnect}
                   disabled={refreshing}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white border border-rose-500/40 shadow-sm transition-colors cursor-pointer"
                 >
                   <Power className="w-3.5 h-3.5" />
                   <span>Disconnect Device</span>
@@ -396,21 +436,14 @@ export const WhatsAppPage: React.FC = () => {
             </h2>
 
             <form onSubmit={handleSendTest} className="space-y-3.5">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Recipient Phone Number</label>
-                  <span className="text-[10px] text-emerald-400 font-medium">10-digit or +91 auto-detected</span>
-                </div>
-                <input
-                  type="text"
+                <PhoneInput
+                  label="Recipient Phone Number"
                   required
                   value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                  placeholder="e.g. 9404849500 or +91 94048 49500"
-                  className="w-full px-3.5 py-2 rounded-lg bg-[#0F172A] border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-orange-500 transition-colors"
+                  onChange={setTestPhone}
+                  placeholder="94048 49500"
+                  helperText="Fixed +91 country prefix. Enter recipient's 10-digit mobile."
                 />
-                <p className="text-[10.5px] text-slate-400">Normal 10-digit number bina +91 ya +91 ke sath — dono direct detect honge.</p>
-              </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Message Content</label>

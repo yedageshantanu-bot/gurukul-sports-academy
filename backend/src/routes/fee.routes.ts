@@ -27,6 +27,7 @@ router.post('/plans/:id/deactivate', feeController.deactivateFeePlan);
 // ==============================================================================
 router.get('/students', feeController.listStudentFees);
 router.post('/students', feeController.assignStudentFee);
+router.post('/sync-monthly', feeController.syncMonthlyFees);
 router.get('/students/:id', feeController.getStudentFeeById);
 router.patch('/students/:id', feeController.updateStudentFee);
 

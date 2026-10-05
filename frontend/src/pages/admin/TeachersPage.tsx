@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -9,6 +10,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { apiClient } from '../../lib/api';
 import { TeacherItem } from '../../types/crm';
+import { normalizePhoneNumber } from '../../lib/utils';
 import { GraduationCap, Plus, Search, Edit2, Trash2, AlertTriangle, Mail, Phone, BookOpen, Layers, Eye } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -87,9 +89,10 @@ export const TeachersPage: React.FC = () => {
     setFormLoading(true);
     setFormError('');
     try {
+      const normalizedPhone = phone.trim() ? normalizePhoneNumber(phone.trim()) : undefined;
       await apiClient('/teachers', {
         method: 'POST',
-        body: JSON.stringify({ fullName, email, phone, subject }),
+        body: JSON.stringify({ fullName, email, phone: normalizedPhone, subject }),
       });
       setIsAddModalOpen(false);
       fetchTeachers(true); // Silent refresh - no screen flicker
@@ -106,9 +109,10 @@ export const TeachersPage: React.FC = () => {
     setFormLoading(true);
     setFormError('');
     try {
+      const normalizedPhone = phone.trim() ? normalizePhoneNumber(phone.trim()) : undefined;
       await apiClient(`/teachers/${editingTeacher.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ fullName, phone, subject }),
+        body: JSON.stringify({ fullName, phone: normalizedPhone, subject }),
       });
       setIsEditModalOpen(false);
       fetchTeachers(true); // Silent refresh - no screen flicker
@@ -402,12 +406,12 @@ export const TeachersPage: React.FC = () => {
             required
             placeholder="teacher@academy.com"
           />
-          <Input
-            label="Mobile Number"
-            type="tel"
+          <PhoneInput
+            label="Mobile Number (WhatsApp Enabled)"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="e.g. 9876543210"
+            onChange={setPhone}
+            placeholder="98765 43210"
+            helperText="Faculty will receive batch schedules and attendance updates."
           />
           <Input
             label="Subject Specialization *"
@@ -441,12 +445,12 @@ export const TeachersPage: React.FC = () => {
             onChange={(e) => setFullName(e.target.value)}
             required
           />
-          <Input
-            label="Mobile Number"
-            type="tel"
+          <PhoneInput
+            label="Mobile Number (WhatsApp Enabled)"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="e.g. 9876543210"
+            onChange={setPhone}
+            placeholder="98765 43210"
+            helperText="Faculty will receive batch schedules and attendance updates."
           />
           <Input
             label="Subject Specialization *"
