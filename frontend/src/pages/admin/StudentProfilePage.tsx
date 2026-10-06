@@ -36,12 +36,14 @@ export const StudentProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
 
+  const { toast } = useToast();
   const [student, setStudent] = useState<StudentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'ranks' | 'attendance' | 'fees' | 'batches'>('overview');
   const [pdfSending, setPdfSending] = useState(false);
   const [pdfSendResult, setPdfSendResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [directMsgSending, setDirectMsgSending] = useState(false);
 
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'N/A';
@@ -187,9 +189,6 @@ export const StudentProfilePage: React.FC = () => {
       win.focus();
     }
   };
-
-  const { toast } = useToast();
-  const [directMsgSending, setDirectMsgSending] = useState(false);
 
   const sendDirectWhatsApp = async (phone: string, text: string) => {
     setDirectMsgSending(true);
