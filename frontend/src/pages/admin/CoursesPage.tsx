@@ -75,6 +75,8 @@ export const CoursesPage: React.FC = () => {
   }, []);
 
   const handleOpenAdd = () => {
+    setIsEditModalOpen(false);
+    setEditingCourse(null);
     setFormData({
       name: '',
       amount: '',
@@ -86,6 +88,7 @@ export const CoursesPage: React.FC = () => {
   };
 
   const handleOpenEdit = (course: FeePlan) => {
+    setIsAddModalOpen(false);
     setEditingCourse(course);
     setFormData({
       name: course.name,
@@ -106,7 +109,7 @@ export const CoursesPage: React.FC = () => {
     setFormLoading(true);
     setFormError('');
     try {
-      await apiClient('/fees/plans', {
+      const created = await apiClient<any>('/fees/plans', {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name.trim(),
@@ -115,8 +118,13 @@ export const CoursesPage: React.FC = () => {
           dueDay: parseInt(formData.dueDay, 10) || 5,
         }),
       });
+      const newItem = created?.data || created;
+      if (newItem && newItem.id) {
+        setCourses((prev) => [newItem, ...prev.filter((c) => c.id !== newItem.id)]);
+      }
       setIsAddModalOpen(false);
       setSuccessToast(`Course "${formData.name.trim()}" created successfully!`);
+      toast.success(`Course "${formData.name.trim()}" created successfully!`);
       setTimeout(() => setSuccessToast(null), 4000);
       await fetchCourses(true);
     } catch (err: any) {
@@ -136,7 +144,7 @@ export const CoursesPage: React.FC = () => {
     setFormLoading(true);
     setFormError('');
     try {
-      await apiClient(`/fees/plans/${editingCourse.id}`, {
+      const updated = await apiClient<any>(`/fees/plans/${editingCourse.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           name: formData.name.trim(),
@@ -145,9 +153,16 @@ export const CoursesPage: React.FC = () => {
           dueDay: parseInt(formData.dueDay, 10) || 5,
         }),
       });
+      const updatedItem = updated?.data || updated;
+      if (updatedItem && updatedItem.id) {
+        setCourses((prev) =>
+          prev.map((c) => (c.id === editingCourse.id ? { ...c, ...updatedItem } : c))
+        );
+      }
       setIsEditModalOpen(false);
       setEditingCourse(null);
       setSuccessToast(`Course "${formData.name.trim()}" updated successfully!`);
+      toast.success(`Course "${formData.name.trim()}" updated successfully!`);
       setTimeout(() => setSuccessToast(null), 4000);
       await fetchCourses(true);
     } catch (err: any) {

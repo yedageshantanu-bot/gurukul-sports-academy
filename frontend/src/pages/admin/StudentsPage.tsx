@@ -102,13 +102,24 @@ export const StudentsPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'ONLINE' | 'BANK_TRANSFER'>('CASH');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
 
-  // Martial Arts & Belt Progression (Auto-enrolled in Belt Registry)
-  const [sportDiscipline, setSportDiscipline] = useState<'NONE' | 'KALARIPPAYATTU' | 'KARATE_WUSHU' | 'BOTH'>('KALARIPPAYATTU');
-  const [initialBeltRank, setInitialBeltRank] = useState('Meythari Level 1 (Body Control)');
+  // Martial Arts & Multi-Sport Progression (Flexible 1 or 2 sports with independent belts)
+  const [sportCount, setSportCount] = useState<1 | 2>(1);
+  const [sport1, setSport1] = useState<string>('KARATE_WUSHU');
+  const [belt1, setBelt1] = useState<string>('White Belt (10th Kyu)');
+  const [sport2, setSport2] = useState<string>('KALARIPPAYATTU');
+  const [belt2, setBelt2] = useState<string>('Meythari Level 1 (Body Control)');
+  const [keepModalOpen, setKeepModalOpen] = useState(false);
 
   // Zero-Confusion Fee Frequency & Payment Settlement
   const [feeFrequency, setFeeFrequency] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
-  const [feePaymentType, setFeePaymentType] = useState<'PAID_UP_TO' | 'YEARLY_PAID' | 'FRESH_TODAY' | 'UNPAID_PENDING'>('PAID_UP_TO');
+  const [feePaymentType, setFeePaymentType] = useState<'PAID_UP_TO' | 'YEARLY_PAID' | 'YEARLY_PARTIAL' | 'FRESH_TODAY' | 'UNPAID_PENDING'>('PAID_UP_TO');
+  const [yearlyPaymentMode, setYearlyPaymentMode] = useState<'FULL' | 'INSTALLMENT' | 'UNPAID'>('FULL');
+  const [yearlyPaidAmount, setYearlyPaidAmount] = useState<string>('');
+  const [nextInstallmentDueDate, setNextInstallmentDueDate] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1); // default 1 month later
+    return d.toISOString().split('T')[0];
+  });
 
   const previousMonthStr = useMemo(() => {
     const now = new Date();
@@ -222,10 +233,15 @@ export const StudentsPage: React.FC = () => {
     setAdmissionDate(new Date().toISOString().split('T')[0]);
     setBackfillPastFees(false);
     setPastFeesStatus('PAID');
-    setSportDiscipline('KALARIPPAYATTU');
-    setInitialBeltRank('Meythari Level 1 (Body Control)');
+    setSportCount(1);
+    setSport1('KARATE_WUSHU');
+    setBelt1('White Belt (10th Kyu)');
+    setSport2('KALARIPPAYATTU');
+    setBelt2('Meythari Level 1 (Body Control)');
     setFeeFrequency('MONTHLY');
     setFeePaymentType('PAID_UP_TO');
+    setYearlyPaymentMode('FULL');
+    setYearlyPaidAmount('');
     setPaidUpToMonth(previousMonthStr);
     setFormError('');
     setIsAddModalOpen(true);
@@ -324,6 +340,37 @@ export const StudentsPage: React.FC = () => {
     }
 
     try {
+      const sportsPayload = sportCount === 2
+        ? [
+            { disciplineCode: sport1, rankName: belt1 },
+            { disciplineCode: sport2, rankName: belt2 },
+          ]
+        : sport1 !== 'NONE'
+        ? [{ disciplineCode: sport1, rankName: belt1 }]
+        : [];
+
+      const compositeDiscipline = sportCount === 2 ? 'BOTH' : sport1;
+      const compositeBelt = sportCount === 2 ? `${belt1} & ${belt2}` : belt1;
+
+      let finalFeePaymentType = feePaymentType;
+      let finalInitialPayment = Number(initialPaymentAmount) || 0;
+      let finalNextDueDate: string | undefined = undefined;
+
+      if (feeFrequency === 'YEARLY') {
+        if (yearlyPaymentMode === 'FULL') {
+          finalFeePaymentType = 'YEARLY_PAID';
+          finalInitialPayment = Number(monthlyFee) || 0;
+        } else if (yearlyPaymentMode === 'INSTALLMENT') {
+          finalFeePaymentType = 'YEARLY_PARTIAL';
+          finalInitialPayment = Number(yearlyPaidAmount) || 0;
+          finalNextDueDate = nextInstallmentDueDate;
+        } else {
+          finalFeePaymentType = 'UNPAID_PENDING';
+          finalInitialPayment = 0;
+          finalNextDueDate = nextInstallmentDueDate;
+        }
+      }
+
       await apiClient('/students', {
         method: 'POST',
         body: JSON.stringify({
@@ -332,7 +379,7 @@ export const StudentsPage: React.FC = () => {
           parentWhatsapp: pCheck.normalized,
           studentMobile: normalizedStudentMobile,
           batchId: batchId || undefined,
-          whatsappOptIn,
+          whatsappOptIn: false, // Intentionally disabled automatic WhatsApp per user instruction
           status,
           course: course.trim() || undefined,
           monthlyFee: Number(monthlyFee) || 0,
@@ -342,18 +389,33 @@ export const StudentsPage: React.FC = () => {
           pastFeesStatus: pastFeesStatus,
           paymentMethod,
           paymentNotes: paymentNotes.trim() || undefined,
-          sportDiscipline,
-          initialBeltRank: sportDiscipline !== 'NONE' ? initialBeltRank : undefined,
+          sports: sportsPayload,
+          sportDiscipline: compositeDiscipline,
+          initialBeltRank: compositeBelt,
           feeFrequency,
-          paidUpToMonth: feePaymentType === 'PAID_UP_TO' ? paidUpToMonth : undefined,
-          feePaymentType,
+          paidUpToMonth: feePaymentType === 'PAID_UP_TO' && feeFrequency === 'MONTHLY' ? paidUpToMonth : undefined,
+          feePaymentType: finalFeePaymentType,
+          initialPaymentAmount: finalInitialPayment,
+          nextInstallmentDueDate: finalNextDueDate,
         }),
       });
-      setIsAddModalOpen(false);
-      setInitialPaymentAmount('');
-      setPaymentMethod('CASH');
-      setPaymentNotes('');
-      toast.success(`Student "${name.trim()}" enrolled successfully!`);
+
+      if (keepModalOpen) {
+        // Continuous addition mode for 30-40 students: keep modal open and reset only student-specific fields
+        setName('');
+        setParentName('');
+        setParentWhatsapp('');
+        setStudentMobile('');
+        setInitialPaymentAmount('');
+        setPaymentNotes('');
+        toast.success(`Student "${name.trim()}" enrolled! Ready to enter next student.`);
+      } else {
+        setIsAddModalOpen(false);
+        setInitialPaymentAmount('');
+        setPaymentMethod('CASH');
+        setPaymentNotes('');
+        toast.success(`Student "${name.trim()}" enrolled successfully!`);
+      }
       fetchData(true);
     } catch (err: any) {
       setFormError(err.message || 'Failed to create student');
@@ -806,96 +868,232 @@ export const StudentsPage: React.FC = () => {
               helperText="Only if student carries a personal mobile."
             />
 
-            {/* 4. Sport / Martial Arts Discipline & Starting Belt Rank */}
-            <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 rounded-xl border border-amber-500/30 space-y-3">
-              <div className="flex items-center justify-between">
+            {/* 4. Sport / Martial Arts Discipline & Starting Belt Rank (Clean, Modern Multi-Sport) */}
+            <div className="p-4 bg-slate-900/80 dark:bg-slate-900 border border-slate-700/60 rounded-xl space-y-3.5 shadow-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-white/5">
                 <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                    Sport & Martial Arts Belt Progression *
+                  <Award className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    Sports &amp; Martial Arts Belt Selection *
                   </span>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200">
-                  Auto-Enrolled in Belt Registry
-                </span>
+                <div className="flex items-center gap-1.5 bg-black/40 p-0.5 rounded-lg border border-white/5 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setSportCount(1)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      sportCount === 1
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    1 Sport
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSportCount(2)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      sportCount === 2
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    2 Sports
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Sport / Discipline
-                  </label>
-                  <Select
-                    value={sportDiscipline}
-                    onChange={(e) => {
-                      const val = e.target.value as any;
-                      setSportDiscipline(val);
-                      if (val === 'KALARIPPAYATTU') {
-                        setInitialBeltRank('Meythari Level 1 (Body Control)');
-                        setCourse('Kalarippayattu (Regular)');
-                      } else if (val === 'KARATE_WUSHU') {
-                        setInitialBeltRank('White Belt (10th Kyu)');
-                        setCourse('Karate & Wushu Training');
-                      } else if (val === 'BOTH') {
-                        setInitialBeltRank('Meythari Level 1 & Karate White');
-                        setCourse('Dual Discipline (Kalari + Karate)');
-                      } else {
-                        setInitialBeltRank('');
-                        setCourse('General Sports & Fitness');
-                      }
-                    }}
-                  >
-                    <option value="KALARIPPAYATTU">Kalarippayattu (Meythari / Weapons)</option>
-                    <option value="KARATE_WUSHU">Karate & Wushu (Belts & Kata)</option>
-                    <option value="BOTH">Dual Discipline (Kalari + Karate/Wushu)</option>
-                    <option value="NONE">General Athletics / Fitness Only</option>
-                  </Select>
+              {/* Sport 1 Section */}
+              <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">
+                    {sportCount === 2 ? 'First Sport / Discipline' : 'Primary Sport / Discipline'}
+                  </span>
                 </div>
-
-                {sportDiscipline !== 'NONE' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Starting Belt / Level Rank
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Discipline
                     </label>
                     <Select
-                      value={initialBeltRank}
-                      onChange={(e) => setInitialBeltRank(e.target.value)}
+                      value={sport1}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSport1(val);
+                        if (val === 'KARATE_WUSHU') {
+                          setBelt1('White Belt (10th Kyu)');
+                          setCourse(sportCount === 2 ? 'Dual Discipline (Karate + Kalari)' : 'Karate & Wushu Training');
+                        } else if (val === 'KALARIPPAYATTU') {
+                          setBelt1('Meythari Level 1 (Body Control)');
+                          setCourse(sportCount === 2 ? 'Dual Discipline (Kalari + Karate)' : 'Kalarippayattu (Regular)');
+                        } else if (val === 'KICKBOXING') {
+                          setBelt1('Beginner (White Sash)');
+                          setCourse('Kickboxing & Combat Conditioning');
+                        } else if (val === 'GYMNASTICS') {
+                          setBelt1('Level 1 (Fundamentals)');
+                          setCourse('Gymnastics & Athletics');
+                        } else {
+                          setBelt1('Active Member');
+                          setCourse('General Athletics / Fitness');
+                        }
+                      }}
                     >
-                      {sportDiscipline === 'KALARIPPAYATTU' && (
-                        <>
-                          <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
-                          <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
-                          <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
-                          <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
-                          <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
-                          <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
-                        </>
-                      )}
-                      {sportDiscipline === 'KARATE_WUSHU' && (
-                        <>
-                          <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
-                          <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
-                          <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
-                          <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
-                          <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
-                          <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
-                          <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
-                          <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
-                        </>
-                      )}
-                      {sportDiscipline === 'BOTH' && (
-                        <>
-                          <option value="Meythari Level 1 & Karate White">Meythari Level 1 & Karate White</option>
-                          <option value="Meythari Level 2 & Karate Yellow">Meythari Level 2 & Karate Yellow</option>
-                          <option value="Intermediate Kalari & Karate">Intermediate Kalari & Karate</option>
-                        </>
-                      )}
+                      <option value="KARATE_WUSHU">Karate &amp; Wushu</option>
+                      <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                      <option value="KICKBOXING">Kickboxing</option>
+                      <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
+                      <option value="NONE">General Fitness / Athletics</option>
                     </Select>
                   </div>
-                )}
+
+                  {sport1 !== 'NONE' && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                        Current Belt / Rank
+                      </label>
+                      <Select
+                        value={belt1}
+                        onChange={(e) => setBelt1(e.target.value)}
+                      >
+                        {sport1 === 'KARATE_WUSHU' && (
+                          <>
+                            <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
+                            <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
+                            <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
+                            <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
+                            <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
+                            <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
+                            <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
+                            <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
+                          </>
+                        )}
+                        {sport1 === 'KALARIPPAYATTU' && (
+                          <>
+                            <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
+                            <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
+                            <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
+                            <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
+                            <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
+                            <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
+                          </>
+                        )}
+                        {sport1 === 'KICKBOXING' && (
+                          <>
+                            <option value="Beginner (White Sash)">Beginner (White Sash)</option>
+                            <option value="Yellow Belt / Level 1">Yellow Belt / Level 1</option>
+                            <option value="Orange Belt / Level 2">Orange Belt / Level 2</option>
+                            <option value="Green Belt / Level 3">Green Belt / Level 3</option>
+                            <option value="Blue Belt / Level 4">Blue Belt / Level 4</option>
+                            <option value="Red Belt / Level 5">Red Belt / Level 5</option>
+                            <option value="Black Sash / Belt">Black Sash / Belt</option>
+                          </>
+                        )}
+                        {sport1 === 'GYMNASTICS' && (
+                          <>
+                            <option value="Level 1 (Fundamentals)">Level 1 (Fundamentals)</option>
+                            <option value="Level 2 (Floor Acrobatics)">Level 2 (Floor Acrobatics)</option>
+                            <option value="Level 3 (Vault & Tumbling)">Level 3 (Vault &amp; Tumbling)</option>
+                            <option value="Level 4 (Elite)">Level 4 (Elite Competition)</option>
+                          </>
+                        )}
+                      </Select>
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Directly assigns student to Belt & Ranks page with registration code, eliminating duplicate data entry.
+
+              {/* Sport 2 Section (if Dual Sports active) */}
+              {sportCount === 2 && (
+                <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-300">
+                      Second Sport / Discipline
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                        Discipline
+                      </label>
+                      <Select
+                        value={sport2}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSport2(val);
+                          if (val === 'KALARIPPAYATTU') setBelt2('Meythari Level 1 (Body Control)');
+                          else if (val === 'KARATE_WUSHU') setBelt2('White Belt (10th Kyu)');
+                          else if (val === 'KICKBOXING') setBelt2('Beginner (White Sash)');
+                          else if (val === 'GYMNASTICS') setBelt2('Level 1 (Fundamentals)');
+                          else setBelt2('Active Member');
+                        }}
+                      >
+                        <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                        <option value="KARATE_WUSHU">Karate &amp; Wushu</option>
+                        <option value="KICKBOXING">Kickboxing</option>
+                        <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
+                        <option value="NONE">General Fitness / Athletics</option>
+                      </Select>
+                    </div>
+
+                    {sport2 !== 'NONE' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Current Belt / Rank
+                        </label>
+                        <Select
+                          value={belt2}
+                          onChange={(e) => setBelt2(e.target.value)}
+                        >
+                          {sport2 === 'KALARIPPAYATTU' && (
+                            <>
+                              <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
+                              <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
+                              <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
+                              <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
+                              <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
+                              <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
+                            </>
+                          )}
+                          {sport2 === 'KARATE_WUSHU' && (
+                            <>
+                              <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
+                              <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
+                              <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
+                              <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
+                              <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
+                              <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
+                              <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
+                              <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
+                            </>
+                          )}
+                          {sport2 === 'KICKBOXING' && (
+                            <>
+                              <option value="Beginner (White Sash)">Beginner (White Sash)</option>
+                              <option value="Yellow Belt / Level 1">Yellow Belt / Level 1</option>
+                              <option value="Orange Belt / Level 2">Orange Belt / Level 2</option>
+                              <option value="Green Belt / Level 3">Green Belt / Level 3</option>
+                              <option value="Blue Belt / Level 4">Blue Belt / Level 4</option>
+                              <option value="Red Belt / Level 5">Red Belt / Level 5</option>
+                              <option value="Black Sash / Belt">Black Sash / Belt</option>
+                            </>
+                          )}
+                          {sport2 === 'GYMNASTICS' && (
+                            <>
+                              <option value="Level 1 (Fundamentals)">Level 1 (Fundamentals)</option>
+                              <option value="Level 2 (Floor Acrobatics)">Level 2 (Floor Acrobatics)</option>
+                              <option value="Level 3 (Vault & Tumbling)">Level 3 (Vault &amp; Tumbling)</option>
+                              <option value="Level 4 (Elite)">Level 4 (Elite Competition)</option>
+                            </>
+                          )}
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[11px] text-slate-400">
+                Directly registers athlete in Belt &amp; Rank tracking. Supports independent belt levels for multi-sport athletes.
               </p>
             </div>
 
@@ -1023,19 +1221,177 @@ export const StudentsPage: React.FC = () => {
                   )}
 
                   {feeFrequency === 'YEARLY' && (
-                    <button
-                      type="button"
-                      onClick={() => setFeePaymentType('YEARLY_PAID')}
-                      className="col-span-2 p-3 rounded-xl border text-left bg-white dark:bg-slate-900 border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs"
-                    >
-                      <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        <span>1-Year Prepaid Package (Prepaid for 365 Days)</span>
+                    <div className="col-span-2 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {/* Option 1: Full 1-Year Paid */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setYearlyPaymentMode('FULL');
+                            setFeePaymentType('YEARLY_PAID');
+                          }}
+                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                            yearlyPaymentMode === 'FULL'
+                              ? 'bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            <span>1-Year Fully Paid</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} paid in full. Valid 365 days.
+                          </p>
+                        </button>
+
+                        {/* Option 2: Flexible Installments (2, 3 ya zyada kishte) */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setYearlyPaymentMode('INSTALLMENT');
+                            setFeePaymentType('YEARLY_PARTIAL');
+                            if (!yearlyPaidAmount && monthlyFee > 0) {
+                              setYearlyPaidAmount(String(Math.round(monthlyFee / 2)));
+                            }
+                          }}
+                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                            yearlyPaymentMode === 'INSTALLMENT'
+                              ? 'bg-amber-50/60 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                            <span>⏳ Flexible Installments (2+ Kishte)</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            Pay partial advance now, remaining balance in 2nd, 3rd or more installments.
+                          </p>
+                        </button>
+
+                        {/* Option 3: Pay Later */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setYearlyPaymentMode('UNPAID');
+                            setFeePaymentType('UNPAID_PENDING');
+                          }}
+                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                            yearlyPaymentMode === 'UNPAID'
+                              ? 'bg-indigo-50/60 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
+                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <span>📋 Pay Later</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            Enrolls with annual dues pending.
+                          </p>
+                        </button>
                       </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                        Active for 12 months. Zero fake monthly overdue notices will be generated.
-                      </p>
-                    </button>
+
+                      {/* Sub-panel for FULL */}
+                      {yearlyPaymentMode === 'FULL' && (
+                        <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-emerald-800 dark:text-emerald-300 font-semibold">
+                              Payment Mode:
+                            </span>
+                            <div className="w-48">
+                              <Select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                              >
+                                <option value="CASH">Cash (Front Desk)</option>
+                                <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                                <option value="ONLINE">Online Transfer</option>
+                                <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                              </Select>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                            ✓ <strong>Complete 365-Day Access:</strong> Zero monthly overdue notices. Renewal notice will trigger after 1 year.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Sub-panel for INSTALLMENT */}
+                      {yearlyPaymentMode === 'INSTALLMENT' && (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-amber-300 dark:border-amber-700/60 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <Input
+                                label="1st Installment Paid Today (₹) *"
+                                type="number"
+                                min="0"
+                                max={monthlyFee}
+                                value={yearlyPaidAmount}
+                                onChange={(e) => setYearlyPaidAmount(e.target.value)}
+                                placeholder="e.g. 2000 ya 3500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Payment Mode
+                              </label>
+                              <Select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                              >
+                                <option value="CASH">Cash (Front Desk)</option>
+                                <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                                <option value="ONLINE">Online Transfer</option>
+                                <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                              </Select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Next Installment Due Date *
+                              </label>
+                              <input
+                                type="date"
+                                value={nextInstallmentDueDate}
+                                onChange={(e) => setNextInstallmentDueDate(e.target.value)}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+                            <span className="text-amber-800 dark:text-amber-300 font-medium">
+                              Remaining Pending Balance:
+                            </span>
+                            <span className="font-bold font-mono text-sm text-amber-600 dark:text-amber-400">
+                              ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            💡 Student is enrolled with full 1-year annual membership. Reminder for the remaining ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')} is scheduled for <strong>{nextInstallmentDueDate}</strong>. Subsequent installments (2nd, 3rd, etc.) can be collected anytime in the <strong>Fees</strong> section!
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Sub-panel for UNPAID */}
+                      {yearlyPaymentMode === 'UNPAID' && (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              Full Annual Fee Due / Reminder Date:
+                            </label>
+                            <input
+                              type="date"
+                              value={nextInstallmentDueDate}
+                              onChange={(e) => setNextInstallmentDueDate(e.target.value)}
+                              className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Total annual fee of ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} will remain pending until marked paid.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -1118,27 +1474,29 @@ export const StudentsPage: React.FC = () => {
               ))}
             </Select>
 
-            {/* 6. WhatsApp Opt-in Card */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
+            {/* 6. Continuous Entry / Fast Batch Mode for 30-40 Students */}
+            <div className="p-3 bg-indigo-50/80 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/80 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                <div className="w-8 h-8 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-base flex-shrink-0">
+                  ⚡
+                </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    WhatsApp Automated Notifications
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Continuous Entry Mode (Fast 30–40 Students)
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Send absent alerts, late arrival updates, and payment receipts.
+                    Keep form open after saving to immediately enter the next student.
                   </div>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-3">
                 <input
                   type="checkbox"
-                  checked={whatsappOptIn}
-                  onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                  checked={keepModalOpen}
+                  onChange={(e) => setKeepModalOpen(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
               </label>
             </div>
 
@@ -1153,13 +1511,18 @@ export const StudentsPage: React.FC = () => {
             </Select>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={formLoading}>
-              {formLoading ? 'Saving...' : 'Enroll Student'}
-            </Button>
+          <div className="flex justify-between items-center gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-400">
+              {keepModalOpen ? '⚡ Fast Batch Mode ON' : ''}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={formLoading}>
+                {formLoading ? 'Saving...' : keepModalOpen ? 'Save & Add Next Student' : 'Enroll Student'}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>

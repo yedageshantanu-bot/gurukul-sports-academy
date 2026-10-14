@@ -129,7 +129,7 @@ export class PublicationService {
     }
 
     const rawAnnualFee = dto.annualFee !== undefined ? dto.annualFee : dto.annual_fee;
-    const annualFee = rawAnnualFee !== undefined ? Number(rawAnnualFee) : 2500;
+    const annualFee = rawAnnualFee !== undefined ? Number(rawAnnualFee) : 200;
     const rawPaid = dto.amountPaid !== undefined ? dto.amountPaid : dto.amount_paid;
     const amountPaid = rawPaid !== undefined ? Number(rawPaid) : 0;
     let feeStatus = dto.feeStatus || dto.fee_status;

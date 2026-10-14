@@ -37,72 +37,126 @@ export class DashboardService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 1. Student counts
-    const { count: totalStudents } = await db
-      .from('students')
-      .select('*', { count: 'exact', head: true });
+    // 1. Prepare date windows
+    const sixDaysAgo = new Date(today);
+    sixDaysAgo.setDate(sixDaysAgo.getDate() - 5);
+    const sixDaysAgoStr = sixDaysAgo.toISOString().split('T')[0];
+    const todayDateStr = now.toISOString().split('T')[0];
 
-    const { count: activeStudents } = await db
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', STATUS.ACTIVE);
-
-    // 2. Teacher counts
-    const { count: totalTeachers } = await db
-      .from('teachers')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: activeTeachers } = await db
-      .from('teachers')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', STATUS.ACTIVE);
-
-    // 3. Batch counts
-    const { count: totalBatches } = await db
-      .from('batches')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: activeBatches } = await db
-      .from('batches')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', STATUS.ACTIVE);
-
-    // 4. Current Month's Financials (from student_fees)
-    const { data: currentMonthFees } = await db
-      .from('student_fees')
-      .select(`
-        id,
-        student_id,
-        billing_period,
-        amount_due,
-        amount_paid,
-        due_date,
-        status,
-        students!inner (
+    // 2. Fetch all independent KPI components concurrently via Promise.all
+    const [
+      totalStudentsRes,
+      activeStudentsRes,
+      totalTeachersRes,
+      activeTeachersRes,
+      totalBatchesRes,
+      activeBatchesRes,
+      currentMonthFeesRes,
+      attendanceRangeRes,
+      allBatchesRes,
+      allUnpaidFeesRes,
+      recentPaymentsRes,
+      recentStudentsRes,
+    ] = await Promise.all([
+      db.from('students').select('*', { count: 'exact', head: true }),
+      db.from('students').select('*', { count: 'exact', head: true }).eq('status', STATUS.ACTIVE),
+      db.from('teachers').select('*', { count: 'exact', head: true }),
+      db.from('teachers').select('*', { count: 'exact', head: true }).eq('status', STATUS.ACTIVE),
+      db.from('batches').select('*', { count: 'exact', head: true }),
+      db.from('batches').select('*', { count: 'exact', head: true }).eq('status', STATUS.ACTIVE),
+      db.from('student_fees')
+        .select(`
           id,
-          name,
-          parent_name,
-          parent_whatsapp,
-          whatsapp_opt_in,
+          student_id,
+          billing_period,
+          amount_due,
+          amount_paid,
+          due_date,
           status,
-          batch_students (
-            batch_id,
+          students!inner (
+            id,
+            name,
+            parent_name,
+            parent_whatsapp,
+            whatsapp_opt_in,
             status,
-            batches (
-              id,
-              name
+            batch_students (
+              batch_id,
+              status,
+              batches (
+                id,
+                name
+              )
             )
           )
-        )
-      `)
-      .eq('billing_period', currentBillingPeriod);
+        `)
+        .eq('billing_period', currentBillingPeriod),
+      db.from('attendance')
+        .select('date, status')
+        .gte('date', sixDaysAgoStr)
+        .lte('date', todayDateStr),
+      db.from('batches')
+        .select(`
+          id,
+          name,
+          status,
+          batch_students (
+            student_id,
+            status
+          )
+        `)
+        .eq('status', STATUS.ACTIVE)
+        .order('name', { ascending: true }),
+      db.from('student_fees')
+        .select(`
+          id,
+          student_id,
+          billing_period,
+          amount_due,
+          amount_paid,
+          due_date,
+          status,
+          students!inner (
+            id,
+            name,
+            parent_name,
+            parent_whatsapp,
+            whatsapp_opt_in,
+            status
+          )
+        `)
+        .neq('status', 'PAID')
+        .order('due_date', { ascending: true }),
+      db.from('payments')
+        .select('id, amount, payment_date, payment_method, student_id, students(name)')
+        .order('created_at', { ascending: false })
+        .limit(3),
+      db.from('students')
+        .select('id, name, course, status, admission_date, created_at')
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ]);
 
+    const totalStudents = totalStudentsRes.count || 0;
+    const activeStudents = activeStudentsRes.count || 0;
+    const totalTeachers = totalTeachersRes.count || 0;
+    const activeTeachers = activeTeachersRes.count || 0;
+    const totalBatches = totalBatchesRes.count || 0;
+    const activeBatches = activeBatchesRes.count || 0;
+    const currentMonthFees = currentMonthFeesRes.data || [];
+    const attendanceRows = attendanceRangeRes.data || [];
+    const allBatches = allBatchesRes.data || [];
+    const allUnpaidFees = allUnpaidFeesRes.data || [];
+    const recentPayments = recentPaymentsRes.data || [];
+    const recentStudents = recentStudentsRes.data || [];
+
+    // Financial sums for current billing period
     let currentExpected = 0;
     let currentCollected = 0;
     let currentPending = 0;
     let overdueFees = 0;
 
-    (currentMonthFees || []).forEach((f: any) => {
+    currentMonthFees.forEach((f: any) => {
       const due = Number(f.amount_due || 0);
       const paid = Number(f.amount_paid || 0);
       const pending = Math.max(0, due - paid);
@@ -117,20 +171,15 @@ export class DashboardService {
     const collectionPercentage =
       currentExpected > 0 ? Math.round((currentCollected / currentExpected) * 100) : 0;
 
-    // Real Today Attendance
-    const todayDateStr = now.toISOString().split('T')[0];
-    const { data: todayAttendanceRows } = await db
-      .from('attendance')
-      .select('status')
-      .eq('date', todayDateStr);
-
-    const todayPresent = (todayAttendanceRows || []).filter((r: any) => r.status === 'PRESENT').length;
-    const todayLate = (todayAttendanceRows || []).filter((r: any) => r.status === 'LATE').length;
-    const todayAbsent = (todayAttendanceRows || []).filter((r: any) => r.status === 'ABSENT').length;
-    const todayTotal = todayAttendanceRows?.length || activeStudents || 1;
+    // Real Today Attendance processed in-memory
+    const todayAttendanceRows = attendanceRows.filter((r: any) => r.date === todayDateStr);
+    const todayPresent = todayAttendanceRows.filter((r: any) => r.status === 'PRESENT').length;
+    const todayLate = todayAttendanceRows.filter((r: any) => r.status === 'LATE').length;
+    const todayAbsent = todayAttendanceRows.filter((r: any) => r.status === 'ABSENT').length;
+    const todayTotal = todayAttendanceRows.length || activeStudents || 1;
     const todayRate = Math.round(((todayPresent + todayLate) / todayTotal) * 100);
 
-    // Real Weekly Attendance Trend for past 6 days (Present vs Absent / Leave)
+    // Real Weekly Attendance Trend processed in-memory without extra round-trips
     const weeklyTrend: Array<{
       day: string;
       date: string;
@@ -140,22 +189,19 @@ export class DashboardService {
       absentCount: number;
       totalCount: number;
     }> = [];
+
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dStr = d.toISOString().split('T')[0];
       const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
 
-      const { data: dayLogs } = await db
-        .from('attendance')
-        .select('status')
-        .eq('date', dStr);
-
-      const count = dayLogs && dayLogs.length > 0 ? dayLogs.length : (activeStudents || 4);
-      const pres = (dayLogs || []).filter((r: any) => r.status === 'PRESENT' || r.status === 'LATE').length;
-      const abs = (dayLogs || []).filter((r: any) => r.status === 'ABSENT').length;
-      const presentCount = dayLogs && dayLogs.length > 0 ? pres : count;
-      const absentCount = dayLogs && dayLogs.length > 0 ? abs : 0;
+      const dayLogs = attendanceRows.filter((r: any) => r.date === dStr);
+      const count = dayLogs.length > 0 ? dayLogs.length : (activeStudents || 4);
+      const pres = dayLogs.filter((r: any) => r.status === 'PRESENT' || r.status === 'LATE').length;
+      const abs = dayLogs.filter((r: any) => r.status === 'ABSENT').length;
+      const presentCount = dayLogs.length > 0 ? pres : count;
+      const absentCount = dayLogs.length > 0 ? abs : 0;
       const presentPct = count > 0 ? Math.round((presentCount / count) * 100) : 100;
       const absentPct = Math.max(0, 100 - presentPct);
 
@@ -170,26 +216,11 @@ export class DashboardService {
       });
     }
 
-    // 5. Batch-wise Financial Summary
-    const { data: allBatches } = await db
-      .from('batches')
-      .select(`
-        id,
-        name,
-        status,
-        batch_students (
-          student_id,
-          status
-        )
-      `)
-      .eq('status', STATUS.ACTIVE)
-      .order('name', { ascending: true });
-
-    // Map student IDs to batches for batch financial breakdown
+    // Batch-wise Financial Summary in-memory
     const studentToBatchMap = new Map<string, { id: string; name: string }>();
     const batchSummaryMap = new Map<string, { id: string; name: string; studentCount: number; expected: number; collected: number; pending: number }>();
 
-    (allBatches || []).forEach((b: any) => {
+    allBatches.forEach((b: any) => {
       const activeEnrolled = (b.batch_students || []).filter(
         (bs: any) => bs.status === STATUS.ACTIVE || !bs.status
       );
@@ -207,7 +238,7 @@ export class DashboardService {
       });
     });
 
-    (currentMonthFees || []).forEach((f: any) => {
+    currentMonthFees.forEach((f: any) => {
       const bInfo = studentToBatchMap.get(f.student_id);
       if (bInfo && batchSummaryMap.has(bInfo.id)) {
         const item = batchSummaryMap.get(bInfo.id)!;
@@ -222,30 +253,7 @@ export class DashboardService {
     const batchFeeSummary = Array.from(batchSummaryMap.values());
 
     // 6. Fee Follow-up Required & 3+ Unpaid Calculation (Prompt §11, §12, §13)
-    // Query ALL unpaid student fees across active students
-    const { data: allUnpaidFees } = await db
-      .from('student_fees')
-      .select(`
-        id,
-        student_id,
-        billing_period,
-        amount_due,
-        amount_paid,
-        due_date,
-        status,
-        students!inner (
-          id,
-          name,
-          parent_name,
-          parent_whatsapp,
-          whatsapp_opt_in,
-          status
-        )
-      `)
-      .neq('status', 'PAID')
-      .order('due_date', { ascending: true });
-
-    // Filter to active students who have a positive pending amount
+    // Filter to active students who have a positive pending amount from concurrent results
     const followUpCandidates = (allUnpaidFees || []).filter((f: any) => {
       const studentObj: any = Array.isArray(f.students) ? f.students[0] : f.students;
       if (studentObj?.status !== STATUS.ACTIVE) return false;
@@ -371,19 +379,7 @@ export class DashboardService {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
 
-    // 7. Recent Real Activity (Prompt §23)
-    const { data: recentPayments } = await db
-      .from('payments')
-      .select('id, amount, payment_date, payment_method, student_id, students(name)')
-      .order('created_at', { ascending: false })
-      .limit(3);
-
-    const { data: recentStudents } = await db
-      .from('students')
-      .select('id, name, course, status, admission_date, created_at')
-      .order('created_at', { ascending: false })
-      .limit(3);
-
+    // 7. Recent Real Activity (computed from concurrent results)
     const recentActivity = [
       ...(recentPayments || []).map((p: any) => ({
         id: `pay-${p.id}`,

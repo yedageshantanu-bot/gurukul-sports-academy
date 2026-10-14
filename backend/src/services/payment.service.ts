@@ -281,7 +281,7 @@ export class PaymentService {
 
     // 4. Update student fee balance if linked
     if (dto.studentFeeId) {
-      await this.creditStudentFee(dto.studentFeeId, dto.amount);
+      await this.creditStudentFee(dto.studentFeeId, dto.amount, dto.nextDueDate);
     }
 
     // 5. Generate receipt
@@ -409,7 +409,7 @@ export class PaymentService {
   // PRIVATE HELPERS
   // ============================================================================
 
-  private async creditStudentFee(studentFeeId: string, amount: number) {
+  private async creditStudentFee(studentFeeId: string, amount: number, nextDueDate?: string) {
     const { data: currentFee, error: fetchError } = await this.supabase
       .from('student_fees')
       .select('id, amount_due, amount_paid, due_date')
@@ -430,13 +430,19 @@ export class PaymentService {
       newStatus = 'OVERDUE';
     }
 
+    const updatePayload: Record<string, any> = {
+      amount_paid: newAmountPaid,
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (nextDueDate && newStatus !== 'PAID') {
+      updatePayload.due_date = nextDueDate;
+    }
+
     await this.supabase
       .from('student_fees')
-      .update({
-        amount_paid: newAmountPaid,
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', studentFeeId);
   }
 

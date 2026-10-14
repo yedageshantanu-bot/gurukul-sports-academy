@@ -555,8 +555,22 @@ export class StudentService {
         .upsert(enrollments, { onConflict: 'batch_id,student_id' });
     }
 
-    // 1. Martial Arts / Sports Direct Enrollment into Belt Registry
-    if (dto.sportDiscipline && dto.sportDiscipline !== 'NONE') {
+    // 1. Martial Arts / Sports Direct Enrollment into Belt Registry (supports 1 or 2+ sports)
+    if (dto.sports && Array.isArray(dto.sports) && dto.sports.length > 0) {
+      for (const sp of dto.sports) {
+        if (sp.disciplineCode && sp.disciplineCode !== 'NONE') {
+          try {
+            await RankService.assignStudentRank({
+              studentId: student.id,
+              disciplineCode: sp.disciplineCode,
+              rankName: sp.rankName || undefined,
+            });
+          } catch (err: any) {
+            console.warn('[StudentService] Martial Arts Belt enrollment notice:', err?.message || err);
+          }
+        }
+      }
+    } else if (dto.sportDiscipline && dto.sportDiscipline !== 'NONE') {
       try {
         await RankService.assignStudentRank({
           studentId: student.id,
@@ -580,29 +594,44 @@ export class StudentService {
 
       const feeRecordsToInsert: any[] = [];
 
-      // CASE A: YEARLY FEE PACKAGE (1 full year prepaid)
-      if (dto.feeFrequency === 'YEARLY' || dto.feePaymentType === 'YEARLY_PAID') {
-        const nextYear = currentYear + 1;
+      // CASE A: YEARLY FEE PACKAGE (Full, Installments / Partial, or Unpaid)
+      if (dto.feeFrequency === 'YEARLY' || dto.feePaymentType === 'YEARLY_PAID' || dto.feePaymentType === 'YEARLY_PARTIAL') {
+        const totalAnnualFee = Number(dto.monthlyFee);
         const yearlyPeriodStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}_YEARLY`;
-        const yearlyDueDate = new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
+        
+        let amountPaid = totalAnnualFee;
+        let feeStatus: 'PAID' | 'PARTIAL' | 'PENDING' = 'PAID';
+        let dueDate = dto.nextInstallmentDueDate || new Date(currentYear, currentMonth, Math.min(dueDay, 28)).toISOString().split('T')[0];
+
+        if (dto.feePaymentType === 'YEARLY_PARTIAL') {
+          amountPaid = Math.min(totalAnnualFee, Number(dto.initialPaymentAmount) || 0);
+          feeStatus = amountPaid >= totalAnnualFee ? 'PAID' : (amountPaid > 0 ? 'PARTIAL' : 'PENDING');
+        } else if (dto.feePaymentType === 'UNPAID_PENDING') {
+          amountPaid = 0;
+          feeStatus = 'PENDING';
+        } else {
+          // Default YEARLY_PAID: full 1-year payment
+          amountPaid = totalAnnualFee;
+          feeStatus = 'PAID';
+        }
 
         feeRecordsToInsert.push({
           student_id: student.id,
           billing_period: yearlyPeriodStr,
-          amount_due: Number(dto.monthlyFee),
-          amount_paid: Number(dto.monthlyFee),
-          due_date: yearlyDueDate,
-          status: 'PAID',
+          amount_due: totalAnnualFee,
+          amount_paid: amountPaid,
+          due_date: dueDate,
+          status: feeStatus,
         });
 
-        // Also ensure current month identifier exists as PAID so monthly checks see it cleared
+        // Also ensure current month identifier reflects the installment status and pending balance
         feeRecordsToInsert.push({
           student_id: student.id,
           billing_period: currentBillingPeriod,
-          amount_due: Number(dto.monthlyFee),
-          amount_paid: Number(dto.monthlyFee),
-          due_date: yearlyDueDate,
-          status: 'PAID',
+          amount_due: totalAnnualFee,
+          amount_paid: amountPaid,
+          due_date: dueDate,
+          status: feeStatus,
         });
       }
       // CASE B: "PAID UP TO" SMART SELECTOR (Zero math: e.g. paid up to Sept 2026, Oct 2026 is due)

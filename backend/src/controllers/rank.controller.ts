@@ -20,6 +20,24 @@ export class RankController {
     }
   }
 
+  static async updateRank(req: Request, res: Response, next: NextFunction) {
+    try {
+      const rank = await RankService.updateRank(req.params.id, req.body);
+      res.status(200).json({ success: true, message: 'Rank updated successfully', data: rank });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteRank(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await RankService.deleteRank(req.params.id);
+      res.status(200).json({ success: true, message: 'Rank deleted successfully', data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async listStudentRanks(req: Request, res: Response, next: NextFunction) {
     try {
       const { discipline } = req.query;

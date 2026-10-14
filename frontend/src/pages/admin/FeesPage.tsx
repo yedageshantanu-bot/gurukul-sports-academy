@@ -16,6 +16,7 @@ import {
   BookMarked,
   Trophy,
   RotateCcw,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FeePlan, StudentFee } from '../../types/fee';
@@ -125,6 +126,7 @@ export const FeesPage: React.FC = () => {
     paymentMethod: 'CASH',
     provider: 'MANUAL',
     notes: 'Cash payment received at front desk',
+    nextDueDate: '',
   });
 
   // Fetch data
@@ -264,9 +266,63 @@ export const FeesPage: React.FC = () => {
       paymentMethod: 'CASH',
       provider: defaultMode === 'CASH' ? 'MANUAL' : 'MOCK',
       notes: defaultMode === 'CASH' ? 'Cash payment received at front desk' : '',
+      nextDueDate: '',
     });
     setModalSuccessMessage(null);
     setIsPayModalOpen(true);
+  };
+
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+
+  // 1-Click Direct Settlement ("Tick" Action) requested by user
+  const handleQuickMarkPaid = async (fee: StudentFee) => {
+    if (!token) return;
+    const pending = Number(fee.pending_amount) || Number(fee.amount_due) || 0;
+    if (pending <= 0) return;
+
+    setMarkingPaidId(fee.id);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/payments/manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          studentId: fee.student_id,
+          studentFeeId: fee.id,
+          amount: pending,
+          paymentMethod: 'CASH',
+          notes: 'Full fee cleared via 1-click admin settlement',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Quick settlement failed');
+
+      // Optimistic in-place state update
+      setStudentFees((prev) =>
+        prev.map((f) =>
+          f.id === fee.id
+            ? {
+                ...f,
+                status: 'PAID',
+                amount_paid: Number(f.amount_due),
+                pending_amount: 0,
+              }
+            : f
+        )
+      );
+
+      setReminderSuccessMessage(`✓ Fee for ${fee.student?.name || 'student'} marked FULLY PAID!`);
+      setTimeout(() => setReminderSuccessMessage(null), 4000);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Error marking fee as paid');
+    } finally {
+      setMarkingPaidId(null);
+    }
   };
 
   // Handle payment record submission
@@ -293,6 +349,7 @@ export const FeesPage: React.FC = () => {
             amount: amountNum,
             paymentMethod: payForm.paymentMethod,
             notes: payForm.notes || 'Cash payment received at front desk',
+            nextDueDate: payForm.nextDueDate || undefined,
           }),
         });
         const data = await res.json();
@@ -479,8 +536,20 @@ export const FeesPage: React.FC = () => {
           dueDay: parseInt(editPlanForm.dueDay, 10),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to update fee plan');
+      await res.json();
+      setFeePlans((prev) =>
+        prev.map((p) =>
+          p.id === editingPlan.id
+            ? {
+                ...p,
+                name: editPlanForm.name.trim(),
+                amount: parseFloat(editPlanForm.amount),
+                frequency: editPlanForm.frequency as any,
+                due_day: parseInt(editPlanForm.dueDay, 10),
+              }
+            : p
+        )
+      );
       setIsEditPlanModalOpen(false);
       setEditingPlan(null);
       setReminderSuccessMessage(`Course fee plan "${editPlanForm.name}" updated successfully!`);
@@ -833,9 +902,16 @@ export const FeesPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-                            {fee.fee_plan?.name || 'Custom Plan'}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                              {fee.fee_plan?.name || 'Custom Plan'}
+                            </span>
+                            {fee.fee_plan?.frequency === 'YEARLY' && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                📅 1-Year Package
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-5 py-4 text-xs">
                           <div className="font-semibold text-slate-800 dark:text-slate-200">
@@ -855,9 +931,13 @@ export const FeesPage: React.FC = () => {
                           <div className="font-semibold text-emerald-700 dark:text-emerald-400">
                             ₹{Number(fee.amount_paid).toLocaleString('en-IN')} paid
                           </div>
-                          {Number(fee.pending_amount) > 0 && (
-                            <div className="text-amber-600 dark:text-amber-400 font-medium mt-0.5">
-                              ₹{Number(fee.pending_amount).toLocaleString('en-IN')} pending
+                          {Number(fee.pending_amount) > 0 ? (
+                            <div className="text-amber-600 dark:text-amber-400 font-bold mt-0.5">
+                              ₹{Number(fee.pending_amount).toLocaleString('en-IN')} remaining
+                            </div>
+                          ) : (
+                            <div className="text-slate-400 text-[11px] mt-0.5">
+                              Zero balance
                             </div>
                           )}
                         </td>
@@ -865,36 +945,46 @@ export const FeesPage: React.FC = () => {
                           <StatusBadge status={fee.status} />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {fee.status !== 'PAID' && (
-                            <div className="flex items-center justify-end gap-2">
+                          {fee.status === 'PAID' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              Fully Settled
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* 1-Click Instant Mark Paid Checkmark Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleQuickMarkPaid(fee)}
+                                disabled={markingPaidId === fee.id}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                title="1-Click Mark Fully Paid"
+                              >
+                                <Check className={`w-3.5 h-3.5 ${markingPaidId === fee.id ? 'animate-spin' : ''}`} />
+                                <span>{markingPaidId === fee.id ? 'Settling...' : 'Mark Paid'}</span>
+                              </button>
+
+                              {/* Installment / Partial Payment Collector */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenPay(fee, 'CASH')}
+                                className="text-xs h-8 px-2.5 gap-1 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                title="Collect installment amount or record custom payment"
+                              >
+                                <Banknote className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Installment</span>
+                              </Button>
+
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleSendWhatsAppReminder(fee)}
                                 disabled={sendingReminderId === fee.id}
-                                className="text-xs h-8 px-2.5 gap-1.5 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-                                title="Send WhatsApp Fee Reminder with Payment Link"
+                                className="text-xs h-8 px-2 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100"
+                                title="Send WhatsApp Fee Reminder"
                               >
                                 <MessageSquare className={`w-3.5 h-3.5 text-emerald-600 ${sendingReminderId === fee.id ? 'animate-spin' : ''}`} />
-                                <span>{sendingReminderId === fee.id ? 'Sending...' : 'WhatsApp Reminder'}</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleOpenPay(fee, 'CASH')}
-                                className="text-xs h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
-                                title="Collect cash fee at front desk & issue instant receipt"
-                              >
-                                <Banknote className="w-3.5 h-3.5" />
-                                <span>Collect Cash</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenPay(fee, 'MOCK')}
-                                className="text-xs h-8 px-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                title="Record other payment method (Online / Razorpay / Cheque)"
-                              >
-                                Online / Other
                               </Button>
                             </div>
                           )}
@@ -1172,25 +1262,68 @@ export const FeesPage: React.FC = () => {
               <span className="font-bold text-slate-800 dark:text-white">{selectedFee?.student?.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Total Due:</span>
-              <span className="font-semibold text-slate-800 dark:text-white">₹{selectedFee?.amount_due}</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Fee Period / Package:</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedFee?.billing_period}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Outstanding Pending:</span>
-              <span className="font-bold text-amber-600 dark:text-amber-400">₹{selectedFee?.pending_amount}</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Total Package Fee:</span>
+              <span className="font-semibold text-slate-800 dark:text-white">₹{Number(selectedFee?.amount_due || 0).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Paid So Far:</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">₹{Number(selectedFee?.amount_paid || 0).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
+              <span className="text-slate-700 dark:text-slate-300 font-bold">Current Remaining Due:</span>
+              <span className="font-bold text-sm text-amber-600 dark:text-amber-400 font-mono">₹{Number(selectedFee?.pending_amount || 0).toLocaleString('en-IN')}</span>
             </div>
           </div>
 
-          <Input
-            label="Payment Amount (₹) *"
-            type="number"
-            step="0.01"
-            min="1"
-            max={selectedFee?.pending_amount}
-            required
-            value={payForm.amount}
-            onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
-          />
+          <div>
+            <Input
+              label="Installment Payment Amount (₹) *"
+              type="number"
+              step="0.01"
+              min="1"
+              max={selectedFee?.pending_amount}
+              required
+              value={payForm.amount}
+              onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
+              placeholder={`Enter amount up to ₹${selectedFee?.pending_amount}`}
+            />
+            {Number(payForm.amount) > 0 && selectedFee && (
+              <div className="mt-2.5 p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    New Remaining Balance After This Payment:
+                  </span>
+                  <span className="font-bold font-mono text-indigo-700 dark:text-indigo-300">
+                    {Number(payForm.amount) >= Number(selectedFee.pending_amount)
+                      ? '₹0 (100% Fully Settled!)'
+                      : `₹${Math.max(0, Number(selectedFee.pending_amount) - Number(payForm.amount)).toLocaleString('en-IN')}`}
+                  </span>
+                </div>
+
+                {Number(payForm.amount) < Number(selectedFee.pending_amount) && (
+                  <div className="pt-2 border-t border-indigo-200/50 dark:border-indigo-800/40 space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      📅 Next Installment Due Date (Agli Kist Ki Date)
+                    </label>
+                    <input
+                      type="date"
+                      value={payForm.nextDueDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setPayForm({ ...payForm, nextDueDate: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Agli kist ka reminder aur ledger is date ke hisab se set ho jayega.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Payment Mode Selector */}
           <div>

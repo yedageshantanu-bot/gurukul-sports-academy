@@ -12,7 +12,6 @@ import {
   UserCheck,
   MessageSquare,
   PackageCheck,
-  Printer,
   CreditCard,
   BookMarked,
   Trophy,
@@ -193,7 +192,17 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [formEmail, setFormEmail] = useState('');
   const [formTitle, setFormTitle] = useState('Gurukul Martial Arts & Sports Annual Manual - Vol 2026');
   const [formYear, setFormYear] = useState('2026-2027');
-  const [formFee, setFormFee] = useState('2500');
+  const DEFAULT_PUB_FEE_KEY = 'gurukul_default_publication_fee';
+  const [formFee, setFormFee] = useState<string>(() => {
+    return localStorage.getItem(DEFAULT_PUB_FEE_KEY) || '200';
+  });
+
+  const handleFeeChange = (val: string) => {
+    setFormFee(val);
+    if (val !== undefined && val !== null) {
+      localStorage.setItem(DEFAULT_PUB_FEE_KEY, val);
+    }
+  };
   const [formDelivery, setFormDelivery] = useState<'DISPATCHED' | 'HANDED_OVER' | 'IN_PRINT' | 'PENDING'>('PENDING');
   const [formNotes, setFormNotes] = useState('');
 
@@ -282,18 +291,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           email: formEmail,
           publicationTitle: formTitle,
           academicYear: formYear,
-          annualFee: Number(formFee) || 2500,
+          annualFee: Number(formFee) || 200,
           deliveryStatus: formDelivery,
           notes: formNotes,
         }),
       });
 
-      toast.success('Publication student registered successfully!');
+      toast.success('Publication customer registered successfully!');
       setIsCreateModalOpen(false);
       resetForm();
       fetchPublications();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to register student');
+      toast.error(err.message || 'Failed to register customer');
     } finally {
       setActionLoading(false);
     }
@@ -338,15 +347,20 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   };
 
   const handleToggleDelivery = async (student: PublicationStudent, nextStatus: any) => {
+    // Optimistic UI update
+    setStudents((prev) =>
+      prev.map((s) => (s.id === student.id ? { ...s, delivery_status: nextStatus } : s))
+    );
     try {
       await apiClient(`/publications/${student.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ deliveryStatus: nextStatus }),
       });
-      toast.success(`Delivery status updated to ${nextStatus}`);
+      toast.success(`Delivery status updated to ${nextStatus.replace('_', ' ')}`);
       fetchPublications();
     } catch (err: any) {
       toast.error(err.message || 'Status update failed');
+      fetchPublications();
     }
   };
 
@@ -358,7 +372,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     setFormContact('');
     setFormEmail('');
     setFormTitle('Gurukul Martial Arts & Sports Annual Manual - Vol 2026');
-    setFormFee('2500');
+    setFormFee(localStorage.getItem(DEFAULT_PUB_FEE_KEY) || '200');
     setFormDelivery('PENDING');
     setFormNotes('');
   };
@@ -453,7 +467,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold shadow-lg shadow-amber-500/20"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Publishing Student</span>
+            <span>Add Customer</span>
           </Button>
         </div>
       </div>
@@ -462,13 +476,13 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Total Enrolled Readers</span>
+            <span className="text-xs font-semibold text-slate-400">Total Registered Customers</span>
             <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <p className="text-3xl font-extrabold text-white mt-2">{summary.totalStudents}</p>
-          <p className="text-xs text-slate-400 mt-1">Internal Athletes &amp; External Subscribers</p>
+          <p className="text-xs text-slate-400 mt-1">Academy Athletes &amp; Outside Customers</p>
         </Card>
 
         <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
@@ -518,7 +532,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
             <Input
               type="text"
-              placeholder="Search by student, parent, phone..."
+              placeholder="Search by customer, parent, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 bg-[#0F172A] border-white/10 text-white placeholder-slate-500 text-sm"
@@ -531,9 +545,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               onChange={(e) => setTypeFilter(e.target.value)}
               className="bg-[#0F172A] border-white/10 text-white text-sm"
             >
-              <option value="ALL">All Student Types (Internal &amp; External)</option>
+              <option value="ALL">All Customer Types (Academy &amp; Outside)</option>
               <option value="INTERNAL">Academy Students Only</option>
-              <option value="EXTERNAL">Outside External Subscribers</option>
+              <option value="EXTERNAL">Outside External Customers</option>
             </Select>
           </div>
 
@@ -601,8 +615,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       ) : filteredStudents.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="No Published Document Students Found"
-          description="Register external subscribers or enroll academy students who subscribe to annual publication manuals."
+          title="No Publication Customers Found"
+          description="Register outside customers or enroll academy students who subscribe to annual publication manuals."
           accentColor="indigo"
         />
       ) : (
@@ -619,7 +633,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                     />
                   </th>
-                  <th className="px-5 py-3.5">Student / Subscriber</th>
+                  <th className="px-5 py-3.5">Customer / Subscriber</th>
                   <th className="px-5 py-3.5">Contact (WhatsApp)</th>
                   <th className="px-5 py-3.5">Document / Edition</th>
                   <th className="px-5 py-3.5">Annual Fee</th>
@@ -646,7 +660,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                             <span className="font-bold text-white text-base">{s.student_name}</span>
                             {s.is_external ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                                External Learner
+                                Outside Customer
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
@@ -697,26 +711,24 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          {s.delivery_status === 'HANDED_OVER' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              <PackageCheck className="w-3.5 h-3.5" /> Handed Over
-                            </span>
-                          )}
-                          {s.delivery_status === 'DISPATCHED' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/20">
-                              <Truck className="w-3.5 h-3.5" /> Dispatched
-                            </span>
-                          )}
-                          {s.delivery_status === 'IN_PRINT' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                              <Printer className="w-3.5 h-3.5" /> In Print
-                            </span>
-                          )}
-                          {s.delivery_status === 'PENDING' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">
-                              <Clock className="w-3.5 h-3.5" /> Pending
-                            </span>
-                          )}
+                          <select
+                            value={s.delivery_status}
+                            onChange={(e) => handleToggleDelivery(s, e.target.value)}
+                            className={`text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer focus:outline-none ${
+                              s.delivery_status === 'HANDED_OVER'
+                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                : s.delivery_status === 'DISPATCHED'
+                                ? 'bg-teal-500/10 text-teal-300 border-teal-500/30'
+                                : s.delivery_status === 'IN_PRINT'
+                                ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                                : 'bg-slate-800 text-slate-300 border-white/10'
+                            }`}
+                          >
+                            <option value="PENDING" className="bg-slate-900 text-slate-200">⏳ Pending</option>
+                            <option value="IN_PRINT" className="bg-slate-900 text-slate-200">🖨️ In Print</option>
+                            <option value="DISPATCHED" className="bg-slate-900 text-slate-200">🚚 Dispatched</option>
+                            <option value="HANDED_OVER" className="bg-slate-900 text-slate-200">✅ Handed Over</option>
+                          </select>
                         </div>
                       </td>
 
@@ -771,18 +783,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         </Card>
       )}
 
-      {/* MODAL 1: REGISTER PUBLICATION STUDENT */}
+      {/* MODAL 1: REGISTER PUBLICATION CUSTOMER */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Register Published Document Student"
+        title="Register Publication Customer"
       >
         <form onSubmit={handleCreateStudent} className="space-y-4 text-slate-200">
           {/* Internal or External Toggle */}
           <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 flex items-center justify-between">
             <div>
-              <span className="text-sm font-bold text-white block">Student Category</span>
-              <span className="text-xs text-slate-400">Is this learner outside our academy or enrolled student?</span>
+              <span className="text-sm font-bold text-white block">Customer Category</span>
+              <span className="text-xs text-slate-400">Is this customer an academy athlete or an outside learner?</span>
             </div>
             <div className="inline-flex rounded-lg bg-[#1E293B] p-1 border border-white/10">
               <button
@@ -810,7 +822,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   isExternal ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400'
                 }`}
               >
-                Outside Learner
+                Outside Customer
               </button>
             </div>
           </div>
@@ -844,7 +856,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Student / Reader Name *</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Customer / Reader Name *</label>
               <Input
                 type="text"
                 required
@@ -886,7 +898,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                 type="email"
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="student@example.com"
+                placeholder="customer@example.com"
                 className="bg-[#0F172A] border-white/10 text-white"
               />
             </div>
@@ -905,11 +917,14 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Annual Fee (₹)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-400">Annual Fee (₹)</label>
+                <span className="text-[10px] text-amber-400 font-mono">Persists (default ₹200)</span>
+              </div>
               <Input
                 type="number"
                 value={formFee}
-                onChange={(e) => setFormFee(e.target.value)}
+                onChange={(e) => handleFeeChange(e.target.value)}
                 className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
               />
             </div>
@@ -959,7 +974,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               disabled={actionLoading}
               className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
             >
-              {actionLoading ? 'Saving...' : 'Register Student'}
+              {actionLoading ? 'Saving...' : 'Register Customer'}
             </Button>
           </div>
         </form>
@@ -973,7 +988,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       >
         <form onSubmit={handleRecordPayment} className="space-y-4 text-slate-200">
           <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10">
-            <p className="text-xs text-slate-400">Student / Subscriber</p>
+            <p className="text-xs text-slate-400">Customer / Subscriber</p>
             <p className="text-base font-bold text-white">{selectedStudentForPay?.student_name}</p>
             <p className="text-xs text-amber-300 mt-0.5">{selectedStudentForPay?.publication_title}</p>
           </div>

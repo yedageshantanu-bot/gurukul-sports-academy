@@ -49,5 +49,6 @@ yarn-error.log*
 coverage/
 .DS_Store
 Thumbs.db
+backend/backups/
 
 

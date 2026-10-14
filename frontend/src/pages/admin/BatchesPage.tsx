@@ -49,7 +49,6 @@ export const BatchesPage: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [monthlyFee, setMonthlyFee] = useState('3500');
   const [subject, setSubject] = useState('');
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
   const [startTime, setStartTime] = useState('');
@@ -100,7 +99,6 @@ export const BatchesPage: React.FC = () => {
   const handleOpenCreate = () => {
     setName('');
     setDescription('');
-    setMonthlyFee('3500');
     setSubject('');
     setScheduleDays(['Mon', 'Wed', 'Fri']);
     setStartTime('10:00');
@@ -114,7 +112,6 @@ export const BatchesPage: React.FC = () => {
     setEditingBatch(b);
     setName(b.name);
     setDescription(b.description || b.subject || '');
-    setMonthlyFee(String(b.monthlyFee || 0));
     setSubject(b.subject || '');
     setScheduleDays(b.scheduleDays || []);
     setStartTime(b.startTime || '');
@@ -146,11 +143,6 @@ export const BatchesPage: React.FC = () => {
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const feeNum = Number(monthlyFee);
-    if (isNaN(feeNum) || feeNum < 0) {
-      setFormError('Monthly fee must be a valid positive number or 0.');
-      return;
-    }
     if (!name.trim()) {
       setFormError('Batch name is required.');
       return;
@@ -164,7 +156,7 @@ export const BatchesPage: React.FC = () => {
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || undefined,
-          monthlyFee: feeNum,
+          monthlyFee: 0,
           subject: description.trim() || subject || undefined,
           scheduleDays,
           startTime: startTime || undefined,
@@ -184,11 +176,6 @@ export const BatchesPage: React.FC = () => {
   const handleUpdateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBatch) return;
-    const feeNum = Number(monthlyFee);
-    if (isNaN(feeNum) || feeNum < 0) {
-      setFormError('Monthly fee must be a valid positive number or 0.');
-      return;
-    }
     if (!name.trim()) {
       setFormError('Batch name cannot be empty.');
       return;
@@ -202,7 +189,7 @@ export const BatchesPage: React.FC = () => {
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || undefined,
-          monthlyFee: feeNum,
+          monthlyFee: 0,
           subject: description.trim() || subject || undefined,
           scheduleDays,
           startTime: startTime || undefined,
@@ -378,8 +365,7 @@ export const BatchesPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3.5">Batch</th>
                   <th className="px-5 py-3.5">Teacher</th>
-                  <th className="px-5 py-3.5">Students</th>
-                  <th className="px-5 py-3.5">Monthly Fee</th>
+                  <th className="px-5 py-3.5">Schedule / Timing</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
@@ -423,8 +409,13 @@ export const BatchesPage: React.FC = () => {
                         {b.studentCount || 0}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-xs font-bold text-slate-900 dark:text-slate-100">
-                      ₹{Number(b.monthlyFee || 0).toLocaleString('en-IN')}
+                    <td className="px-5 py-4 text-xs font-medium text-slate-700 dark:text-slate-300">
+                      <div>{b.scheduleDays && b.scheduleDays.length > 0 ? b.scheduleDays.join(', ') : 'Daily / Flexible'}</div>
+                      {(b.startTime || b.endTime) && (
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
+                          {b.startTime || ''} {b.endTime ? `– ${b.endTime}` : ''}
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <StatusBadge status={b.status} />
@@ -479,23 +470,13 @@ export const BatchesPage: React.FC = () => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="e.g. JEE Morning Batch"
+            placeholder="e.g. Kalarippayattu Morning Batch"
           />
           <Input
-            label="Monthly Fee (₹) *"
-            type="number"
-            min="0"
-            step="1"
-            value={monthlyFee}
-            onChange={(e) => setMonthlyFee(e.target.value)}
-            required
-            placeholder="e.g. 3500"
-          />
-          <Input
-            label="Description (Optional)"
+            label="Description / Focus (Optional)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. JEE preparation batch"
+            placeholder="e.g. Traditional weapons & agility training"
           />
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal mb-2">
@@ -607,23 +588,13 @@ export const BatchesPage: React.FC = () => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="e.g. JEE Morning Batch"
+            placeholder="e.g. Kalarippayattu Morning Batch"
           />
           <Input
-            label="Monthly Fee (₹) *"
-            type="number"
-            min="0"
-            step="1"
-            value={monthlyFee}
-            onChange={(e) => setMonthlyFee(e.target.value)}
-            required
-            placeholder="e.g. 3500"
-          />
-          <Input
-            label="Description (Optional)"
+            label="Description / Focus (Optional)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. JEE preparation batch"
+            placeholder="e.g. Traditional weapons & agility training"
           />
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal mb-2">

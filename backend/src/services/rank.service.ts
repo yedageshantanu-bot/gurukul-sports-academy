@@ -83,6 +83,53 @@ export class RankService {
   }
 
   /**
+   * Update an existing belt / rank definition
+   */
+  static async updateRank(id: string, dto: {
+    rankOrder?: number;
+    rankName?: string;
+    beltColor?: string;
+    description?: string;
+    badgeBg?: string;
+    badgeText?: string;
+  }) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const updatePayload: Record<string, any> = {};
+    if (dto.rankOrder !== undefined) updatePayload.rank_order = dto.rankOrder;
+    if (dto.rankName !== undefined) updatePayload.rank_name = dto.rankName;
+    if (dto.beltColor !== undefined) updatePayload.belt_color = dto.beltColor;
+    if (dto.description !== undefined) updatePayload.description = dto.description;
+    if (dto.badgeBg !== undefined) updatePayload.badge_bg = dto.badgeBg;
+    if (dto.badgeText !== undefined) updatePayload.badge_text = dto.badgeText;
+
+    const { data, error } = await supabaseAdmin
+      .from('martial_arts_ranks')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new AppError(`Failed to update rank: ${error.message}`, 500);
+    return data;
+  }
+
+  /**
+   * Delete a rank definition
+   */
+  static async deleteRank(id: string) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const { error } = await supabaseAdmin
+      .from('martial_arts_ranks')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new AppError(`Failed to delete rank: ${error.message}`, 500);
+    return { success: true };
+  }
+
+  /**
    * List all academy students with their active martial arts ranks
    */
   static async listStudentRanks(disciplineCode?: string) {

@@ -107,6 +107,7 @@ export const recordManualPaymentSchema = z.preprocess((val: any) => {
       paymentMethod: val.paymentMethod || val.payment_method || 'CASH',
       notes: val.notes,
       paidAt: val.paidAt || val.paid_at,
+      nextDueDate: val.nextDueDate || val.next_due_date,
     };
   }
   return val;
@@ -117,6 +118,7 @@ export const recordManualPaymentSchema = z.preprocess((val: any) => {
   paymentMethod: z.string().default('CASH'),
   notes: z.string().optional(),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Paid date must be YYYY-MM-DD').optional(),
+  nextDueDate: z.string().optional(),
 }));
 
 export type CreatePaymentOrderDTO = z.infer<typeof createPaymentOrderSchema>;

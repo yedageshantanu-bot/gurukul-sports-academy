@@ -46,11 +46,16 @@ export const createStudentSchema = z.object({
   initialPaymentAmount: z.number().nonnegative().optional().default(0),
   paymentMethod: z.enum(['CASH', 'UPI', 'ONLINE', 'BANK_TRANSFER']).default('CASH').optional(),
   paymentNotes: z.string().optional().or(z.literal('')),
-  sportDiscipline: z.enum(['KALARIPPAYATTU', 'KARATE_WUSHU', 'BOTH', 'NONE']).optional(),
+  sportDiscipline: z.string().optional(),
   initialBeltRank: z.string().optional().or(z.literal('')),
+  sports: z.array(z.object({
+    disciplineCode: z.string(),
+    rankName: z.string().optional(),
+  })).optional(),
   feeFrequency: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY').optional(),
   paidUpToMonth: z.string().regex(/^\d{4}-\d{2}$/).optional().or(z.literal('')),
-  feePaymentType: z.enum(['PAID_UP_TO', 'YEARLY_PAID', 'FRESH_TODAY', 'UNPAID_PENDING']).optional(),
+  feePaymentType: z.enum(['PAID_UP_TO', 'YEARLY_PAID', 'YEARLY_PARTIAL', 'FRESH_TODAY', 'UNPAID_PENDING']).optional(),
+  nextInstallmentDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')),
 });
 
 export type CreateStudentDTO = z.infer<typeof createStudentSchema>;

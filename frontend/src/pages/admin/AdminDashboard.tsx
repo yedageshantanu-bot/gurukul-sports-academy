@@ -57,10 +57,19 @@ export const AdminDashboard: React.FC = () => {
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
   const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number } | null>(null);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (silent = false) => {
     try {
-      setLoading(true);
-      const res = await apiClient<any>('/dashboard/admin');
+      if (!silent) setLoading(true);
+
+      // Concurrent data fetching for fast load
+      const [res, waRes] = await Promise.all([
+        apiClient<any>('/dashboard/admin'),
+        apiClient<any>('/whatsapp/status').catch((e) => {
+          console.warn('Could not query WhatsApp status for dashboard:', e);
+          return null;
+        }),
+      ]);
+
       if (res) {
         setKpis(res.kpis || null);
         setAttendanceData(res.attendance || null);
@@ -68,20 +77,26 @@ export const AdminDashboard: React.FC = () => {
         setMonthlyFeeSummary(res.monthlyFeeSummary || null);
         setFeeFollowups(res.feeFollowups || []);
         setRecentActivity(res.recentActivity || []);
+
+        try {
+          sessionStorage.setItem('gurukul_dashboard_cache', JSON.stringify({
+            kpis: res.kpis,
+            attendance: res.attendance,
+            currentMonth: res.currentMonth,
+            monthlyFeeSummary: res.monthlyFeeSummary,
+            feeFollowups: res.feeFollowups,
+            recentActivity: res.recentActivity,
+            cachedAt: Date.now(),
+          }));
+        } catch {}
       }
 
-      // Check WhatsApp device health for dashboard alert banner
-      try {
-        const waRes = await apiClient<any>('/whatsapp/status');
-        const waData = waRes?.data !== undefined ? waRes.data : waRes;
-        if (waData?.device) {
-          setWhatsappStatus(waData.device);
-        }
-        if (waData?.stats) {
-          setWhatsappStats(waData.stats);
-        }
-      } catch (e) {
-        console.warn('Could not query WhatsApp status for dashboard:', e);
+      const waData = waRes?.data !== undefined ? waRes.data : waRes;
+      if (waData?.device) {
+        setWhatsappStatus(waData.device);
+      }
+      if (waData?.stats) {
+        setWhatsappStats(waData.stats);
       }
     } catch (err: any) {
       console.error('Failed to load admin dashboard:', err);
@@ -91,7 +106,27 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchDashboard();
+    // Instant restore from cache if recent (< 60s)
+    try {
+      const cachedStr = sessionStorage.getItem('gurukul_dashboard_cache');
+      if (cachedStr) {
+        const cached = JSON.parse(cachedStr);
+        if (cached && Date.now() - (cached.cachedAt || 0) < 60000) {
+          setKpis(cached.kpis || null);
+          setAttendanceData(cached.attendance || null);
+          setCurrentMonth(cached.currentMonth || { billingPeriod: '', formatted: '' });
+          setMonthlyFeeSummary(cached.monthlyFeeSummary || null);
+          setFeeFollowups(cached.feeFollowups || []);
+          setRecentActivity(cached.recentActivity || []);
+          setLoading(false);
+          // Refresh silently in background
+          fetchDashboard(true);
+          return;
+        }
+      }
+    } catch {}
+
+    fetchDashboard(false);
   }, []);
 
   const handleSendReminder = async (item: FeeFollowupItem) => {
