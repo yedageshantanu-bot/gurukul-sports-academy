@@ -11,6 +11,33 @@ export class RankController {
     }
   }
 
+  static async createDiscipline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await RankService.createDiscipline(req.body);
+      res.status(201).json({ success: true, message: 'Discipline added successfully', data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateDiscipline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await RankService.updateDiscipline(req.params.id, req.body);
+      res.status(200).json({ success: true, message: 'Discipline updated successfully', data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteDiscipline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await RankService.deleteDiscipline(req.params.id);
+      res.status(200).json({ success: true, message: result.message, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async createRank(req: Request, res: Response, next: NextFunction) {
     try {
       const rank = await RankService.createRank(req.body);

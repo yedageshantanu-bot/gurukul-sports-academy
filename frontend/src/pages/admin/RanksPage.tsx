@@ -35,57 +35,46 @@ import { downloadCertificatePdf } from '../../utils/certificatePdfGenerator';
 import { downloadCombinedCertificatesPdf } from '../../utils/certificateBundlePdf';
 
 // Default martial arts belt & sash categories
+// Default martial arts belt & sash categories (Official Gurukul syllabus aligned)
 export const DEFAULT_BELT_CATEGORIES = [
-  // Standard Karate & Wushu Belts
-  { id: 'white-belt', name: 'White Belt', group: 'Standard Belts' },
-  { id: 'yellow-belt', name: 'Yellow Belt', group: 'Standard Belts' },
-  { id: 'orange-belt', name: 'Orange Belt', group: 'Standard Belts' },
-  { id: 'green-belt', name: 'Green Belt', group: 'Standard Belts' },
-  { id: 'blue-belt', name: 'Blue Belt', group: 'Standard Belts' },
-  { id: 'purple-belt', name: 'Purple Belt', group: 'Standard Belts' },
-  { id: 'brown-belt', name: 'Brown Belt', group: 'Standard Belts' },
-  { id: 'red-belt', name: 'Red Belt', group: 'Standard Belts' },
-  { id: 'black-belt', name: 'Black Belt', group: 'Standard Belts' },
+  // Standard Karate & Martial Arts Belts
+  { id: 'yellow-belt', name: 'Yellow', group: 'Official Belts' },
+  { id: 'orange-belt', name: 'Orange', group: 'Official Belts' },
+  { id: 'blue-belt', name: 'Blue', group: 'Official Belts' },
+  { id: 'green-belt', name: 'Green', group: 'Official Belts' },
+  { id: 'maroon-belt', name: 'Maroon', group: 'Official Belts' },
+  { id: 'purple-ii-belt', name: 'Purple II', group: 'Official Belts' },
+  { id: 'purple-i-belt', name: 'Purple I', group: 'Official Belts' },
+  { id: 'brown-iii-belt', name: 'Brown III', group: 'Official Belts' },
+  { id: 'brown-ii-belt', name: 'Brown II', group: 'Official Belts' },
+  { id: 'brown-i-belt', name: 'Brown I', group: 'Official Belts' },
+  { id: 'black-belt', name: 'Black', group: 'Official Belts' },
 
-  // Kalarippayattu Sashes
-  { id: 'white-sash', name: 'White Sash', group: 'Kalari Sashes' },
+  // Traditional Kalari Sashes
   { id: 'yellow-sash', name: 'Yellow Sash', group: 'Kalari Sashes' },
   { id: 'orange-sash', name: 'Orange Sash', group: 'Kalari Sashes' },
-  { id: 'green-sash', name: 'Green Sash', group: 'Kalari Sashes' },
   { id: 'blue-sash', name: 'Blue Sash', group: 'Kalari Sashes' },
-  { id: 'purple-sash', name: 'Purple Sash', group: 'Kalari Sashes' },
-  { id: 'red-sash', name: 'Red Sash', group: 'Kalari Sashes' },
+  { id: 'green-sash', name: 'Green Sash', group: 'Kalari Sashes' },
+  { id: 'maroon-sash', name: 'Maroon Sash', group: 'Kalari Sashes' },
+  { id: 'purple-ii-sash', name: 'Purple Sash II', group: 'Kalari Sashes' },
+  { id: 'purple-i-sash', name: 'Purple Sash I', group: 'Kalari Sashes' },
+  { id: 'brown-iii-sash', name: 'Brown Sash III', group: 'Kalari Sashes' },
+  { id: 'brown-ii-sash', name: 'Brown Sash II', group: 'Kalari Sashes' },
+  { id: 'brown-i-sash', name: 'Brown Sash I', group: 'Kalari Sashes' },
   { id: 'black-sash', name: 'Black Sash', group: 'Kalari Sashes' },
 
-  // Dual Combination Belts
-  { id: 'dual-white-yellow', name: 'White & Yellow', group: 'Dual Combinations' },
-  { id: 'dual-yellow-orange', name: 'Yellow & Orange', group: 'Dual Combinations' },
-  { id: 'dual-green-blue', name: 'Green & Blue', group: 'Dual Combinations' },
-  { id: 'dual-blue-brown', name: 'Blue & Brown', group: 'Dual Combinations' },
-  { id: 'dual-brown-black', name: 'Brown & Black', group: 'Dual Combinations' },
-  { id: 'dual-red-black', name: 'Red & Black', group: 'Dual Combinations' },
-
-  // Kyu & Specialty Belts
-  { id: 'white-10-kyu', name: 'White Belt (10th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'white-9-kyu', name: 'White Belt (9th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'yellow-8-kyu', name: 'Yellow Belt (8th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'orange-7-kyu', name: 'Orange Belt (7th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'green-6-kyu', name: 'Green Belt (6th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'blue-5-kyu', name: 'Blue Belt (5th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'purple-4-kyu', name: 'Purple Belt (4th Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'brown-3-kyu', name: 'Brown Belt (3rd Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'brown-2-kyu', name: 'Brown Belt (2nd Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'brown-1-kyu', name: 'Brown Belt (1st Kyu)', group: 'Kyu / Dan Grades' },
-  { id: 'black-1-dan', name: 'Black Belt (1st Dan Shodan)', group: 'Kyu / Dan Grades' },
+  // Foundation & Kyu Grades
+  { id: 'white-belt', name: 'White Belt', group: 'Foundation Grades' },
+  { id: 'white-sash', name: 'White Sash', group: 'Foundation Grades' },
+  { id: 'red-belt', name: 'Red Belt', group: 'Specialty Ranks' },
   { id: 'gold-belt', name: 'Gold Belt', group: 'Specialty Ranks' },
-  { id: 'camo-belt', name: 'Camo Belt', group: 'Specialty Ranks' },
 ];
 
 // Belt badge color styling helper
 export const getBeltBadgeClass = (color: string) => {
   const c = (color || '').toLowerCase().trim();
 
-  // Dual combinations (e.g. "White & Yellow", "Green & Blue", "Blue & Brown", "Yellow & Orange")
+  // Dual combinations (e.g. "White & Yellow", "Green & Blue", "Blue & Brown")
   if (c.includes('&') || c.includes('/')) {
     if (c.includes('white') && c.includes('yellow')) return 'bg-gradient-to-r from-slate-200/20 to-yellow-500/20 text-yellow-200 border-yellow-400/40 shadow-sm';
     if (c.includes('yellow') && c.includes('orange')) return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-amber-200 border-amber-400/40 shadow-sm';
@@ -97,9 +86,10 @@ export const getBeltBadgeClass = (color: string) => {
 
   if (c.includes('gold')) return 'bg-amber-400/25 text-amber-200 border-amber-400/60 shadow-sm shadow-amber-500/10';
   if (c.includes('camo')) return 'bg-emerald-800/30 text-emerald-200 border-emerald-700/50';
-  if (c.includes('black') || c.includes('dan')) return 'bg-slate-950/90 text-slate-100 border-slate-600 shadow-sm';
-  if (c.includes('brown')) return 'bg-amber-900/35 text-amber-200 border-amber-800/50';
-  if (c.includes('purple')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+  if (c.includes('black') || c.includes('dan')) return 'bg-slate-950/90 text-amber-300 border-amber-500/40 shadow-sm';
+  if (c.includes('brown')) return 'bg-amber-950/60 text-amber-200 border-amber-700/60';
+  if (c.includes('maroon')) return 'bg-rose-950/70 text-rose-200 border-rose-700/60 shadow-sm';
+  if (c.includes('purple')) return 'bg-purple-900/40 text-purple-200 border-purple-600/50 shadow-sm';
   if (c.includes('blue')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
   if (c.includes('green') || c.includes('emerald')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
   if (c.includes('orange')) return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
@@ -117,6 +107,15 @@ interface MartialRank {
   rank_name: string;
   belt_color: string;
   description: string | null;
+  syllabus?: string | null;
+}
+
+interface Discipline {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  ranks?: MartialRank[];
 }
 
 interface StudentRank {
@@ -164,9 +163,16 @@ export const RanksPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'STUDENTS' | 'CERTIFICATES' | 'CURRICULUM'>('STUDENTS');
   const [studentRanks, setStudentRanks] = useState<StudentRank[]>([]);
   const [allRanks, setAllRanks] = useState<MartialRank[]>([]);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [disciplineFilter, setDisciplineFilter] = useState('ALL');
+
+  // Discipline Section Management
+  const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
+  const [editingDiscipline, setEditingDiscipline] = useState<Discipline | null>(null);
+  const [disciplineForm, setDisciplineForm] = useState({ name: '', description: '' });
+  const [savingDiscipline, setSavingDiscipline] = useState(false);
 
   // Certificate Registry Date Filter States (The specific feature twist requested by user)
   const [certStartDate, setCertStartDate] = useState('');
@@ -199,8 +205,9 @@ export const RanksPage: React.FC = () => {
     disciplineCode: 'KALARIPPAYATTU',
     rankOrder: 1,
     rankName: '',
-    beltColor: 'White',
+    beltColor: 'Yellow',
     description: '',
+    syllabus: '',
   });
   const [savingBelt, setSavingBelt] = useState(false);
 
@@ -413,21 +420,17 @@ export const RanksPage: React.FC = () => {
 
   const handleOpenAddBelt = (disciplineCode: string = 'KALARIPPAYATTU') => {
     setEditingBeltRank(null);
-    const existingCount = allRanks.filter((r) => r.discipline_code === disciplineCode).length;
+    const existingRanks = allRanks.filter((r) => r.discipline_code === disciplineCode);
+    const maxOrder = existingRanks.reduce((max, r) => Math.max(max, r.rank_order), 0);
     setIsCustomColorInput(false);
-    const defaultColor =
-      disciplineCode === 'KALARIPPAYATTU'
-        ? 'White Sash'
-        : disciplineCode === 'BOTH'
-        ? 'White & Yellow'
-        : 'White Belt';
 
     setBeltForm({
       disciplineCode,
-      rankOrder: existingCount + 1,
+      rankOrder: maxOrder + 1,
       rankName: '',
-      beltColor: defaultColor,
+      beltColor: 'Yellow',
       description: '',
+      syllabus: '',
     });
     setIsBeltModalOpen(true);
   };
@@ -444,6 +447,7 @@ export const RanksPage: React.FC = () => {
       rankName: rank.rank_name,
       beltColor: rank.belt_color,
       description: rank.description || '',
+      syllabus: rank.syllabus || '',
     });
     setIsBeltModalOpen(true);
   };
@@ -464,6 +468,7 @@ export const RanksPage: React.FC = () => {
             rankName: beltForm.rankName.trim(),
             beltColor: beltForm.beltColor.trim(),
             description: beltForm.description.trim() || undefined,
+            syllabus: beltForm.syllabus.trim() || undefined,
           }),
         });
         toast.success(`Belt rank "${beltForm.rankName}" updated successfully!`);
@@ -476,6 +481,7 @@ export const RanksPage: React.FC = () => {
             rankName: beltForm.rankName.trim(),
             beltColor: beltForm.beltColor.trim(),
             description: beltForm.description.trim() || undefined,
+            syllabus: beltForm.syllabus.trim() || undefined,
           }),
         });
         toast.success(`New belt rank "${beltForm.rankName}" created successfully!`);
@@ -483,6 +489,8 @@ export const RanksPage: React.FC = () => {
       setIsBeltModalOpen(false);
       setEditingBeltRank(null);
       await fetchRanks();
+      await fetchDisciplines();
+      await fetchStudentRanks();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save belt rank');
     } finally {
@@ -496,8 +504,75 @@ export const RanksPage: React.FC = () => {
       await apiClient(`/ranks/${rank.id}`, { method: 'DELETE' });
       toast.success(`Belt rank "${rank.rank_name}" deleted.`);
       await fetchRanks();
+      await fetchDisciplines();
+      await fetchStudentRanks();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete belt rank');
+    }
+  };
+
+  // Discipline Section Handlers
+  const handleOpenAddDiscipline = () => {
+    setEditingDiscipline(null);
+    setDisciplineForm({ name: '', description: '' });
+    setIsDisciplineModalOpen(true);
+  };
+
+  const handleOpenEditDiscipline = (disc: Discipline) => {
+    setEditingDiscipline(disc);
+    setDisciplineForm({ name: disc.name, description: disc.description || '' });
+    setIsDisciplineModalOpen(true);
+  };
+
+  const handleSaveDiscipline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disciplineForm.name.trim()) {
+      toast.warning('Discipline name is required');
+      return;
+    }
+    setSavingDiscipline(true);
+    try {
+      if (editingDiscipline) {
+        await apiClient(`/ranks/disciplines/${editingDiscipline.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: disciplineForm.name.trim(),
+            description: disciplineForm.description.trim() || undefined,
+          }),
+        });
+        toast.success(`Discipline "${disciplineForm.name}" updated successfully!`);
+      } else {
+        await apiClient('/ranks/disciplines', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: disciplineForm.name.trim(),
+            description: disciplineForm.description.trim() || undefined,
+          }),
+        });
+        toast.success(`New section "${disciplineForm.name}" created! You can now add belts.`);
+      }
+      setIsDisciplineModalOpen(false);
+      setEditingDiscipline(null);
+      setDisciplineForm({ name: '', description: '' });
+      await fetchDisciplines();
+      await fetchRanks();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save discipline');
+    } finally {
+      setSavingDiscipline(false);
+    }
+  };
+
+  const handleDeleteDiscipline = async (disc: Discipline) => {
+    if (!window.confirm(`Are you sure you want to delete the "${disc.name}" section and all its belts?`)) return;
+    try {
+      await apiClient(`/ranks/disciplines/${disc.id}`, { method: 'DELETE' });
+      toast.success(`Discipline "${disc.name}" deleted successfully.`);
+      await fetchDisciplines();
+      await fetchRanks();
+      await fetchStudentRanks();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete discipline');
     }
   };
 
@@ -538,6 +613,17 @@ export const RanksPage: React.FC = () => {
       setAllRanks(list);
     } catch (err) {
       console.error('Failed to load ranks list:', err);
+    }
+  };
+
+  // Fetch all martial arts disciplines / sections
+  const fetchDisciplines = async () => {
+    try {
+      const res = await apiClient<any>('/ranks/disciplines');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      setDisciplines(list);
+    } catch (err) {
+      console.error('Failed to load disciplines:', err);
     }
   };
 
@@ -651,6 +737,7 @@ export const RanksPage: React.FC = () => {
   useEffect(() => {
     fetchStudentRanks();
     fetchRanks();
+    fetchDisciplines();
     fetchAcademyStudents();
   }, []);
 
@@ -909,9 +996,18 @@ export const RanksPage: React.FC = () => {
                 className="bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="ALL">All Disciplines</option>
-                <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                <option value="KARATE_WUSHU">Karate + Wushu</option>
-                <option value="BOTH">Both (Dual Discipline)</option>
+                {disciplines.length > 0 ? (
+                  disciplines.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                    <option value="KARATE_WUSHU">Karate</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -1092,9 +1188,18 @@ export const RanksPage: React.FC = () => {
                   className="w-full bg-[#0A1120] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
                 >
                   <option value="ALL">All Disciplines</option>
-                  <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                  <option value="KARATE_WUSHU">Karate + Wushu</option>
-                  <option value="BOTH">Both (Dual Discipline)</option>
+                  {disciplines.length > 0 ? (
+                    disciplines.map((d) => (
+                      <option key={d.code} value={d.code}>
+                        {d.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                      <option value="KARATE_WUSHU">Karate</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -1259,7 +1364,15 @@ export const RanksPage: React.FC = () => {
                 Customize belt progression orders, color tags, and grading requirements for each discipline.
               </p>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Button
+                type="button"
+                onClick={handleOpenAddDiscipline}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Discipline / Section
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -1270,7 +1383,7 @@ export const RanksPage: React.FC = () => {
                 Manage Belt Colors &amp; Categories
               </Button>
               <Button
-                onClick={() => handleOpenAddBelt('KALARIPPAYATTU')}
+                onClick={() => handleOpenAddBelt(disciplines[0]?.code || 'KARATE_WUSHU')}
                 className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-orange-500/20"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
@@ -1280,412 +1393,144 @@ export const RanksPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 1. Kalarippayattu Curriculum */}
-            <Card className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      Ancient Martial Art
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1">Kalarippayattu Progression</h3>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleOpenAddBelt('KALARIPPAYATTU')}
-                    className="text-[11px] py-1 px-2.5 h-7 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30"
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Belt
-                  </Button>
-                </div>
+            {disciplines.length === 0 ? (
+              <div className="col-span-full p-8 rounded-xl bg-[#0F172A]/70 border border-white/10 text-center">
+                <p className="text-slate-400 text-sm">No disciplines configured. Click &quot;Add Discipline / Section&quot; to create one.</p>
+              </div>
+            ) : (
+              disciplines.map((disc) => {
+                const discRanks = allRanks
+                  .filter((r) => r.discipline_code === disc.code)
+                  .sort((a, b) => a.rank_order - b.rank_order);
+                const isBuiltin = disc.code === 'KALARIPPAYATTU' || disc.code === 'KARATE_WUSHU';
 
-                <div className="space-y-2 mt-3">
-                  {allRanks
-                    .filter((r) => r.discipline_code === 'KALARIPPAYATTU')
-                    .sort((a, b) => a.rank_order - b.rank_order)
-                    .map((rank) => (
-                      <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-emerald-500/40 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col items-center flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'UP')}
-                              className="text-slate-500 hover:text-emerald-400 p-0.5 -mb-1 transition-colors"
-                              title="Kram Upar (Move Up in Hierarchy)"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center">
-                              {rank.rank_order}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                              className="text-slate-500 hover:text-emerald-400 p-0.5 -mt-1 transition-colors"
-                              title="Kram Niche (Move Down in Hierarchy)"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                            <span className="text-[11px] text-slate-400">{rank.description || 'Form & Stance Mastery'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
-                            {rank.belt_color}
+                return (
+                  <Card
+                    key={disc.id || disc.code}
+                    className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between pb-3 border-b border-white/10 gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            {disc.code === 'KALARIPPAYATTU'
+                              ? 'Ancient Martial Art'
+                              : disc.code === 'KARATE_WUSHU'
+                              ? 'Combat & Forms'
+                              : 'Martial Discipline'}
                           </span>
+                          <h3 className="text-base font-bold text-white mt-1 flex items-center gap-2">
+                            {disc.name}
+                            <span className="text-[11px] font-normal text-slate-400">({discRanks.length} Belts)</span>
+                          </h3>
+                          {disc.description && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{disc.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenAddBelt(disc.code)}
+                            className="text-[11px] py-1 px-2.5 h-7 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add Belt
+                          </Button>
                           <button
                             type="button"
-                            onClick={() => handleOpenEditBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
-                            title="Edit Belt"
+                            onClick={() => handleOpenEditDiscipline(disc)}
+                            className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+                            title={`Edit Section: ${disc.name}`}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
-                            title="Delete Belt"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </Card>
-
-            {/* 2. Karate + Wushu Curriculum */}
-            <Card className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                      Combat &amp; Forms
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1">Karate + Wushu Hierarchy</h3>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleOpenAddBelt('KARATE_WUSHU')}
-                    className="text-[11px] py-1 px-2.5 h-7 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Belt
-                  </Button>
-                </div>
-
-                <div className="space-y-2 mt-3">
-                  {allRanks
-                    .filter((r) => r.discipline_code === 'KARATE_WUSHU')
-                    .sort((a, b) => a.rank_order - b.rank_order)
-                    .map((rank) => (
-                      <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-amber-500/40 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col items-center flex-shrink-0">
+                          {!isBuiltin && (
                             <button
                               type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'UP')}
-                              className="text-slate-500 hover:text-amber-400 p-0.5 -mb-1 transition-colors"
-                              title="Kram Upar (Move Up in Hierarchy)"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center">
-                              {rank.rank_order}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                              className="text-slate-500 hover:text-amber-400 p-0.5 -mt-1 transition-colors"
-                              title="Kram Niche (Move Down in Hierarchy)"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                            <span className="text-[11px] text-slate-400">{rank.description || 'Kata, Kumite & Stances'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
-                            {rank.belt_color}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
-                            title="Edit Belt"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
-                            title="Delete Belt"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </Card>
-
-            {/* 3. Both Dual Arts Curriculum */}
-            <Card className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <div>
-                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                      Dual Arts Master
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1">Both (Kalari + Karate)</h3>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleOpenAddBelt('BOTH')}
-                    className="text-[11px] py-1 px-2.5 h-7 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30"
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Belt
-                  </Button>
-                </div>
-
-                <div className="space-y-2 mt-3">
-                  {allRanks
-                    .filter((r) => r.discipline_code === 'BOTH')
-                    .sort((a, b) => a.rank_order - b.rank_order)
-                    .map((rank) => (
-                      <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-purple-500/40 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col items-center flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'UP')}
-                              className="text-slate-500 hover:text-purple-400 p-0.5 -mb-1 transition-colors"
-                              title="Kram Upar (Move Up in Hierarchy)"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 font-bold text-xs flex items-center justify-center">
-                              {rank.rank_order}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                              className="text-slate-500 hover:text-purple-400 p-0.5 -mt-1 transition-colors"
-                              title="Kram Niche (Move Down in Hierarchy)"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                            <span className="text-[11px] text-slate-400">{rank.description || 'Dual Art Mastery'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
-                            {rank.belt_color}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
-                            title="Edit Belt"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBelt(rank)}
-                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
-                            title="Delete Belt"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </Card>
-
-            {/* 4. Kickboxing Progression */}
-            <Card className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <div>
-                    <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                      Combat Conditioning
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1">Kickboxing Belts</h3>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleOpenAddBelt('KICKBOXING')}
-                    className="text-[11px] py-1 px-2.5 h-7 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30"
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Belt
-                  </Button>
-                </div>
-
-                <div className="space-y-2 mt-3">
-                  {allRanks.filter((r) => r.discipline_code === 'KICKBOXING').length === 0 ? (
-                    <div className="p-4 rounded-lg bg-slate-900/40 border border-white/5 text-center text-xs text-slate-400">
-                      No Kickboxing ranks added yet. Click &quot;Add Belt&quot; to configure.
-                    </div>
-                  ) : (
-                    allRanks
-                      .filter((r) => r.discipline_code === 'KICKBOXING')
-                      .sort((a, b) => a.rank_order - b.rank_order)
-                      .map((rank) => (
-                        <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-rose-500/40 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col items-center flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRankOrder(rank, 'UP')}
-                                className="text-slate-500 hover:text-rose-400 p-0.5 -mb-1 transition-colors"
-                                title="Kram Upar (Move Up in Hierarchy)"
-                              >
-                                <ChevronUp className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center">
-                                {rank.rank_order}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                                className="text-slate-500 hover:text-rose-400 p-0.5 -mt-1 transition-colors"
-                                title="Kram Niche (Move Down in Hierarchy)"
-                              >
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                              <span className="text-[11px] text-slate-400">{rank.description || 'Striking & Pad Work'}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
-                              {rank.belt_color}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditBelt(rank)}
-                              className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
-                              title="Edit Belt"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBelt(rank)}
-                              className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
-                              title="Delete Belt"
+                              onClick={() => handleDeleteDiscipline(disc)}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                              title={`Delete Section: ${disc.name}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </div>
+                          )}
                         </div>
-                      ))
-                  )}
-                </div>
-              </div>
-            </Card>
+                      </div>
 
-            {/* 5. Gymnastics & Acrobatics */}
-            <Card className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <div>
-                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-                      Flexibility &amp; Vault
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1">Gymnastics Progression</h3>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleOpenAddBelt('GYMNASTICS')}
-                    className="text-[11px] py-1 px-2.5 h-7 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30"
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Level
-                  </Button>
-                </div>
-
-                <div className="space-y-2 mt-3">
-                  {allRanks.filter((r) => r.discipline_code === 'GYMNASTICS').length === 0 ? (
-                    <div className="p-4 rounded-lg bg-slate-900/40 border border-white/5 text-center text-xs text-slate-400">
-                      No Gymnastics levels configured yet. Click &quot;Add Level&quot; to configure.
+                      <div className="space-y-2.5 mt-3">
+                        {discRanks.length === 0 ? (
+                          <div className="p-4 rounded-lg bg-slate-900/40 border border-white/5 text-center text-xs text-slate-400">
+                            No belts configured in {disc.name} yet. Click &quot;Add Belt&quot; to configure Level 1, Level 2, etc.
+                          </div>
+                        ) : (
+                          discRanks.map((rank) => (
+                            <div
+                              key={rank.id}
+                              className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex flex-col gap-1.5 group hover:border-amber-500/40 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex flex-col items-center flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveRankOrder(rank, 'UP')}
+                                      className="text-slate-500 hover:text-amber-400 p-0.5 -mb-1 transition-colors"
+                                      title="Kram Upar (Move Up in Hierarchy)"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center">
+                                      {rank.rank_order}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                                      className="text-slate-500 hover:text-amber-400 p-0.5 -mt-1 transition-colors"
+                                      title="Kram Niche (Move Down in Hierarchy)"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
+                                    <span className="text-[11px] text-slate-400">{rank.description || 'Syllabus & Stance Mastery'}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
+                                    {rank.belt_color}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditBelt(rank)}
+                                    className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+                                    title="Edit Belt"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteBelt(rank)}
+                                    className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
+                                    title="Delete Belt"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                              {rank.syllabus && (
+                                <div className="ml-8 text-[10px] text-amber-300/90 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-mono">
+                                  📋 <span className="font-semibold text-amber-200">Syllabus:</span> {rank.syllabus}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    allRanks
-                      .filter((r) => r.discipline_code === 'GYMNASTICS')
-                      .sort((a, b) => a.rank_order - b.rank_order)
-                      .map((rank) => (
-                        <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-sky-500/40 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col items-center flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRankOrder(rank, 'UP')}
-                                className="text-slate-500 hover:text-sky-400 p-0.5 -mb-1 transition-colors"
-                                title="Kram Upar (Move Up in Hierarchy)"
-                              >
-                                <ChevronUp className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-300 font-bold text-xs flex items-center justify-center">
-                                {rank.rank_order}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                                className="text-slate-500 hover:text-sky-400 p-0.5 -mt-1 transition-colors"
-                                title="Kram Niche (Move Down in Hierarchy)"
-                              >
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                              <span className="text-[11px] text-slate-400">{rank.description || 'Flexibility & Tumbling'}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
-                              {rank.belt_color}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditBelt(rank)}
-                              className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
-                              title="Edit Belt"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBelt(rank)}
-                              className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
-                              title="Delete Belt"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </div>
-            </Card>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -1799,9 +1644,18 @@ export const RanksPage: React.FC = () => {
                 onChange={(e) => setAssignDiscipline(e.target.value)}
                 className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
               >
-                <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                <option value="KARATE_WUSHU">Karate + Wushu</option>
-                <option value="BOTH">Both (Kalarippayattu + Karate & Wushu)</option>
+                {disciplines.length > 0 ? (
+                  disciplines.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                    <option value="KARATE_WUSHU">Karate</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -1962,11 +1816,18 @@ export const RanksPage: React.FC = () => {
                 onChange={(e) => setBeltForm({ ...beltForm, disciplineCode: e.target.value })}
                 className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
               >
-                <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                <option value="KARATE_WUSHU">Karate + Wushu</option>
-                <option value="BOTH">Both (Dual Discipline)</option>
-                <option value="KICKBOXING">Kickboxing</option>
-                <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
+                {disciplines.length > 0 ? (
+                  disciplines.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                    <option value="KARATE_WUSHU">Karate</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -2123,14 +1984,30 @@ export const RanksPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Syllabus / Mastery Description</label>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Belt Grade Title / Mastery Description</label>
             <input
               type="text"
-              placeholder="e.g. Kata, basic stances, kicking drills, weapon forms"
+              placeholder="e.g. बालशिष्य, Kata & Stances, or Form Mastery"
               value={beltForm.description}
               onChange={(e) => setBeltForm({ ...beltForm, description: e.target.value })}
               className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">
+              Official Examination Syllabus (Katas, Weapons, Techniques)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. TAIKYOKU SHODAN, TAIKYOKU NIDAN | KATHI CHAUMUKHI or STICK BASICS"
+              value={beltForm.syllabus}
+              onChange={(e) => setBeltForm({ ...beltForm, syllabus: e.target.value })}
+              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Displays on athlete curriculum and grading examination records as per the official academy poster.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
@@ -2376,6 +2253,64 @@ export const RanksPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* MODAL 6: Add / Edit Discipline Section */}
+      <Modal
+        isOpen={isDisciplineModalOpen}
+        onClose={() => setIsDisciplineModalOpen(false)}
+        title={editingDiscipline ? `Edit Section: ${editingDiscipline.name}` : 'Add New Discipline / Section'}
+        maxWidth="sm"
+      >
+        <form onSubmit={handleSaveDiscipline} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">
+              Discipline / Section Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Kung Fu, Taekwondo, Kickboxing, Boxing, Judo"
+              value={disciplineForm.name}
+              onChange={(e) => setDisciplineForm({ ...disciplineForm, name: e.target.value })}
+              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Creates a dedicated belt curriculum section and allows athlete belt assignments.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">
+              Description / Tagline (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Traditional Chinese Martial Art, Wushu & Sanda"
+              value={disciplineForm.description}
+              onChange={(e) => setDisciplineForm({ ...disciplineForm, description: e.target.value })}
+              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDisciplineModalOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={savingDiscipline}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+            >
+              {savingDiscipline ? 'Saving...' : editingDiscipline ? 'Update Section' : 'Create Section'}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

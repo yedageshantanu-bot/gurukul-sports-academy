@@ -52,6 +52,90 @@ export class RankService {
   }
 
   /**
+   * Add a new martial arts discipline / section (e.g. Kung Fu, Taekwondo)
+   */
+  static async createDiscipline(dto: { name: string; description?: string; code?: string }) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+    const name = (dto.name || '').trim();
+    if (!name) throw new AppError('Discipline name is required', 400);
+
+    const code = (dto.code || name)
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || `DISC_${Date.now()}`;
+
+    const { data, error } = await supabaseAdmin
+      .from('martial_arts_disciplines')
+      .insert({
+        code,
+        name,
+        description: dto.description || null,
+      })
+      .select()
+      .single();
+
+    if (error) throw new AppError(`Failed to create discipline: ${error.message}`, 500);
+    return data;
+  }
+
+  /**
+   * Update an existing discipline
+   */
+  static async updateDiscipline(id: string, dto: { name?: string; description?: string }) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const updatePayload: Record<string, any> = {};
+    if (dto.name !== undefined) updatePayload.name = dto.name.trim();
+    if (dto.description !== undefined) updatePayload.description = dto.description;
+
+    const { data, error } = await supabaseAdmin
+      .from('martial_arts_disciplines')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new AppError(`Failed to update discipline: ${error.message}`, 500);
+    return data;
+  }
+
+  /**
+   * Delete a discipline section along with its ranks safely
+   */
+  static async deleteDiscipline(id: string) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const { data: disc, error: fErr } = await supabaseAdmin
+      .from('martial_arts_disciplines')
+      .select('code, name')
+      .eq('id', id)
+      .single();
+
+    if (fErr || !disc) throw new AppError('Discipline not found', 404);
+
+    // 1. Detach student ranks referencing this discipline
+    await supabaseAdmin
+      .from('student_ranks')
+      .delete()
+      .eq('discipline_code', disc.code);
+
+    // 2. Delete ranks under this discipline
+    await supabaseAdmin
+      .from('martial_arts_ranks')
+      .delete()
+      .eq('discipline_code', disc.code);
+
+    // 3. Delete discipline header
+    const { error } = await supabaseAdmin
+      .from('martial_arts_disciplines')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new AppError(`Failed to delete discipline: ${error.message}`, 500);
+    return { success: true, message: `Discipline ${disc.name} deleted successfully` };
+  }
+
+  /**
    * Add a new rank to a discipline
    */
   static async createRank(dto: {
@@ -60,6 +144,7 @@ export class RankService {
     rankName: string;
     beltColor: string;
     description?: string;
+    syllabus?: string;
     badgeBg?: string;
     badgeText?: string;
   }) {
@@ -73,6 +158,7 @@ export class RankService {
         rank_name: dto.rankName,
         belt_color: dto.beltColor,
         description: dto.description || null,
+        syllabus: dto.syllabus || null,
         badge_bg: dto.badgeBg || '#1e293b',
         badge_text: dto.badgeText || '#ffffff',
       })
@@ -92,6 +178,7 @@ export class RankService {
     rankName?: string;
     beltColor?: string;
     description?: string;
+    syllabus?: string;
     badgeBg?: string;
     badgeText?: string;
   }) {
@@ -102,6 +189,7 @@ export class RankService {
     if (dto.rankName !== undefined) updatePayload.rank_name = dto.rankName;
     if (dto.beltColor !== undefined) updatePayload.belt_color = dto.beltColor;
     if (dto.description !== undefined) updatePayload.description = dto.description;
+    if (dto.syllabus !== undefined) updatePayload.syllabus = dto.syllabus;
     if (dto.badgeBg !== undefined) updatePayload.badge_bg = dto.badgeBg;
     if (dto.badgeText !== undefined) updatePayload.badge_text = dto.badgeText;
 
@@ -117,11 +205,24 @@ export class RankService {
   }
 
   /**
-   * Delete a rank definition
+   * Delete a rank definition safely without foreign key constraint violation
    */
   static async deleteRank(id: string) {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
 
+    // 1. Detach student_ranks referencing this rank
+    await supabaseAdmin
+      .from('student_ranks')
+      .update({ current_rank_id: null })
+      .eq('current_rank_id', id);
+
+    // 2. Detach rank_promotions referencing this rank
+    await supabaseAdmin
+      .from('rank_promotions')
+      .update({ new_rank_id: null })
+      .eq('new_rank_id', id);
+
+    // 3. Delete the rank row
     const { error } = await supabaseAdmin
       .from('martial_arts_ranks')
       .delete()
@@ -159,7 +260,7 @@ export class RankService {
         represented_from,
         promoted_at,
         promoted_by,
-        martial_arts_ranks!inner (
+        martial_arts_ranks (
           id,
           rank_order,
           rank_name,
@@ -167,7 +268,7 @@ export class RankService {
           badge_bg,
           badge_text
         ),
-        martial_arts_disciplines!inner (
+        martial_arts_disciplines (
           code,
           name
         )
@@ -210,13 +311,15 @@ export class RankService {
         parent_name: studentObj?.parent_name || '',
         fatherName: studentObj?.parent_name || '',
         discipline_code: sr.discipline_code,
-        discipline_name: sr.discipline_code === 'KALARIPPAYATTU'
-          ? 'Kalarippayattu'
-          : sr.discipline_code === 'KARATE_WUSHU'
-          ? 'Karate + Wushu'
-          : 'Both (Kalari & Karate/Wushu)',
-        current_rank_name: currentRankObj?.rank_name || 'Beginner',
-        belt_color: currentRankObj?.belt_color || 'White',
+        discipline_name: sr.martial_arts_disciplines?.name || (
+          sr.discipline_code === 'KALARIPPAYATTU'
+            ? 'Kalarippayattu'
+            : sr.discipline_code === 'KARATE_WUSHU'
+            ? 'Karate'
+            : sr.discipline_code
+        ),
+        current_rank_name: currentRankObj?.rank_name || 'In-Training',
+        belt_color: currentRankObj?.belt_color || 'Yellow',
         rank_order: currentOrder,
         promoted_at: sr.promoted_at || sr.created_at,
         certificate_number: sr.reg_number,
@@ -436,7 +539,7 @@ export class RankService {
           parent_whatsapp,
           student_mobile
         ),
-        martial_arts_ranks!inner (
+        martial_arts_ranks (
           belt_color,
           badge_bg,
           badge_text
