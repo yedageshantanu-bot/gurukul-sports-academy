@@ -15,6 +15,9 @@ import {
   CreditCard,
   BookMarked,
   Trophy,
+  Edit2,
+  Calendar,
+  CalendarDays,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -27,16 +30,16 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { useToast } from '../../contexts/ToastContext';
 
-interface PublicationStudent {
+export interface PublicationStudent {
   id: string;
   student_id: string | null;
   is_external: boolean;
-  student_name: string;
+  student_name: string; // Customer Name
   parent_name: string | null;
   contact_number: string;
   email: string | null;
   publication_title: string;
-  academic_year: string;
+  academic_year: string; // Used for Validity Period e.g. "2026-06-07 to 2027-06-07"
   annual_fee: number;
   amount_paid: number;
   fee_status: 'PAID' | 'PENDING' | 'PARTIAL' | 'OVERDUE';
@@ -47,7 +50,7 @@ interface PublicationStudent {
   created_at: string;
 }
 
-interface PublicationSummary {
+export interface PublicationSummary {
   totalStudents: number;
   totalAnnualExpected: number;
   totalCollected: number;
@@ -55,17 +58,39 @@ interface PublicationSummary {
   dispatchedCount: number;
 }
 
-interface AcademyStudentOption {
+export interface AcademyStudentOption {
   id: string;
   name: string;
   parentName: string;
   contact: string;
-  email: string;
   courseName?: string;
 }
 
 export interface PublicationsPageProps {
   embedded?: boolean;
+}
+
+export function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const clean = dateStr.trim();
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+export function formatDisplayPeriod(academicYear: string, renewalDueDate?: string): string {
+  if (!academicYear) {
+    if (renewalDueDate) return `Valid till ${formatDisplayDate(renewalDueDate)}`;
+    return '1 Year Validity';
+  }
+  if (academicYear.includes(' to ')) {
+    const [start, end] = academicYear.split(' to ');
+    return `${formatDisplayDate(start)} – ${formatDisplayDate(end)}`;
+  }
+  if (renewalDueDate) {
+    return `${academicYear} (Till ${formatDisplayDate(renewalDueDate)})`;
+  }
+  return academicYear;
 }
 
 export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = false }) => {
@@ -82,6 +107,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [searchTerm, setSearchTerm] = useState('');
   const [feeFilter, setFeeFilter] = useState('ALL');
   const [deliveryFilter, setDeliveryFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
 
   // Multi-select & Custom WhatsApp Composer State
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -90,92 +116,12 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [waMessageTemplate, setWaMessageTemplate] = useState('');
   const [isSendingBatch, setIsSendingBatch] = useState(false);
 
-  const handleOpenSingleWa = (s: PublicationStudent) => {
-    if (!s.contact_number) {
-      toast.error('No contact number available.');
-      return;
-    }
-    setWaRecipients([s]);
-    setWaMessageTemplate(
-      `Hello ${s.student_name}, this is an update regarding your publication materials "${s.publication_title}" (${s.academic_year}) from Gurukul Sports Academy. Delivery Status: ${s.delivery_status}, Fee Status: ${s.fee_status}.`
-    );
-    setIsWaComposerOpen(true);
-  };
-
-  const handleOpenBatchWa = () => {
-    const targets = filteredStudents.filter((s) => selectedStudentIds.includes(s.id) && s.contact_number);
-    if (targets.length === 0) {
-      toast.error('No selected students with valid contact numbers.');
-      return;
-    }
-    setWaRecipients(targets);
-    setWaMessageTemplate(
-      `Hello {student_name}, this is an update regarding your publication materials "{publication_title}" ({academic_year}) from Gurukul Sports Academy. Delivery Status: {delivery_status}, Fee Status: {fee_status}.`
-    );
-    setIsWaComposerOpen(true);
-  };
-
-  const handleSendWaFromComposer = async () => {
-    if (waRecipients.length === 0 || !waMessageTemplate.trim()) return;
-    setIsSendingBatch(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const r of waRecipients) {
-      const personalizedBody = waMessageTemplate
-        .replace(/{student_name}/g, r.student_name)
-        .replace(/{publication_title}/g, r.publication_title)
-        .replace(/{academic_year}/g, r.academic_year)
-        .replace(/{delivery_status}/g, r.delivery_status)
-        .replace(/{fee_status}/g, r.fee_status);
-
-      try {
-        await apiClient('/whatsapp/send', {
-          method: 'POST',
-          body: JSON.stringify({
-            recipientPhone: r.contact_number,
-            messageBody: personalizedBody,
-            studentId: r.student_id || undefined,
-            eventType: 'CUSTOM_NOTIFICATION',
-          }),
-        });
-        successCount++;
-      } catch (e) {
-        failCount++;
-      }
-    }
-
-    setIsSendingBatch(false);
-    setIsWaComposerOpen(false);
-    setSelectedStudentIds([]);
-    if (successCount > 0) {
-      toast.success(`Dispatched ${successCount} WhatsApp message(s) successfully!`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to dispatch ${failCount} message(s).`);
-    }
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
-      setSelectedStudentIds([]);
-    } else {
-      setSelectedStudentIds(filteredStudents.map((s) => s.id));
-    }
-  };
-
-  const toggleSelectStudent = (id: string) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-  const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INTERNAL, EXTERNAL
-
-  // Academy students for quick selection with full parent & contact info
+  // Academy students for quick selection
   const [academyStudents, setAcademyStudents] = useState<AcademyStudentOption[]>([]);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedStudentForPay, setSelectedStudentForPay] = useState<PublicationStudent | null>(null);
   const [payAmount, setPayAmount] = useState('');
@@ -183,28 +129,50 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [payNotes, setPayNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // New Student Form state
+  // New Customer Form state
   const [isExternal, setIsExternal] = useState(false);
   const [selectedAcademyStudentId, setSelectedAcademyStudentId] = useState('');
   const [formName, setFormName] = useState('');
   const [formParent, setFormParent] = useState('');
   const [formContact, setFormContact] = useState('');
-  const [formEmail, setFormEmail] = useState('');
   const [formTitle, setFormTitle] = useState('Gurukul Martial Arts & Sports Annual Manual - Vol 2026');
-  const [formYear, setFormYear] = useState('2026-2027');
-  const DEFAULT_PUB_FEE_KEY = 'gurukul_default_publication_fee';
-  const [formFee, setFormFee] = useState<string>(() => {
-    return localStorage.getItem(DEFAULT_PUB_FEE_KEY) || '200';
+  
+  // Default fee is strictly 200 (standard publication fee requested by user)
+  const [formFee, setFormFee] = useState<string>('200');
+
+  // Date Range: Start Date & End Date (Kab Se Kab Hai)
+  const [formStartDate, setFormStartDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [formEndDate, setFormEndDate] = useState<string>(() => {
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    return nextYear.toISOString().split('T')[0];
   });
 
-  const handleFeeChange = (val: string) => {
-    setFormFee(val);
-    if (val !== undefined && val !== null) {
-      localStorage.setItem(DEFAULT_PUB_FEE_KEY, val);
+  const handleStartDateChange = (newStart: string) => {
+    setFormStartDate(newStart);
+    if (newStart) {
+      const d = new Date(newStart);
+      d.setFullYear(d.getFullYear() + 1);
+      setFormEndDate(d.toISOString().split('T')[0]);
     }
   };
+
   const [formDelivery, setFormDelivery] = useState<'DISPATCHED' | 'HANDED_OVER' | 'IN_PRINT' | 'PENDING'>('PENDING');
   const [formNotes, setFormNotes] = useState('');
+
+  // Edit Customer Modal State
+  const [editingCustomer, setEditingCustomer] = useState<PublicationStudent | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editParent, setEditParent] = useState('');
+  const [editContact, setEditContact] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editFee, setEditFee] = useState('200');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editDelivery, setEditDelivery] = useState<'DISPATCHED' | 'HANDED_OVER' | 'IN_PRINT' | 'PENDING'>('PENDING');
+  const [editNotes, setEditNotes] = useState('');
 
   const fetchPublications = async () => {
     try {
@@ -238,7 +206,6 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           name: s.fullName || s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
           parentName: s.parentName || s.parent_name || '',
           contact: s.contactNumber || s.parentWhatsapp || s.parent_whatsapp || s.studentMobile || s.student_mobile || s.phone || '',
-          email: s.email || '',
           courseName: s.course?.title || s.course || s.batch?.name || '',
         }))
       );
@@ -258,7 +225,6 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       setFormName('');
       setFormParent('');
       setFormContact('');
-      setFormEmail('');
       return;
     }
     const found = academyStudents.find((s) => s.id === id);
@@ -266,15 +232,14 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       setFormName(found.name || '');
       setFormParent(found.parentName || '');
       setFormContact(found.contact || '');
-      setFormEmail(found.email || '');
       toast.info(`Auto-filled: ${found.name}${found.parentName ? ` (Parent: ${found.parentName})` : ''}`);
     }
   };
 
-  const handleCreateStudent = async (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName || !formContact) {
-      toast.warning('Name and contact number are required');
+    if (!formName.trim() || !formContact.trim()) {
+      toast.warning('Customer name and contact number are required');
       return;
     }
 
@@ -285,15 +250,15 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         body: JSON.stringify({
           studentId: !isExternal && selectedAcademyStudentId ? selectedAcademyStudentId : undefined,
           isExternal,
-          studentName: formName,
-          parentName: formParent,
-          contactNumber: formContact,
-          email: formEmail,
-          publicationTitle: formTitle,
-          academicYear: formYear,
+          studentName: formName.trim(),
+          parentName: formParent.trim() || undefined,
+          contactNumber: formContact.trim(),
+          publicationTitle: formTitle.trim(),
+          academicYear: `${formStartDate} to ${formEndDate}`,
+          renewalDueDate: formEndDate,
           annualFee: Number(formFee) || 200,
           deliveryStatus: formDelivery,
-          notes: formNotes,
+          notes: formNotes.trim() || undefined,
         }),
       });
 
@@ -303,6 +268,71 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       fetchPublications();
     } catch (err: any) {
       toast.error(err.message || 'Failed to register customer');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenEdit = (c: PublicationStudent) => {
+    setEditingCustomer(c);
+    setEditName(c.student_name);
+    setEditParent(c.parent_name || '');
+    setEditContact(c.contact_number);
+    setEditTitle(c.publication_title);
+    setEditFee(String(c.annual_fee || 200));
+
+    let start = '';
+    let end = c.renewal_due_date || '';
+    if (c.academic_year && c.academic_year.includes(' to ')) {
+      const parts = c.academic_year.split(' to ');
+      start = parts[0];
+      end = parts[1];
+    } else {
+      start = c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+      if (!end) {
+        const d = new Date(start);
+        d.setFullYear(d.getFullYear() + 1);
+        end = d.toISOString().split('T')[0];
+      }
+    }
+    setEditStartDate(start);
+    setEditEndDate(end);
+    setEditDelivery(c.delivery_status);
+    setEditNotes(c.notes || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCustomer) return;
+    if (!editName.trim() || !editContact.trim()) {
+      toast.warning('Customer name and contact number are required');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await apiClient(`/publications/${editingCustomer.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          studentName: editName.trim(),
+          parentName: editParent.trim() || undefined,
+          contactNumber: editContact.trim(),
+          publicationTitle: editTitle.trim(),
+          annualFee: Number(editFee) || 200,
+          academicYear: `${editStartDate} to ${editEndDate}`,
+          renewalDueDate: editEndDate,
+          deliveryStatus: editDelivery,
+          notes: editNotes.trim() || undefined,
+        }),
+      });
+
+      toast.success('Customer details updated successfully!');
+      setIsEditModalOpen(false);
+      setEditingCustomer(null);
+      fetchPublications();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update customer');
     } finally {
       setActionLoading(false);
     }
@@ -327,6 +357,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       setIsPaymentModalOpen(false);
       setSelectedStudentForPay(null);
       setPayAmount('');
+      setPayNotes('');
       fetchPublications();
     } catch (err: any) {
       toast.error(err.message || 'Payment recording failed');
@@ -347,7 +378,6 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   };
 
   const handleToggleDelivery = async (student: PublicationStudent, nextStatus: any) => {
-    // Optimistic UI update
     setStudents((prev) =>
       prev.map((s) => (s.id === student.id ? { ...s, delivery_status: nextStatus } : s))
     );
@@ -370,24 +400,103 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     setFormName('');
     setFormParent('');
     setFormContact('');
-    setFormEmail('');
     setFormTitle('Gurukul Martial Arts & Sports Annual Manual - Vol 2026');
-    setFormFee(localStorage.getItem(DEFAULT_PUB_FEE_KEY) || '200');
+    setFormFee('200');
+    const today = new Date().toISOString().split('T')[0];
+    setFormStartDate(today);
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    setFormEndDate(nextYear.toISOString().split('T')[0]);
     setFormDelivery('PENDING');
     setFormNotes('');
+  };
+
+  const handleOpenSingleWa = (s: PublicationStudent) => {
+    if (!s.contact_number) {
+      toast.error('No contact number available.');
+      return;
+    }
+    setWaRecipients([s]);
+    setWaMessageTemplate(
+      `Hello ${s.student_name}, this is an update regarding your publication materials "${s.publication_title}" from Gurukul Sports Academy. Validity Period: ${formatDisplayPeriod(s.academic_year, s.renewal_due_date)}. Delivery Status: ${s.delivery_status}, Fee Status: ${s.fee_status}.`
+    );
+    setIsWaComposerOpen(true);
+  };
+
+  const handleOpenBatchWa = () => {
+    const targets = filteredStudents.filter((s) => selectedStudentIds.includes(s.id) && s.contact_number);
+    if (targets.length === 0) {
+      toast.error('No selected customers with valid contact numbers.');
+      return;
+    }
+    setWaRecipients(targets);
+    setWaMessageTemplate(
+      `Hello {customer_name}, this is an update regarding your publication materials "{publication_title}" from Gurukul Sports Academy. Delivery Status: {delivery_status}, Fee Status: {fee_status}.`
+    );
+    setIsWaComposerOpen(true);
+  };
+
+  const handleSendWaFromComposer = async () => {
+    if (waRecipients.length === 0 || !waMessageTemplate.trim()) return;
+    setIsSendingBatch(true);
+    let successCount = 0;
+    try {
+      for (const r of waRecipients) {
+        const msg = waMessageTemplate
+          .replace(/{customer_name}/g, r.student_name)
+          .replace(/{student_name}/g, r.student_name)
+          .replace(/{publication_title}/g, r.publication_title)
+          .replace(/{academic_year}/g, formatDisplayPeriod(r.academic_year, r.renewal_due_date))
+          .replace(/{delivery_status}/g, r.delivery_status)
+          .replace(/{fee_status}/g, r.fee_status);
+
+        try {
+          await apiClient('/whatsapp/send', {
+            method: 'POST',
+            body: JSON.stringify({
+              recipientPhone: r.contact_number,
+              messageBody: msg,
+              studentId: r.student_id || undefined,
+            }),
+          });
+          successCount++;
+        } catch {
+          // continue with rest
+        }
+      }
+      toast.success(`WhatsApp message dispatched to ${successCount} customer(s)!`);
+      setIsWaComposerOpen(false);
+      setSelectedStudentIds([]);
+    } finally {
+      setIsSendingBatch(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map((s) => s.id));
+    }
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
   };
 
   // Filtered List
   const filteredStudents = (students || []).filter((s) => {
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      const studentName = (s.student_name || '').toLowerCase();
+      const customerName = (s.student_name || '').toLowerCase();
       const parentName = (s.parent_name || '').toLowerCase();
       const contactNo = (s.contact_number || '').toLowerCase();
       const pubTitle = (s.publication_title || '').toLowerCase();
 
       const match =
-        studentName.includes(q) ||
+        customerName.includes(q) ||
         parentName.includes(q) ||
         contactNo.includes(q) ||
         pubTitle.includes(q);
@@ -402,7 +511,6 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-
       {/* 3-Stream Segregated Fee Navigation Bar */}
       {!embedded && (
         <div className="p-3 bg-gradient-to-r from-slate-900 to-[#0F172A] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
@@ -422,7 +530,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               >
                 <BookMarked className="w-3.5 h-3.5 text-slate-950" />
                 Published Document Fees
-                <span className="text-[10px] bg-black/20 text-slate-950 px-1.5 py-0.5 rounded font-extrabold">Annual</span>
+                <span className="text-[10px] bg-black/20 text-slate-950 px-1.5 py-0.5 rounded font-extrabold">Annual ₹200</span>
               </button>
               <Link
                 to="/admin/tournaments"
@@ -436,7 +544,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           </div>
 
           <span className="text-xs text-slate-400 hidden lg:inline">
-            Accounting Rule: Publication &amp; tournament revenues are fully segregated from recurring academy tuition.
+            Accounting Rule: Publication &amp; tournament revenues are segregated from recurring academy tuition.
           </span>
         </div>
       )}
@@ -453,7 +561,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </h1>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Manage annual curriculum publications, internal &amp; external subscribers, delivery tracking, and separate annual fee renewals.
+            Manage annual curriculum publications, internal &amp; external subscribers, validity periods, and publication fees (Standard ₹200).
           </p>
         </div>
 
@@ -586,7 +694,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           <div className="flex items-center gap-2.5 text-xs text-indigo-200">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>
-              <b>{selectedStudentIds.length}</b> student(s) selected
+              <b>{selectedStudentIds.length}</b> customer(s) selected
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -603,20 +711,20 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-1.5 font-bold shadow-md shadow-emerald-500/20"
             >
               <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-              <span>Compose & Send WhatsApp ({selectedStudentIds.length})</span>
+              <span>Compose &amp; Send WhatsApp ({selectedStudentIds.length})</span>
             </Button>
           </div>
         </div>
       )}
 
-      {/* Publication Students Table */}
+      {/* Publication Customers Table */}
       {loading ? (
         <SkeletonLoader variant="table" rows={5} />
       ) : filteredStudents.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="No Publication Customers Found"
-          description="Register outside customers or enroll academy students who subscribe to annual publication manuals."
+          description="Register outside customers or enroll academy athletes who subscribe to annual publication manuals."
           accentColor="indigo"
         />
       ) : (
@@ -633,9 +741,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                     />
                   </th>
-                  <th className="px-5 py-3.5">Customer / Subscriber</th>
+                  <th className="px-5 py-3.5">Customer Name</th>
                   <th className="px-5 py-3.5">Contact (WhatsApp)</th>
-                  <th className="px-5 py-3.5">Document / Edition</th>
+                  <th className="px-5 py-3.5">Document Title &amp; Validity</th>
                   <th className="px-5 py-3.5">Annual Fee</th>
                   <th className="px-5 py-3.5">Delivery Status</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
@@ -644,6 +752,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               <tbody className="divide-y divide-white/5">
                 {filteredStudents.map((s) => {
                   const pendingDue = Math.max(0, Number(s.annual_fee) - Number(s.amount_paid));
+                  const isExpired = s.renewal_due_date && new Date(s.renewal_due_date) < new Date();
+
                   return (
                     <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-4 w-10">
@@ -654,6 +764,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                           className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                         />
                       </td>
+
+                      {/* Customer Name */}
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
@@ -674,6 +786,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                         </div>
                       </td>
 
+                      {/* Contact */}
                       <td className="px-5 py-4 text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-slate-300">{s.contact_number}</span>
@@ -688,27 +801,48 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                         </div>
                       </td>
 
+                      {/* Document Title & Validity (Kab Se Kab Hai) */}
                       <td className="px-5 py-4">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-1">
                           <span className="text-xs font-semibold text-amber-300">{s.publication_title}</span>
-                          <span className="text-[11px] text-slate-400">Year: {s.academic_year}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-white/10">
+                              <Calendar className="w-3 h-3 text-amber-400" />
+                              <span>{formatDisplayPeriod(s.academic_year, s.renewal_due_date)}</span>
+                            </span>
+                            {isExpired ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                Expired / Renewal Due
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+                                Active
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
+                      {/* Annual Fee */}
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-white">₹{Number(s.annual_fee).toLocaleString('en-IN')}</span>
                             <StatusBadge status={s.fee_status} />
                           </div>
-                          {pendingDue > 0 && (
+                          {pendingDue > 0 ? (
                             <span className="text-[11px] text-amber-400 mt-0.5">
                               Due: ₹{pendingDue.toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-emerald-400/80 mt-0.5">
+                              100% Settled
                             </span>
                           )}
                         </div>
                       </td>
 
+                      {/* Delivery Status */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <select
@@ -732,6 +866,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                         </div>
                       </td>
 
+                      {/* Actions */}
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           {pendingDue > 0 && (
@@ -749,13 +884,26 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                             </Button>
                           )}
 
+                          {/* Edit Customer Button */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            title="Edit Customer & Validity Dates"
+                            onClick={() => handleOpenEdit(s)}
+                            className="text-xs h-8 text-slate-300 border-white/10 hover:bg-white/10 px-2"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 mr-1 text-indigo-400" />
+                            <span>Edit</span>
+                          </Button>
+
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             title="Send WhatsApp Renewal Notice"
                             onClick={() => handleSendReminder(s)}
-                            className="text-xs h-8 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                            className="text-xs h-8 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 px-2"
                           >
                             <Send className="w-3 h-3 mr-1" />
                             <span>Remind</span>
@@ -787,9 +935,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Register Publication Customer"
+        title="Register Publication Customer / Subscriber"
       >
-        <form onSubmit={handleCreateStudent} className="space-y-4 text-slate-200">
+        <form onSubmit={handleCreateCustomer} className="space-y-4 text-slate-200">
           {/* Internal or External Toggle */}
           <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 flex items-center justify-between">
             <div>
@@ -806,7 +954,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   !isExternal ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'
                 }`}
               >
-                Academy Student
+                Academy Athlete
               </button>
               <button
                 type="button"
@@ -816,7 +964,6 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   setFormName('');
                   setFormParent('');
                   setFormContact('');
-                  setFormEmail('');
                 }}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${
                   isExternal ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400'
@@ -827,20 +974,21 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
           </div>
 
+          {/* If Academy Student: Quick Auto-Fill Dropdown */}
           {!isExternal && (
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Select Existing Academy Student (Auto-fills Profile & Parent Details)
+                Link Existing Academy Athlete
               </label>
               <Select
                 value={selectedAcademyStudentId}
                 onChange={(e) => handleSelectAcademyStudent(e.target.value)}
                 className="bg-[#0F172A] border-white/10 text-white text-sm"
               >
-                <option value="">-- Choose enrolled student --</option>
-                {academyStudents.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.parentName ? `• Parent: ${s.parentName}` : ''} • {s.contact}
+                <option value="">-- Choose Athlete to Auto-Fill --</option>
+                {academyStudents.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name} {st.courseName ? `(${st.courseName})` : ''} — Contact: {st.contact}
                   </option>
                 ))}
               </Select>
@@ -848,12 +996,13 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               {selectedAcademyStudentId && (
                 <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Verified Academy Student: Student, Parent & WhatsApp contact auto-filled from database.</span>
+                  <span>Verified Academy Athlete: Customer, Parent &amp; WhatsApp contact auto-filled from database.</span>
                 </div>
               )}
             </div>
           )}
 
+          {/* Customer Name & Parent Name */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">Customer / Reader Name *</label>
@@ -862,13 +1011,13 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                 required
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="Full Name"
+                placeholder="Full Customer Name"
                 className="bg-[#0F172A] border-white/10 text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Parent / Guardian Name</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Parent / Guardian Name (Optional)</label>
               <Input
                 type="text"
                 value={formParent}
@@ -879,9 +1028,10 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
           </div>
 
+          {/* WhatsApp Contact Only (NO EMAIL) & Annual Fee */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp Contact *</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp Contact Number *</label>
               <Input
                 type="text"
                 required
@@ -893,19 +1043,24 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address (Optional)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-400">Annual Publication Fee (₹) *</label>
+                <span className="text-[10px] text-amber-400 font-mono">Standard ₹200</span>
+              </div>
               <Input
-                type="email"
-                value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="customer@example.com"
-                className="bg-[#0F172A] border-white/10 text-white"
+                type="number"
+                min="0"
+                required
+                value={formFee}
+                onChange={(e) => setFormFee(e.target.value)}
+                placeholder="200"
+                className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Publication / Document Title *</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Publication / Book Title *</label>
             <Input
               type="text"
               required
@@ -915,30 +1070,62 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-400">Annual Fee (₹)</label>
-                <span className="text-[10px] text-amber-400 font-mono">Persists (default ₹200)</span>
+          {/* Date Range: Kab Se Kab Tak (Start Date to End Date) */}
+          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-amber-400" />
+                <span>Validity Period (Kab Se Kab Tak) *</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (formStartDate) {
+                    const d = new Date(formStartDate);
+                    d.setFullYear(d.getFullYear() + 1);
+                    setFormEndDate(d.toISOString().split('T')[0]);
+                  }
+                }}
+                className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+              >
+                +1 Year Auto-Fill
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Start Date (Shuruat Ki Date)</label>
+                <Input
+                  type="date"
+                  required
+                  value={formStartDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                />
               </div>
-              <Input
-                type="number"
-                value={formFee}
-                onChange={(e) => handleFeeChange(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
-              />
+
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">End Date / Valid Till (Renewal Date)</label>
+                <Input
+                  type="date"
+                  required
+                  value={formEndDate}
+                  onChange={(e) => setFormEndDate(e.target.value)}
+                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Academic Year</label>
-              <Input
-                type="text"
-                value={formYear}
-                onChange={(e) => setFormYear(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white"
-              />
+            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
+              <span>Customer Validity Preview:</span>
+              <span className="font-semibold text-amber-300">
+                {formatDisplayPeriod(`${formStartDate} to ${formEndDate}`, formEndDate)}
+              </span>
             </div>
+          </div>
 
+          {/* Delivery & Notes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">Delivery Status</label>
               <Select
@@ -946,23 +1133,23 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                 onChange={(e: any) => setFormDelivery(e.target.value)}
                 className="bg-[#0F172A] border-white/10 text-white text-sm"
               >
-                <option value="PENDING">Pending</option>
-                <option value="IN_PRINT">In Print Queue</option>
-                <option value="DISPATCHED">Dispatched Courier</option>
-                <option value="HANDED_OVER">Handed Over</option>
+                <option value="PENDING">⏳ Pending Action</option>
+                <option value="IN_PRINT">🖨️ In Print Queue</option>
+                <option value="DISPATCHED">🚚 Dispatched Courier</option>
+                <option value="HANDED_OVER">✅ Handed Over</option>
               </Select>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Notes / Courier Tracking</label>
-            <Input
-              type="text"
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-              placeholder="e.g. Speed Post Tracking # / Handed over in Dojo"
-              className="bg-[#0F172A] border-white/10 text-white"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Tracking / Delivery Notes</label>
+              <Input
+                type="text"
+                value={formNotes}
+                onChange={(e) => setFormNotes(e.target.value)}
+                placeholder="e.g. Handed over at counter / SpeedPost #"
+                className="bg-[#0F172A] border-white/10 text-white"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
@@ -975,6 +1162,168 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
             >
               {actionLoading ? 'Saving...' : 'Register Customer'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: EDIT PUBLICATION CUSTOMER */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Publication Customer Details"
+      >
+        <form onSubmit={handleUpdateCustomer} className="space-y-4 text-slate-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Customer / Reader Name *</label>
+              <Input
+                type="text"
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-[#0F172A] border-white/10 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Parent / Guardian Name</label>
+              <Input
+                type="text"
+                value={editParent}
+                onChange={(e) => setEditParent(e.target.value)}
+                className="bg-[#0F172A] border-white/10 text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp Contact *</label>
+              <Input
+                type="text"
+                required
+                value={editContact}
+                onChange={(e) => setEditContact(e.target.value)}
+                className="bg-[#0F172A] border-white/10 text-white font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Annual Fee (₹) *</label>
+              <Input
+                type="number"
+                min="0"
+                required
+                value={editFee}
+                onChange={(e) => setEditFee(e.target.value)}
+                className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Publication / Book Title *</label>
+            <Input
+              type="text"
+              required
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="bg-[#0F172A] border-white/10 text-white"
+            />
+          </div>
+
+          {/* Edit Date Range */}
+          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-amber-400" />
+                <span>Validity Period (Kab Se Kab Tak) *</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (editStartDate) {
+                    const d = new Date(editStartDate);
+                    d.setFullYear(d.getFullYear() + 1);
+                    setEditEndDate(d.toISOString().split('T')[0]);
+                  }
+                }}
+                className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+              >
+                +1 Year Auto-Fill
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Start Date</label>
+                <Input
+                  type="date"
+                  required
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">End Date / Valid Till</label>
+                <Input
+                  type="date"
+                  required
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
+              <span>Updated Validity:</span>
+              <span className="font-semibold text-amber-300">
+                {formatDisplayPeriod(`${editStartDate} to ${editEndDate}`, editEndDate)}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Delivery Status</label>
+              <Select
+                value={editDelivery}
+                onChange={(e: any) => setEditDelivery(e.target.value)}
+                className="bg-[#0F172A] border-white/10 text-white text-sm"
+              >
+                <option value="PENDING">⏳ Pending Action</option>
+                <option value="IN_PRINT">🖨️ In Print Queue</option>
+                <option value="DISPATCHED">🚚 Dispatched Courier</option>
+                <option value="HANDED_OVER">✅ Handed Over</option>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Tracking / Delivery Notes</label>
+              <Input
+                type="text"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="e.g. Handed over at counter"
+                className="bg-[#0F172A] border-white/10 text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={actionLoading}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+            >
+              {actionLoading ? 'Saving...' : 'Update Customer'}
             </Button>
           </div>
         </form>
@@ -998,6 +1347,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <Input
               type="number"
               required
+              min="1"
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
               className="bg-[#0F172A] border-white/10 text-white font-mono font-bold text-lg"
@@ -1012,19 +1362,19 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               className="bg-[#0F172A] border-white/10 text-white"
             >
               <option value="UPI">UPI / Google Pay / PhonePe</option>
-              <option value="CASH">Cash in Dojo</option>
-              <option value="RAZORPAY">Razorpay Online</option>
+              <option value="CASH">Cash at Desk</option>
               <option value="BANK_TRANSFER">Direct Bank Transfer (NEFT/IMPS)</option>
+              <option value="RAZORPAY">Razorpay Online</option>
             </Select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Settlement Notes</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Settlement Notes (Optional)</label>
             <Input
               type="text"
               value={payNotes}
               onChange={(e) => setPayNotes(e.target.value)}
-              placeholder="e.g. Annual renewal cleared via UPI ref 109283"
+              placeholder="e.g. Cleared via UPI ref 109283"
               className="bg-[#0F172A] border-white/10 text-white"
             />
           </div>
@@ -1044,127 +1394,53 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         </form>
       </Modal>
 
-      {/* WhatsApp Message Composer Modal for Published Students */}
+      {/* WhatsApp Message Composer Modal for Published Customers */}
       <Modal
         isOpen={isWaComposerOpen}
         onClose={() => setIsWaComposerOpen(false)}
-        title="Compose WhatsApp Message"
-        maxWidth="lg"
+        title={`Custom WhatsApp Composer (${waRecipients.length} Recipient${waRecipients.length > 1 ? 's' : ''})`}
       >
-        <div className="space-y-4">
-          <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <span className="text-slate-400">Recipients: </span>
-              <span className="font-bold text-white">
-                {waRecipients.length === 1
-                  ? `${waRecipients[0].student_name} (${waRecipients[0].contact_number})`
-                  : `${waRecipients.length} Students Selected`}
+        <div className="space-y-4 text-slate-200">
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-1">Recipients Preview</label>
+            <div className="max-h-24 overflow-y-auto p-2 bg-[#0F172A] rounded-lg border border-white/10 text-xs space-y-1">
+              {waRecipients.map((r) => (
+                <div key={r.id} className="flex items-center justify-between">
+                  <span className="font-semibold text-white">{r.student_name}</span>
+                  <span className="font-mono text-slate-400">{r.contact_number}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-400">Message Text *</label>
+              <span className="text-[10px] text-slate-400">
+                Variables: {'{customer_name}'}, {'{publication_title}'}, {'{academic_year}'}, {'{delivery_status}'}, {'{fee_status}'}
               </span>
             </div>
-            {waRecipients.length > 1 && (
-              <span className="text-[11px] text-emerald-400 font-mono">
-                Tokens like &#123;student_name&#125; will be auto-replaced per student
-              </span>
-            )}
-          </div>
-
-          {/* Quick Presets */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">
-              Select Preset or Edit Freely:
-            </label>
-            <Select
-              value=""
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'DELIVERY') {
-                  setWaMessageTemplate(
-                    'Hello {student_name}, your publication materials "{publication_title}" ({academic_year}) are updated! Delivery Status: {delivery_status}. Fee Status: {fee_status}. Please contact Gurukul Sports Academy for queries.'
-                  );
-                } else if (val === 'PICKUP') {
-                  setWaMessageTemplate(
-                    'Namaskar {student_name} ji, your publication guide & kit "{publication_title}" is ready for pickup at the Gurukul Combat Arena reception desk!'
-                  );
-                } else if (val === 'FEE') {
-                  setWaMessageTemplate(
-                    'Hello {student_name}, this is a gentle reminder regarding the publication fee for "{publication_title}" ({academic_year}). Kindly clear pending fee dues at your earliest.'
-                  );
-                } else if (val === 'BLANK') {
-                  setWaMessageTemplate('');
-                }
-              }}
-              className="text-xs bg-[#0F172A] border-white/10 text-white"
-            >
-              <option value="">-- Choose Template Preset or Keep Current --</option>
-              <option value="DELIVERY">Delivery & Fee Status Update</option>
-              <option value="PICKUP">Ready for Pickup Announcement</option>
-              <option value="FEE">Annual Fee Renewal Notice</option>
-              <option value="BLANK">Clear / Blank Message</option>
-            </Select>
-          </div>
-
-          {/* Message Area */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Message Content (Full freedom to edit) *
-            </label>
             <textarea
-              rows={6}
+              rows={4}
               value={waMessageTemplate}
               onChange={(e) => setWaMessageTemplate(e.target.value)}
-              className="w-full text-xs p-3 rounded-xl border border-white/10 bg-[#0F172A] text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none leading-relaxed"
-              placeholder="Write your custom message here..."
+              className="w-full p-2.5 bg-[#0F172A] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
+              placeholder="Type WhatsApp message..."
             />
-            <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
-              <div className="flex gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setWaMessageTemplate((prev) => prev + ' {student_name}')}
-                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
-                >
-                  + &#123;student_name&#125;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWaMessageTemplate((prev) => prev + ' {publication_title}')}
-                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
-                >
-                  + &#123;publication_title&#125;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWaMessageTemplate((prev) => prev + ' {delivery_status}')}
-                  className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px]"
-                >
-                  + &#123;delivery_status&#125;
-                </button>
-              </div>
-              <span>{waMessageTemplate.length} chars</span>
-            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsWaComposerOpen(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => setIsWaComposerOpen(false)}>
               Cancel
             </Button>
             <Button
               type="button"
-              onClick={handleSendWaFromComposer}
               disabled={isSendingBatch || !waMessageTemplate.trim()}
+              onClick={handleSendWaFromComposer}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
             >
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              <span>
-                {isSendingBatch
-                  ? 'Dispatching Messages...'
-                  : waRecipients.length > 1
-                  ? `Send to ${waRecipients.length} Students`
-                  : 'Send WhatsApp'}
-              </span>
+              <Send className="w-4 h-4 mr-1.5" />
+              <span>{isSendingBatch ? 'Sending...' : `Send to ${waRecipients.length} Recipient(s)`}</span>
             </Button>
           </div>
         </div>

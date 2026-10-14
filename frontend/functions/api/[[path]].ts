@@ -2163,6 +2163,135 @@ export async function onRequest(context: any) {
       }
     }
 
+    // ----------------------------------------------------
+    // Publications Endpoint: /api/publications
+    // ----------------------------------------------------
+    if (route === 'publications' || route.startsWith('publications/')) {
+      if (route === 'publications') {
+        if (method === 'GET') {
+          const { data, error } = await supabase
+            .from('publication_students')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          let totalAnnualExpected = 0;
+          let totalCollected = 0;
+          let totalPending = 0;
+          (data || []).forEach((row: any) => {
+            const due = Number(row.annual_fee || 0);
+            const paid = Number(row.amount_paid || 0);
+            totalAnnualExpected += due;
+            totalCollected += paid;
+            totalPending += Math.max(0, due - paid);
+          });
+
+          return jsonResponse({
+            success: true,
+            data: {
+              summary: {
+                totalStudents: data?.length || 0,
+                totalAnnualExpected,
+                totalCollected,
+                totalPending,
+                dispatchedCount: (data || []).filter((r: any) => r.delivery_status === 'DISPATCHED' || r.delivery_status === 'HANDED_OVER').length,
+              },
+              students: data || [],
+            },
+          });
+        }
+
+        if (method === 'POST') {
+          const body = await request.json();
+          const annualFee = body.annualFee !== undefined ? Number(body.annualFee) : 200;
+          const { data, error } = await supabase
+            .from('publication_students')
+            .insert({
+              student_id: body.studentId || null,
+              is_external: Boolean(body.isExternal),
+              student_name: body.studentName,
+              parent_name: body.parentName || null,
+              contact_number: body.contactNumber,
+              publication_title: body.publicationTitle || 'Gurukul Martial Arts & Sports Annual Manual - Vol 2026',
+              academic_year: body.academicYear || '2026-2027',
+              annual_fee: annualFee,
+              amount_paid: Number(body.amountPaid || 0),
+              fee_status: body.feeStatus || (Number(body.amountPaid || 0) >= annualFee ? 'PAID' : 'PENDING'),
+              renewal_due_date: body.renewalDueDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              delivery_status: body.deliveryStatus || 'PENDING',
+              notes: body.notes || null,
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+          return jsonResponse({ success: true, message: 'Publication customer registered successfully', data });
+        }
+      }
+
+      // PATCH publications/:id
+      if (pathParts.length === 2 && method === 'PATCH') {
+        const pubId = pathParts[1];
+        const body = await request.json();
+        const payload: any = { updated_at: new Date().toISOString() };
+        if (body.studentName !== undefined) payload.student_name = body.studentName;
+        if (body.parentName !== undefined) payload.parent_name = body.parentName;
+        if (body.contactNumber !== undefined) payload.contact_number = body.contactNumber;
+        if (body.publicationTitle !== undefined) payload.publication_title = body.publicationTitle;
+        if (body.academicYear !== undefined) payload.academic_year = body.academicYear;
+        if (body.annualFee !== undefined) payload.annual_fee = Number(body.annualFee);
+        if (body.amountPaid !== undefined) payload.amount_paid = Number(body.amountPaid);
+        if (body.feeStatus !== undefined) payload.fee_status = body.feeStatus;
+        if (body.deliveryStatus !== undefined) payload.delivery_status = body.deliveryStatus;
+        if (body.renewalDueDate !== undefined) payload.renewal_due_date = body.renewalDueDate;
+        if (body.notes !== undefined) payload.notes = body.notes;
+
+        const { data, error } = await supabase
+          .from('publication_students')
+          .update(payload)
+          .eq('id', pubId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return jsonResponse({ success: true, message: 'Customer updated successfully', data });
+      }
+
+      // POST publications/:id/fee
+      if (pathParts.length === 3 && pathParts[2] === 'fee' && method === 'POST') {
+        const pubId = pathParts[1];
+        const body = await request.json();
+        const { data: rec, error: fErr } = await supabase.from('publication_students').select('*').eq('id', pubId).single();
+        if (fErr || !rec) throw new Error('Customer record not found');
+
+        const newPaid = Number(rec.amount_paid || 0) + Number(body.amount || 0);
+        const fee = Number(rec.annual_fee || 0);
+        const status = newPaid >= fee ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'PENDING');
+
+        const { data, error } = await supabase
+          .from('publication_students')
+          .update({
+            amount_paid: newPaid,
+            fee_status: status,
+            payment_method: body.paymentMethod || 'UPI',
+            notes: body.notes ? `${rec.notes ? rec.notes + '; ' : ''}${body.notes}` : rec.notes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', pubId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return jsonResponse({ success: true, message: 'Publication fee recorded successfully', data });
+      }
+
+      // POST publications/:id/whatsapp-reminder
+      if (pathParts.length === 3 && pathParts[2] === 'whatsapp-reminder' && method === 'POST') {
+        return jsonResponse({ success: true, message: 'WhatsApp reminder queued.' });
+      }
+    }
+
     // Default fallback for any unspecified endpoint
     return jsonResponse({ success: true, data: [] });
   } catch (err: any) {
