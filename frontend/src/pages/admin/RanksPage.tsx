@@ -19,6 +19,11 @@ import {
   Palette,
   Settings2,
   Tag,
+  ChevronUp,
+  ChevronDown,
+  Check,
+  X,
+  ArrowUpDown,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -306,13 +311,95 @@ export const RanksPage: React.FC = () => {
     setNewCategoryName('');
   };
 
+  const [editingCategory, setEditingCategory] = useState<{ id: string; name: string; group: string } | null>(null);
+
   const handleDeleteCategory = (catId: string, catName: string) => {
+    if (!window.confirm(`Are you sure you want to remove belt category "${catName}"?`)) return;
     const updated = customBeltCategories.filter((c) => c.id !== catId);
     setCustomBeltCategories(updated);
     try {
       localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
     } catch (e) {}
-    toast.info(`Category "${catName}" removed.`);
+    toast.success(`Category "${catName}" deleted.`);
+  };
+
+  const handleMoveCategory = (catId: string, direction: 'UP' | 'DOWN') => {
+    const index = customBeltCategories.findIndex((c) => c.id === catId);
+    if (index === -1) return;
+    const targetIndex = direction === 'UP' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= customBeltCategories.length) return;
+
+    const updated = [...customBeltCategories];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+
+    setCustomBeltCategories(updated);
+    try {
+      localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
+    } catch (e) {}
+    toast.success(`Category sequence (kram) updated!`);
+  };
+
+  const handleSaveEditCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory || !editingCategory.name.trim()) return;
+    const trimmed = editingCategory.name.trim();
+    const updated = customBeltCategories.map((c) =>
+      c.id === editingCategory.id
+        ? { ...c, name: trimmed, group: editingCategory.group }
+        : c
+    );
+    setCustomBeltCategories(updated);
+    try {
+      localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
+    } catch (e) {}
+    toast.success(`Category "${trimmed}" updated!`);
+    setEditingCategory(null);
+  };
+
+  const handleMoveRankOrder = async (rank: MartialRank, direction: 'UP' | 'DOWN') => {
+    const disciplineRanks = allRanks
+      .filter((r) => r.discipline_code === rank.discipline_code)
+      .sort((a, b) => a.rank_order - b.rank_order);
+
+    const currentIndex = disciplineRanks.findIndex((r) => r.id === rank.id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === 'UP' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= disciplineRanks.length) return;
+
+    const targetRank = disciplineRanks[targetIndex];
+
+    try {
+      const currentOrder = rank.rank_order;
+      const targetOrder = targetRank.rank_order;
+
+      // Optimistic update
+      setAllRanks((prev) =>
+        prev.map((r) => {
+          if (r.id === rank.id) return { ...r, rank_order: targetOrder };
+          if (r.id === targetRank.id) return { ...r, rank_order: currentOrder };
+          return r;
+        })
+      );
+
+      await Promise.all([
+        apiClient(`/ranks/${rank.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ rankOrder: targetOrder }),
+        }),
+        apiClient(`/ranks/${targetRank.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ rankOrder: currentOrder }),
+        }),
+      ]);
+
+      toast.success(`Kram (order) updated for "${rank.rank_name}"!`);
+      await fetchRanks();
+    } catch (err: any) {
+      toast.error('Failed to update rank order');
+      await fetchRanks();
+    }
   };
 
   const handleResetCategories = () => {
@@ -1218,10 +1305,28 @@ export const RanksPage: React.FC = () => {
                     .sort((a, b) => a.rank_order - b.rank_order)
                     .map((rank) => (
                       <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-emerald-500/40 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {rank.rank_order}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-center flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'UP')}
+                              className="text-slate-500 hover:text-emerald-400 p-0.5 -mb-1 transition-colors"
+                              title="Kram Upar (Move Up in Hierarchy)"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center">
+                              {rank.rank_order}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                              className="text-slate-500 hover:text-emerald-400 p-0.5 -mt-1 transition-colors"
+                              title="Kram Niche (Move Down in Hierarchy)"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <div>
                             <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
                             <span className="text-[11px] text-slate-400">{rank.description || 'Form & Stance Mastery'}</span>
@@ -1279,10 +1384,28 @@ export const RanksPage: React.FC = () => {
                     .sort((a, b) => a.rank_order - b.rank_order)
                     .map((rank) => (
                       <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-amber-500/40 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {rank.rank_order}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-center flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'UP')}
+                              className="text-slate-500 hover:text-amber-400 p-0.5 -mb-1 transition-colors"
+                              title="Kram Upar (Move Up in Hierarchy)"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center">
+                              {rank.rank_order}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                              className="text-slate-500 hover:text-amber-400 p-0.5 -mt-1 transition-colors"
+                              title="Kram Niche (Move Down in Hierarchy)"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <div>
                             <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
                             <span className="text-[11px] text-slate-400">{rank.description || 'Kata, Kumite & Stances'}</span>
@@ -1340,10 +1463,28 @@ export const RanksPage: React.FC = () => {
                     .sort((a, b) => a.rank_order - b.rank_order)
                     .map((rank) => (
                       <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-purple-500/40 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {rank.rank_order}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-center flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'UP')}
+                              className="text-slate-500 hover:text-purple-400 p-0.5 -mb-1 transition-colors"
+                              title="Kram Upar (Move Up in Hierarchy)"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 font-bold text-xs flex items-center justify-center">
+                              {rank.rank_order}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                              className="text-slate-500 hover:text-purple-400 p-0.5 -mt-1 transition-colors"
+                              title="Kram Niche (Move Down in Hierarchy)"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <div>
                             <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
                             <span className="text-[11px] text-slate-400">{rank.description || 'Dual Art Mastery'}</span>
@@ -1406,10 +1547,28 @@ export const RanksPage: React.FC = () => {
                       .sort((a, b) => a.rank_order - b.rank_order)
                       .map((rank) => (
                         <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-rose-500/40 transition-colors">
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                              {rank.rank_order}
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-center flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRankOrder(rank, 'UP')}
+                                className="text-slate-500 hover:text-rose-400 p-0.5 -mb-1 transition-colors"
+                                title="Kram Upar (Move Up in Hierarchy)"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 font-bold text-xs flex items-center justify-center">
+                                {rank.rank_order}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                                className="text-slate-500 hover:text-rose-400 p-0.5 -mt-1 transition-colors"
+                                title="Kram Niche (Move Down in Hierarchy)"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                             <div>
                               <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
                               <span className="text-[11px] text-slate-400">{rank.description || 'Striking & Pad Work'}</span>
@@ -1473,10 +1632,28 @@ export const RanksPage: React.FC = () => {
                       .sort((a, b) => a.rank_order - b.rank_order)
                       .map((rank) => (
                         <div key={rank.id} className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex items-center justify-between group hover:border-sky-500/40 transition-colors">
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                              {rank.rank_order}
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-center flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRankOrder(rank, 'UP')}
+                                className="text-slate-500 hover:text-sky-400 p-0.5 -mb-1 transition-colors"
+                                title="Kram Upar (Move Up in Hierarchy)"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-300 font-bold text-xs flex items-center justify-center">
+                                {rank.rank_order}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRankOrder(rank, 'DOWN')}
+                                className="text-slate-500 hover:text-sky-400 p-0.5 -mt-1 transition-colors"
+                                title="Kram Niche (Move Down in Hierarchy)"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                             <div>
                               <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
                               <span className="text-[11px] text-slate-400">{rank.description || 'Flexibility & Tumbling'}</span>
@@ -2044,38 +2221,137 @@ export const RanksPage: React.FC = () => {
             </div>
           </form>
 
-          {/* List of Categories */}
-          <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1">
+          {/* Edit Category Form (when an item is selected for editing) */}
+          {editingCategory && (
+            <form onSubmit={handleSaveEditCategory} className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit Belt / Category Name &amp; Group
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setEditingCategory(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="sm:col-span-2">
+                  <input
+                    type="text"
+                    required
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    className="w-full bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <select
+                    value={editingCategory.group}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, group: e.target.value })}
+                    className="w-full bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="Custom / Academy">Custom / Academy</option>
+                    <option value="Standard Belts">Standard Belts</option>
+                    <option value="Kalari Sashes">Kalari Sashes</option>
+                    <option value="Dual Combinations">Dual Combinations</option>
+                    <option value="Kyu / Dan Grades">Kyu / Dan Grades</option>
+                    <option value="Specialty Ranks">Specialty Ranks</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400">Live Preview:</span>
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(editingCategory.name)}`}>
+                    {editingCategory.name || 'Preview'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingCategory(null)}
+                    className="text-xs py-1 px-3"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-1 px-3.5"
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* List of Categories with Reorder (Kram) & Delete on ALL */}
+          <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
             {Array.from(new Set(customBeltCategories.map((c) => c.group))).map((groupName) => (
               <div key={groupName} className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  {groupName} ({customBeltCategories.filter((c) => c.group === groupName).length})
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    {groupName} ({customBeltCategories.filter((c) => c.group === groupName).length})
+                  </span>
+                  <span className="text-[9px] text-slate-500 flex items-center gap-1">
+                    <ArrowUpDown className="w-2.5 h-2.5" /> Kram Badalne Ke Liye Teer (↑/↓) Dabayein
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {customBeltCategories
                     .filter((c) => c.group === groupName)
-                    .map((cat) => (
+                    .map((cat, idx, arr) => (
                       <div
                         key={cat.id}
-                        className="p-2 rounded-lg bg-slate-900/60 border border-white/5 flex items-center justify-between gap-1 group hover:border-white/20 transition-all"
+                        className="p-2.5 rounded-lg bg-slate-900/80 border border-white/10 flex items-center justify-between gap-2 group hover:border-amber-500/40 transition-all shadow-sm"
                       >
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded border truncate ${getBeltBadgeClass(cat.name)}`}>
-                          {cat.name}
-                        </span>
-                        {cat.isCustom ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded border shadow-sm ${getBeltBadgeClass(cat.name)}`}>
+                            {cat.name}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCategory(cat.id, 'UP')}
+                            disabled={idx === 0}
+                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                            title="Move Up (Kram Upar)"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCategory(cat.id, 'DOWN')}
+                            disabled={idx === arr.length - 1}
+                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                            title="Move Down (Kram Niche)"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCategory({ id: cat.id, name: cat.name, group: cat.group })}
+                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors ml-1"
+                            title={`Edit "${cat.name}"`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                            className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-white/5 transition-colors"
-                            title={`Delete custom category "${cat.name}"`}
+                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                            title={`Delete category "${cat.name}"`}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        ) : (
-                          <span className="text-[9px] text-slate-600 uppercase tracking-tighter px-1">
-                            Default
-                          </span>
-                        )}
+                        </div>
                       </div>
                     ))}
                 </div>
