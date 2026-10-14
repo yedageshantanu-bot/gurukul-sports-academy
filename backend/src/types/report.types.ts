@@ -38,8 +38,19 @@ export type PaymentsReportFilterQuery = z.infer<typeof paymentsReportFilterSchem
 export const createAnnouncementSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title cannot exceed 200 characters'),
   message: z.string().min(1, 'Message is required').max(2000, 'Message cannot exceed 2000 characters'),
-  batchIds: z.array(z.string().uuid('Valid batch ID is required')).min(1, 'At least one target batch must be selected'),
-});
+  batchIds: z.array(z.string().uuid('Valid batch ID is required')).default([]),
+  tournamentIds: z.array(z.string().uuid()).optional(),
+  metadata: z.record(z.any()).optional(),
+}).refine(
+  (data) =>
+    (Array.isArray(data.batchIds) && data.batchIds.length > 0) ||
+    (Array.isArray(data.tournamentIds) && data.tournamentIds.length > 0) ||
+    (Array.isArray(data.metadata?.tournamentIds) && data.metadata.tournamentIds.length > 0),
+  {
+    message: 'At least one target batch or tournament must be selected',
+    path: ['batchIds'],
+  }
+);
 
 export type CreateAnnouncementDTO = z.infer<typeof createAnnouncementSchema>;
 

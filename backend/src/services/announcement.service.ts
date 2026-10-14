@@ -16,6 +16,11 @@ export class AnnouncementService {
   // 1. CREATE ANNOUNCEMENT (Admin Only)
   // ============================================================================
   async createAnnouncement(dto: CreateAnnouncementDTO, createdByUserId?: string) {
+    const metadata = {
+      ...(dto.metadata || {}),
+      tournamentIds: (dto as any).tournamentIds || dto.metadata?.tournamentIds || [],
+    };
+
     // 1. Insert announcement header
     const { data: announcement, error: insertErr } = await this.supabase
       .from('announcements')
@@ -25,6 +30,7 @@ export class AnnouncementService {
         created_by: createdByUserId ?? null,
         priority: 'NORMAL',
         scope: 'ALL',
+        metadata,
       })
       .select()
       .single();
@@ -33,18 +39,21 @@ export class AnnouncementService {
       throw new AppError(`Failed to create announcement: ${insertErr?.message}`, 500);
     }
 
-    // 2. Link target batches
-    const batchLinks = dto.batchIds.map((batchId) => ({
-      announcement_id: announcement.id,
-      batch_id: batchId,
-    }));
+    // 2. Link target batches if provided
+    const batchIds = dto.batchIds || [];
+    if (batchIds.length > 0) {
+      const batchLinks = batchIds.map((batchId) => ({
+        announcement_id: announcement.id,
+        batch_id: batchId,
+      }));
 
-    const { error: linkErr } = await this.supabase
-      .from('announcement_batches')
-      .insert(batchLinks);
+      const { error: linkErr } = await this.supabase
+        .from('announcement_batches')
+        .insert(batchLinks);
 
-    if (linkErr) {
-      throw new AppError(`Failed to target announcement batches: ${linkErr.message}`, 500);
+      if (linkErr) {
+        throw new AppError(`Failed to target announcement batches: ${linkErr.message}`, 500);
+      }
     }
 
     return this.getAnnouncementById(announcement.id);
@@ -76,6 +85,7 @@ export class AnnouncementService {
         message,
         priority,
         scope,
+        metadata,
         created_at,
         updated_at,
         created_by,
@@ -118,6 +128,7 @@ export class AnnouncementService {
         message,
         priority,
         scope,
+        metadata,
         created_at,
         updated_at,
         created_by,
@@ -163,41 +174,74 @@ export class AnnouncementService {
   // ============================================================================
   async sendAnnouncement(
     id: string,
-    options?: { scheduledTime?: string; includeTwoWayPrompt?: boolean }
+    options?: { scheduledTime?: string; includeTwoWayPrompt?: boolean; tournamentIds?: string[] }
   ) {
-    // 1. Fetch announcement with batches
+    // 1. Fetch announcement with batches and metadata
     const announcement = await this.getAnnouncementById(id);
 
     const targetedBatchIds = (announcement.batches || [])
       .map((b: any) => b.batch?.id)
       .filter(Boolean);
 
-    if (targetedBatchIds.length === 0) {
-      throw new AppError('Cannot send announcement without targeted batches', 400, 'INVALID_ANNOUNCEMENT_TARGET');
-    }
+    const targetedTournamentIds = (
+      (announcement.metadata as any)?.tournamentIds ||
+      options?.tournamentIds ||
+      []
+    ).filter(Boolean);
 
-    // 2. Fetch active students in target batches
-    const { data: batchStudents, error: bsError } = await this.supabase
-      .from('batch_students')
-      .select(`
-        student:students(id, name, parent_whatsapp, student_mobile, status)
-      `)
-      .in('batch_id', targetedBatchIds);
-
-    if (bsError) {
-      throw new AppError(`Failed to fetch students in target batches: ${bsError.message}`, 500);
+    if (targetedBatchIds.length === 0 && targetedTournamentIds.length === 0) {
+      throw new AppError('Cannot send announcement without targeted batches or tournaments', 400, 'INVALID_ANNOUNCEMENT_TARGET');
     }
 
     // Deduplicate students by ID
     const studentMap = new Map<string, any>();
-    for (const row of batchStudents || []) {
-      const st = row.student as any;
-      if (st && st.status === 'ACTIVE' && !studentMap.has(st.id)) {
-        studentMap.set(st.id, st);
+
+    // 2a. Fetch active students in target batches
+    if (targetedBatchIds.length > 0) {
+      const { data: batchStudents, error: bsError } = await this.supabase
+        .from('batch_students')
+        .select(`
+          student:students(id, name, parent_whatsapp, student_mobile, status)
+        `)
+        .in('batch_id', targetedBatchIds);
+
+      if (bsError) {
+        throw new AppError(`Failed to fetch students in target batches: ${bsError.message}`, 500);
+      }
+
+      for (const row of batchStudents || []) {
+        const st = row.student as any;
+        if (st && st.status === 'ACTIVE' && !studentMap.has(st.id)) {
+          studentMap.set(st.id, st);
+        }
+      }
+    }
+
+    // 2b. Fetch active students registered in targeted tournaments
+    if (targetedTournamentIds.length > 0) {
+      const { data: tourRegs, error: trError } = await this.supabase
+        .from('tournament_registrations')
+        .select(`
+          student:students(id, name, parent_whatsapp, student_mobile, status)
+        `)
+        .in('tournament_id', targetedTournamentIds);
+
+      if (trError) {
+        console.warn('[AnnouncementService] Failed to fetch tournament students:', trError.message);
+      }
+
+      for (const row of tourRegs || []) {
+        const st = row.student as any;
+        if (st && st.status === 'ACTIVE' && !studentMap.has(st.id)) {
+          studentMap.set(st.id, st);
+        }
       }
     }
 
     const students = Array.from(studentMap.values());
+    if (students.length === 0) {
+      throw new AppError('No active athletes found in the selected target batches or tournaments', 400);
+    }
 
     // Fetch dynamic academy name
     const { data: academy } = await supabaseAdmin
@@ -288,14 +332,22 @@ export class AnnouncementService {
   // ============================================================================
   // 5. UPDATE ANNOUNCEMENT (Admin Only)
   // ============================================================================
-  async updateAnnouncement(id: string, dto: { title?: string; message?: string; batchIds?: string[] }) {
-    await this.getAnnouncementById(id);
+  async updateAnnouncement(id: string, dto: { title?: string; message?: string; batchIds?: string[]; tournamentIds?: string[]; metadata?: Record<string, any> }) {
+    const existing = await this.getAnnouncementById(id);
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
     if (dto.title !== undefined) updates.title = dto.title;
     if (dto.message !== undefined) updates.message = dto.message;
+    if (dto.metadata !== undefined || dto.tournamentIds !== undefined) {
+      const existingMeta = (existing as any)?.metadata || {};
+      updates.metadata = {
+        ...existingMeta,
+        ...(dto.metadata || {}),
+        tournamentIds: dto.tournamentIds !== undefined ? dto.tournamentIds : (dto.metadata?.tournamentIds ?? existingMeta.tournamentIds ?? []),
+      };
+    }
 
     const { error: updateErr } = await this.supabase
       .from('announcements')

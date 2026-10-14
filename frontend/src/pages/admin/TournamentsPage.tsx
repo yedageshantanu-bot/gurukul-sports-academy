@@ -56,6 +56,7 @@ interface TournamentRegistration {
   amount_paid: number;
   payment_status: 'PAID' | 'PENDING' | 'WAIVED';
   payment_method: string | null;
+  payment_date?: string | null;
   selection_status: 'REGISTERED' | 'SELECTED' | 'CONFIRMED' | 'WITHDRAWN';
   whatsapp_notified: boolean;
   notified_at: string | null;
@@ -100,6 +101,12 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedRegForPay, setSelectedRegForPay] = useState<TournamentRegistration | null>(null);
 
+  // Tournament WhatsApp broadcast modal state
+  const [isTournamentBroadcastOpen, setIsTournamentBroadcastOpen] = useState(false);
+  const [broadcastFilter, setBroadcastFilter] = useState<'ALL' | 'PENDING_FEE' | 'SELECTED'>('PENDING_FEE');
+  const [broadcastCustomMessage, setBroadcastCustomMessage] = useState('');
+  const [broadcasting, setBroadcasting] = useState(false);
+
   // Form states - Create Tournament
   const [formData, setFormData] = useState({
     title: '',
@@ -121,6 +128,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
   // Payment settle state
   const [payAmount, setPayAmount] = useState('');
+  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [payMethod, setPayMethod] = useState<'UPI' | 'CASH' | 'RAZORPAY' | 'BANK_TRANSFER'>('UPI');
   const [payRef, setPayRef] = useState('');
   const [settling, setSettling] = useState(false);
@@ -149,23 +157,23 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         created_at: t.created_at || '',
         registrationCount: Number(t.registrationCount ?? t.stats?.participants ?? 0),
         totalCollected: Number(t.totalCollected ?? t.stats?.collected ?? 0),
+        totalPending: Number(t.totalPending ?? t.stats?.pending ?? 0),
       }));
       setTournaments(list);
-      if (res?.summary) {
-        setSummary(res.summary);
-      } else {
-        const totalTournaments = list.length;
-        const upcomingCount = list.filter((t) => t.status === 'UPCOMING').length;
-        const totalAthletesNominated = list.reduce((acc, t) => acc + (t.registrationCount || 0), 0);
-        const totalRevenueCollected = list.reduce((acc, t) => acc + (t.totalCollected || 0), 0);
-        setSummary({
-          totalTournaments,
-          upcomingCount,
-          totalAthletesNominated,
-          totalRevenueCollected,
-          totalDuesPending: 0,
-        });
-      }
+
+      const totalTournaments = list.length;
+      const upcomingCount = list.filter((t) => t.status === 'UPCOMING').length;
+      const totalAthletesNominated = list.reduce((acc, t) => acc + (t.registrationCount || 0), 0);
+      const totalRevenueCollected = list.reduce((acc, t) => acc + (t.totalCollected || 0), 0);
+      const computedDuesPending = list.reduce((acc, t: any) => acc + (t.totalPending ?? t.stats?.pending ?? 0), 0);
+
+      setSummary({
+        totalTournaments: res?.summary?.totalTournaments ?? totalTournaments,
+        upcomingCount: res?.summary?.upcomingCount ?? upcomingCount,
+        totalAthletesNominated: res?.summary?.totalAthletesNominated ?? totalAthletesNominated,
+        totalRevenueCollected: res?.summary?.totalRevenueCollected ?? totalRevenueCollected,
+        totalDuesPending: res?.summary?.totalDuesPending !== undefined ? Number(res.summary.totalDuesPending) : computedDuesPending,
+      });
     } catch (err) {
       console.error('Failed to load tournaments:', err);
     } finally {
@@ -194,6 +202,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         amount_paid: Number(r.amount_paid || 0),
         payment_status: r.payment_status || 'PENDING',
         payment_method: r.payment_method || null,
+        payment_date: r.payment_date || null,
         selection_status: r.selection_status || 'REGISTERED',
         whatsapp_notified: Boolean(r.whatsapp_notified),
         notified_at: r.notified_at || null,
@@ -334,6 +343,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           amount_paid: paid,
           payment_status: status,
           payment_method: payMethod,
+          payment_date: payDate,
           transaction_ref: payRef || undefined,
         }),
       });
@@ -358,18 +368,43 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const handleSendWhatsAppNotification = async (registrationId: string) => {
     try {
       setNotifyingRegId(registrationId);
-      await apiClient(`/tournaments/registrations/${registrationId}/notify`, {
+      const res: any = await apiClient(`/tournaments/registrations/${registrationId}/notify`, {
         method: 'POST',
       });
       if (selectedTournament) {
         fetchRegistrations(selectedTournament.id);
       }
-      toast.success('WhatsApp selection reminder queued successfully!');
-    } catch (err) {
+      toast.success(res?.message || 'WhatsApp selection reminder queued successfully!');
+    } catch (err: any) {
       console.error('Failed to dispatch notification:', err);
-      toast.error('Failed to send WhatsApp alert.');
+      toast.error(err.message || 'Failed to send WhatsApp alert.');
     } finally {
       setNotifyingRegId(null);
+    }
+  };
+
+  const handleBroadcastTournamentWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTournament) return;
+    try {
+      setBroadcasting(true);
+      const res: any = await apiClient(`/tournaments/${selectedTournament.id}/broadcast`, {
+        method: 'POST',
+        body: JSON.stringify({
+          recipientFilter: broadcastFilter,
+          customMessage: broadcastCustomMessage.trim() || undefined,
+        }),
+      });
+      toast.success(res?.message || 'Tournament WhatsApp alert successfully broadcasted!');
+      setIsTournamentBroadcastOpen(false);
+      setBroadcastCustomMessage('');
+      fetchRegistrations(selectedTournament.id);
+      fetchTournaments();
+    } catch (err: any) {
+      console.error('Broadcast failed:', err);
+      toast.error(err.message || 'Failed to dispatch WhatsApp broadcast.');
+    } finally {
+      setBroadcasting(false);
     }
   };
 
@@ -657,6 +692,18 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={() => {
+                      setBroadcastFilter('PENDING_FEE');
+                      setBroadcastCustomMessage('');
+                      setIsTournamentBroadcastOpen(true);
+                    }}
+                    disabled={registrations.length === 0}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 shadow-md flex items-center disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    WhatsApp Notice &amp; Deadline
+                  </Button>
+                  <Button
+                    onClick={() => {
                       setSelectedStudentIds([]);
                       setIsNominateModalOpen(true);
                     }}
@@ -676,17 +723,40 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 </div>
               )}
 
-              {/* Nominated Athletes Table */}
+              {/* Nominated Athletes Table with Financial Summary Bar */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="w-4 h-4 text-amber-400" />
-                    Nominated Athletes Roster ({registrations.length})
-                  </h3>
-                  <span className="text-xs text-slate-400">
-                    Registration Fee: ₹{Number(selectedTournament.entry_fee || 0).toLocaleString('en-IN')} / athlete
-                  </span>
-                </div>
+                {(() => {
+                  const tournamentExpected = registrations.reduce((acc, r) => acc + Number(r.fee_amount || 0), 0);
+                  const tournamentCollected = registrations.reduce((acc, r) => acc + Number(r.amount_paid || 0), 0);
+                  const tournamentPending = Math.max(0, tournamentExpected - tournamentCollected);
+
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3 p-3 bg-slate-900/80 rounded-xl border border-white/10 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-amber-400" />
+                        <h3 className="text-sm font-bold text-white">
+                          Nominated Athletes Roster ({registrations.length})
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/5 text-slate-300">
+                          Total Fee: <strong className="text-white">₹{tournamentExpected.toLocaleString('en-IN')}</strong>
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                          Collected: <strong className="text-emerald-400">₹{tournamentCollected.toLocaleString('en-IN')}</strong>
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-lg border font-bold flex items-center gap-1.5 shadow-sm ${
+                          tournamentPending > 0
+                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse'
+                            : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                        }`}>
+                          {tournamentPending > 0 ? <AlertCircle className="w-3.5 h-3.5 text-rose-400" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                          Pending Dues: ₹{tournamentPending.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {loadingRegistrations ? (
                   <SkeletonLoader rows={3} />
@@ -734,13 +804,19 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                                 <span className="font-semibold text-white">₹{reg.amount_paid}</span>
                                 <span className="text-slate-500"> / ₹{reg.fee_amount}</span>
                               </div>
-                              <span className={`text-[10px] font-bold uppercase ${
+                              <span className={`text-[10px] font-bold uppercase block mt-0.5 ${
                                 reg.payment_status === 'PAID'
                                   ? 'text-emerald-400'
                                   : 'text-rose-400'
                               }`}>
-                                {reg.payment_status}
+                                {reg.payment_status === 'PAID' ? 'PAID' : `PENDING (₹${Math.max(0, reg.fee_amount - reg.amount_paid)} DUE)`}
                               </span>
+                              {reg.payment_date && (
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <Clock className="w-2.5 h-2.5 text-amber-400/80" />
+                                  Paid: {new Date(reg.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                              )}
                             </td>
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-1.5">
@@ -768,7 +844,9 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                                 <Button
                                   onClick={() => {
                                     setSelectedRegForPay(reg);
-                                    setPayAmount(String(reg.fee_amount - reg.amount_paid));
+                                    const remaining = Math.max(0, reg.fee_amount - reg.amount_paid);
+                                    setPayAmount(String(remaining > 0 ? remaining : reg.fee_amount));
+                                    setPayDate(new Date().toISOString().split('T')[0]);
                                     setIsPayModalOpen(true);
                                   }}
                                   className="bg-slate-800 hover:bg-slate-700 text-white text-[11px] py-1 px-2.5 border border-white/10"
@@ -1186,17 +1264,29 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             Tournament Entry Fee: <strong>₹{selectedRegForPay?.fee_amount}</strong> | Already Paid: <strong>₹{selectedRegForPay?.amount_paid}</strong>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Amount to Settle (₹) *</label>
-            <input
-              type="number"
-              required
-              min="0"
-              max={selectedRegForPay?.fee_amount}
-              value={payAmount}
-              onChange={(e) => setPayAmount(e.target.value)}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Amount to Settle (₹) *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                max={selectedRegForPay?.fee_amount}
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Payment Date *</label>
+              <input
+                type="date"
+                required
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -1238,6 +1328,171 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
             >
               {settling ? 'Updating...' : 'Confirm Fee Settlement'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL 4: Tournament WhatsApp Broadcast & Deadline Alerts */}
+      <Modal
+        isOpen={isTournamentBroadcastOpen}
+        onClose={() => setIsTournamentBroadcastOpen(false)}
+        title={`WhatsApp Notice: ${selectedTournament?.title || 'Tournament'}`}
+      >
+        <form onSubmit={handleBroadcastTournamentWhatsApp} className="space-y-4">
+          <div className="p-3 bg-gradient-to-r from-indigo-500/10 via-amber-500/10 to-transparent border border-indigo-500/20 rounded-xl text-xs text-slate-300 space-y-1">
+            <div className="flex items-center gap-2 text-white font-bold">
+              <Send className="w-4 h-4 text-indigo-400" />
+              <span>Official WhatsApp Athlete &amp; Parent Broadcast</span>
+            </div>
+            <p className="text-slate-400 text-[11px]">
+              Sends queued WhatsApp alerts directly to registered athletes with 16s anti-ban throttle. Includes tournament dates, venue, entry fee balance, and fee deadline reminder.
+            </p>
+          </div>
+
+          {/* Filter selection */}
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+              Target Audience
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setBroadcastFilter('PENDING_FEE')}
+                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
+                  broadcastFilter === 'PENDING_FEE'
+                    ? 'bg-rose-500/10 border-rose-500/50 text-rose-300 shadow-sm'
+                    : 'bg-[#0F172A] border-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="block font-bold text-white">Pending Dues Only</span>
+                <span className="text-[10px] text-slate-400">
+                  {registrations.filter((r) => r.payment_status !== 'PAID').length} athletes with unpaid fee
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBroadcastFilter('ALL')}
+                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
+                  broadcastFilter === 'ALL'
+                    ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-300 shadow-sm'
+                    : 'bg-[#0F172A] border-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="block font-bold text-white">All Athletes</span>
+                <span className="text-[10px] text-slate-400">
+                  All {registrations.length} nominated athletes
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBroadcastFilter('SELECTED')}
+                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
+                  broadcastFilter === 'SELECTED'
+                    ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 shadow-sm'
+                    : 'bg-[#0F172A] border-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="block font-bold text-white">Selected Squad</span>
+                <span className="text-[10px] text-slate-400">
+                  {registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length} confirmed athletes
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Presets */}
+          <div>
+            <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+              Quick Message Templates:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setBroadcastCustomMessage(
+                    `⚠️ *Urgent: Tournament Entry Fee Deadline - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nThis is a reminder that your entry fee for *{tournament_name}* has a pending balance of *{due_amount}*.\n\n• Final Deadline: *{deadline}*\n• Event Venue: {venue}\n\nPlease clear the fee at the dojo desk or online before the deadline to secure your registration.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
+                  )
+                }
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-rose-300 border border-white/10"
+              >
+                ⚠️ Payment Deadline Reminder
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setBroadcastCustomMessage(
+                    `🏆 *Tournament Selection & Registration Notice - Gurukul Sports Academy*\n\nCongratulations {student_name}! You have been officially nominated for *{tournament_name}* at {venue}.\n\n• Registration Fee: {due_amount}\n• Fee Deadline: *{deadline}*\n\nPlease confirm your participation and collect official academy gear.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
+                  )
+                }
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 border border-white/10"
+              >
+                🏆 Selection &amp; Welcome Notice
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setBroadcastCustomMessage(
+                    `🥊 *Tournament Schedule & Weigh-In Notice - Gurukul Sports Academy*\n\nDear {student_name},\n\nPlease report on time in official academy uniform for *{tournament_name}* at {venue}. Ensure you carry your valid student ID card and protective equipment.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
+                  )
+                }
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-indigo-300 border border-white/10"
+              >
+                🥊 Schedule &amp; Uniform Notice
+              </button>
+            </div>
+          </div>
+
+          {/* Custom Message Area */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-300">
+                Message Body (Customizable)
+              </label>
+              <span className="text-[10px] text-slate-500">
+                Tokens: {'{student_name}'}, {'{tournament_name}'}, {'{deadline}'}, {'{due_amount}'}, {'{venue}'}
+              </span>
+            </div>
+            <textarea
+              rows={5}
+              placeholder="Leave empty to use automatic standard notice, or customize your announcement here..."
+              value={broadcastCustomMessage}
+              onChange={(e) => setBroadcastCustomMessage(e.target.value)}
+              className="w-full bg-[#0F172A] border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+            />
+          </div>
+
+          <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>
+              Payment Deadline: <strong className="text-amber-400">{selectedTournament?.registration_deadline ? new Date(selectedTournament.registration_deadline).toLocaleDateString('en-IN') : 'TBA'}</strong>
+            </span>
+            <span>
+              Target Count: <strong className="text-white">
+                {broadcastFilter === 'PENDING_FEE'
+                  ? registrations.filter((r) => r.payment_status !== 'PAID').length
+                  : broadcastFilter === 'SELECTED'
+                  ? registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length
+                  : registrations.length}
+              </strong> athletes
+            </span>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsTournamentBroadcastOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={broadcasting}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+            >
+              {broadcasting ? 'Enqueuing Alerts...' : 'Dispatch WhatsApp Broadcast'}
             </Button>
           </div>
         </form>

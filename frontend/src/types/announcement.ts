@@ -15,4 +15,9 @@ export interface Announcement {
   sent_at?: string;
   created_by?: string;
   batches?: AnnouncementBatch[];
+  metadata?: {
+    tournamentIds?: string[];
+    [key: string]: any;
+  };
 }
+

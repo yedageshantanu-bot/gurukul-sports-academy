@@ -4,8 +4,10 @@ import { TournamentService } from '../services/tournament.service.js';
 export class TournamentController {
   static async list(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await TournamentService.listTournaments();
-      res.status(200).json({ success: true, data });
+      const result: any = await TournamentService.listTournaments();
+      const data = result.tournaments || result;
+      const summary = result.summary;
+      res.status(200).json({ success: true, data, summary });
     } catch (err) {
       next(err);
     }
@@ -49,6 +51,32 @@ export class TournamentController {
         success: true,
         message: 'Tournament registration fee settled successfully',
         data: updated,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async notify(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await TournamentService.notifyRegistration(req.params.id, req.body?.message);
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async broadcast(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await TournamentService.broadcastTournamentWhatsApp(req.params.id, req.body || {});
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result,
       });
     } catch (err) {
       next(err);

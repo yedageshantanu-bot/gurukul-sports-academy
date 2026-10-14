@@ -17,6 +17,8 @@ router.post('/:id/select-students', TournamentController.nominate);
 router.post('/:id/nominate', TournamentController.nominate);
 router.patch('/registrations/:id', TournamentController.settle);
 router.patch('/registrations/:id/payment', TournamentController.settle);
+router.post('/registrations/:id/notify', TournamentController.notify);
+router.post('/:id/broadcast', TournamentController.broadcast);
 router.delete('/registrations/:id', TournamentController.remove);
 
 export default router;

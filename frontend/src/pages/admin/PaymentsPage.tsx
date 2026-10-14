@@ -47,6 +47,7 @@ export const PaymentsPage: React.FC = () => {
     studentId: '',
     amount: '',
     paymentMethod: 'CASH',
+    paymentDate: new Date().toISOString().split('T')[0],
     notes: '',
   });
 
@@ -103,6 +104,7 @@ export const PaymentsPage: React.FC = () => {
           studentId: manualForm.studentId,
           amount: parseFloat(manualForm.amount),
           paymentMethod: manualForm.paymentMethod,
+          paidAt: manualForm.paymentDate,
           notes: manualForm.notes,
         }),
       });
@@ -111,7 +113,13 @@ export const PaymentsPage: React.FC = () => {
       if (!res.ok) throw new Error(data.error?.message || 'Manual payment failed');
 
       setIsManualModalOpen(false);
-      setManualForm({ studentId: '', amount: '', paymentMethod: 'CASH', notes: '' });
+      setManualForm({
+        studentId: '',
+        amount: '',
+        paymentMethod: 'CASH',
+        paymentDate: new Date().toISOString().slice(0, 10),
+        notes: '',
+      });
       await fetchData();
     } catch (err: any) {
       setError(err.message);
@@ -446,7 +454,7 @@ export const PaymentsPage: React.FC = () => {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input
               label="Amount (₹) *"
               type="number"
@@ -456,6 +464,13 @@ export const PaymentsPage: React.FC = () => {
               placeholder="2000"
               value={manualForm.amount}
               onChange={(e) => setManualForm({ ...manualForm, amount: e.target.value })}
+            />
+            <Input
+              label="Payment Date *"
+              type="date"
+              required
+              value={manualForm.paymentDate}
+              onChange={(e) => setManualForm({ ...manualForm, paymentDate: e.target.value })}
             />
             <Select
               label="Payment Method *"

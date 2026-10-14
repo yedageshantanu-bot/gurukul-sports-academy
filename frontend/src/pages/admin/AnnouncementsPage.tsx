@@ -25,31 +25,53 @@ import {
   ShieldCheck,
   Sparkles,
   CheckCheck,
+  Trophy,
+  BookmarkPlus,
+  X,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
 
-const ANNOUNCEMENT_PRESETS = [
+interface AnnouncementPreset {
+  id: string;
+  label: string;
+  title: string;
+  message: string;
+  isCustom?: boolean;
+}
+
+const DEFAULT_PRESETS: AnnouncementPreset[] = [
   {
+    id: 'def-1',
     label: '🌧️ Weather Delay',
     title: 'Training Session Weather Update',
     message: 'Dear Students & Parents, due to current weather conditions, today\'s outdoor training session has been rescheduled. We will inform you shortly about the alternate session slot. Stay safe!',
   },
   {
+    id: 'def-2',
     label: '🏆 Tournament Notice',
     title: 'Upcoming Tournament & Match Selections',
     message: 'Exciting news! Selection trials for the upcoming Inter-Academy Tournament will take place this weekend during regular batch hours. Please ensure 100% attendance in official academy uniform.',
   },
   {
+    id: 'def-3',
+    label: '🥋 Belt Exam Alert',
+    title: 'Upcoming Belt Grading Examination',
+    message: 'Dear Students & Parents, the quarterly Belt Grading Examination has been scheduled. Please ensure all syllabus katas/techniques are practiced and examination dues are settled at the desk.',
+  },
+  {
+    id: 'def-4',
     label: '⏰ Timing Revision',
     title: 'Batch Schedule & Timing Revision',
     message: 'Please note that starting next week, batch practice timings have been updated for optimized coaching sessions. Kindly consult your coach or check the academy board for slot details.',
   },
   {
+    id: 'def-5',
     label: '🏖️ Academy Holiday',
     title: 'Academy Closed Notice',
     message: 'Dear Parents & Students, the academy will remain closed tomorrow on account of the public holiday. Regular training sessions will resume from the following day as per schedule.',
   },
   {
+    id: 'def-6',
     label: '🎽 Kit & Gear Reminder',
     title: 'Sports Kit & Hydration Reminder',
     message: 'Friendly reminder to all students to carry their complete training equipment, proper sports footwear, and personal water bottles to every training session.',
@@ -61,10 +83,26 @@ export const AnnouncementsPage: React.FC = () => {
   const { toast } = useToast();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [batches, setBatches] = useState<{ id: string; name: string; subject?: string }[]>([]);
+  const [tournaments, setTournaments] = useState<{ id: string; title: string; location?: string; status?: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Custom presets state (persisted to localStorage)
+  const [customPresets, setCustomPresets] = useState<AnnouncementPreset[]>(() => {
+    try {
+      const saved = localStorage.getItem('gurukul_custom_announcement_presets');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Modal for creating custom preset
+  const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
+  const [newPresetLabel, setNewPresetLabel] = useState('');
+  const [presetTargetSource, setPresetTargetSource] = useState<'CREATE' | 'EDIT'>('CREATE');
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
@@ -82,20 +120,24 @@ export const AnnouncementsPage: React.FC = () => {
     title: string;
     message: string;
     batchIds: string[];
+    tournamentIds: string[];
   }>({
     title: '',
     message: '',
     batchIds: [],
+    tournamentIds: [],
   });
 
   const [editFormData, setEditFormData] = useState<{
     title: string;
     message: string;
     batchIds: string[];
+    tournamentIds: string[];
   }>({
     title: '',
     message: '',
     batchIds: [],
+    tournamentIds: [],
   });
 
   const fetchAnnouncements = async () => {
@@ -122,10 +164,25 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  const fetchTournaments = async () => {
+    if (!token) return;
+    try {
+      const data = await apiClient<any>('/tournaments');
+      const list = data?.data || data?.tournaments || (Array.isArray(data) ? data : []);
+      setTournaments(list);
+    } catch (err) {
+      console.error('Failed to load tournaments:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAnnouncements();
     fetchBatches();
+    fetchTournaments();
   }, [token]);
+
+  // Presets Handlers
+  const allPresets = [...DEFAULT_PRESETS, ...customPresets];
 
   const handleApplyPreset = (preset: { title: string; message: string }, isEdit = false) => {
     if (isEdit) {
@@ -144,14 +201,61 @@ export const AnnouncementsPage: React.FC = () => {
     toast.success(`Preset "${preset.title}" applied!`);
   };
 
+  const handleOpenSavePresetModal = (source: 'CREATE' | 'EDIT') => {
+    const active = source === 'CREATE' ? formData : editFormData;
+    if (!active.title.trim() && !active.message.trim()) {
+      toast.warning('Please enter a title and message first to save as a preset.');
+      return;
+    }
+    setPresetTargetSource(source);
+    setNewPresetLabel('');
+    setIsSavePresetModalOpen(true);
+  };
+
+  const handleConfirmSavePreset = () => {
+    if (!newPresetLabel.trim()) {
+      toast.warning('Please enter a preset button label (e.g. 🥋 Belt Test)');
+      return;
+    }
+    const active = presetTargetSource === 'CREATE' ? formData : editFormData;
+    const newPreset: AnnouncementPreset = {
+      id: `custom-${Date.now()}`,
+      label: newPresetLabel.trim(),
+      title: active.title.trim(),
+      message: active.message.trim(),
+      isCustom: true,
+    };
+    const updated = [...customPresets, newPreset];
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem('gurukul_custom_announcement_presets', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save preset to storage', e);
+    }
+    setIsSavePresetModalOpen(false);
+    toast.success(`Preset "${newPreset.label}" saved! You can use it anytime.`);
+  };
+
+  const handleDeleteCustomPreset = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = customPresets.filter((p) => p.id !== id);
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem('gurukul_custom_announcement_presets', JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+    toast.success('Custom preset removed.');
+  };
+
+  // Batches handlers
   const handleToggleBatch = (batchId: string) => {
     setFormData((prev) => {
       const exists = prev.batchIds.includes(batchId);
-      if (exists) {
-        return { ...prev, batchIds: prev.batchIds.filter((id) => id !== batchId) };
-      } else {
-        return { ...prev, batchIds: [...prev.batchIds, batchId] };
-      }
+      return {
+        ...prev,
+        batchIds: exists ? prev.batchIds.filter((id) => id !== batchId) : [...prev.batchIds, batchId],
+      };
     });
   };
 
@@ -163,10 +267,84 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  // Tournaments handlers (CREATE)
+  const handleToggleTournament = (tournamentId: string) => {
+    setFormData((prev) => {
+      const exists = prev.tournamentIds.includes(tournamentId);
+      return {
+        ...prev,
+        tournamentIds: exists
+          ? prev.tournamentIds.filter((id) => id !== tournamentId)
+          : [...prev.tournamentIds, tournamentId],
+      };
+    });
+  };
+
+  const handleSelectAllTournaments = () => {
+    if (formData.tournamentIds.length === tournaments.length) {
+      setFormData((prev) => ({ ...prev, tournamentIds: [] }));
+    } else {
+      setFormData((prev) => ({ ...prev, tournamentIds: tournaments.map((t) => t.id) }));
+    }
+  };
+
+  // Edit Handlers
+  const handleOpenEdit = (a: Announcement) => {
+    setEditingAnnouncement(a);
+    const selectedIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
+    const selectedTourneys = a.metadata?.tournamentIds || [];
+    setEditFormData({
+      title: a.title,
+      message: a.message,
+      batchIds: selectedIds,
+      tournamentIds: selectedTourneys,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleToggleEditBatch = (batchId: string) => {
+    setEditFormData((prev) => {
+      const exists = prev.batchIds.includes(batchId);
+      return {
+        ...prev,
+        batchIds: exists ? prev.batchIds.filter((id) => id !== batchId) : [...prev.batchIds, batchId],
+      };
+    });
+  };
+
+  const handleSelectAllEditBatches = () => {
+    if (editFormData.batchIds.length === batches.length) {
+      setEditFormData((prev) => ({ ...prev, batchIds: [] }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, batchIds: batches.map((b) => b.id) }));
+    }
+  };
+
+  const handleToggleEditTournament = (tournamentId: string) => {
+    setEditFormData((prev) => {
+      const exists = prev.tournamentIds.includes(tournamentId);
+      return {
+        ...prev,
+        tournamentIds: exists
+          ? prev.tournamentIds.filter((id) => id !== tournamentId)
+          : [...prev.tournamentIds, tournamentId],
+      };
+    });
+  };
+
+  const handleSelectAllEditTournaments = () => {
+    if (editFormData.tournamentIds.length === tournaments.length) {
+      setEditFormData((prev) => ({ ...prev, tournamentIds: [] }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, tournamentIds: tournaments.map((t) => t.id) }));
+    }
+  };
+
+  // Submission
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.batchIds.length === 0) {
-      toast.warning('Please select at least one target batch.');
+    if (formData.batchIds.length === 0 && formData.tournamentIds.length === 0) {
+      toast.warning('Please select at least one target batch or tournament squad.');
       return;
     }
 
@@ -175,16 +353,62 @@ export const AnnouncementsPage: React.FC = () => {
       setError(null);
       await apiClient('/announcements', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          title: formData.title,
+          message: formData.message,
+          batchIds: formData.batchIds,
+          tournamentIds: formData.tournamentIds,
+          metadata: {
+            tournamentIds: formData.tournamentIds,
+          },
+        }),
       });
 
       setSuccessMessage('Announcement created as DRAFT. You can now preview and broadcast it safely.');
       toast.success('Announcement drafted successfully!');
       setIsCreateModalOpen(false);
-      setFormData({ title: '', message: '', batchIds: [] });
+      setFormData({ title: '', message: '', batchIds: [], tournamentIds: [] });
       fetchAnnouncements();
     } catch (err: any) {
       setError(err.message || 'Failed to create announcement');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAnnouncement) return;
+    if (editFormData.batchIds.length === 0 && editFormData.tournamentIds.length === 0) {
+      toast.warning('Please select at least one target batch or tournament squad.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await apiClient(`/announcements/${editingAnnouncement.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editFormData.title,
+          message: editFormData.message,
+          batchIds: editFormData.batchIds,
+          tournamentIds: editFormData.tournamentIds,
+          metadata: {
+            tournamentIds: editFormData.tournamentIds,
+          },
+        }),
+      });
+
+      setSuccessMessage('Announcement updated successfully.');
+      toast.success('Announcement updated successfully.');
+      setIsEditModalOpen(false);
+      setEditingAnnouncement(null);
+      fetchAnnouncements();
+    } catch (err: any) {
+      const msg = err.message || 'Failed to update announcement';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -194,7 +418,6 @@ export const AnnouncementsPage: React.FC = () => {
   const handleOpenBroadcastModal = (a: Announcement) => {
     setBroadcastTarget(a);
     setBroadcastMode('NOW');
-    // Default scheduled time to tomorrow 09:00 AM
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(9, 0, 0, 0);
@@ -259,66 +482,6 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
-  const handleOpenEdit = (a: Announcement) => {
-    setEditingAnnouncement(a);
-    const selectedIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
-    setEditFormData({
-      title: a.title,
-      message: a.message,
-      batchIds: selectedIds,
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleToggleEditBatch = (batchId: string) => {
-    setEditFormData((prev) => {
-      const exists = prev.batchIds.includes(batchId);
-      if (exists) {
-        return { ...prev, batchIds: prev.batchIds.filter((id) => id !== batchId) };
-      } else {
-        return { ...prev, batchIds: [...prev.batchIds, batchId] };
-      }
-    });
-  };
-
-  const handleSelectAllEditBatches = () => {
-    if (editFormData.batchIds.length === batches.length) {
-      setEditFormData((prev) => ({ ...prev, batchIds: [] }));
-    } else {
-      setEditFormData((prev) => ({ ...prev, batchIds: batches.map((b) => b.id) }));
-    }
-  };
-
-  const handleUpdateAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingAnnouncement) return;
-    if (editFormData.batchIds.length === 0) {
-      toast.warning('Please select at least one target batch.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setError(null);
-      await apiClient(`/announcements/${editingAnnouncement.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(editFormData),
-      });
-
-      setSuccessMessage('Announcement updated successfully.');
-      toast.success('Announcement updated successfully.');
-      setIsEditModalOpen(false);
-      setEditingAnnouncement(null);
-      fetchAnnouncements();
-    } catch (err: any) {
-      const msg = err.message || 'Failed to update announcement';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // Safe sending window advice
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 21 || currentHour < 7;
@@ -337,7 +500,7 @@ export const AnnouncementsPage: React.FC = () => {
             Broadcast Announcements
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Publish targeted notifications and dispatch automated WhatsApp broadcasts to batches with anti-ban safety.
+            Publish targeted notifications and dispatch automated WhatsApp broadcasts to batches & tournament squads with anti-ban safety.
           </p>
         </div>
 
@@ -415,7 +578,7 @@ export const AnnouncementsPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3.5">Created</th>
                   <th className="px-5 py-3.5">Title & Excerpt</th>
-                  <th className="px-5 py-3.5">Target Batches</th>
+                  <th className="px-5 py-3.5">Target Audience</th>
                   <th className="px-5 py-3.5 text-center">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
@@ -423,6 +586,8 @@ export const AnnouncementsPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 {announcements.map((a) => {
                   const targetBatches = (a.batches || []).map((b) => b.batch?.name).filter(Boolean);
+                  const targetedTournaments = tournaments.filter((t) => (a.metadata?.tournamentIds || []).includes(t.id));
+
                   return (
                     <tr key={a.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
@@ -440,13 +605,25 @@ export const AnnouncementsPage: React.FC = () => {
                         <div className="flex flex-wrap gap-1 max-w-xs">
                           {targetBatches.map((name, idx) => (
                             <span
-                              key={idx}
+                              key={`b-${idx}`}
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60"
                             >
                               <Layers className="w-2.5 h-2.5 text-purple-500" />
                               {name}
                             </span>
                           ))}
+                          {targetedTournaments.map((tourney, idx) => (
+                            <span
+                              key={`t-${idx}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60"
+                            >
+                              <Trophy className="w-2.5 h-2.5 text-amber-500" />
+                              {tourney.title}
+                            </span>
+                          ))}
+                          {targetBatches.length === 0 && targetedTournaments.length === 0 && (
+                            <span className="text-xs text-slate-400 italic">No targets specified</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-center">
@@ -514,22 +691,46 @@ export const AnnouncementsPage: React.FC = () => {
         maxWidth="xl"
       >
         <form onSubmit={handleCreateAnnouncement} className="space-y-4">
-          {/* Quick Presets */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Quick Presets:</span>
+          {/* Quick Presets Section with Custom Presets Support */}
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Quick Message Presets</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenSavePresetModal('CREATE')}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                + Save Draft as New Preset
+              </button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {ANNOUNCEMENT_PRESETS.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
+
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {allPresets.map((p) => (
+                <div
+                  key={p.id}
                   onClick={() => handleApplyPreset(p, false)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                  className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                    p.isCustom
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                  }`}
                 >
-                  {p.label}
-                </button>
+                  <span>{p.label}</span>
+                  {p.isCustom && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCustomPreset(p.id, e)}
+                      className="p-0.5 text-amber-400/60 hover:text-rose-400 rounded transition-colors"
+                      title="Delete custom preset"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -554,40 +755,94 @@ export const AnnouncementsPage: React.FC = () => {
             <textarea
               required
               rows={4}
-              placeholder="Write announcement body here. Will be dispatched to student & guardian contacts."
+              placeholder="Write announcement body here. Will be dispatched to student & guardian contacts via WhatsApp."
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               className="w-full text-sm rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all font-sans placeholder:text-slate-400 dark:placeholder:text-slate-400"
             />
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select Target Batches *</label>
-              <button
-                type="button"
-                onClick={handleSelectAllBatches}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold"
-              >
-                {formData.batchIds.length === batches.length ? 'Deselect All' : 'Select All Batches'}
-              </button>
+          {/* Target Audience Section: Batches + Tournament Squads */}
+          <div className="space-y-4 pt-2 border-t border-slate-200/70 dark:border-slate-800">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Select Target Audience (Select at least one)
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200/90 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              {batches.map((b) => (
-                <label
-                  key={b.id}
-                  className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 dark:hover:bg-slate-700/80 transition-all shadow-sm"
+            {/* 1. Academic Batches */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Layers className="w-3.5 h-3.5 text-purple-500" />
+                  <span>Academy Batches ({formData.batchIds.length}/{batches.length} selected)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSelectAllBatches}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
                 >
-                  <input
-                    type="checkbox"
-                    checked={formData.batchIds.includes(b.id)}
-                    onChange={() => handleToggleBatch(b.id)}
-                    className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="truncate">{b.name}</span>
-                </label>
-              ))}
+                  {formData.batchIds.length === batches.length ? 'Deselect All Batches' : 'Select All Batches'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                {batches.map((b) => (
+                  <label
+                    key={b.id}
+                    className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-all shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.batchIds.includes(b.id)}
+                      onChange={() => handleToggleBatch(b.id)}
+                      className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="truncate">{b.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Tournament Squads */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Tournament Squads ({formData.tournamentIds.length}/{tournaments.length} selected)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSelectAllTournaments}
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold"
+                >
+                  {formData.tournamentIds.length === tournaments.length ? 'Deselect All Squads' : 'Select All Squads'}
+                </button>
+              </div>
+
+              {tournaments.length === 0 ? (
+                <div className="text-xs text-slate-400 py-2 italic text-center">
+                  No tournaments registered yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {tournaments.map((t) => (
+                    <label
+                      key={t.id}
+                      className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-amber-300 dark:hover:border-amber-600 transition-all shadow-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.tournamentIds.includes(t.id)}
+                        onChange={() => handleToggleTournament(t.id)}
+                        className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-amber-600 focus:ring-amber-500"
+                      />
+                      <div className="truncate flex-1">
+                        <div className="truncate font-semibold">{t.title}</div>
+                        {t.location && <div className="text-[10px] text-slate-400 truncate">{t.location}</div>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -610,6 +865,50 @@ export const AnnouncementsPage: React.FC = () => {
         maxWidth="xl"
       >
         <form onSubmit={handleUpdateAnnouncement} className="space-y-4">
+          {/* Quick Presets Section */}
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Quick Message Presets</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenSavePresetModal('EDIT')}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                + Save Draft as New Preset
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {allPresets.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleApplyPreset(p, true)}
+                  className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                    p.isCustom
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                  }`}
+                >
+                  <span>{p.label}</span>
+                  {p.isCustom && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCustomPreset(p.id, e)}
+                      className="p-0.5 text-amber-400/60 hover:text-rose-400 rounded transition-colors"
+                      title="Delete custom preset"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <Input
             label="Announcement Title *"
             required
@@ -625,40 +924,94 @@ export const AnnouncementsPage: React.FC = () => {
             <textarea
               required
               rows={4}
-              placeholder="Write announcement body here. Will be dispatched to student & guardian contacts."
+              placeholder="Write announcement body here. Will be dispatched to student & guardian contacts via WhatsApp."
               value={editFormData.message}
               onChange={(e) => setEditFormData({ ...editFormData, message: e.target.value })}
               className="w-full text-sm rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all font-sans placeholder:text-slate-400 dark:placeholder:text-slate-400"
             />
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select Target Batches *</label>
-              <button
-                type="button"
-                onClick={handleSelectAllEditBatches}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold"
-              >
-                {editFormData.batchIds.length === batches.length ? 'Deselect All' : 'Select All Batches'}
-              </button>
+          {/* Target Audience Section: Batches + Tournament Squads */}
+          <div className="space-y-4 pt-2 border-t border-slate-200/70 dark:border-slate-800">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Select Target Audience (Select at least one)
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200/90 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              {batches.map((b) => (
-                <label
-                  key={b.id}
-                  className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 dark:hover:bg-slate-700/80 transition-all shadow-sm"
+            {/* Academic Batches */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Layers className="w-3.5 h-3.5 text-purple-500" />
+                  <span>Academy Batches ({editFormData.batchIds.length}/{batches.length} selected)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSelectAllEditBatches}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
                 >
-                  <input
-                    type="checkbox"
-                    checked={editFormData.batchIds.includes(b.id)}
-                    onChange={() => handleToggleEditBatch(b.id)}
-                    className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="truncate">{b.name}</span>
-                </label>
-              ))}
+                  {editFormData.batchIds.length === batches.length ? 'Deselect All Batches' : 'Select All Batches'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                {batches.map((b) => (
+                  <label
+                    key={b.id}
+                    className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-all shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editFormData.batchIds.includes(b.id)}
+                      onChange={() => handleToggleEditBatch(b.id)}
+                      className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="truncate">{b.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Tournament Squads */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Tournament Squads ({editFormData.tournamentIds.length}/{tournaments.length} selected)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSelectAllEditTournaments}
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold"
+                >
+                  {editFormData.tournamentIds.length === tournaments.length ? 'Deselect All Squads' : 'Select All Squads'}
+                </button>
+              </div>
+
+              {tournaments.length === 0 ? (
+                <div className="text-xs text-slate-400 py-2 italic text-center">
+                  No tournaments registered yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {tournaments.map((t) => (
+                    <label
+                      key={t.id}
+                      className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-amber-300 dark:hover:border-amber-600 transition-all shadow-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editFormData.tournamentIds.includes(t.id)}
+                        onChange={() => handleToggleEditTournament(t.id)}
+                        className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-amber-600 focus:ring-amber-500"
+                      />
+                      <div className="truncate flex-1">
+                        <div className="truncate font-semibold">{t.title}</div>
+                        {t.location && <div className="text-[10px] text-slate-400 truncate">{t.location}</div>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -671,6 +1024,46 @@ export const AnnouncementsPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* MODAL: Save New Preset */}
+      <Modal
+        isOpen={isSavePresetModalOpen}
+        onClose={() => setIsSavePresetModalOpen(false)}
+        title="Save as Quick Preset"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Save this announcement title and message so you can apply it in 1 click anytime in the future.
+          </p>
+          <Input
+            label="Preset Button Label *"
+            required
+            placeholder="e.g. 🥋 Belt Exam Test or ⚡ Emergency Alert"
+            value={newPresetLabel}
+            onChange={(e) => setNewPresetLabel(e.target.value)}
+          />
+
+          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Draft Preview:</div>
+            <div className="text-xs font-bold text-white">
+              {presetTargetSource === 'CREATE' ? formData.title || '(No title)' : editFormData.title || '(No title)'}
+            </div>
+            <div className="text-[11px] text-slate-400 line-clamp-2">
+              {presetTargetSource === 'CREATE' ? formData.message || '(No message)' : editFormData.message || '(No message)'}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <Button variant="outline" onClick={() => setIsSavePresetModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmSavePreset} className="bg-indigo-600 hover:bg-indigo-700">
+              Save Preset
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* MODAL: BROADCAST & SCHEDULE (Advanced Safe Dispatch) */}
@@ -687,7 +1080,7 @@ export const AnnouncementsPage: React.FC = () => {
               <div>
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">{broadcastTarget.title}</h4>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Targeting {(broadcastTarget.batches || []).length} batch(es)
+                  Targeting {(broadcastTarget.batches || []).length} batch(es) & {(broadcastTarget.metadata?.tournamentIds || []).length} tournament squad(s)
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -840,12 +1233,24 @@ export const AnnouncementsPage: React.FC = () => {
                 <div className="flex flex-wrap gap-1 mt-1">
                   {(previewAnnouncement.batches || []).map((b, idx) => (
                     <span
-                      key={idx}
-                      className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60"
+                      key={`preview-b-${idx}`}
+                      className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 flex items-center gap-1"
                     >
+                      <Layers className="w-3 h-3 text-indigo-500" />
                       {b.batch?.name}
                     </span>
                   ))}
+                  {tournaments
+                    .filter((t) => (previewAnnouncement.metadata?.tournamentIds || []).includes(t.id))
+                    .map((t, idx) => (
+                      <span
+                        key={`preview-t-${idx}`}
+                        className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60 flex items-center gap-1"
+                      >
+                        <Trophy className="w-3 h-3 text-amber-500" />
+                        {t.title}
+                      </span>
+                    ))}
                 </div>
               </div>
 
