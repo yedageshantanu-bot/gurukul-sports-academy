@@ -16,6 +16,9 @@ import {
   FileSpreadsheet,
   Edit2,
   Trash2,
+  Palette,
+  Settings2,
+  Tag,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -25,6 +28,82 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { useToast } from '../../contexts/ToastContext';
 import { downloadCertificatePdf } from '../../utils/certificatePdfGenerator';
 import { downloadCombinedCertificatesPdf } from '../../utils/certificateBundlePdf';
+
+// Default martial arts belt & sash categories
+export const DEFAULT_BELT_CATEGORIES = [
+  // Standard Karate & Wushu Belts
+  { id: 'white-belt', name: 'White Belt', group: 'Standard Belts' },
+  { id: 'yellow-belt', name: 'Yellow Belt', group: 'Standard Belts' },
+  { id: 'orange-belt', name: 'Orange Belt', group: 'Standard Belts' },
+  { id: 'green-belt', name: 'Green Belt', group: 'Standard Belts' },
+  { id: 'blue-belt', name: 'Blue Belt', group: 'Standard Belts' },
+  { id: 'purple-belt', name: 'Purple Belt', group: 'Standard Belts' },
+  { id: 'brown-belt', name: 'Brown Belt', group: 'Standard Belts' },
+  { id: 'red-belt', name: 'Red Belt', group: 'Standard Belts' },
+  { id: 'black-belt', name: 'Black Belt', group: 'Standard Belts' },
+
+  // Kalarippayattu Sashes
+  { id: 'white-sash', name: 'White Sash', group: 'Kalari Sashes' },
+  { id: 'yellow-sash', name: 'Yellow Sash', group: 'Kalari Sashes' },
+  { id: 'orange-sash', name: 'Orange Sash', group: 'Kalari Sashes' },
+  { id: 'green-sash', name: 'Green Sash', group: 'Kalari Sashes' },
+  { id: 'blue-sash', name: 'Blue Sash', group: 'Kalari Sashes' },
+  { id: 'purple-sash', name: 'Purple Sash', group: 'Kalari Sashes' },
+  { id: 'red-sash', name: 'Red Sash', group: 'Kalari Sashes' },
+  { id: 'black-sash', name: 'Black Sash', group: 'Kalari Sashes' },
+
+  // Dual Combination Belts
+  { id: 'dual-white-yellow', name: 'White & Yellow', group: 'Dual Combinations' },
+  { id: 'dual-yellow-orange', name: 'Yellow & Orange', group: 'Dual Combinations' },
+  { id: 'dual-green-blue', name: 'Green & Blue', group: 'Dual Combinations' },
+  { id: 'dual-blue-brown', name: 'Blue & Brown', group: 'Dual Combinations' },
+  { id: 'dual-brown-black', name: 'Brown & Black', group: 'Dual Combinations' },
+  { id: 'dual-red-black', name: 'Red & Black', group: 'Dual Combinations' },
+
+  // Kyu & Specialty Belts
+  { id: 'white-10-kyu', name: 'White Belt (10th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'white-9-kyu', name: 'White Belt (9th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'yellow-8-kyu', name: 'Yellow Belt (8th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'orange-7-kyu', name: 'Orange Belt (7th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'green-6-kyu', name: 'Green Belt (6th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'blue-5-kyu', name: 'Blue Belt (5th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'purple-4-kyu', name: 'Purple Belt (4th Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'brown-3-kyu', name: 'Brown Belt (3rd Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'brown-2-kyu', name: 'Brown Belt (2nd Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'brown-1-kyu', name: 'Brown Belt (1st Kyu)', group: 'Kyu / Dan Grades' },
+  { id: 'black-1-dan', name: 'Black Belt (1st Dan Shodan)', group: 'Kyu / Dan Grades' },
+  { id: 'gold-belt', name: 'Gold Belt', group: 'Specialty Ranks' },
+  { id: 'camo-belt', name: 'Camo Belt', group: 'Specialty Ranks' },
+];
+
+// Belt badge color styling helper
+export const getBeltBadgeClass = (color: string) => {
+  const c = (color || '').toLowerCase().trim();
+
+  // Dual combinations (e.g. "White & Yellow", "Green & Blue", "Blue & Brown", "Yellow & Orange")
+  if (c.includes('&') || c.includes('/')) {
+    if (c.includes('white') && c.includes('yellow')) return 'bg-gradient-to-r from-slate-200/20 to-yellow-500/20 text-yellow-200 border-yellow-400/40 shadow-sm';
+    if (c.includes('yellow') && c.includes('orange')) return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-amber-200 border-amber-400/40 shadow-sm';
+    if (c.includes('green') && c.includes('blue')) return 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-teal-200 border-teal-400/40 shadow-sm';
+    if (c.includes('blue') && c.includes('brown')) return 'bg-gradient-to-r from-blue-500/20 to-amber-800/30 text-sky-200 border-sky-400/40 shadow-sm';
+    if (c.includes('brown') && c.includes('black')) return 'bg-gradient-to-r from-amber-900/40 to-slate-900/60 text-amber-200 border-amber-700/50 shadow-sm';
+    return 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 border-purple-400/40 shadow-sm';
+  }
+
+  if (c.includes('gold')) return 'bg-amber-400/25 text-amber-200 border-amber-400/60 shadow-sm shadow-amber-500/10';
+  if (c.includes('camo')) return 'bg-emerald-800/30 text-emerald-200 border-emerald-700/50';
+  if (c.includes('black') || c.includes('dan')) return 'bg-slate-950/90 text-slate-100 border-slate-600 shadow-sm';
+  if (c.includes('brown')) return 'bg-amber-900/35 text-amber-200 border-amber-800/50';
+  if (c.includes('purple')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+  if (c.includes('blue')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+  if (c.includes('green') || c.includes('emerald')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+  if (c.includes('orange')) return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
+  if (c.includes('yellow')) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+  if (c.includes('red') || c.includes('rose')) return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+  if (c.includes('white') || c.includes('silver')) return 'bg-slate-200/15 text-slate-100 border-slate-300/40 shadow-sm';
+
+  return 'bg-slate-800/60 text-slate-200 border-white/20';
+};
 
 interface MartialRank {
   id: string;
@@ -185,14 +264,82 @@ export const RanksPage: React.FC = () => {
     toast.success(`Exported ${list.length} certificate promotion records to Excel CSV!`);
   };
 
+  // Belt Category Management State
+  const [customBeltCategories, setCustomBeltCategories] = useState<Array<{ id: string; name: string; group: string; isCustom?: boolean }>>(() => {
+    try {
+      const saved = localStorage.getItem('gurukul_custom_belt_categories');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Could not load custom belt categories:', e);
+    }
+    return DEFAULT_BELT_CATEGORIES;
+  });
+
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryGroup, setNewCategoryGroup] = useState('Custom / Academy');
+  const [isCustomColorInput, setIsCustomColorInput] = useState(false);
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      toast.warning('Please enter a belt category name');
+      return;
+    }
+    if (customBeltCategories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.info(`Category "${trimmed}" already exists.`);
+      return;
+    }
+    const newCat = {
+      id: `custom-${Date.now()}`,
+      name: trimmed,
+      group: newCategoryGroup || 'Custom / Academy',
+      isCustom: true,
+    };
+    const updated = [...customBeltCategories, newCat];
+    setCustomBeltCategories(updated);
+    try {
+      localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
+    } catch (e) {}
+    toast.success(`Belt category "${trimmed}" added successfully!`);
+    setNewCategoryName('');
+  };
+
+  const handleDeleteCategory = (catId: string, catName: string) => {
+    const updated = customBeltCategories.filter((c) => c.id !== catId);
+    setCustomBeltCategories(updated);
+    try {
+      localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
+    } catch (e) {}
+    toast.info(`Category "${catName}" removed.`);
+  };
+
+  const handleResetCategories = () => {
+    if (!window.confirm('Reset belt categories to academy default set?')) return;
+    setCustomBeltCategories(DEFAULT_BELT_CATEGORIES);
+    try {
+      localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(DEFAULT_BELT_CATEGORIES));
+    } catch (e) {}
+    toast.success('Belt categories reset to default.');
+  };
+
   const handleOpenAddBelt = (disciplineCode: string = 'KALARIPPAYATTU') => {
     setEditingBeltRank(null);
     const existingCount = allRanks.filter((r) => r.discipline_code === disciplineCode).length;
+    setIsCustomColorInput(false);
+    const defaultColor =
+      disciplineCode === 'KALARIPPAYATTU'
+        ? 'White Sash'
+        : disciplineCode === 'BOTH'
+        ? 'White & Yellow'
+        : 'White Belt';
+
     setBeltForm({
       disciplineCode,
       rankOrder: existingCount + 1,
       rankName: '',
-      beltColor: 'White',
+      beltColor: defaultColor,
       description: '',
     });
     setIsBeltModalOpen(true);
@@ -200,6 +347,10 @@ export const RanksPage: React.FC = () => {
 
   const handleOpenEditBelt = (rank: MartialRank) => {
     setEditingBeltRank(rank);
+    const matchesPreset = customBeltCategories.some(
+      (c) => c.name.toLowerCase() === (rank.belt_color || '').toLowerCase()
+    );
+    setIsCustomColorInput(!matchesPreset);
     setBeltForm({
       disciplineCode: rank.discipline_code,
       rankOrder: rank.rank_order,
@@ -695,18 +846,7 @@ export const RanksPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredStudentRanks.map((student) => {
-                // Belt color styling helper
-                const getBeltBadge = (color: string) => {
-                  const c = (color || '').toLowerCase();
-                  if (c.includes('yellow')) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
-                  if (c.includes('orange')) return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
-                  if (c.includes('green')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-                  if (c.includes('blue')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-                  if (c.includes('brown')) return 'bg-amber-800/30 text-amber-200 border-amber-800/50';
-                  if (c.includes('black')) return 'bg-black/60 text-slate-200 border-slate-700 shadow-sm';
-                  if (c.includes('red')) return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-                  return 'bg-slate-700/40 text-slate-300 border-white/20';
-                };
+                const getBeltBadge = (color: string) => getBeltBadgeClass(color);
 
                 return (
                   <Card
@@ -1022,7 +1162,7 @@ export const RanksPage: React.FC = () => {
       {/* TAB 3: CURRICULUM & DISCIPLINES */}
       {activeTab === 'CURRICULUM' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between bg-[#0F172A]/70 p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0F172A]/70 p-4 rounded-xl border border-white/10">
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-amber-400" />
@@ -1032,13 +1172,24 @@ export const RanksPage: React.FC = () => {
                 Customize belt progression orders, color tags, and grading requirements for each discipline.
               </p>
             </div>
-            <Button
-              onClick={() => handleOpenAddBelt('KALARIPPAYATTU')}
-              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-orange-500/20"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add New Belt Rank
-            </Button>
+            <div className="flex items-center gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsManageCategoriesOpen(true)}
+                className="text-xs py-2 px-3 border-amber-500/30 text-amber-300 hover:text-white hover:bg-amber-500/10 font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                Manage Belt Colors &amp; Categories
+              </Button>
+              <Button
+                onClick={() => handleOpenAddBelt('KALARIPPAYATTU')}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-orange-500/20"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add New Belt Rank
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1077,7 +1228,7 @@ export const RanksPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
                             {rank.belt_color}
                           </span>
                           <button
@@ -1138,7 +1289,7 @@ export const RanksPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
                             {rank.belt_color}
                           </span>
                           <button
@@ -1199,7 +1350,7 @@ export const RanksPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
                             {rank.belt_color}
                           </span>
                           <button
@@ -1265,7 +1416,7 @@ export const RanksPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
                               {rank.belt_color}
                             </span>
                             <button
@@ -1332,7 +1483,7 @@ export const RanksPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
                               {rank.belt_color}
                             </span>
                             <button
@@ -1668,35 +1819,129 @@ export const RanksPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Belt Color Category *</label>
-              <select
-                value={beltForm.beltColor}
-                onChange={(e) => setBeltForm({ ...beltForm, beltColor: e.target.value })}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
-              >
-                <option value="White">White Belt</option>
-                <option value="Yellow">Yellow Belt</option>
-                <option value="Orange">Orange Belt</option>
-                <option value="Green">Green Belt</option>
-                <option value="Blue">Blue Belt</option>
-                <option value="Purple">Purple Belt</option>
-                <option value="Brown">Brown Belt</option>
-                <option value="Black">Black Belt</option>
-                <option value="Red">Red Belt</option>
-              </select>
+          <div className="space-y-2 p-3 bg-slate-900/60 rounded-xl border border-white/10">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-amber-400" />
+                Belt Color Category *
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCustomColorInput(!isCustomColorInput)}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 flex items-center gap-1"
+                >
+                  {isCustomColorInput ? 'Select from Presets' : '+ Type Custom'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsManageCategoriesOpen(true)}
+                  className="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 font-medium"
+                  title="Configure & Manage Academy Belt Categories"
+                >
+                  <Settings2 className="w-3 h-3 text-amber-400" />
+                  Manage Colors
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Custom Tag / Details</label>
-              <input
-                type="text"
-                placeholder="e.g. Green Stripe / Advanced"
+            {isCustomColorInput ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. White Sash, Gold Belt, Yellow Stripe, Camo"
+                    value={beltForm.beltColor}
+                    onChange={(e) => setBeltForm({ ...beltForm, beltColor: e.target.value })}
+                    className="flex-1 bg-[#0F172A] border border-amber-500/50 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-medium"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const trimmed = beltForm.beltColor.trim();
+                      if (!trimmed) return toast.warning('Enter a category name first');
+                      if (customBeltCategories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+                        return toast.info('Already exists in category list');
+                      }
+                      const newCat = {
+                        id: `custom-${Date.now()}`,
+                        name: trimmed,
+                        group: 'Custom / Academy',
+                        isCustom: true,
+                      };
+                      const updated = [...customBeltCategories, newCat];
+                      setCustomBeltCategories(updated);
+                      try {
+                        localStorage.setItem('gurukul_custom_belt_categories', JSON.stringify(updated));
+                      } catch (e) {}
+                      toast.success(`Saved "${trimmed}" to belt categories!`);
+                    }}
+                    className="text-[11px] h-8 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 whitespace-nowrap"
+                    title="Save this custom name to the persistent category dropdown"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Save Category
+                  </Button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Type any custom belt or sash color. Click &quot;Save Category&quot; to make it permanently available in the dropdown.
+                </p>
+              </div>
+            ) : (
+              <select
                 value={beltForm.beltColor}
-                onChange={(e) => setBeltForm({ ...beltForm, beltColor: e.target.value })}
+                onChange={(e) => {
+                  if (e.target.value === '__CUSTOM__') {
+                    setIsCustomColorInput(true);
+                  } else {
+                    setBeltForm({ ...beltForm, beltColor: e.target.value });
+                  }
+                }}
                 className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
-              />
+              >
+                {Array.from(new Set(customBeltCategories.map((c) => c.group))).map((groupName) => (
+                  <optgroup key={groupName} label={groupName} className="bg-[#0A1120] text-slate-300 font-bold">
+                    {customBeltCategories
+                      .filter((c) => c.group === groupName)
+                      .map((cat) => (
+                        <option key={cat.id} value={cat.name} className="text-white py-1">
+                          {cat.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+
+                {Array.from(new Set(allRanks.map((r) => r.belt_color).filter(Boolean)))
+                  .filter((c) => !customBeltCategories.some((cat) => cat.name.toLowerCase() === c.toLowerCase()))
+                  .length > 0 && (
+                  <optgroup label="Active In Database Curriculum" className="bg-[#0A1120] text-amber-400 font-bold">
+                    {Array.from(new Set(allRanks.map((r) => r.belt_color).filter(Boolean)))
+                      .filter((c) => !customBeltCategories.some((cat) => cat.name.toLowerCase() === c.toLowerCase()))
+                      .map((c) => (
+                        <option key={c} value={c} className="text-white">
+                          {c}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+
+                <option value="__CUSTOM__" className="text-amber-400 font-bold bg-amber-950/40">
+                  ➕ Type Custom Belt Color / Category...
+                </option>
+              </select>
+            )}
+
+            {/* Live Visual Badge Preview */}
+            <div className="mt-2.5 p-2 rounded-lg bg-slate-950/60 border border-white/5 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                Live Belt Badge Preview:
+              </span>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(beltForm.beltColor)}`}>
+                {beltForm.beltColor || 'White Belt'}
+              </span>
             </div>
           </div>
 
@@ -1729,6 +1974,132 @@ export const RanksPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* MODAL 5: Manage Belt Color Categories */}
+      <Modal
+        isOpen={isManageCategoriesOpen}
+        onClose={() => setIsManageCategoriesOpen(false)}
+        title="Martial Arts Belt Color & Category Manager"
+        maxWidth="lg"
+      >
+        <div className="space-y-5">
+          <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/20 rounded-xl text-xs text-slate-300">
+            <div className="flex items-center gap-2 text-white font-bold mb-1">
+              <Palette className="w-4 h-4 text-amber-400" />
+              <span>Full Admin Control Over Belt Colors &amp; Sashes</span>
+            </div>
+            <p className="text-slate-400 text-[11px]">
+              Add custom martial arts belts, sashes (Kalari), or dual combinations. These categories will be available across the Academy curriculum, student promotions, and certificate registries.
+            </p>
+          </div>
+
+          {/* Add Category Form */}
+          <form onSubmit={handleAddCategory} className="p-3.5 bg-slate-900/80 rounded-xl border border-white/10 space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              Add New Belt / Sash Category
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="sm:col-span-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Camo Belt, White Sash, Gold Belt, Red-Black Stripe"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <select
+                  value={newCategoryGroup}
+                  onChange={(e) => setNewCategoryGroup(e.target.value)}
+                  className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="Custom / Academy">Custom / Academy</option>
+                  <option value="Standard Belts">Standard Belts</option>
+                  <option value="Kalari Sashes">Kalari Sashes</option>
+                  <option value="Dual Combinations">Dual Combinations</option>
+                  <option value="Kyu / Dan Grades">Kyu / Dan Grades</option>
+                  <option value="Specialty Ranks">Specialty Ranks</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400">Live Preview:</span>
+                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(newCategoryName || 'White Belt')}`}>
+                  {newCategoryName || 'Category Preview'}
+                </span>
+              </div>
+              <Button
+                type="submit"
+                className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-1.5 px-3"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Category
+              </Button>
+            </div>
+          </form>
+
+          {/* List of Categories */}
+          <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1">
+            {Array.from(new Set(customBeltCategories.map((c) => c.group))).map((groupName) => (
+              <div key={groupName} className="space-y-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  {groupName} ({customBeltCategories.filter((c) => c.group === groupName).length})
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {customBeltCategories
+                    .filter((c) => c.group === groupName)
+                    .map((cat) => (
+                      <div
+                        key={cat.id}
+                        className="p-2 rounded-lg bg-slate-900/60 border border-white/5 flex items-center justify-between gap-1 group hover:border-white/20 transition-all"
+                      >
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded border truncate ${getBeltBadgeClass(cat.name)}`}>
+                          {cat.name}
+                        </span>
+                        {cat.isCustom ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                            className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-white/5 transition-colors"
+                            title={`Delete custom category "${cat.name}"`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <span className="text-[9px] text-slate-600 uppercase tracking-tighter px-1">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-white/10">
+            <button
+              type="button"
+              onClick={handleResetCategories}
+              className="text-[11px] text-slate-400 hover:text-rose-300 underline"
+            >
+              Reset to Defaults
+            </button>
+            <Button
+              type="button"
+              onClick={() => setIsManageCategoriesOpen(false)}
+              className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold"
+            >
+              Done / Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

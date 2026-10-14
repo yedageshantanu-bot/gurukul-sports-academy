@@ -59,6 +59,7 @@ export class RankService {
     rankOrder: number;
     rankName: string;
     beltColor: string;
+    description?: string;
     badgeBg?: string;
     badgeText?: string;
   }) {
@@ -71,6 +72,7 @@ export class RankService {
         rank_order: dto.rankOrder,
         rank_name: dto.rankName,
         belt_color: dto.beltColor,
+        description: dto.description || null,
         badge_bg: dto.badgeBg || '#1e293b',
         badge_text: dto.badgeText || '#ffffff',
       })
