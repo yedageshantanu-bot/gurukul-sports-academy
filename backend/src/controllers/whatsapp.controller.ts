@@ -334,6 +334,19 @@ export class WhatsAppController {
     }
   }
 
+  async triggerFeeCadenceReminders(req: Request, res: Response, next: NextFunction) {
+    try {
+      const forceAllUnpaid = req.body.forceAllUnpaid === true;
+      const result = await automationService.triggerMultiStageFeeCadenceAutomation({ forceAllUnpaid });
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   // ============================================================================
   // TEMPLATES
   // ============================================================================

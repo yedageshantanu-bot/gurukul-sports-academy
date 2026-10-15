@@ -107,18 +107,25 @@ export class TemplateService {
         body: 'Dear {{parent_name}}, the attendance record for {{student_name}} for {{batch_name}} on {{date}} has been updated to PRESENT at {{academy_name}}.\n\n- {{academy_name}}',
         active: true,
       },
+      FEE_UPCOMING: {
+        id: 'default-fee-upcoming',
+        name: 'Advance Fee Courtesy Reminder',
+        event_type: 'FEE_UPCOMING',
+        body: 'Dear {{parent_name}}, this is an advance reminder that the monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due on {{due_date}}.\n\n📱 *Direct 1-Tap UPI (0% Fee):*\n{{payment_link}}\nUPI ID: {{upi_id}}\n\n- {{academy_name}}',
+        active: true,
+      },
       FEE_DUE: {
         id: 'default-fee-due',
         name: 'Fee Due Reminder',
         event_type: 'FEE_DUE',
-        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due on {{due_date}}. Kindly settle the dues at your earliest convenience.\n\n- {{academy_name}}',
+        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due today ({{due_date}}).\n\n📱 *Direct 1-Tap UPI (0% Gateway Fee):*\n{{payment_link}}\nOr pay via GPay / PhonePe to UPI ID: *{{upi_id}}*\n\nKindly complete payment to maintain active enrollment.\n- {{academy_name}}',
         active: true,
       },
       FEE_OVERDUE: {
         id: 'default-fee-overdue',
         name: 'Fee Overdue Alert',
         event_type: 'FEE_OVERDUE',
-        body: 'Dear {{parent_name}}, training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is now OVERDUE since {{due_date}}. Please complete the payment to ensure uninterrupted coaching.\n\n- {{academy_name}}',
+        body: 'Dear {{parent_name}}, training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is OVERDUE since {{due_date}}.\n\n📱 *Direct 1-Tap UPI (0% Gateway Fee):*\n{{payment_link}}\nUPI ID: *{{upi_id}}*\n\nPlease complete payment to prevent training interruptions.\n- {{academy_name}}',
         active: true,
       },
       PAYMENT_SUCCESS: {

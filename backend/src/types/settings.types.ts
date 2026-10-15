@@ -8,6 +8,8 @@ export const updateAcademySettingsSchema = z.object({
   address: z.string().nullable().optional(),
   website: z.string().nullable().optional().or(z.literal('')),
   currency: z.string().max(10).optional(),
+  upi_id: z.string().nullable().optional(),
+  upi_payee_name: z.string().nullable().optional(),
 });
 
 export type UpdateAcademySettingsDTO = z.infer<typeof updateAcademySettingsSchema>;
@@ -21,6 +23,8 @@ export interface AcademySettingsResponse {
   address?: string | null;
   website?: string | null;
   currency: string;
+  upi_id?: string | null;
+  upi_payee_name?: string | null;
   created_at: string;
   updated_at: string;
 }

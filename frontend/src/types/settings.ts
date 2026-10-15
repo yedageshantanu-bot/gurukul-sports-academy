@@ -7,6 +7,8 @@ export interface AcademySettings {
   address?: string | null;
   website?: string | null;
   currency: string;
+  upi_id?: string | null;
+  upi_payee_name?: string | null;
   created_at?: string;
   updated_at?: string;
 }

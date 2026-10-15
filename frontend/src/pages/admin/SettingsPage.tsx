@@ -19,6 +19,8 @@ import {
   MessageSquare,
   ExternalLink,
   ShieldCheck,
+  QrCode,
+  CreditCard,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -50,6 +52,8 @@ export const SettingsPage: React.FC = () => {
     address: '',
     website: '',
     currency: 'INR',
+    upi_id: '',
+    upi_payee_name: '',
   });
 
   const [saving, setSaving] = useState(false);
@@ -67,6 +71,8 @@ export const SettingsPage: React.FC = () => {
         address: settings.address || 'Gurukul Sports Complex, Multi-Sport Training Facility, Pune, Maharashtra',
         website: settings.website || 'https://gurukulsports.in',
         currency: settings.currency || 'INR',
+        upi_id: settings.upi_id || 'gurukulsports@upi',
+        upi_payee_name: settings.upi_payee_name || settings.academy_name || 'Gurukul Sports Academy',
       });
     }
 
@@ -169,6 +175,8 @@ export const SettingsPage: React.FC = () => {
         address: settings.address || 'Gurukul Sports Complex, Multi-Sport Training Facility, Pune, Maharashtra',
         website: settings.website || 'https://gurukulsports.in',
         currency: settings.currency || 'INR',
+        upi_id: settings.upi_id || 'gurukulsports@upi',
+        upi_payee_name: settings.upi_payee_name || settings.academy_name || 'Gurukul Sports Academy',
       });
       setSuccessMessage('Changes reverted to saved database profile.');
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -496,6 +504,91 @@ export const SettingsPage: React.FC = () => {
               >
                 <Save className="w-4 h-4" />
                 <span>{saving ? 'Saving...' : 'Save Settings'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Direct UPI Settlement (0% Transaction Fee) Card */}
+          <div className="bg-[#1E293B] border border-emerald-500/30 rounded-xl p-6 shadow-lg space-y-5 relative overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-white/10 gap-2">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                  Direct UPI Fee Settlement (0% Gateway Cut)
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Collect tuition fees directly into your academy bank account with 0% commission. Parents tap on WhatsApp to open GPay, PhonePe, Paytm, or BHIM.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                0.00% Commission (Zero Cut)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  Academy UPI ID (VPA) <span className="text-emerald-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.upi_id}
+                  onChange={(e) => handleInputChange('upi_id', e.target.value)}
+                  placeholder="e.g. gurukulsports@okaxis or 9876543210@upi"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <span className="text-[11px] text-slate-400">
+                  Google Pay, PhonePe, Paytm or Bank UPI VPA where fees will be deposited directly.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Registered Bank Account / Payee Name <span className="text-emerald-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.upi_payee_name}
+                  onChange={(e) => handleInputChange('upi_payee_name', e.target.value)}
+                  placeholder="e.g. Gurukul Sports Academy"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <span className="text-[11px] text-slate-400">
+                  Exact beneficiary title verified by NPCI UPI apps during payment.
+                </span>
+              </div>
+            </div>
+
+            {/* Live Deep-Link Preview Box */}
+            <div className="p-4 rounded-xl bg-[#0F172A] border border-white/5 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
+                Live 1-Tap UPI Intent Preview:
+              </span>
+              <p className="text-xs text-slate-300 font-mono break-all bg-black/40 p-2.5 rounded-lg border border-white/5">
+                upi://pay?pa={formData.upi_id || 'gurukulsports@upi'}&amp;pn={encodeURIComponent(formData.upi_payee_name || 'Gurukul Sports Academy')}&amp;am=1000&amp;cu=INR&amp;tn=Gurukul%20Tuition%20Fee
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-400">
+                <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Direct Bank Credit
+                </span>
+                <span>•</span>
+                <span>No Razorpay 2% cut</span>
+                <span>•</span>
+                <span>Instant parent WhatsApp receipt</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save UPI Payment Setup'}</span>
               </button>
             </div>
           </div>

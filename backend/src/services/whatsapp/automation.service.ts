@@ -43,6 +43,37 @@ export class WhatsAppAutomationService {
     return isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
   }
 
+  async getAcademyUpiDetails(): Promise<{ upiId: string; payeeName: string; academyName: string }> {
+    try {
+      const { data } = await this.supabase
+        .from('academy_settings')
+        .select('academy_name, upi_id, upi_payee_name')
+        .limit(1)
+        .maybeSingle();
+      return {
+        academyName: data?.academy_name || 'Gurukul Sports Academy',
+        upiId: data?.upi_id || 'gurukulsports@upi',
+        payeeName: data?.upi_payee_name || data?.academy_name || 'Gurukul Sports Academy',
+      };
+    } catch {
+      return {
+        academyName: 'Gurukul Sports Academy',
+        upiId: 'gurukulsports@upi',
+        payeeName: 'Gurukul Sports Academy',
+      };
+    }
+  }
+
+  generateUpiPaymentLink(params: {
+    upiId: string;
+    payeeName: string;
+    amount: number;
+    transactionNote?: string;
+  }): string {
+    const { upiId, payeeName, amount, transactionNote = 'Gurukul Sports Academy Monthly Training Fee' } = params;
+    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  }
+
   // ============================================================================
   // TEMPLATE RENDERING (Supports all CRM & Razorpay Variables)
   // ============================================================================
@@ -389,13 +420,18 @@ export class WhatsAppAutomationService {
       }
     }
 
-    // Razorpay payment link placeholder (clean demo link as requested)
-    const razorpayPaymentLink = `https://pay.apexacademy.in/invoice/${fee.id.substring(0, 8)}`;
-    console.log(`[WhatsAppAutomation] Generating fee reminder for student ${student.name} (Rs. ${pendingAmount}) with payment link: ${razorpayPaymentLink}`);
+    // Zero-Cut Direct UPI Payment Link (0.00% gateway charges)
+    const upiDetails = await this.getAcademyUpiDetails();
+    const zeroCutUpiLink = this.generateUpiPaymentLink({
+      upiId: upiDetails.upiId,
+      payeeName: upiDetails.payeeName,
+      amount: pendingAmount,
+      transactionNote: `Gurukul Academy Training Fee - ${student.name}`,
+    });
+    console.log(`[WhatsAppAutomation] Generating Zero-Cut Fee Reminder for student ${student.name} (Rs. ${pendingAmount}) with UPI Link: ${zeroCutUpiLink}`);
 
-    const academyName = await this.getAcademyName();
     const baseBody = this.renderTemplate(template.body, {
-      academy_name: academyName,
+      academy_name: upiDetails.academyName,
       student_name: student.name,
       parent_name: student.parent_name || 'Parent',
       phone: recipientPhone,
@@ -403,12 +439,14 @@ export class WhatsAppAutomationService {
       amount: pendingAmount.toString(),
       pending_amount: pendingAmount.toString(),
       due_date: fee.due_date,
-      payment_link: razorpayPaymentLink,
-      razorpay_payment_link: razorpayPaymentLink,
+      payment_link: zeroCutUpiLink,
+      upi_id: upiDetails.upiId,
+      upi_payee_name: upiDetails.payeeName,
+      razorpay_payment_link: zeroCutUpiLink,
       date: new Date().toISOString().split('T')[0],
     });
 
-    const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
+    const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, upiDetails.academyName);
 
     const queued = await queueService.enqueueMessage({
       recipientPhone,
@@ -436,93 +474,227 @@ export class WhatsAppAutomationService {
   }
 
   // ============================================================================
-  // AUTOMATION: MONTHLY 5TH FEE DUE AUTOMATION (Staggered with 15s gap)
+  // AUTOMATION: SMART MULTI-STAGE FEE CADENCE AUTOMATION (0% GATEWAY FEES)
+  // Stages:
+  // - T-5 (5 Days Before Due Date): Advance Courtesy Notice (FEE_UPCOMING)
+  // - T-2 (2 Days Before Due Date): Gentle Advance Notice (FEE_UPCOMING)
+  // - T-1 (1 Day Before Due Date): Due Tomorrow Alert (FEE_DUE)
+  // - T-0 (Due Date): Due Today Alert (FEE_DUE)
+  // - T+2 (2 Days Overdue): Late Follow-up (FEE_OVERDUE)
+  // - T+5 (5 Days Overdue): Final Late Notice before Admin Escalation (FEE_OVERDUE)
+  // Anti-Ban:
+  // - 15-21s dynamic throttle
+  // - Idempotency key per student, billing period, and cadence stage
   // ============================================================================
-  async triggerMonthly5thFeeDueAutomation() {
+  async triggerMultiStageFeeCadenceAutomation(options?: { forceAllUnpaid?: boolean }) {
     try {
-      const template = await templateService.getActiveTemplateForEvent('FEE_DUE');
-      if (!template) {
-        console.warn('[WhatsAppAutomation] No active template for FEE_DUE. Skipping monthly automation.');
-        return { queuedCount: 0, escalatedCount: 0 };
-      }
+      const upiDetails = await this.getAcademyUpiDetails();
 
-      // Fetch all students with unpaid fees
-      const { data: unpaidFees, error } = await this.supabase
-        .from('student_fees')
+      // Fetch active students and their fee records
+      const { data: students, error: studentError } = await this.supabase
+        .from('students')
         .select(`
           id,
-          amount_due,
-          amount_paid,
-          due_date,
-          student:students (id, name, parent_name, parent_whatsapp, student_mobile, course)
+          name,
+          parent_name,
+          parent_whatsapp,
+          student_mobile,
+          course,
+          monthly_fee,
+          fee_due_day,
+          status
         `)
-        .gt('amount_due', 0);
+        .eq('status', 'ACTIVE');
 
-      if (error || !unpaidFees) {
-        console.error('[WhatsAppAutomation] Failed to fetch unpaid fees:', error?.message);
-        return { queuedCount: 0, escalatedCount: 0 };
+      if (studentError || !students) {
+        console.error('[WhatsAppAutomation] Failed to fetch active students for fee cadence:', studentError?.message);
+        return { queuedCount: 0, escalatedCount: 0, skippedCount: 0, error: studentError?.message };
       }
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      const todayStr = now.toISOString().split('T')[0];
+      const todayMs = new Date(currentYear, currentMonth, now.getDate()).getTime();
+
+      // Current billing period YYYY-MM
+      const currentBillingPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+
+      // Fetch fee records for current billing period
+      const { data: feeRecords } = await this.supabase
+        .from('student_fees')
+        .select('id, student_id, amount_due, amount_paid, due_date, status, billing_period')
+        .eq('billing_period', currentBillingPeriod);
+
+      const feeMap = new Map<string, any>();
+      (feeRecords || []).forEach((f: any) => feeMap.set(f.student_id, f));
 
       const eligibleItems: any[] = [];
       let escalatedCount = 0;
-      const todayMs = new Date().setHours(0, 0, 0, 0);
-      const academyName = await this.getAcademyName();
+      let skippedCount = 0;
 
-      for (const fee of unpaidFees) {
-        const student = Array.isArray(fee.student) ? fee.student[0] : fee.student;
-        if (!student) continue;
-
-        const pendingAmount = Math.max(0, Number(fee.amount_due) - Number(fee.amount_paid));
-        if (pendingAmount <= 0) continue;
-
+      for (const student of students) {
         const recipientPhone = student.parent_whatsapp || student.student_mobile;
-        if (!recipientPhone) continue;
+        if (!recipientPhone) {
+          skippedCount++;
+          continue;
+        }
 
-        // Check 5-day overdue cutoff rule
-        if (fee.due_date) {
-          const dueDateMs = new Date(fee.due_date).getTime();
-          const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
-          if (daysOverdue > 5) {
+        const feeRecord = feeMap.get(student.id);
+        const monthlyFee = Number(student.monthly_fee || 0);
+        const amountDue = feeRecord ? Number(feeRecord.amount_due) : monthlyFee;
+        const amountPaid = feeRecord ? Number(feeRecord.amount_paid) : 0;
+        const pendingAmount = Math.max(0, amountDue - amountPaid);
+
+        // If no pending fee or monthly fee is 0, nothing due!
+        if (pendingAmount <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        // Determine student's due date for the cycle
+        const dueDay = student.fee_due_day || 1; // Default 1st of month (or 5th)
+        let dueDate = feeRecord?.due_date ? new Date(feeRecord.due_date) : new Date(currentYear, currentMonth, dueDay);
+        dueDate.setHours(0, 0, 0, 0);
+
+        const dueDateMs = dueDate.getTime();
+        const diffDays = Math.round((dueDateMs - todayMs) / (1000 * 60 * 60 * 24));
+        const dueDateFormatted = dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        let eventType: WhatsAppEventType | null = null;
+        let cadenceStage: string | null = null;
+
+        if (options?.forceAllUnpaid) {
+          if (diffDays < 0) {
+            eventType = 'FEE_OVERDUE';
+            cadenceStage = 'FORCE_OVERDUE';
+          } else {
+            eventType = 'FEE_DUE';
+            cadenceStage = 'FORCE_DUE';
+          }
+        } else {
+          // Strict Cadence Stages:
+          if (diffDays === 5) {
+            eventType = 'FEE_UPCOMING';
+            cadenceStage = 'T_MINUS_5';
+          } else if (diffDays === 2) {
+            eventType = 'FEE_UPCOMING';
+            cadenceStage = 'T_MINUS_2';
+          } else if (diffDays === 1) {
+            eventType = 'FEE_DUE';
+            cadenceStage = 'T_MINUS_1';
+          } else if (diffDays === 0) {
+            eventType = 'FEE_DUE';
+            cadenceStage = 'T_ZERO';
+          } else if (diffDays === -2) {
+            eventType = 'FEE_OVERDUE';
+            cadenceStage = 'T_PLUS_2';
+          } else if (diffDays === -5) {
+            eventType = 'FEE_OVERDUE';
+            cadenceStage = 'T_PLUS_5';
+          } else if (diffDays < -5) {
+            // Overdue > 5 days: Stop automatic spam! Escalated to Admin dashboard
             escalatedCount++;
+            continue;
+          } else {
+            // Not a cadence day (e.g. 4 days before, 3 days before, 1 day overdue, 3 days overdue)
+            skippedCount++;
             continue;
           }
         }
 
-        const razorpayPaymentLink = `https://pay.apexacademy.in/invoice/${fee.id.substring(0, 8)}`;
-        const messageBody = this.renderTemplate(template.body, {
-          academy_name: academyName,
+        if (!eventType || !cadenceStage) {
+          skippedCount++;
+          continue;
+        }
+
+        const template = await templateService.getActiveTemplateForEvent(eventType);
+        if (!template) {
+          console.warn(`[WhatsAppAutomation] No active template for ${eventType}. Skipping student ${student.name}.`);
+          continue;
+        }
+
+        // Generate 0-cut direct UPI deep-link
+        const zeroCutUpiLink = this.generateUpiPaymentLink({
+          upiId: upiDetails.upiId,
+          payeeName: upiDetails.payeeName,
+          amount: pendingAmount,
+          transactionNote: `Gurukul Fee ${currentBillingPeriod} - ${student.name}`,
+        });
+
+        const baseBody = this.renderTemplate(template.body, {
+          academy_name: upiDetails.academyName,
           student_name: student.name,
           parent_name: student.parent_name || 'Parent',
           phone: recipientPhone,
-          course_name: student.course || 'Course',
+          course_name: student.course || 'Athletics & Martial Arts',
           amount: pendingAmount.toString(),
           pending_amount: pendingAmount.toString(),
-          due_date: fee.due_date,
-          payment_link: razorpayPaymentLink,
-          razorpay_payment_link: razorpayPaymentLink,
-          date: new Date().toISOString().split('T')[0],
+          due_date: dueDateFormatted,
+          payment_link: zeroCutUpiLink,
+          upi_id: upiDetails.upiId,
+          upi_payee_name: upiDetails.payeeName,
+          razorpay_payment_link: zeroCutUpiLink,
+          date: todayStr,
         });
+
+        const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, upiDetails.academyName);
+
+        // Strict Idempotency Key: guarantees no duplicate send per student per billingPeriod per cadenceStage
+        const idempotencyKey = `FEE_CADENCE:${student.id}:${currentBillingPeriod}:${cadenceStage}:${todayStr}`;
 
         eligibleItems.push({
           recipientPhone,
           messageBody,
           studentId: student.id,
           templateId: template.id,
-          eventType: 'FEE_DUE',
+          eventType,
+          idempotencyKey,
+          metadata: {
+            cadenceStage,
+            billingPeriod: currentBillingPeriod,
+            dueDay,
+            diffDays,
+            pendingAmount,
+            upiId: upiDetails.upiId,
+          },
         });
       }
 
-      // Enqueue with 15-second anti-ban throttle
+      if (eligibleItems.length === 0) {
+        return {
+          queuedCount: 0,
+          escalatedCount,
+          skippedCount,
+          message: 'No students matched fee cadence trigger for today.',
+        };
+      }
+
+      // Enqueue batch with 15-21s anti-ban throttle
       const queuedItems = await queueService.enqueueBatchStaggered(eligibleItems, 15000);
+
       return {
         queuedCount: queuedItems.length,
         escalatedCount,
-        estimatedMinutes: Math.round((queuedItems.length * 15) / 60),
+        skippedCount,
+        estimatedMinutes: Math.round((queuedItems.length * 16) / 60),
+        cadenceDetails: eligibleItems.map((item) => ({
+          studentId: item.studentId,
+          recipientPhone: item.recipientPhone,
+          stage: item.metadata?.cadenceStage,
+          diffDays: item.metadata?.diffDays,
+          amount: item.metadata?.pendingAmount,
+        })),
       };
     } catch (err: any) {
-      console.warn('[WhatsAppAutomation.triggerMonthly5thFeeDueAutomation] Error:', err.message);
-      return { queuedCount: 0, escalatedCount: 0, error: err.message };
+      console.warn('[WhatsAppAutomation.triggerMultiStageFeeCadenceAutomation] Error:', err.message);
+      return { queuedCount: 0, escalatedCount: 0, skippedCount: 0, error: err.message };
     }
+  }
+
+  // Backward compatibility alias for manual sweep / legacy route
+  async triggerMonthly5thFeeDueAutomation() {
+    return this.triggerMultiStageFeeCadenceAutomation({ forceAllUnpaid: true });
   }
 
   // ============================================================================
@@ -924,10 +1096,10 @@ export class WhatsAppAutomationService {
     const pendingAmount = Math.max(0, amountDue - amountPaid);
     const currentMonthStatus = feeData ? feeData.status : (monthlyFee > 0 ? 'PENDING' : 'NOT_ASSIGNED');
 
-    // Academy Settings for branding
+    // Academy Settings for branding & 0% UPI Payments
     const { data: academy } = await this.supabase
       .from('academy_settings')
-      .select('academy_name, logo_url')
+      .select('academy_name, logo_url, upi_id, upi_payee_name')
       .limit(1)
       .maybeSingle();
     const academyName = academy?.academy_name || (await this.getAcademyName());
@@ -1013,6 +1185,8 @@ export class WhatsAppAutomationService {
         currentMonthStatus,
         pendingAmount,
         billingPeriod,
+        upiId: academy?.upi_id || 'gurukulsports@upi',
+        upiPayeeName: academy?.upi_payee_name || academyName,
       },
       martialArtsRank,
       academyName,
@@ -1030,7 +1204,10 @@ export class WhatsAppAutomationService {
     const academyName = reportData.academyName || (await this.getAcademyName());
 
     const feeStatus = reportData.fees.pendingAmount > 0 ? `Pending: Rs. ${reportData.fees.pendingAmount}` : 'All Clear';
-    const caption = `*Monthly Progress & Attendance Report: ${academyName}*\n\nDear Parent,\nPlease find attached the official monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${feeStatus}\n\nPlease review the attached document for detailed session breakdown.\n\n- ${academyName} Administration`;
+    const upiPayNote = reportData.fees.pendingAmount > 0 && reportData.fees.upiId
+      ? `\n\n💳 *Direct 0% Cut UPI Pay:* ${reportData.fees.upiId}\n📱 *1-Tap Pay:* upi://pay?pa=${encodeURIComponent(reportData.fees.upiId)}&pn=${encodeURIComponent(academyName)}&am=${reportData.fees.pendingAmount}&cu=INR&tn=${encodeURIComponent(`Monthly Fee - ${reportData.studentName}`)}`
+      : '';
+    const caption = `*Monthly Progress & Attendance Report: ${academyName}*\n\nDear Parent,\nPlease find attached the official monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${feeStatus}${upiPayNote}\n\nPlease review the attached document for detailed session breakdown.\n\n- ${academyName} Administration`;
 
     // Dispatch via companion socket
     const sendResult = await prototypeLinkedDeviceSender.sendDocument({

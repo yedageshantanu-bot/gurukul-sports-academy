@@ -86,6 +86,8 @@ export class SettingsService {
     if (dto.address !== undefined) updatePayload.address = dto.address;
     if (dto.website !== undefined) updatePayload.website = dto.website;
     if (dto.currency !== undefined) updatePayload.currency = dto.currency;
+    if (dto.upi_id !== undefined) updatePayload.upi_id = dto.upi_id;
+    if (dto.upi_payee_name !== undefined) updatePayload.upi_payee_name = dto.upi_payee_name;
 
     const { data: updated, error } = await db
       .from('academy_settings')

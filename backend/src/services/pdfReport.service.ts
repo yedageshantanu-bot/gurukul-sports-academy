@@ -26,6 +26,8 @@ export interface StudentReportData {
     currentMonthStatus: string;
     pendingAmount: number;
     billingPeriod: string;
+    upiId?: string;
+    upiPayeeName?: string;
   };
   martialArtsRank?: {
     disciplineName: string;
@@ -404,14 +406,16 @@ export class PdfReportService {
           statusLabel = 'PARTIAL PAYMENT';
         }
 
-        const feePillX = 350;
-        doc.roundedRect(feePillX, currentY + 14, 195, 26, 6).fillAndStroke(statusBg, statusBorder);
-        doc.fillColor(statusText).font('Helvetica-Bold').fontSize(9.5).text(statusLabel, feePillX, currentY + 21, { width: 195, align: 'center' });
+        const feePillX = 330;
+        doc.roundedRect(feePillX, currentY + 12, 215, 24, 6).fillAndStroke(statusBg, statusBorder);
+        doc.fillColor(statusText).font('Helvetica-Bold').fontSize(9).text(statusLabel, feePillX, currentY + 18, { width: 215, align: 'center' });
 
         if (data.fees.pendingAmount > 0) {
-          doc.fillColor('#BE123C').fontSize(8.5).font('Helvetica-Bold').text(`Pending Balance: Rs. ${Number(data.fees.pendingAmount).toLocaleString('en-IN')}`, feePillX, currentY + 46, { width: 195, align: 'center' });
+          doc.fillColor('#BE123C').fontSize(8.5).font('Helvetica-Bold').text(`Pending Balance: Rs. ${Number(data.fees.pendingAmount).toLocaleString('en-IN')}`, feePillX, currentY + 40, { width: 215, align: 'center' });
+          const upiInstruction = data.fees.upiId ? `Pay Direct UPI: ${data.fees.upiId} (0% Fee)` : 'Scan & Pay via GPay / PhonePe (0% Fee)';
+          doc.fillColor('#047857').fontSize(7.5).font('Helvetica-Bold').text(upiInstruction, feePillX, currentY + 54, { width: 215, align: 'center' });
         } else {
-          doc.fillColor('#15803D').fontSize(8.5).font('Helvetica-Bold').text('✓ All dues fully cleared for this cycle', feePillX, currentY + 46, { width: 195, align: 'center' });
+          doc.fillColor('#15803D').fontSize(8.5).font('Helvetica-Bold').text('✓ All dues fully cleared for this cycle', feePillX, currentY + 44, { width: 215, align: 'center' });
         }
 
         // =========================================================================

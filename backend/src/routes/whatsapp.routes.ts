@@ -57,6 +57,7 @@ router.get('/messages', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, n
 router.post('/send', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.sendCustomMessage(req, res, next));
 router.post('/trigger-fee-reminder', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerFeeReminder(req, res, next));
 router.post('/remind/monthly-fees', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerMonthlyFeeReminders(req, res, next));
+router.post('/remind/fee-cadence', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerFeeCadenceReminders(req, res, next));
 router.post('/reports/send-student/:studentId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.sendStudentMonthlyReport(req, res, next));
 router.post('/reports/send-all', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.sendAllMonthlyReports(req, res, next));
 router.get('/reports/download-pdf/:studentId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.downloadStudentReportPdf(req, res, next));
