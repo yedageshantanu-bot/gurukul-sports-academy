@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { PhoneInput } from '../../components/ui/PhoneInput';
@@ -30,6 +30,7 @@ import {
   CreditCard,
   Send,
   Award,
+  Clock,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -42,7 +43,6 @@ const avatarColors = [
 ];
 
 export const StudentsPage: React.FC = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [students, setStudents] = useState<StudentItem[]>([]);
   const [batches, setBatches] = useState<BatchItem[]>([]);
@@ -110,6 +110,10 @@ export const StudentsPage: React.FC = () => {
   const [belt2, setBelt2] = useState<string>('Meythari Level 1 (Body Control)');
   const [keepModalOpen, setKeepModalOpen] = useState(false);
 
+  // Admission Type: EXISTING (Pehle se enrolled) vs FRESH (Aaj naya admission)
+  const [admissionType, setAdmissionType] = useState<'EXISTING' | 'FRESH'>('EXISTING');
+  const [sendingPdfStudentId, setSendingPdfStudentId] = useState<string | null>(null);
+
   // Zero-Confusion Fee Frequency & Payment Settlement
   const [feeFrequency, setFeeFrequency] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [feePaymentType, setFeePaymentType] = useState<'PAID_UP_TO' | 'YEARLY_PAID' | 'YEARLY_PARTIAL' | 'FRESH_TODAY' | 'UNPAID_PENDING'>('PAID_UP_TO');
@@ -127,20 +131,25 @@ export const StudentsPage: React.FC = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
 
+  const currentMonthStr = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
   const [paidUpToMonth, setPaidUpToMonth] = useState(previousMonthStr);
 
   const monthOptions = useMemo(() => {
     const list: { value: string; label: string }[] = [];
     const now = new Date();
-    for (let i = 1; i >= -12; i--) {
+    for (let i = 2; i >= -12; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const name = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
       let tag = '';
-      if (i === 1) tag = ' (Advance / Next Month)';
-      else if (i === 0) tag = ' (Current Month - Up To Date)';
-      else if (i === -1) tag = ' (Last Month - Current Month Due)';
-      else tag = ` (${Math.abs(i)} Months Due)`;
+      if (i > 0) tag = ` (Advance Paid - Valid through ${name})`;
+      else if (i === 0) tag = ' (Current Month - Sab Paid Hai / All Cleared)';
+      else if (i === -1) tag = ' (Last Month Paid - Current Month Dues Pending)';
+      else tag = ` (${Math.abs(i)} Months Dues Pending)`;
       list.push({ value, label: `${name}${tag}` });
     }
     return list;
@@ -151,6 +160,47 @@ export const StudentsPage: React.FC = () => {
   const [waTargetStudent, setWaTargetStudent] = useState<StudentItem | null>(null);
   const [waCustomMessage, setWaCustomMessage] = useState('');
   const [sendingWa, setSendingWa] = useState(false);
+
+  const handleSendStudentMonthlyPdf = async (s: StudentItem) => {
+    if (!s.parentWhatsapp && !s.studentMobile) {
+      toast.error('Student does not have a registered WhatsApp number.');
+      return;
+    }
+    setSendingPdfStudentId(s.id);
+    try {
+      const res = await apiClient<any>(`/whatsapp/reports/send-student/${s.id}`, {
+        method: 'POST',
+      });
+      if (res?.success) {
+        toast.success(`Official Monthly PDF statement dispatched to ${s.name}'s parent WhatsApp!`);
+      } else {
+        toast.error(res?.error || 'Failed to dispatch monthly report.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send PDF statement.');
+    } finally {
+      setSendingPdfStudentId(null);
+    }
+  };
+
+  const filteredStudents = useMemo(() => {
+    if (!search.trim()) return students;
+    const q = search.toLowerCase();
+    return students.filter((s) => {
+      const matchName = s.name?.toLowerCase().includes(q);
+      const matchParent = s.parentName?.toLowerCase().includes(q);
+      const matchWa = s.parentWhatsapp?.toLowerCase().includes(q);
+      const matchMob = s.studentMobile?.toLowerCase().includes(q);
+      const matchCourse = s.course?.toLowerCase().includes(q);
+      const matchBatch = s.batchName?.toLowerCase().includes(q);
+      const matchRank = s.martialArtsRanks?.some((r: any) =>
+        r.rankName?.toLowerCase().includes(q) ||
+        r.beltColor?.toLowerCase().includes(q) ||
+        r.disciplineName?.toLowerCase().includes(q)
+      );
+      return matchName || matchParent || matchWa || matchMob || matchCourse || matchBatch || matchRank;
+    });
+  }, [students, search]);
 
   const fetchData = async (silent = false) => {
     try {
@@ -231,6 +281,7 @@ export const StudentsPage: React.FC = () => {
     setPaymentMethod('CASH');
     setPaymentNotes('');
     setAdmissionDate(new Date().toISOString().split('T')[0]);
+    setAdmissionType('EXISTING');
     setBackfillPastFees(false);
     setPastFeesStatus('PAID');
     setSportCount(1);
@@ -591,7 +642,7 @@ export const StudentsPage: React.FC = () => {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by student name, parent name, or WhatsApp number..."
+              placeholder="Search by student name, parent, phone, batch, sport, or belt..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2 text-sm border border-white/10 rounded-lg focus:outline-none focus:border-[#F97316] bg-[#0F172A] text-white placeholder:text-slate-400 transition-all"
@@ -609,7 +660,7 @@ export const StudentsPage: React.FC = () => {
             </Select>
             <button
               type="submit"
-              className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors"
+              className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors cursor-pointer"
             >
               Filter
             </button>
@@ -620,13 +671,13 @@ export const StudentsPage: React.FC = () => {
       {/* Students Table */}
       {loading ? (
         <SkeletonLoader variant="table" rows={5} />
-      ) : students.length === 0 ? (
+      ) : filteredStudents.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No students found"
-          description="Add your first student to start managing attendance and fees."
-          actionLabel="Add Student"
-          onAction={handleOpenAdd}
+          title={search ? 'No matching students found' : 'No students found'}
+          description={search ? 'Try clearing your search query or status filter.' : 'Add your first student to start managing attendance and fees.'}
+          actionLabel={search ? 'Clear Search' : 'Add Student'}
+          onAction={search ? () => setSearch('') : handleOpenAdd}
           accentColor="indigo"
         />
       ) : (
@@ -637,7 +688,7 @@ export const StudentsPage: React.FC = () => {
                 <tr>
                   <th>Student &amp; ID</th>
                   <th>Parent Contact</th>
-                  <th>Batch / Sport</th>
+                  <th>Batch &amp; Sport / Belt</th>
                   <th>WhatsApp</th>
                   <th>Fee Status</th>
                   <th>Status</th>
@@ -645,7 +696,7 @@ export const StudentsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {students.map((s, idx) => {
+                {filteredStudents.map((s, idx) => {
                   const initials = s.name
                     ? s.name
                         .split(' ')
@@ -664,9 +715,9 @@ export const StudentsPage: React.FC = () => {
                     <tr key={s.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                       {/* Student Name */}
                       <td className="px-6 py-4">
-                        <div
-                          onClick={() => navigate(`/admin/students/${s.id}`)}
-                          className="flex items-center gap-3 cursor-pointer group"
+                        <Link
+                          to={`/admin/students/${s.id}`}
+                          className="flex items-center gap-3 cursor-pointer group no-underline"
                           title="Click to view full student profile"
                         >
                           <div
@@ -685,7 +736,7 @@ export const StudentsPage: React.FC = () => {
                               </div>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </td>
 
                       {/* Parent / Primary WhatsApp */}
@@ -719,16 +770,34 @@ export const StudentsPage: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Assigned Batch */}
+                      {/* Assigned Batch & Sport/Belt */}
                       <td className="px-5 py-4 text-xs">
-                        {assignedBatchName ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80">
-                            <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                            {assignedBatchName}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-400 italic">Unassigned</span>
-                        )}
+                        <div className="space-y-1.5">
+                          {assignedBatchName ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80">
+                              <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                              {assignedBatchName}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500 italic block text-[11px]">Unassigned Batch</span>
+                          )}
+
+                          {s.martialArtsRanks && s.martialArtsRanks.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {s.martialArtsRanks.map((r: any, rIdx: number) => (
+                                <span
+                                  key={r.id || rIdx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25"
+                                  title={`${r.disciplineName}: ${r.rankName} (${r.beltColor} Belt)`}
+                                >
+                                  <Award className="w-3 h-3 text-amber-500" />
+                                  <span>{r.disciplineCode === 'KALARIPPAYATTU' ? 'Kalari' : r.disciplineCode === 'KARATE_WUSHU' ? 'Karate' : r.disciplineName}:</span>
+                                  <span className="font-extrabold">{r.rankName}</span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
 
                       {/* WhatsApp Opt-in */}
@@ -755,7 +824,7 @@ export const StudentsPage: React.FC = () => {
                         )}
                         {s.currentMonthFeeStatus === 'PARTIAL' && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            PARTIAL
+                            PARTIAL (₹{s.currentMonthPendingAmount})
                           </span>
                         )}
                         {s.currentMonthFeeStatus === 'PENDING' && (
@@ -783,14 +852,24 @@ export const StudentsPage: React.FC = () => {
                       {/* Actions */}
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-1">
+                          {/* 1-Click Send Monthly Progress PDF via WhatsApp */}
                           <button
                             type="button"
-                            onClick={() => navigate(`/admin/students/${s.id}`)}
-                            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
-                            title="View Full Profile"
+                            onClick={() => handleSendStudentMonthlyPdf(s)}
+                            disabled={sendingPdfStudentId === s.id}
+                            className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                            title="Dispatch Official Monthly Progress PDF to Parent WhatsApp"
+                          >
+                            <Send className={`w-4 h-4 ${sendingPdfStudentId === s.id ? 'animate-pulse text-amber-500' : ''}`} />
+                          </button>
+
+                          <Link
+                            to={`/admin/students/${s.id}`}
+                            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer inline-flex items-center justify-center"
+                            title="View Full Profile & Belt Examination History"
                           >
                             <ExternalLink className="w-4 h-4" />
-                          </button>
+                          </Link>
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(s)}
@@ -831,6 +910,55 @@ export const StudentsPage: React.FC = () => {
           )}
 
           <div className="space-y-3.5">
+            {/* ZERO-CONFUSION ADMISSION TYPE SELECTOR */}
+            <div className="p-3 bg-slate-900 border border-slate-700/80 rounded-xl space-y-2">
+              <label className="block text-xs font-bold text-white tracking-wide">
+                Kaisa Student Add Kar Rahe Hain? (Select Admission Type) *
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdmissionType('EXISTING');
+                    setFeePaymentType('PAID_UP_TO');
+                  }}
+                  className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                    admissionType === 'EXISTING'
+                      ? 'bg-indigo-600/20 border-indigo-500 text-white ring-2 ring-indigo-500/30'
+                      : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5 text-indigo-300">
+                    <span>📋 Purana / Existing Student</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Pehle se academy mein hai. Pichli fees already le chuke hain.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdmissionType('FRESH');
+                    setFeePaymentType('FRESH_TODAY');
+                    setAdmissionDate(new Date().toISOString().split('T')[0]);
+                  }}
+                  className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                    admissionType === 'FRESH'
+                      ? 'bg-emerald-600/20 border-emerald-500 text-white ring-2 ring-emerald-500/30'
+                      : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-300">
+                    <span>🌟 Naya Admission (Joining Today)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Aaj naye student ka fresh admission hua hai.
+                  </p>
+                </button>
+              </div>
+            </div>
+
             {/* 1. Student Full Name */}
             <Input
               label="Student Full Name *"
@@ -1112,26 +1240,32 @@ export const StudentsPage: React.FC = () => {
             </div>
 
             {/* 6. ZERO-CONFUSION FEE PLAN & SETTLEMENT */}
-            <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  Zero-Confusion Tuition Fee Setup *
+            <div className="p-4 bg-indigo-950/40 rounded-xl border border-indigo-500/30 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-indigo-400" />
+                  {admissionType === 'EXISTING'
+                    ? 'Purane Student Ki Fees Kaha Tak Jama Hai? (Zero Confusion Setup) *'
+                    : 'Naye Student Ki Fees Setup (Fresh Admission) *'}
                 </span>
 
                 {/* Plan Frequency Switcher: Monthly vs Yearly */}
-                <div className="inline-flex rounded-lg p-0.5 bg-slate-200 dark:bg-slate-800 text-[11px] font-bold">
+                <div className="inline-flex rounded-lg p-0.5 bg-slate-900 border border-slate-700 text-[11px] font-bold">
                   <button
                     type="button"
                     onClick={() => {
                       setFeeFrequency('MONTHLY');
-                      if (feePaymentType === 'YEARLY_PAID') setFeePaymentType('PAID_UP_TO');
+                      if (admissionType === 'EXISTING') {
+                        setFeePaymentType('PAID_UP_TO');
+                      } else {
+                        setFeePaymentType('FRESH_TODAY');
+                      }
                       if (monthlyFee === 7000) setMonthlyFee(700);
                     }}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       feeFrequency === 'MONTHLY'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Monthly Plan
@@ -1145,8 +1279,8 @@ export const StudentsPage: React.FC = () => {
                     }}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       feeFrequency === 'YEARLY'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     1-Year Annual
@@ -1175,236 +1309,20 @@ export const StudentsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Smart Payment Settlement Selector */}
-              <div className="pt-3 border-t border-indigo-200/50 dark:border-indigo-900/50 space-y-2.5">
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Payment Status at Enrollment (Zero Math):
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {feeFrequency === 'MONTHLY' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setFeePaymentType('PAID_UP_TO')}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          feePaymentType === 'PAID_UP_TO'
-                            ? 'bg-white dark:bg-slate-900 border-indigo-600 dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
-                            : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <span>📅 Paid Up To [Month]</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                          For existing students: Past fees already taken, automatically starts due from next/current month.
-                        </p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFeePaymentType('FRESH_TODAY')}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          feePaymentType === 'FRESH_TODAY'
-                            ? 'bg-white dark:bg-slate-900 border-indigo-600 dark:border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
-                            : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <span>💵 Paid Today (Desk / UPI)</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                          New student paying fees now in Cash or UPI.
-                        </p>
-                      </button>
-                    </>
-                  )}
-
-                  {feeFrequency === 'YEARLY' && (
-                    <div className="col-span-2 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {/* Option 1: Full 1-Year Paid */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setYearlyPaymentMode('FULL');
-                            setFeePaymentType('YEARLY_PAID');
-                          }}
-                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                            yearlyPaymentMode === 'FULL'
-                              ? 'bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            <span>1-Year Fully Paid</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                            ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} paid in full. Valid 365 days.
-                          </p>
-                        </button>
-
-                        {/* Option 2: Flexible Installments (2, 3 ya zyada kishte) */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setYearlyPaymentMode('INSTALLMENT');
-                            setFeePaymentType('YEARLY_PARTIAL');
-                            if (!yearlyPaidAmount && monthlyFee > 0) {
-                              setYearlyPaidAmount(String(Math.round(monthlyFee / 2)));
-                            }
-                          }}
-                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                            yearlyPaymentMode === 'INSTALLMENT'
-                              ? 'bg-amber-50/60 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
-                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                            <span>⏳ Flexible Installments (2+ Kishte)</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                            Pay partial advance now, remaining balance in 2nd, 3rd or more installments.
-                          </p>
-                        </button>
-
-                        {/* Option 3: Pay Later */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setYearlyPaymentMode('UNPAID');
-                            setFeePaymentType('UNPAID_PENDING');
-                          }}
-                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                            yearlyPaymentMode === 'UNPAID'
-                              ? 'bg-indigo-50/60 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
-                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <span>📋 Pay Later</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                            Enrolls with annual dues pending.
-                          </p>
-                        </button>
-                      </div>
-
-                      {/* Sub-panel for FULL */}
-                      {yearlyPaymentMode === 'FULL' && (
-                        <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-emerald-800 dark:text-emerald-300 font-semibold">
-                              Payment Mode:
-                            </span>
-                            <div className="w-48">
-                              <Select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value as any)}
-                              >
-                                <option value="CASH">Cash (Front Desk)</option>
-                                <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                                <option value="ONLINE">Online Transfer</option>
-                                <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                              </Select>
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                            ✓ <strong>Complete 365-Day Access:</strong> Zero monthly overdue notices. Renewal notice will trigger after 1 year.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Sub-panel for INSTALLMENT */}
-                      {yearlyPaymentMode === 'INSTALLMENT' && (
-                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-amber-300 dark:border-amber-700/60 space-y-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                              <Input
-                                label="1st Installment Paid Today (₹) *"
-                                type="number"
-                                min="0"
-                                max={monthlyFee}
-                                value={yearlyPaidAmount}
-                                onChange={(e) => setYearlyPaidAmount(e.target.value)}
-                                placeholder="e.g. 2000 ya 3500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                                Payment Mode
-                              </label>
-                              <Select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value as any)}
-                              >
-                                <option value="CASH">Cash (Front Desk)</option>
-                                <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                                <option value="ONLINE">Online Transfer</option>
-                                <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                              </Select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                                Next Installment Due Date *
-                              </label>
-                              <input
-                                type="date"
-                                value={nextInstallmentDueDate}
-                                onChange={(e) => setNextInstallmentDueDate(e.target.value)}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-                            <span className="text-amber-800 dark:text-amber-300 font-medium">
-                              Remaining Pending Balance:
-                            </span>
-                            <span className="font-bold font-mono text-sm text-amber-600 dark:text-amber-400">
-                              ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            💡 Student is enrolled with full 1-year annual membership. Reminder for the remaining ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')} is scheduled for <strong>{nextInstallmentDueDate}</strong>. Subsequent installments (2nd, 3rd, etc.) can be collected anytime in the <strong>Fees</strong> section!
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Sub-panel for UNPAID */}
-                      {yearlyPaymentMode === 'UNPAID' && (
-                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              Full Annual Fee Due / Reminder Date:
-                            </label>
-                            <input
-                              type="date"
-                              value={nextInstallmentDueDate}
-                              onChange={(e) => setNextInstallmentDueDate(e.target.value)}
-                              className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Total annual fee of ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} will remain pending until marked paid.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Sub-Panel: PAID_UP_TO Month Picker */}
-                {feePaymentType === 'PAID_UP_TO' && feeFrequency === 'MONTHLY' && (
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-2">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Select Month Student Has Already Paid Up To:
+              {/* CASE 1: EXISTING STUDENT MONTHLY CLEARANCE */}
+              {admissionType === 'EXISTING' && feeFrequency === 'MONTHLY' && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-indigo-300 mb-1.5">
+                      📅 Kis Mahine Tak Fees Already Jama Kar Li Gayi Hai?
                     </label>
                     <Select
                       value={paidUpToMonth}
-                      onChange={(e) => setPaidUpToMonth(e.target.value)}
-                      className="text-xs"
+                      onChange={(e) => {
+                        setPaidUpToMonth(e.target.value);
+                        setFeePaymentType('PAID_UP_TO');
+                      }}
+                      className="text-xs bg-slate-950 text-white border-slate-700"
                     >
                       {monthOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -1412,52 +1330,256 @@ export const StudentsPage: React.FC = () => {
                         </option>
                       ))}
                     </Select>
-                    <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
-                      💡 <strong>Smart Rollover Active:</strong> All past months through{' '}
-                      <strong>{paidUpToMonth}</strong> will be logged as <strong>PAID</strong> in fee history. If current month is after {paidUpToMonth}, it will automatically become <strong>DUE (₹{monthlyFee})</strong> without you doing any manual calculations! When calendar month turns to November/December, rollover happens automatically.
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-[11px] text-emerald-300 space-y-1 leading-relaxed">
+                    <div className="font-bold text-xs text-emerald-200 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      Zero-Math Smart Rollover Active:
+                    </div>
+                    <div>
+                      • <strong>{paidUpToMonth}</strong> tak ke sabhi pichle mahine student ke ledger mein <strong>PAID</strong> mark ho jayenge.
+                    </div>
+                    <div>
+                      • Current Month ({new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}):{' '}
+                      <strong>
+                        {paidUpToMonth >= currentMonthStr
+                          ? 'PAID IN FULL (All Cleared - Kuch Dues Nahi)'
+                          : `DUE PENDING (₹${monthlyFee} Due)`}
+                      </strong>
+                    </div>
+                    <div>
+                      • <strong>Aage Ka Naya Mahina:</strong> Jab calendar change hoga (November / December), toh naye mahine ka bill system apne aap create kar dega — aapko koi calculation ya manual overdue type karne ki zaroorat nahi hai!
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Sub-Panel: FRESH_TODAY Payment Details */}
-                {feePaymentType === 'FRESH_TODAY' && (
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
+              {/* CASE 2: FRESH ADMISSION MONTHLY */}
+              {admissionType === 'FRESH' && feeFrequency === 'MONTHLY' && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 space-y-3">
+                  <label className="block text-xs font-bold text-slate-200">
+                    Aaj Admission Ke Waqt Fees Li Ya Baad Mein Denge?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setFeePaymentType('FRESH_TODAY')}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        feePaymentType === 'FRESH_TODAY'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-white ring-2 ring-emerald-500/30'
+                          : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center gap-1.5 text-emerald-300">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>💵 Aaj Desk / UPI Par Jama Ki</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Current month ({new Date().toLocaleString('en-IN', { month: 'long' })}) ki fees turant PAID ho jayegi.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFeePaymentType('UNPAID_PENDING')}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        feePaymentType === 'UNPAID_PENDING'
+                          ? 'bg-amber-600/20 border-amber-500 text-white ring-2 ring-amber-500/30'
+                          : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                        <Clock className="w-4 h-4 text-amber-400" />
+                        <span>📋 Baad Mein Denge (Pending)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Student enroll ho jayega aur current month fee pending dikhegi.
+                      </p>
+                    </button>
+                  </div>
+
+                  {feePaymentType === 'FRESH_TODAY' && (
+                    <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <Input
                           label="Amount Paid Today (₹)"
                           type="number"
                           min="0"
                           value={initialPaymentAmount}
                           onChange={(e) => setInitialPaymentAmount(e.target.value)}
-                          placeholder="e.g. 700"
+                          placeholder={`e.g. ${monthlyFee || 700}`}
                         />
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                            Payment Mode
+                          </label>
+                          <Select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value as any)}
+                          >
+                            <option value="CASH">Cash (Front Desk)</option>
+                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                            <option value="ONLINE">Online Transfer</option>
+                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                          </Select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                          Payment Mode
-                        </label>
-                        <Select
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value as any)}
-                        >
-                          <option value="CASH">Cash (Front Desk)</option>
-                          <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                          <option value="ONLINE">Online Transfer</option>
-                          <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                        </Select>
+                      <div className="flex items-center justify-between text-xs p-2 rounded bg-slate-900 border border-slate-800">
+                        <span className="text-slate-400">Remaining Balance:</span>
+                        <strong className="text-white font-mono">
+                          ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(initialPaymentAmount) || 0)).toLocaleString('en-IN')}
+                        </strong>
                       </div>
                     </div>
+                  )}
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span>Remaining Balance:</span>
-                      <strong className="text-slate-900 dark:text-white">
-                        ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(initialPaymentAmount) || 0)).toLocaleString('en-IN')}
-                      </strong>
-                    </div>
+              {/* CASE 3: YEARLY PACKAGE (Both Existing and Fresh) */}
+              {feeFrequency === 'YEARLY' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* Option 1: Full 1-Year Paid */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYearlyPaymentMode('FULL');
+                        setFeePaymentType('YEARLY_PAID');
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        yearlyPaymentMode === 'FULL'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-white ring-2 ring-emerald-500/30'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>1-Saal Pura Paid</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} paid in full. Valid 365 days.
+                      </p>
+                    </button>
+
+                    {/* Option 2: Flexible Installments */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYearlyPaymentMode('INSTALLMENT');
+                        setFeePaymentType('YEARLY_PARTIAL');
+                        if (!yearlyPaidAmount && monthlyFee > 0) {
+                          setYearlyPaidAmount(String(Math.round(monthlyFee / 2)));
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        yearlyPaymentMode === 'INSTALLMENT'
+                          ? 'bg-amber-600/20 border-amber-500 text-white ring-2 ring-amber-500/30'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-amber-400" />
+                        <span>Kishto Mein (Installments)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Kuch amount abhi paid, baaki 2nd/3rd kisht mein.
+                      </p>
+                    </button>
+
+                    {/* Option 3: Pay Later */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYearlyPaymentMode('UNPAID');
+                        setFeePaymentType('UNPAID_PENDING');
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        yearlyPaymentMode === 'UNPAID'
+                          ? 'bg-indigo-600/20 border-indigo-500 text-white ring-2 ring-indigo-500/30'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold text-indigo-300 flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4 text-indigo-400" />
+                        <span>Baad Mein Denge</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Enrolls with annual dues pending.
+                      </p>
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  {yearlyPaymentMode === 'FULL' && (
+                    <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-300 font-semibold">Payment Mode:</span>
+                        <div className="w-48">
+                          <Select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value as any)}
+                          >
+                            <option value="CASH">Cash (Front Desk)</option>
+                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                            <option value="ONLINE">Online Transfer</option>
+                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-emerald-400">
+                        ✓ <strong>Complete 365-Day Access:</strong> Zero monthly overdue notices. Renewal notice after 1 year.
+                      </p>
+                    </div>
+                  )}
+
+                  {yearlyPaymentMode === 'INSTALLMENT' && (
+                    <div className="p-3.5 rounded-xl bg-slate-900 border border-amber-500/40 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <Input
+                          label="1st Kisht Amount Paid (₹) *"
+                          type="number"
+                          min="0"
+                          max={monthlyFee}
+                          value={yearlyPaidAmount}
+                          onChange={(e) => setYearlyPaidAmount(e.target.value)}
+                          placeholder="e.g. 2000 ya 3500"
+                        />
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                            Payment Mode
+                          </label>
+                          <Select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value as any)}
+                          >
+                            <option value="CASH">Cash (Front Desk)</option>
+                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
+                            <option value="ONLINE">Online Transfer</option>
+                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                            Next Kisht Due Date *
+                          </label>
+                          <input
+                            type="date"
+                            value={nextInstallmentDueDate}
+                            onChange={(e) => setNextInstallmentDueDate(e.target.value)}
+                            className="w-full px-3 py-2 text-xs border border-slate-700 rounded-xl bg-slate-950 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+                        <span className="text-amber-300 font-medium">Bachi Hui Pending Kisht:</span>
+                        <span className="font-bold font-mono text-sm text-amber-400">
+                          ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 5. Batch Selector */}

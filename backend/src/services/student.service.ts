@@ -124,34 +124,83 @@ export class StudentService {
 
     // If Admin, query current month's fee status for all fetched students
     const studentFeeMap = new Map<string, { status: string; pendingAmount: number }>();
-    if (requestingUser.role === ROLES.ADMIN && data && data.length > 0) {
+    const studentRanksMap = new Map<string, any[]>();
+
+    if (data && data.length > 0) {
       const studentIds = data.map((s: any) => s.id);
-      const { data: fees } = await supabaseAdmin
-        .from('student_fees')
-        .select('student_id, amount_due, amount_paid, due_date, status')
-        .in('student_id', studentIds)
-        .eq('billing_period', currentBillingPeriod);
 
-      (fees || []).forEach((f: any) => {
-        const amountDue = Number(f.amount_due || 0);
-        const amountPaid = Number(f.amount_paid || 0);
-        const pendingAmount = Math.max(0, amountDue - amountPaid);
-        let currentStatus = f.status || 'PENDING';
-        if (pendingAmount <= 0) {
-          currentStatus = 'PAID';
-        } else if (amountPaid > 0) {
-          currentStatus = 'PARTIAL';
-        } else if (new Date(f.due_date) < today) {
-          currentStatus = 'OVERDUE';
-        } else {
-          currentStatus = 'PENDING';
-        }
+      if (requestingUser.role === ROLES.ADMIN) {
+        const { data: fees } = await supabaseAdmin
+          .from('student_fees')
+          .select('student_id, amount_due, amount_paid, due_date, status')
+          .in('student_id', studentIds)
+          .eq('billing_period', currentBillingPeriod);
 
-        studentFeeMap.set(f.student_id, {
-          status: currentStatus,
-          pendingAmount,
+        (fees || []).forEach((f: any) => {
+          const amountDue = Number(f.amount_due || 0);
+          const amountPaid = Number(f.amount_paid || 0);
+          const pendingAmount = Math.max(0, amountDue - amountPaid);
+          let currentStatus = f.status || 'PENDING';
+          if (pendingAmount <= 0) {
+            currentStatus = 'PAID';
+          } else if (amountPaid > 0) {
+            currentStatus = 'PARTIAL';
+          } else if (new Date(f.due_date) < today) {
+            currentStatus = 'OVERDUE';
+          } else {
+            currentStatus = 'PENDING';
+          }
+
+          studentFeeMap.set(f.student_id, {
+            status: currentStatus,
+            pendingAmount,
+          });
         });
-      });
+      }
+
+      // Query active martial arts ranks & belts for all fetched students
+      try {
+        const { data: srData } = await supabaseAdmin
+          .from('student_ranks')
+          .select(`
+            id,
+            student_id,
+            discipline_code,
+            reg_number,
+            promoted_at,
+            promoted_by,
+            martial_arts_ranks (
+              rank_name,
+              belt_color
+            )
+          `)
+          .in('student_id', studentIds);
+
+        (srData || []).forEach((sr: any) => {
+          const list = studentRanksMap.get(sr.student_id) || [];
+          list.push({
+            id: sr.id,
+            disciplineCode: sr.discipline_code,
+            disciplineName: sr.discipline_code === 'KALARIPPAYATTU'
+              ? 'Kalarippayattu'
+              : sr.discipline_code === 'KARATE_WUSHU'
+              ? 'Karate + Wushu'
+              : sr.discipline_code === 'KICKBOXING'
+              ? 'Kickboxing'
+              : sr.discipline_code === 'GYMNASTICS'
+              ? 'Gymnastics'
+              : 'Martial Arts',
+            regNumber: sr.reg_number,
+            promotedAt: sr.promoted_at,
+            promotedBy: sr.promoted_by,
+            rankName: (sr.martial_arts_ranks as any)?.rank_name || 'Active Grade',
+            beltColor: (sr.martial_arts_ranks as any)?.belt_color || 'Yellow',
+          });
+          studentRanksMap.set(sr.student_id, list);
+        });
+      } catch (err) {
+        console.warn('student_ranks query fallback in getAllStudents:', err);
+      }
     }
 
     let students = (data || []).map((s: any) => {
@@ -163,6 +212,7 @@ export class StudentService {
         .filter(Boolean);
 
       const feeInfo = studentFeeMap.get(s.id);
+      const ranks = studentRanksMap.get(s.id) || [];
 
       return {
         id: s.id,
@@ -180,6 +230,7 @@ export class StudentService {
         enrolledBatches,
         batchId: enrolledBatches[0]?.id || '',
         batchName: enrolledBatches[0]?.name || '',
+        martialArtsRanks: ranks,
         // Fee fields strictly Admin-scoped
         currentMonthFeeStatus: requestingUser.role === ROLES.ADMIN ? (feeInfo?.status || 'NOT_ASSIGNED') : undefined,
         currentMonthPendingAmount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.pendingAmount || 0) : undefined,
@@ -197,7 +248,13 @@ export class StudentService {
           s.studentMobile.toLowerCase().includes(q) ||
           s.parentWhatsapp.toLowerCase().includes(q) ||
           s.email.toLowerCase().includes(q) ||
-          s.course.toLowerCase().includes(q)
+          s.course.toLowerCase().includes(q) ||
+          s.batchName.toLowerCase().includes(q) ||
+          (s.martialArtsRanks && s.martialArtsRanks.some((r: any) =>
+            r.rankName?.toLowerCase().includes(q) ||
+            r.beltColor?.toLowerCase().includes(q) ||
+            r.disciplineName?.toLowerCase().includes(q)
+          ))
       );
     }
 

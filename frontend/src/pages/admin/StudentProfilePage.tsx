@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Skeleton } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -29,6 +30,8 @@ import {
   Percent,
   Award,
   Send,
+  Plus,
+  Sparkles,
 } from 'lucide-react';
 
 export const StudentProfilePage: React.FC = () => {
@@ -44,6 +47,17 @@ export const StudentProfilePage: React.FC = () => {
   const [pdfSending, setPdfSending] = useState(false);
   const [pdfSendResult, setPdfSendResult] = useState<{ success: boolean; message: string } | null>(null);
   const [directMsgSending, setDirectMsgSending] = useState(false);
+
+  // Ranks & Promotions Modal State
+  const [allRanks, setAllRanks] = useState<any[]>([]);
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [targetDiscipline, setTargetDiscipline] = useState<'KALARIPPAYATTU' | 'KARATE_WUSHU' | 'BOTH'>('KALARIPPAYATTU');
+  const [selectedRankId, setSelectedRankId] = useState<string>('');
+  const [promotionDate, setPromotionDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [promotedBy, setPromotedBy] = useState<string>('Sensei Vikram Salunkhe (Chief Master)');
+  const [certificateNumber, setCertificateNumber] = useState<string>('');
+  const [rankActionLoading, setRankActionLoading] = useState(false);
 
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'N/A';
@@ -103,6 +117,19 @@ export const StudentProfilePage: React.FC = () => {
     }
   };
 
+  const fetchAllRanks = async () => {
+    try {
+      const res = await apiClient<any>('/ranks/list');
+      if (Array.isArray(res)) {
+        setAllRanks(res);
+      } else if (res && Array.isArray((res as any).data)) {
+        setAllRanks((res as any).data);
+      }
+    } catch (e) {
+      console.warn('Could not load ranks list', e);
+    }
+  };
+
   const fetchStudentDetails = async () => {
     if (!id) return;
     try {
@@ -120,7 +147,92 @@ export const StudentProfilePage: React.FC = () => {
 
   useEffect(() => {
     fetchStudentDetails();
+    fetchAllRanks();
   }, [id]);
+
+  const handleOpenPromoteModal = (disciplineCode: 'KALARIPPAYATTU' | 'KARATE_WUSHU') => {
+    setTargetDiscipline(disciplineCode);
+    const discRanks = allRanks
+      .filter((r) => r.discipline_code === disciplineCode)
+      .sort((a, b) => a.rank_order - b.rank_order);
+
+    const martialArtsRanksList = student?.martialArtsRanks || [];
+    const currentSr = martialArtsRanksList.find(
+      (r: any) => (r.disciplineCode || r.sport_discipline) === disciplineCode
+    );
+    const currentOrder = currentSr?.rankOrder || 1;
+    const nextRank = discRanks.find((r) => r.rank_order > currentOrder) || discRanks[0];
+    if (nextRank) {
+      setSelectedRankId(nextRank.id);
+    } else if (discRanks.length > 0) {
+      setSelectedRankId(discRanks[0].id);
+    }
+    setPromotionDate(new Date().toISOString().split('T')[0]);
+    setPromotedBy('Sensei Vikram Salunkhe (Chief Master)');
+    setCertificateNumber(`GSA-CERT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
+    setIsPromoteModalOpen(true);
+  };
+
+  const handleOpenAssignModal = () => {
+    setTargetDiscipline('KALARIPPAYATTU');
+    const defaultRanks = allRanks.filter((r) => r.discipline_code === 'KALARIPPAYATTU');
+    if (defaultRanks.length > 0) {
+      setSelectedRankId(defaultRanks[0].id);
+    }
+    setPromotionDate(new Date().toISOString().split('T')[0]);
+    setPromotedBy('Sensei Vikram Salunkhe (Chief Master)');
+    setIsAssignModalOpen(true);
+  };
+
+  const handleExecutePromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !selectedRankId) return;
+    try {
+      setRankActionLoading(true);
+      await apiClient('/ranks/promote', {
+        method: 'POST',
+        body: JSON.stringify({
+          studentId: id,
+          disciplineCode: targetDiscipline,
+          nextRankId: selectedRankId,
+          promotionDate,
+          promotedBy,
+          certificateNumber: certificateNumber.trim() || undefined,
+        }),
+      });
+      toast.success('Martial Arts Belt upgraded & examination result recorded successfully!');
+      setIsPromoteModalOpen(false);
+      await fetchStudentDetails();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update belt rank');
+    } finally {
+      setRankActionLoading(false);
+    }
+  };
+
+  const handleExecuteAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !selectedRankId) return;
+    try {
+      setRankActionLoading(true);
+      const chosenRank = allRanks.find((r) => r.id === selectedRankId);
+      await apiClient('/ranks/assign', {
+        method: 'POST',
+        body: JSON.stringify({
+          studentId: id,
+          disciplineCode: targetDiscipline,
+          rankName: chosenRank?.rank_name,
+        }),
+      });
+      toast.success(`Starting Belt (${chosenRank?.rank_name || 'Enrolled'}) assigned successfully!`);
+      setIsAssignModalOpen(false);
+      await fetchStudentDetails();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to assign starting belt');
+    } finally {
+      setRankActionLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -582,6 +694,171 @@ export const StudentProfilePage: React.FC = () => {
                   <span className="font-semibold text-slate-900 dark:text-white">{student.course || 'General'}</span>
                 </div>
               </div>
+            </Card>
+
+            {/* Martial Arts Belt & Grading Standing (Kya Rank Hai / Kya Thi / Kab Update Hui) */}
+            <Card className="p-6 border-slate-200/80 dark:border-slate-800 shadow-card bg-gradient-to-br from-white via-slate-50/40 to-amber-50/20 dark:from-slate-900 dark:via-slate-900/80 dark:to-amber-950/20">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    Martial Arts Belt &amp; Grading Standing
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Official belt grade (क्या रैंक है), previous rank (क्या रैंक थी), update date (कब अपडेट हुई) &amp; examiner
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {martialArtsRanks.length > 0 ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenPromoteModal((martialArtsRanks[0].disciplineCode || 'KALARIPPAYATTU') as any)}
+                      className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 text-xs font-bold shadow-xs cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Promote / Record Exam
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={handleOpenAssignModal}
+                      className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 text-xs font-bold shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Assign Starting Belt
+                    </Button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ranks')}
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer ml-1"
+                  >
+                    View All ({martialArtsRanks.length}) <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {martialArtsRanks.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-center">
+                  <Award className="w-10 h-10 text-amber-500 mx-auto mb-2 opacity-80" />
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">No Martial Arts Belt Assigned Yet</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 mb-4">
+                    This student is not yet enrolled in Kalarippayattu or Karate &amp; Wushu belt progression. Assign their initial belt to track grading exams and certificates.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenAssignModal}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold gap-2 text-xs"
+                  >
+                    <Plus className="w-4 h-4" /> Assign Starting Belt
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {martialArtsRanks.map((r: any, idx: number) => {
+                    const dCode = r.disciplineCode || r.sport_discipline || 'KALARIPPAYATTU';
+                    const discTitle = r.disciplineName || (dCode === 'KALARIPPAYATTU' ? 'Kalarippayattu' : 'Karate & Wushu');
+                    const rankName = r.rankName || r.rank_name || 'Level 1';
+                    const beltColor = r.beltColor || r.belt_color || 'Yellow';
+                    const regNo = r.regNumber || r.reg_number || 'PENDING';
+
+                    // Match previous rank from rankHistory
+                    const lastPromo = rankHistory.find((p: any) => (p.disciplineCode || (p as any).discipline_code) === dCode);
+                    const previousRank = lastPromo ? (lastPromo.previousRankName || (lastPromo as any).previous_rank_name || 'White Belt') : 'White Belt (Initial Entry)';
+                    const updateDate = r.promotedAt || r.last_promoted_date || lastPromo?.promotionDate || student.admissionDate;
+                    const examinerName = r.promotedBy || (lastPromo as any)?.promotedBy || 'Sensei Vikram Salunkhe (Chief Master)';
+                    const certNumber = (lastPromo as any)?.certificateNumber || r.regNumber || `GSA-CERT-${new Date().getFullYear()}`;
+
+                    return (
+                      <div
+                        key={r.id || idx}
+                        className="p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                          <div>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                              {discTitle}
+                            </span>
+                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200 font-mono mt-0.5">
+                              Athlete #{regNo}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${getBeltColorBadge(beltColor)}`}>
+                              {beltColor} Belt
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleOpenPromoteModal(dCode === 'BOTH' ? 'KALARIPPAYATTU' : dCode)}
+                              className="text-xs h-7 px-2.5 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-amber-300/60 dark:border-amber-700/60"
+                              title="Upgrade or record belt examination"
+                            >
+                              <Sparkles className="w-3 h-3 mr-1 text-amber-500" /> Upgrade
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 4-Box Key Metrics: Kya Rank Hai / Kya Thi / Kab Update Hui / Graded By */}
+                        <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                          {/* 1. Kya Rank Hai (Current) */}
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Current Rank (क्या रैंक है)
+                            </span>
+                            <span className="font-extrabold text-slate-900 dark:text-white block truncate" title={rankName}>
+                              {rankName}
+                            </span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                              {beltColor} Belt
+                            </span>
+                          </div>
+
+                          {/* 2. Kya Thi (Previous Rank) */}
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Previous Rank (क्या रैंक थी)
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300 block truncate" title={previousRank}>
+                              {previousRank}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {lastPromo ? 'Promoted' : 'Starting Grade'}
+                            </span>
+                          </div>
+
+                          {/* 3. Kab Update Hui (Date) */}
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Exam / Update Date (कब अपडेट हुई)
+                            </span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                              {formatDate(updateDate)}
+                            </span>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
+                              <CheckCircle2 className="w-3 h-3" /> Certified
+                            </span>
+                          </div>
+
+                          {/* 4. Graded By / Examiner */}
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Graded By (परीक्षक)
+                            </span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 block truncate" title={examinerName}>
+                              {examinerName}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400 truncate block" title={certNumber}>
+                              Cert #{certNumber}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             {/* Recent Attendance Preview */}
@@ -1084,6 +1361,192 @@ export const StudentProfilePage: React.FC = () => {
           )}
         </Card>
       )}
+
+      {/* Quick Promote / Record Belt Examination Modal */}
+      <Modal
+        isOpen={isPromoteModalOpen}
+        onClose={() => setIsPromoteModalOpen(false)}
+        title="🥋 Promote Athlete / Record Belt Exam"
+        maxWidth="lg"
+      >
+        <form onSubmit={handleExecutePromotion} className="space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Record grading exam results, certify belt progression, and update <strong>{student.name}</strong>'s martial arts rank standing.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Sport Discipline (खेल / विद्या)
+              </label>
+              <select
+                value={targetDiscipline}
+                onChange={(e) => {
+                  const dCode = e.target.value as any;
+                  setTargetDiscipline(dCode);
+                  const discRanks = allRanks.filter((r) => r.discipline_code === dCode);
+                  if (discRanks.length > 0) setSelectedRankId(discRanks[0].id);
+                }}
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+              >
+                <option value="KALARIPPAYATTU">Kalarippayattu (कलरिपयट्टू)</option>
+                <option value="KARATE_WUSHU">Karate &amp; Wushu (कराटे और वुशु)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                New Upgraded Belt Rank (नया बेल्ट चुनें)
+              </label>
+              <select
+                value={selectedRankId}
+                onChange={(e) => setSelectedRankId(e.target.value)}
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+                required
+              >
+                {allRanks
+                  .filter((r) => r.discipline_code === targetDiscipline)
+                  .sort((a, b) => a.rank_order - b.rank_order)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      Level {r.rank_order}: {r.rank_name} ({r.belt_color} Belt)
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Examination / Promotion Date (परीक्षा की तारीख)
+              </label>
+              <input
+                type="date"
+                value={promotionDate}
+                onChange={(e) => setPromotionDate(e.target.value)}
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Examiner / Graded By (परीक्षक)
+              </label>
+              <input
+                type="text"
+                value={promotedBy}
+                onChange={(e) => setPromotedBy(e.target.value)}
+                placeholder="e.g. Sensei Vikram Salunkhe (Chief Master)"
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              Certificate Number (प्रमाणपत्र क्रमांक)
+            </label>
+            <input
+              type="text"
+              value={certificateNumber}
+              onChange={(e) => setCertificateNumber(e.target.value)}
+              placeholder="e.g. GSA-CERT-2026-384"
+              className="w-full text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsPromoteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={rankActionLoading || !selectedRankId}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
+            >
+              {rankActionLoading ? 'Recording Exam...' : 'Confirm & Upgrade Belt'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Quick Assign Starting Belt Modal */}
+      <Modal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        title="🥋 Assign Starting Martial Arts Belt"
+        maxWidth="md"
+      >
+        <form onSubmit={handleExecuteAssign} className="space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Register <strong>{student.name}</strong> into the official Gurukul Sports Martial Arts belt progression registry.
+          </p>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              Discipline (खेल / विद्या)
+            </label>
+            <select
+              value={targetDiscipline}
+              onChange={(e) => {
+                const dCode = e.target.value as any;
+                setTargetDiscipline(dCode);
+                const discRanks = allRanks.filter((r) => r.discipline_code === (dCode === 'BOTH' ? 'KALARIPPAYATTU' : dCode));
+                if (discRanks.length > 0) setSelectedRankId(discRanks[0].id);
+              }}
+              className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+            >
+              <option value="KALARIPPAYATTU">Kalarippayattu (कलरिपयट्टू)</option>
+              <option value="KARATE_WUSHU">Karate &amp; Wushu (कराटे और वुशु)</option>
+              <option value="BOTH">Both (Dual Discipline / दोनों)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              Starting Belt Rank (शुरुआती बेल्ट)
+            </label>
+            <select
+              value={selectedRankId}
+              onChange={(e) => setSelectedRankId(e.target.value)}
+              className="w-full text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
+              required
+            >
+              {allRanks
+                .filter((r) => targetDiscipline === 'BOTH' || r.discipline_code === targetDiscipline)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.discipline_code === 'KALARIPPAYATTU' ? '[Kalari]' : '[Karate]'} Level {r.rank_order}: {r.rank_name} ({r.belt_color} Belt)
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsAssignModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={rankActionLoading || !selectedRankId}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
+            >
+              {rankActionLoading ? 'Assigning...' : 'Assign Starting Belt'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

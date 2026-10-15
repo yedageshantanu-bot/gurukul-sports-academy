@@ -952,18 +952,41 @@ export class WhatsAppAutomationService {
         .limit(1)
         .maybeSingle();
 
+      const { data: promData } = await this.supabase
+        .from('rank_promotions')
+        .select(`
+          discipline_code,
+          previous_rank_name,
+          new_rank_name,
+          reg_number,
+          promotion_date,
+          promoted_by,
+          certificate_number
+        `)
+        .eq('student_id', studentId)
+        .order('promotion_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (srData) {
         martialArtsRank = {
           disciplineName: srData.discipline_code === 'KALARIPPAYATTU'
             ? 'Kalarippayattu'
             : srData.discipline_code === 'KARATE_WUSHU'
             ? 'Karate + Wushu'
+            : srData.discipline_code === 'KICKBOXING'
+            ? 'Kickboxing'
+            : srData.discipline_code === 'GYMNASTICS'
+            ? 'Gymnastics & Acrobatics'
             : 'Martial Arts',
-          currentRankName: (srData.martial_arts_ranks as any)?.rank_name || 'Novice / Trainee',
+          currentRankName: (srData.martial_arts_ranks as any)?.rank_name || promData?.new_rank_name || 'Active Trainee',
           beltColor: (srData.martial_arts_ranks as any)?.belt_color || 'Yellow',
-          regNumber: srData.reg_number || undefined,
-          promotedAt: srData.promoted_at || undefined,
-          examinerName: srData.promoted_by || 'Chief Master (Gurukul Academy)',
+          regNumber: srData.reg_number || promData?.reg_number || undefined,
+          promotedAt: promData?.promotion_date || srData.promoted_at || undefined,
+          examinerName: promData?.promoted_by || srData.promoted_by || 'Chief Master (Gurukul Academy)',
+          certificateNumber: promData?.certificate_number || 'GSA-CERTIFIED',
+          previousRankName: promData?.previous_rank_name || undefined,
+          examResult: 'PASSED & PROMOTED',
         };
       }
     } catch (rErr) {
