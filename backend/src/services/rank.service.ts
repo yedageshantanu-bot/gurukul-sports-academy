@@ -885,7 +885,11 @@ export class RankService {
         .eq('discipline_code', dCode)
         .order('rank_order', { ascending: true });
 
-      const targetRank = (ranks || []).find((r: any) => r.rank_name === rankName) || (ranks || [])[0];
+      const targetRank = (ranks || []).find((r: any) =>
+        r.rank_name === rankName ||
+        r.id === rankName ||
+        (rankName && r.rank_name?.toLowerCase() === rankName.toLowerCase())
+      ) || (ranks || [])[0];
       if (!targetRank) continue;
 
       const { data: existingSr } = await supabaseAdmin

@@ -690,6 +690,24 @@ export class StudentService {
           due_date: dueDate,
           status: feeStatus,
         });
+
+        // Insert individual scheduled future installments
+        if (dto.installments && Array.isArray(dto.installments) && dto.installments.length > 0) {
+          dto.installments.forEach((inst, idx) => {
+            const instDueDate = inst.dueDate;
+            const instAmount = Number(inst.amount) || 0;
+            if (instAmount > 0) {
+              feeRecordsToInsert.push({
+                student_id: student.id,
+                billing_period: `${currentBillingPeriod}_INST_${idx + 2}`,
+                amount_due: instAmount,
+                amount_paid: 0,
+                due_date: instDueDate,
+                status: 'PENDING',
+              });
+            }
+          });
+        }
       }
       // CASE B: "PAID UP TO" SMART SELECTOR (Zero math: e.g. paid up to Sept 2026, Oct 2026 is due)
       else if (dto.feePaymentType === 'PAID_UP_TO' && dto.paidUpToMonth) {
@@ -845,9 +863,9 @@ export class StudentService {
 
         // If an initial payment amount was collected during admission, log it in payments table
         const initialPaid = Number(dto.initialPaymentAmount) || 0;
-        const totalPaidToLog = dto.feeFrequency === 'YEARLY' || dto.feePaymentType === 'YEARLY_PAID'
+        const totalPaidToLog = dto.feePaymentType === 'YEARLY_PAID'
           ? Number(dto.monthlyFee)
-          : initialPaid;
+          : (dto.feePaymentType === 'UNPAID_PENDING' ? 0 : initialPaid);
 
         if (totalPaidToLog > 0) {
           const { data: createdFee } = await supabaseAdmin

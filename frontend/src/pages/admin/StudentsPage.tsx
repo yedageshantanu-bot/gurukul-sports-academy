@@ -31,6 +31,9 @@ import {
   Send,
   Award,
   Clock,
+  Banknote,
+  QrCode,
+  Calendar,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -99,44 +102,53 @@ export const StudentsPage: React.FC = () => {
 
   // Initial Payment & Balance Settlement on Admission
   const [initialPaymentAmount, setInitialPaymentAmount] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'ONLINE' | 'BANK_TRANSFER'>('CASH');
+  // Payment mode: Real Cash & UPI only
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI'>('CASH');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
 
-  // Martial Arts & Multi-Sport Progression (Flexible 1 or 2 sports with independent belts)
-  const [sportCount, setSportCount] = useState<1 | 2>(1);
-  const [sport1, setSport1] = useState<string>('KARATE_WUSHU');
-  const [belt1, setBelt1] = useState<string>('White Belt (10th Kyu)');
-  const [sport2, setSport2] = useState<string>('KALARIPPAYATTU');
-  const [belt2, setBelt2] = useState<string>('Meythari Level 1 (Body Control)');
+  // Martial Arts & Multi-Sport Progression (Dynamic 1, 2, 3+ sports with database-backed ranks)
+  interface SelectedSportItem {
+    id: string;
+    disciplineCode: string;
+    rankName: string;
+  }
+  const [availableDisciplines, setAvailableDisciplines] = useState<any[]>([]);
+  const [availableRanks, setAvailableRanks] = useState<any[]>([]);
+  const [selectedSports, setSelectedSports] = useState<SelectedSportItem[]>([
+    { id: '1', disciplineCode: 'KARATE_WUSHU', rankName: '' }
+  ]);
   const [keepModalOpen, setKeepModalOpen] = useState(false);
 
-  // Admission Type: EXISTING (Pehle se enrolled) vs FRESH (Aaj naya admission)
+  // Admission Type: EXISTING vs FRESH
   const [admissionType, setAdmissionType] = useState<'EXISTING' | 'FRESH'>('EXISTING');
   const [sendingPdfStudentId, setSendingPdfStudentId] = useState<string | null>(null);
 
-  // Zero-Confusion Fee Frequency & Payment Settlement
+  // Fee Frequency & Payment Settlement
   const [feeFrequency, setFeeFrequency] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [feePaymentType, setFeePaymentType] = useState<'PAID_UP_TO' | 'YEARLY_PAID' | 'YEARLY_PARTIAL' | 'FRESH_TODAY' | 'UNPAID_PENDING'>('PAID_UP_TO');
   const [yearlyPaymentMode, setYearlyPaymentMode] = useState<'FULL' | 'INSTALLMENT' | 'UNPAID'>('FULL');
   const [yearlyPaidAmount, setYearlyPaidAmount] = useState<string>('');
-  const [nextInstallmentDueDate, setNextInstallmentDueDate] = useState<string>(() => {
+  const nextInstallmentDueDate = useMemo(() => {
     const d = new Date();
-    d.setMonth(d.getMonth() + 1); // default 1 month later
+    d.setMonth(d.getMonth() + 1);
     return d.toISOString().split('T')[0];
-  });
-
-  const previousMonthStr = useMemo(() => {
-    const now = new Date();
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
+
+  // Multiple Installments Schedule
+  interface ScheduledInstallmentItem {
+    id: string;
+    dueDate: string;
+    amount: number | string;
+  }
+  const [scheduledInstallments, setScheduledInstallments] = useState<ScheduledInstallmentItem[]>([]);
 
   const currentMonthStr = useMemo(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
 
-  const [paidUpToMonth, setPaidUpToMonth] = useState(previousMonthStr);
+  // Default to CURRENT MONTH: Auto all-clear without stuck on September!
+  const [paidUpToMonth, setPaidUpToMonth] = useState(currentMonthStr);
 
   const monthOptions = useMemo(() => {
     const list: { value: string; label: string }[] = [];
@@ -147,13 +159,175 @@ export const StudentsPage: React.FC = () => {
       const name = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
       let tag = '';
       if (i > 0) tag = ` (Advance Paid - Valid through ${name})`;
-      else if (i === 0) tag = ' (Current Month - Sab Paid Hai / All Cleared)';
+      else if (i === 0) tag = ' (Current Month - All Cleared / Paid In Full)';
       else if (i === -1) tag = ' (Last Month Paid - Current Month Dues Pending)';
       else tag = ` (${Math.abs(i)} Months Dues Pending)`;
       list.push({ value, label: `${name}${tag}` });
     }
     return list;
   }, []);
+
+  // Dynamic Discipline & Rank resolution
+  const getRanksForDiscipline = (discCode: string) => {
+    const list = availableRanks.filter((r) => r.discipline_code === discCode);
+    if (list.length > 0) return list;
+    if (discCode === 'KARATE_WUSHU') {
+      return [
+        { id: '1', rank_name: 'White Belt (10th Kyu)', belt_color: 'White' },
+        { id: '2', rank_name: 'Yellow Belt (8th Kyu)', belt_color: 'Yellow' },
+        { id: '3', rank_name: 'Orange Belt (7th Kyu)', belt_color: 'Orange' },
+        { id: '4', rank_name: 'Green Belt (6th Kyu)', belt_color: 'Green' },
+        { id: '5', rank_name: 'Blue Belt (5th Kyu)', belt_color: 'Blue' },
+        { id: '6', rank_name: 'Purple Belt (4th Kyu)', belt_color: 'Purple' },
+        { id: '7', rank_name: 'Brown Belt (3rd-1st Kyu)', belt_color: 'Brown' },
+        { id: '8', rank_name: 'Black Belt (1st Dan)', belt_color: 'Black' },
+      ];
+    }
+    if (discCode === 'KALARIPPAYATTU') {
+      return [
+        { id: '1', rank_name: 'Level 1 - बालशिष्य (Balshishya)', belt_color: 'White' },
+        { id: '2', rank_name: 'Level 2 - शिष्य (Shishya)', belt_color: 'Yellow' },
+        { id: '3', rank_name: 'Level 3 - अभ्यासी (Abhyasi)', belt_color: 'Orange' },
+        { id: '4', rank_name: 'Level 4 - वीर (Veer)', belt_color: 'Green' },
+        { id: '5', rank_name: 'Level 5 - योद्धा (Yoddha)', belt_color: 'Blue' },
+        { id: '6', rank_name: 'Level 6 - नायक (Nayak)', belt_color: 'Purple' },
+        { id: '7', rank_name: 'Level 7 - महारथी (Maharathi)', belt_color: 'Brown' },
+        { id: '8', rank_name: 'Level 8 - गुरुशिष्य / उस्ताद (Master)', belt_color: 'Black' },
+      ];
+    }
+    return [
+      { id: '1', rank_name: 'Level 1 - Beginner (White Belt)', belt_color: 'White' },
+      { id: '2', rank_name: 'Level 2 - Intermediate (Yellow/Orange)', belt_color: 'Yellow' },
+      { id: '3', rank_name: 'Level 3 - Advanced (Green/Blue)', belt_color: 'Green' },
+      { id: '4', rank_name: 'Level 4 - Senior (Brown/Black)', belt_color: 'Black' },
+    ];
+  };
+
+  const updateCourseFromSports = (sportsList: SelectedSportItem[]) => {
+    if (sportsList.length === 0) return;
+    const names = sportsList.map((s) => {
+      const d = availableDisciplines.find((x) => x.code === s.disciplineCode);
+      return d ? d.name : (s.disciplineCode === 'KALARIPPAYATTU' ? 'Kalarippayattu' : s.disciplineCode === 'KARATE_WUSHU' ? 'Karate & Wushu' : s.disciplineCode);
+    });
+    if (sportsList.length === 1) {
+      setCourse(`${names[0]} (Regular)`);
+    } else if (sportsList.length === 2) {
+      setCourse(`Dual Discipline (${names[0]} + ${names[1]})`);
+    } else {
+      setCourse(`Multi-Discipline (${names.join(' + ')})`);
+    }
+  };
+
+  const handleSetSportCount = (count: number) => {
+    setSelectedSports((prev) => {
+      let updated: SelectedSportItem[] = [...prev];
+      if (count === 1) {
+        updated = updated.slice(0, 1);
+      } else if (count === 2) {
+        if (updated.length < 2) {
+          const nextDisc = availableDisciplines.find((d) => d.code !== updated[0]?.disciplineCode) || { code: 'KALARIPPAYATTU', name: 'Kalarippayattu' };
+          const firstRank = getRanksForDiscipline(nextDisc.code)[0]?.rank_name || 'Level 1';
+          updated.push({ id: String(Date.now()), disciplineCode: nextDisc.code, rankName: firstRank });
+        } else {
+          updated = updated.slice(0, 2);
+        }
+      } else if (count >= 3) {
+        while (updated.length < count) {
+          const usedCodes = new Set(updated.map((u) => u.disciplineCode));
+          const nextDisc = availableDisciplines.find((d) => !usedCodes.has(d.code)) || availableDisciplines[0] || { code: 'KICKBOXING', name: 'Kickboxing' };
+          const firstRank = getRanksForDiscipline(nextDisc.code)[0]?.rank_name || 'Level 1';
+          updated.push({ id: String(Date.now() + updated.length), disciplineCode: nextDisc.code, rankName: firstRank });
+        }
+      }
+      updateCourseFromSports(updated);
+      return updated;
+    });
+  };
+
+  const handleAddSport = () => {
+    setSelectedSports((prev) => {
+      const usedCodes = new Set(prev.map((u) => u.disciplineCode));
+      const nextDisc = availableDisciplines.find((d) => !usedCodes.has(d.code)) || availableDisciplines[0] || { code: 'KICKBOXING', name: 'Kickboxing' };
+      const firstRank = getRanksForDiscipline(nextDisc.code)[0]?.rank_name || 'Level 1';
+      const updated = [
+        ...prev,
+        { id: String(Date.now()), disciplineCode: nextDisc.code, rankName: firstRank }
+      ];
+      updateCourseFromSports(updated);
+      return updated;
+    });
+  };
+
+  const handleRemoveSport = (index: number) => {
+    setSelectedSports((prev) => {
+      if (prev.length <= 1) return prev;
+      const updated = prev.filter((_, i) => i !== index);
+      updateCourseFromSports(updated);
+      return updated;
+    });
+  };
+
+  const handleSportDisciplineChange = (index: number, newCode: string) => {
+    setSelectedSports((prev) => {
+      const updated = [...prev];
+      const firstRank = getRanksForDiscipline(newCode)[0]?.rank_name || 'Level 1';
+      updated[index] = { ...updated[index], disciplineCode: newCode, rankName: firstRank };
+      updateCourseFromSports(updated);
+      return updated;
+    });
+  };
+
+  const handleSportRankChange = (index: number, newRank: string) => {
+    setSelectedSports((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], rankName: newRank };
+      return updated;
+    });
+  };
+
+  // Multiple Installments calculations
+  const calculatedRemainingDues = useMemo(() => {
+    const total = Number(monthlyFee) || 0;
+    const initial = Number(yearlyPaidAmount) || 0;
+    return Math.max(0, total - initial);
+  }, [monthlyFee, yearlyPaidAmount]);
+
+  const totalScheduledAmount = useMemo(() => {
+    return scheduledInstallments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+  }, [scheduledInstallments]);
+
+  const unscheduledDues = useMemo(() => {
+    return Math.max(0, calculatedRemainingDues - totalScheduledAmount);
+  }, [calculatedRemainingDues, totalScheduledAmount]);
+
+  const handleAddScheduledInstallment = () => {
+    setScheduledInstallments((prev) => {
+      const baseDate = new Date();
+      baseDate.setMonth(baseDate.getMonth() + (prev.length + 1));
+      const nextDateStr = baseDate.toISOString().split('T')[0];
+      const defaultAmount = unscheduledDues > 0 ? unscheduledDues : 1000;
+      return [
+        ...prev,
+        {
+          id: String(Date.now()),
+          dueDate: nextDateStr,
+          amount: defaultAmount,
+        },
+      ];
+    });
+  };
+
+  const handleUpdateScheduledInstallment = (index: number, field: 'dueDate' | 'amount', value: any) => {
+    setScheduledInstallments((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleRemoveScheduledInstallment = (index: number) => {
+    setScheduledInstallments((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Custom WhatsApp message sender modal
   const [isWaModalOpen, setIsWaModalOpen] = useState(false);
@@ -209,16 +383,23 @@ export const StudentsPage: React.FC = () => {
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
 
-      const [studentsData, batchesData, plansData] = await Promise.all([
+      const [studentsData, batchesData, plansData, disciplinesRes, ranksRes] = await Promise.all([
         apiClient<StudentItem[]>(`/students?${params.toString()}`),
         apiClient<BatchItem[]>('/batches?status=ACTIVE'),
         apiClient<{ success: boolean; data: any[] }>('/fees/plans').catch(() => ({ success: false, data: [] })),
+        apiClient<any>('/ranks/disciplines').catch(() => []),
+        apiClient<any>('/ranks/list').catch(() => []),
       ]);
 
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setBatches(Array.isArray(batchesData) ? batchesData : []);
       const planList = Array.isArray(plansData) ? plansData : ((plansData as any)?.data || []);
       setFeePlans(planList);
+
+      const dList = Array.isArray(disciplinesRes) ? disciplinesRes : (disciplinesRes?.data || []);
+      const rList = Array.isArray(ranksRes) ? ranksRes : (ranksRes?.data || []);
+      setAvailableDisciplines(dList);
+      setAvailableRanks(rList);
     } catch (err: any) {
       console.error('Failed to fetch students/batches:', err);
       if (!silent) setStudents([]);
@@ -284,16 +465,15 @@ export const StudentsPage: React.FC = () => {
     setAdmissionType('EXISTING');
     setBackfillPastFees(false);
     setPastFeesStatus('PAID');
-    setSportCount(1);
-    setSport1('KARATE_WUSHU');
-    setBelt1('White Belt (10th Kyu)');
-    setSport2('KALARIPPAYATTU');
-    setBelt2('Meythari Level 1 (Body Control)');
+    const d1 = availableDisciplines[0]?.code || 'KARATE_WUSHU';
+    const r1 = getRanksForDiscipline(d1)[0]?.rank_name || 'White Belt (10th Kyu)';
+    setSelectedSports([{ id: '1', disciplineCode: d1, rankName: r1 }]);
     setFeeFrequency('MONTHLY');
     setFeePaymentType('PAID_UP_TO');
     setYearlyPaymentMode('FULL');
     setYearlyPaidAmount('');
-    setPaidUpToMonth(previousMonthStr);
+    setScheduledInstallments([]);
+    setPaidUpToMonth(currentMonthStr);
     setFormError('');
     setIsAddModalOpen(true);
   };
@@ -391,17 +571,15 @@ export const StudentsPage: React.FC = () => {
     }
 
     try {
-      const sportsPayload = sportCount === 2
-        ? [
-            { disciplineCode: sport1, rankName: belt1 },
-            { disciplineCode: sport2, rankName: belt2 },
-          ]
-        : sport1 !== 'NONE'
-        ? [{ disciplineCode: sport1, rankName: belt1 }]
-        : [];
+      const sportsPayload = selectedSports
+        .filter((s) => s.disciplineCode && s.disciplineCode !== 'NONE')
+        .map((s) => ({
+          disciplineCode: s.disciplineCode,
+          rankName: s.rankName || undefined,
+        }));
 
-      const compositeDiscipline = sportCount === 2 ? 'BOTH' : sport1;
-      const compositeBelt = sportCount === 2 ? `${belt1} & ${belt2}` : belt1;
+      const compositeDiscipline = selectedSports.map((s) => s.disciplineCode).join(' + ') || 'KARATE_WUSHU';
+      const compositeBelt = selectedSports.map((s) => s.rankName).filter(Boolean).join(' & ') || 'Level 1';
 
       let finalFeePaymentType = feePaymentType;
       let finalInitialPayment = Number(initialPaymentAmount) || 0;
@@ -414,7 +592,7 @@ export const StudentsPage: React.FC = () => {
         } else if (yearlyPaymentMode === 'INSTALLMENT') {
           finalFeePaymentType = 'YEARLY_PARTIAL';
           finalInitialPayment = Number(yearlyPaidAmount) || 0;
-          finalNextDueDate = nextInstallmentDueDate;
+          finalNextDueDate = scheduledInstallments[0]?.dueDate || nextInstallmentDueDate;
         } else {
           finalFeePaymentType = 'UNPAID_PENDING';
           finalInitialPayment = 0;
@@ -448,6 +626,12 @@ export const StudentsPage: React.FC = () => {
           feePaymentType: finalFeePaymentType,
           initialPaymentAmount: finalInitialPayment,
           nextInstallmentDueDate: finalNextDueDate,
+          installments: feeFrequency === 'YEARLY' && yearlyPaymentMode === 'INSTALLMENT' && scheduledInstallments.length > 0
+            ? scheduledInstallments.map((inst) => ({
+                amount: Number(inst.amount) || 0,
+                dueDate: inst.dueDate,
+              }))
+            : undefined,
         }),
       });
 
@@ -996,21 +1180,21 @@ export const StudentsPage: React.FC = () => {
               helperText="Only if student carries a personal mobile."
             />
 
-            {/* 4. Sport / Martial Arts Discipline & Starting Belt Rank (Clean, Modern Multi-Sport) */}
+            {/* 4. Sport / Martial Arts Disciplines & Starting Belt Ranks (Dynamic Multi-Sport) */}
             <div className="p-4 bg-slate-900/80 dark:bg-slate-900 border border-slate-700/60 rounded-xl space-y-3.5 shadow-sm">
               <div className="flex items-center justify-between pb-2 border-b border-white/5">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                   <span className="text-xs font-bold text-white tracking-wide">
-                    Sports &amp; Martial Arts Belt Selection *
+                    Sports &amp; Martial Arts Disciplines *
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-black/40 p-0.5 rounded-lg border border-white/5 text-[11px] font-bold">
                   <button
                     type="button"
-                    onClick={() => setSportCount(1)}
+                    onClick={() => handleSetSportCount(1)}
                     className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                      sportCount === 1
+                      selectedSports.length === 1
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'text-slate-400 hover:text-white'
                     }`}
@@ -1019,206 +1203,108 @@ export const StudentsPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSportCount(2)}
+                    onClick={() => handleSetSportCount(2)}
                     className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                      sportCount === 2
+                      selectedSports.length === 2
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     2 Sports
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetSportCount(3)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      selectedSports.length >= 3
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    3+ Sports
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddSport}
+                    className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1 cursor-pointer"
+                    title="Add another discipline"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Sport 1 Section */}
-              <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">
-                    {sportCount === 2 ? 'First Sport / Discipline' : 'Primary Sport / Discipline'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Discipline
-                    </label>
-                    <Select
-                      value={sport1}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSport1(val);
-                        if (val === 'KARATE_WUSHU') {
-                          setBelt1('White Belt (10th Kyu)');
-                          setCourse(sportCount === 2 ? 'Dual Discipline (Karate + Kalari)' : 'Karate & Wushu Training');
-                        } else if (val === 'KALARIPPAYATTU') {
-                          setBelt1('Meythari Level 1 (Body Control)');
-                          setCourse(sportCount === 2 ? 'Dual Discipline (Kalari + Karate)' : 'Kalarippayattu (Regular)');
-                        } else if (val === 'KICKBOXING') {
-                          setBelt1('Beginner (White Sash)');
-                          setCourse('Kickboxing & Combat Conditioning');
-                        } else if (val === 'GYMNASTICS') {
-                          setBelt1('Level 1 (Fundamentals)');
-                          setCourse('Gymnastics & Athletics');
-                        } else {
-                          setBelt1('Active Member');
-                          setCourse('General Athletics / Fitness');
-                        }
-                      }}
-                    >
-                      <option value="KARATE_WUSHU">Karate &amp; Wushu</option>
-                      <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                      <option value="KICKBOXING">Kickboxing</option>
-                      <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
-                      <option value="NONE">General Fitness / Athletics</option>
-                    </Select>
-                  </div>
-
-                  {sport1 !== 'NONE' && (
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                        Current Belt / Rank
-                      </label>
-                      <Select
-                        value={belt1}
-                        onChange={(e) => setBelt1(e.target.value)}
-                      >
-                        {sport1 === 'KARATE_WUSHU' && (
-                          <>
-                            <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
-                            <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
-                            <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
-                            <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
-                            <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
-                            <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
-                            <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
-                            <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
-                          </>
+              {/* Dynamic Sports Cards */}
+              <div className="space-y-3">
+                {selectedSports.map((sp, idx) => {
+                  const disciplineRanks = getRanksForDiscipline(sp.disciplineCode);
+                  return (
+                    <div key={sp.id || idx} className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">
+                          {idx === 0 ? 'Primary Sport / Discipline' : `Sport / Discipline #${idx + 1}`}
+                        </span>
+                        {selectedSports.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSport(idx)}
+                            className="text-rose-400 hover:text-rose-300 text-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Remove</span>
+                          </button>
                         )}
-                        {sport1 === 'KALARIPPAYATTU' && (
-                          <>
-                            <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
-                            <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
-                            <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
-                            <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
-                            <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
-                            <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
-                          </>
-                        )}
-                        {sport1 === 'KICKBOXING' && (
-                          <>
-                            <option value="Beginner (White Sash)">Beginner (White Sash)</option>
-                            <option value="Yellow Belt / Level 1">Yellow Belt / Level 1</option>
-                            <option value="Orange Belt / Level 2">Orange Belt / Level 2</option>
-                            <option value="Green Belt / Level 3">Green Belt / Level 3</option>
-                            <option value="Blue Belt / Level 4">Blue Belt / Level 4</option>
-                            <option value="Red Belt / Level 5">Red Belt / Level 5</option>
-                            <option value="Black Sash / Belt">Black Sash / Belt</option>
-                          </>
-                        )}
-                        {sport1 === 'GYMNASTICS' && (
-                          <>
-                            <option value="Level 1 (Fundamentals)">Level 1 (Fundamentals)</option>
-                            <option value="Level 2 (Floor Acrobatics)">Level 2 (Floor Acrobatics)</option>
-                            <option value="Level 3 (Vault & Tumbling)">Level 3 (Vault &amp; Tumbling)</option>
-                            <option value="Level 4 (Elite)">Level 4 (Elite Competition)</option>
-                          </>
-                        )}
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sport 2 Section (if Dual Sports active) */}
-              {sportCount === 2 && (
-                <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-300">
-                      Second Sport / Discipline
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                        Discipline
-                      </label>
-                      <Select
-                        value={sport2}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSport2(val);
-                          if (val === 'KALARIPPAYATTU') setBelt2('Meythari Level 1 (Body Control)');
-                          else if (val === 'KARATE_WUSHU') setBelt2('White Belt (10th Kyu)');
-                          else if (val === 'KICKBOXING') setBelt2('Beginner (White Sash)');
-                          else if (val === 'GYMNASTICS') setBelt2('Level 1 (Fundamentals)');
-                          else setBelt2('Active Member');
-                        }}
-                      >
-                        <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                        <option value="KARATE_WUSHU">Karate &amp; Wushu</option>
-                        <option value="KICKBOXING">Kickboxing</option>
-                        <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
-                        <option value="NONE">General Fitness / Athletics</option>
-                      </Select>
-                    </div>
-
-                    {sport2 !== 'NONE' && (
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                          Current Belt / Rank
-                        </label>
-                        <Select
-                          value={belt2}
-                          onChange={(e) => setBelt2(e.target.value)}
-                        >
-                          {sport2 === 'KALARIPPAYATTU' && (
-                            <>
-                              <option value="Meythari Level 1 (Body Control)">Meythari Level 1 (Body Control - White)</option>
-                              <option value="Meythari Level 2 (Leg Techniques)">Meythari Level 2 (Leg Techniques - Yellow)</option>
-                              <option value="Meythari Level 3 (Flexibility & Poses)">Meythari Level 3 (Flexibility - Orange)</option>
-                              <option value="Kolthari (Wooden Weapons)">Kolthari (Wooden Weapons - Green/Blue)</option>
-                              <option value="Ankathari (Metal Weapons)">Ankathari (Metal Weapons - Brown/Black)</option>
-                              <option value="Verumkai (Unarmed Combat)">Verumkai (Unarmed Combat - Master)</option>
-                            </>
-                          )}
-                          {sport2 === 'KARATE_WUSHU' && (
-                            <>
-                              <option value="White Belt (10th Kyu)">White Belt (10th Kyu - Beginner)</option>
-                              <option value="Yellow Belt (8th Kyu)">Yellow Belt (8th Kyu)</option>
-                              <option value="Orange Belt (7th Kyu)">Orange Belt (7th Kyu)</option>
-                              <option value="Green Belt (6th Kyu)">Green Belt (6th Kyu)</option>
-                              <option value="Blue Belt (5th Kyu)">Blue Belt (5th Kyu)</option>
-                              <option value="Purple Belt (4th Kyu)">Purple Belt (4th Kyu)</option>
-                              <option value="Brown Belt (3rd-1st Kyu)">Brown Belt (3rd-1st Kyu)</option>
-                              <option value="Black Belt (1st Dan Shodan)">Black Belt (1st Dan Shodan)</option>
-                            </>
-                          )}
-                          {sport2 === 'KICKBOXING' && (
-                            <>
-                              <option value="Beginner (White Sash)">Beginner (White Sash)</option>
-                              <option value="Yellow Belt / Level 1">Yellow Belt / Level 1</option>
-                              <option value="Orange Belt / Level 2">Orange Belt / Level 2</option>
-                              <option value="Green Belt / Level 3">Green Belt / Level 3</option>
-                              <option value="Blue Belt / Level 4">Blue Belt / Level 4</option>
-                              <option value="Red Belt / Level 5">Red Belt / Level 5</option>
-                              <option value="Black Sash / Belt">Black Sash / Belt</option>
-                            </>
-                          )}
-                          {sport2 === 'GYMNASTICS' && (
-                            <>
-                              <option value="Level 1 (Fundamentals)">Level 1 (Fundamentals)</option>
-                              <option value="Level 2 (Floor Acrobatics)">Level 2 (Floor Acrobatics)</option>
-                              <option value="Level 3 (Vault & Tumbling)">Level 3 (Vault &amp; Tumbling)</option>
-                              <option value="Level 4 (Elite)">Level 4 (Elite Competition)</option>
-                            </>
-                          )}
-                        </Select>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                            Discipline
+                          </label>
+                          <Select
+                            value={sp.disciplineCode}
+                            onChange={(e) => handleSportDisciplineChange(idx, e.target.value)}
+                          >
+                            {availableDisciplines.length > 0 ? (
+                              availableDisciplines.map((d: any) => (
+                                <option key={d.code} value={d.code}>
+                                  {d.name}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="KARATE_WUSHU">Karate &amp; Wushu</option>
+                                <option value="KALARIPPAYATTU">Kalarippayattu</option>
+                                <option value="KICKBOXING">Kickboxing</option>
+                                <option value="GYMNASTICS">Gymnastics &amp; Acrobatics</option>
+                                <option value="NONE">General Fitness / Athletics</option>
+                              </>
+                            )}
+                          </Select>
+                        </div>
+
+                        {sp.disciplineCode !== 'NONE' && (
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                              Current Belt / Rank
+                            </label>
+                            <Select
+                              value={sp.rankName}
+                              onChange={(e) => handleSportRankChange(idx, e.target.value)}
+                            >
+                              {disciplineRanks.map((r: any) => (
+                                <option key={r.id || r.rank_name} value={r.rank_name}>
+                                  {r.rank_name} {r.belt_color ? `(${r.belt_color} Belt)` : ''}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               <p className="text-[11px] text-slate-400">
                 Directly registers athlete in Belt &amp; Rank tracking. Supports independent belt levels for multi-sport athletes.
@@ -1239,14 +1325,14 @@ export const StudentsPage: React.FC = () => {
               </p>
             </div>
 
-            {/* 6. ZERO-CONFUSION FEE PLAN & SETTLEMENT */}
+            {/* 6. FEE PLAN & CLEARANCE SETTLEMENT */}
             <div className="p-4 bg-indigo-950/40 rounded-xl border border-indigo-500/30 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5">
                   <CreditCard className="w-4 h-4 text-indigo-400" />
                   {admissionType === 'EXISTING'
-                    ? 'Purane Student Ki Fees Kaha Tak Jama Hai? (Zero Confusion Setup) *'
-                    : 'Naye Student Ki Fees Setup (Fresh Admission) *'}
+                    ? 'Previous Fee Clearance Status (Existing Student) *'
+                    : 'Initial Fee Setup (Fresh Enrollment) *'}
                 </span>
 
                 {/* Plan Frequency Switcher: Monthly vs Yearly */}
@@ -1295,7 +1381,7 @@ export const StudentsPage: React.FC = () => {
                   value={course}
                   onChange={(e) => setCourse(e.target.value)}
                   required
-                  placeholder="e.g. Kalarippayattu (Regular)"
+                  placeholder="e.g. Karate & Wushu Training"
                 />
                 <Input
                   label={feeFrequency === 'YEARLY' ? 'Annual Fee Amount (₹) *' : 'Monthly Fee (₹) *'}
@@ -1314,7 +1400,7 @@ export const StudentsPage: React.FC = () => {
                 <div className="p-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 space-y-3">
                   <div>
                     <label className="block text-xs font-bold text-indigo-300 mb-1.5">
-                      📅 Kis Mahine Tak Fees Already Jama Kar Li Gayi Hai?
+                      📅 Fees Paid Up To Month:
                     </label>
                     <Select
                       value={paidUpToMonth}
@@ -1332,26 +1418,29 @@ export const StudentsPage: React.FC = () => {
                     </Select>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-[11px] text-emerald-300 space-y-1 leading-relaxed">
-                    <div className="font-bold text-xs text-emerald-200 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      Zero-Math Smart Rollover Active:
+                  {/* Dynamic Status Banner: Green if Current/Future, RED if Past */}
+                  {paidUpToMonth >= currentMonthStr ? (
+                    <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-xs text-emerald-200 space-y-1">
+                      <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>All Cleared (Zero Dues Pending)</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                        Student is fully paid through <strong>{monthOptions.find((o) => o.value === paidUpToMonth)?.label.split(' (')[0] || paidUpToMonth}</strong>. All previous billing cycles are recorded as PAID with no pending dues.
+                      </p>
                     </div>
-                    <div>
-                      • <strong>{paidUpToMonth}</strong> tak ke sabhi pichle mahine student ke ledger mein <strong>PAID</strong> mark ho jayenge.
+                  ) : (
+                    <div className="p-3 rounded-lg bg-rose-950/70 border border-rose-500/70 text-xs text-rose-200 space-y-1.5 shadow-sm">
+                      <div className="font-bold text-rose-300 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-rose-400" />
+                        <span>Notice: Dues Pending for Current Month</span>
+                      </div>
+                      <p className="text-[11px] text-rose-200 leading-relaxed">
+                        Student fees are only cleared up to <strong>{monthOptions.find((o) => o.value === paidUpToMonth)?.label.split(' (')[0] || paidUpToMonth}</strong>.
+                        The current month will be recorded as <strong>PENDING DUES (₹{monthlyFee} Overdue)</strong> in the student ledger, and automated fee reminders will be active.
+                      </p>
                     </div>
-                    <div>
-                      • Current Month ({new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}):{' '}
-                      <strong>
-                        {paidUpToMonth >= currentMonthStr
-                          ? 'PAID IN FULL (All Cleared - Kuch Dues Nahi)'
-                          : `DUE PENDING (₹${monthlyFee} Due)`}
-                      </strong>
-                    </div>
-                    <div>
-                      • <strong>Aage Ka Naya Mahina:</strong> Jab calendar change hoga (November / December), toh naye mahine ka bill system apne aap create kar dega — aapko koi calculation ya manual overdue type karne ki zaroorat nahi hai!
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -1359,7 +1448,7 @@ export const StudentsPage: React.FC = () => {
               {admissionType === 'FRESH' && feeFrequency === 'MONTHLY' && (
                 <div className="p-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 space-y-3">
                   <label className="block text-xs font-bold text-slate-200">
-                    Aaj Admission Ke Waqt Fees Li Ya Baad Mein Denge?
+                    Fee Collection on Enrollment:
                   </label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
@@ -1373,10 +1462,10 @@ export const StudentsPage: React.FC = () => {
                     >
                       <div className="font-bold flex items-center gap-1.5 text-emerald-300">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>💵 Aaj Desk / UPI Par Jama Ki</span>
+                        <span>Collect Payment Today</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Current month ({new Date().toLocaleString('en-IN', { month: 'long' })}) ki fees turant PAID ho jayegi.
+                        Current month ({new Date().toLocaleString('en-IN', { month: 'long' })}) fee marked as paid immediately.
                       </p>
                     </button>
 
@@ -1391,17 +1480,17 @@ export const StudentsPage: React.FC = () => {
                     >
                       <div className="font-bold flex items-center gap-1.5 text-amber-300">
                         <Clock className="w-4 h-4 text-amber-400" />
-                        <span>📋 Baad Mein Denge (Pending)</span>
+                        <span>Pending / Pay Later</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Student enroll ho jayega aur current month fee pending dikhegi.
+                        Student enrolled with current month dues recorded in ledger.
                       </p>
                     </button>
                   </div>
 
                   {feePaymentType === 'FRESH_TODAY' && (
                     <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Input
                           label="Amount Paid Today (₹)"
                           type="number"
@@ -1412,17 +1501,34 @@ export const StudentsPage: React.FC = () => {
                         />
                         <div>
                           <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                            Payment Mode
+                            Payment Mode *
                           </label>
-                          <Select
-                            value={paymentMethod}
-                            onChange={(e) => setPaymentMethod(e.target.value as any)}
-                          >
-                            <option value="CASH">Cash (Front Desk)</option>
-                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                            <option value="ONLINE">Online Transfer</option>
-                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                          </Select>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('CASH')}
+                              className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                                paymentMethod === 'CASH'
+                                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-500/30'
+                                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              <Banknote className="w-4 h-4 text-emerald-400" />
+                              <span>Cash</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('UPI')}
+                              className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                                paymentMethod === 'UPI'
+                                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
+                                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              <QrCode className="w-4 h-4 text-indigo-400" />
+                              <span>UPI</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-xs p-2 rounded bg-slate-900 border border-slate-800">
@@ -1436,7 +1542,7 @@ export const StudentsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* CASE 3: YEARLY PACKAGE (Both Existing and Fresh) */}
+              {/* CASE 3: YEARLY PACKAGE (Full, Multiple Installments, or Pay Later) */}
               {feeFrequency === 'YEARLY' && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1455,21 +1561,30 @@ export const StudentsPage: React.FC = () => {
                     >
                       <div className="font-bold text-emerald-300 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>1-Saal Pura Paid</span>
+                        <span>Full Annual Payment</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
                         ₹{Number(monthlyFee || 0).toLocaleString('en-IN')} paid in full. Valid 365 days.
                       </p>
                     </button>
 
-                    {/* Option 2: Flexible Installments */}
+                    {/* Option 2: Flexible Multiple Installments */}
                     <button
                       type="button"
                       onClick={() => {
                         setYearlyPaymentMode('INSTALLMENT');
                         setFeePaymentType('YEARLY_PARTIAL');
                         if (!yearlyPaidAmount && monthlyFee > 0) {
-                          setYearlyPaidAmount(String(Math.round(monthlyFee / 2)));
+                          const half = Math.round(monthlyFee / 2);
+                          setYearlyPaidAmount(String(half));
+                          const bal = monthlyFee - half;
+                          if (scheduledInstallments.length === 0 && bal > 0) {
+                            const d = new Date();
+                            d.setMonth(d.getMonth() + 1);
+                            setScheduledInstallments([
+                              { id: '1', dueDate: d.toISOString().split('T')[0], amount: bal }
+                            ]);
+                          }
                         }
                       }}
                       className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
@@ -1480,10 +1595,10 @@ export const StudentsPage: React.FC = () => {
                     >
                       <div className="font-bold text-amber-300 flex items-center gap-1.5">
                         <Clock className="w-4 h-4 text-amber-400" />
-                        <span>Kishto Mein (Installments)</span>
+                        <span>Pay in Installments</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Kuch amount abhi paid, baaki 2nd/3rd kisht mein.
+                        Pay initial amount today; balance scheduled in installments.
                       </p>
                     </button>
 
@@ -1502,28 +1617,45 @@ export const StudentsPage: React.FC = () => {
                     >
                       <div className="font-bold text-indigo-300 flex items-center gap-1.5">
                         <CreditCard className="w-4 h-4 text-indigo-400" />
-                        <span>Baad Mein Denge</span>
+                        <span>Pay Later (Pending)</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Enrolls with annual dues pending.
+                        Enrolls with annual dues marked pending.
                       </p>
                     </button>
                   </div>
 
                   {yearlyPaymentMode === 'FULL' && (
-                    <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-emerald-300 font-semibold">Payment Mode:</span>
-                        <div className="w-48">
-                          <Select
-                            value={paymentMethod}
-                            onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-3 text-xs">
+                      <div>
+                        <label className="block text-xs font-semibold text-emerald-300 mb-1.5">
+                          Payment Mode *
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 max-w-xs">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('CASH')}
+                            className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                              paymentMethod === 'CASH'
+                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-500/30'
+                                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                            }`}
                           >
-                            <option value="CASH">Cash (Front Desk)</option>
-                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                            <option value="ONLINE">Online Transfer</option>
-                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                          </Select>
+                            <Banknote className="w-4 h-4 text-emerald-400" />
+                            <span>Cash</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('UPI')}
+                            className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                              paymentMethod === 'UPI'
+                                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
+                                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                            }`}
+                          >
+                            <QrCode className="w-4 h-4 text-indigo-400" />
+                            <span>UPI</span>
+                          </button>
                         </div>
                       </div>
                       <p className="text-[11px] text-emerald-400">
@@ -1533,49 +1665,167 @@ export const StudentsPage: React.FC = () => {
                   )}
 
                   {yearlyPaymentMode === 'INSTALLMENT' && (
-                    <div className="p-3.5 rounded-xl bg-slate-900 border border-amber-500/40 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-4 rounded-xl bg-slate-900 border border-amber-500/40 space-y-4">
+                      {/* 1st Installment Details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Input
-                          label="1st Kisht Amount Paid (₹) *"
+                          label="1st Installment Paid Today (₹) *"
                           type="number"
                           min="0"
                           max={monthlyFee}
                           value={yearlyPaidAmount}
-                          onChange={(e) => setYearlyPaidAmount(e.target.value)}
-                          placeholder="e.g. 2000 ya 3500"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setYearlyPaidAmount(val);
+                            const bal = Math.max(0, (Number(monthlyFee) || 0) - (Number(val) || 0));
+                            if (bal > 0 && scheduledInstallments.length === 0) {
+                              const d = new Date();
+                              d.setMonth(d.getMonth() + 1);
+                              setScheduledInstallments([
+                                { id: '1', dueDate: d.toISOString().split('T')[0], amount: bal }
+                              ]);
+                            }
+                          }}
+                          placeholder={`e.g. ${Math.round(monthlyFee / 2) || 3500}`}
                         />
                         <div>
                           <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                            Payment Mode
+                            Payment Mode *
                           </label>
-                          <Select
-                            value={paymentMethod}
-                            onChange={(e) => setPaymentMethod(e.target.value as any)}
-                          >
-                            <option value="CASH">Cash (Front Desk)</option>
-                            <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                            <option value="ONLINE">Online Transfer</option>
-                            <option value="BANK_TRANSFER">Bank Transfer / IMPS</option>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                            Next Kisht Due Date *
-                          </label>
-                          <input
-                            type="date"
-                            value={nextInstallmentDueDate}
-                            onChange={(e) => setNextInstallmentDueDate(e.target.value)}
-                            className="w-full px-3 py-2 text-xs border border-slate-700 rounded-xl bg-slate-950 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('CASH')}
+                              className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                                paymentMethod === 'CASH'
+                                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-500/30'
+                                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              <Banknote className="w-4 h-4 text-emerald-400" />
+                              <span>Cash</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('UPI')}
+                              className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-bold text-xs transition-all cursor-pointer ${
+                                paymentMethod === 'UPI'
+                                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md ring-2 ring-indigo-500/30'
+                                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              <QrCode className="w-4 h-4 text-indigo-400" />
+                              <span>UPI</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-                        <span className="text-amber-300 font-medium">Bachi Hui Pending Kisht:</span>
-                        <span className="font-bold font-mono text-sm text-amber-400">
-                          ₹{Math.max(0, (Number(monthlyFee) || 0) - (Number(yearlyPaidAmount) || 0)).toLocaleString('en-IN')}
+
+                      {/* Remaining Balance Card */}
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs flex items-center justify-between">
+                        <span className="text-amber-300 font-semibold">Remaining Balance Dues:</span>
+                        <span className="font-bold font-mono text-base text-amber-400">
+                          ₹{calculatedRemainingDues.toLocaleString('en-IN')}
                         </span>
                       </div>
+
+                      {/* Multiple Scheduled Subsequent Installments */}
+                      {calculatedRemainingDues > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                              Scheduled Subsequent Installments
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleAddScheduledInstallment}
+                              className="text-xs px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer font-semibold"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add Next Installment</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {scheduledInstallments.map((inst, iIdx) => (
+                              <div
+                                key={inst.id || iIdx}
+                                className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2"
+                              >
+                                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                                  <span>Installment #{iIdx + 2} Details</span>
+                                  {scheduledInstallments.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveScheduledInstallment(iIdx)}
+                                      className="text-rose-400 hover:text-rose-300 text-[11px] flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>Remove</span>
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[11px] text-slate-400 mb-1">
+                                      Due Date *
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={inst.dueDate}
+                                      onChange={(e) => handleUpdateScheduledInstallment(iIdx, 'dueDate', e.target.value)}
+                                      className="w-full px-3 py-1.5 text-xs border border-slate-700 rounded-lg bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] text-slate-400 mb-1">
+                                      Expected Amount (₹) *
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={inst.amount}
+                                      onChange={(e) => handleUpdateScheduledInstallment(iIdx, 'amount', e.target.value)}
+                                      className="w-full px-3 py-1.5 text-xs border border-slate-700 rounded-lg bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                      placeholder="e.g. 2000"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Allocation Status Indicator */}
+                          {unscheduledDues > 0 ? (
+                            <div className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/40 text-[11px] text-amber-200 flex items-center justify-between">
+                              <span>
+                                ⏳ <strong>₹{unscheduledDues.toLocaleString('en-IN')}</strong> balance remaining to schedule.
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleAddScheduledInstallment}
+                                className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition-all text-xs cursor-pointer"
+                              >
+                                Auto Schedule Next
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-[11px] text-emerald-200 flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>
+                                ✓ 100% of remaining balance (₹{calculatedRemainingDues.toLocaleString('en-IN')}) scheduled across {scheduledInstallments.length} installment(s).
+                              </span>
+                            </div>
+                          )}
+
+                          <p className="text-[11px] text-slate-400">
+                            📲 Automated WhatsApp dues reminder will be dispatched to parent before each scheduled installment date.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

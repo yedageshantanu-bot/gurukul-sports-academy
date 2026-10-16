@@ -56,6 +56,11 @@ export const createStudentSchema = z.object({
   paidUpToMonth: z.string().regex(/^\d{4}-\d{2}$/).optional().or(z.literal('')),
   feePaymentType: z.enum(['PAID_UP_TO', 'YEARLY_PAID', 'YEARLY_PARTIAL', 'FRESH_TODAY', 'UNPAID_PENDING']).optional(),
   nextInstallmentDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')),
+  installments: z.array(z.object({
+    amount: z.number().nonnegative(),
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    notes: z.string().optional(),
+  })).optional(),
 });
 
 export type CreateStudentDTO = z.infer<typeof createStudentSchema>;

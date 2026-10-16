@@ -17,6 +17,7 @@ import {
   Trophy,
   RotateCcw,
   Check,
+  QrCode,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FeePlan, StudentFee } from '../../types/fee';
@@ -1325,79 +1326,39 @@ export const FeesPage: React.FC = () => {
             )}
           </div>
 
-          {/* Payment Mode Selector */}
+          {/* Payment Mode Selector - Real Cash & UPI only */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              Payment Mode / Gateway *
+              Payment Mode *
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={() => setPayForm((prev) => ({ ...prev, provider: 'MANUAL', paymentMethod: 'CASH', notes: prev.notes || 'Cash payment received at front desk' }))}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  payForm.provider === 'MANUAL' && payForm.paymentMethod === 'CASH'
-                    ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20 shadow-xs'
+                onClick={() => setPayForm((prev) => ({ ...prev, provider: 'MANUAL', paymentMethod: 'CASH', notes: prev.notes || 'Cash payment received' }))}
+                className={`p-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs transition-all cursor-pointer ${
+                  payForm.paymentMethod === 'CASH'
+                    ? 'border-emerald-500 bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/20'
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Cash at Desk</span>
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                  Instant offline receipt
-                </div>
+                <Banknote className="w-4 h-4 text-emerald-300" />
+                <span>Cash Payment</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setPayForm((prev) => ({ ...prev, provider: 'MOCK', paymentMethod: 'ONLINE' }))}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  payForm.provider === 'MOCK'
-                    ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20 shadow-xs'
+                onClick={() => setPayForm((prev) => ({ ...prev, provider: 'MANUAL', paymentMethod: 'UPI', notes: prev.notes || 'UPI payment received' }))}
+                className={`p-3 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs transition-all cursor-pointer ${
+                  payForm.paymentMethod === 'UPI'
+                    ? 'border-indigo-500 bg-indigo-600 text-white shadow-md ring-2 ring-indigo-500/20'
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Razorpay Mock</span>
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                  Simulate gateway
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPayForm((prev) => ({ ...prev, provider: 'MANUAL', paymentMethod: 'BANK_TRANSFER' }))}
-                className={`p-2.5 rounded-xl border text-left transition-all ${
-                  payForm.provider === 'MANUAL' && payForm.paymentMethod !== 'CASH'
-                    ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/20 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span>Bank / Cheque</span>
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                  NEFT, IMPS or Cheque
-                </div>
+                <QrCode className="w-4 h-4 text-indigo-300" />
+                <span>UPI Payment</span>
               </button>
             </div>
           </div>
-
-          {payForm.provider === 'MANUAL' && payForm.paymentMethod !== 'CASH' && (
-            <Select
-              label="Bank / Offline Method"
-              value={payForm.paymentMethod}
-              onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
-            >
-              <option value="BANK_TRANSFER">Direct Bank Transfer / NEFT / IMPS</option>
-              <option value="CHEQUE">Cheque</option>
-              <option value="OTHER">Other POS</option>
-            </Select>
-          )}
 
           <Input
             label="Remarks / Notes (Optional)"
