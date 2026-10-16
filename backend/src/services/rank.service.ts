@@ -235,20 +235,74 @@ export class RankService {
   /**
    * List all academy students with their active martial arts ranks
    */
+  /**
+   * List all academy students with their active martial arts ranks
+   * Source of truth: The student registry (`students` table).
+   * - Includes all valid, active, non-deleted students across disciplines and batches.
+   * - Students do not disappear even if they haven't received their first promotion yet.
+   * - Multi-discipline students (e.g. Dual Discipline Kalari + Karate) show records for each enrolled discipline.
+   */
   static async listStudentRanks(disciplineCode?: string) {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
 
-    // Fetch all active students
+    // 1. Fetch all active students from the student registry with their batch enrollments
     const { data: students, error: sErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, course, student_mobile, parent_whatsapp, parent_name, status')
+      .select(`
+        id,
+        name,
+        course,
+        student_mobile,
+        parent_whatsapp,
+        parent_name,
+        admission_date,
+        status,
+        created_at,
+        batch_students (
+          batch_id,
+          status,
+          batches (
+            id,
+            name,
+            subject
+          )
+        )
+      `)
       .eq('status', 'ACTIVE')
       .order('name', { ascending: true });
 
     if (sErr) throw new AppError(`Failed to fetch students: ${sErr.message}`, 500);
 
-    // Fetch student ranks
-    let rankQuery = supabaseAdmin
+    // 2. Fetch all configured martial arts disciplines
+    const { data: disciplines, error: dErr } = await supabaseAdmin
+      .from('martial_arts_disciplines')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (dErr) throw new AppError(`Failed to fetch disciplines: ${dErr.message}`, 500);
+
+    const disciplineNameMap = new Map<string, string>();
+    (disciplines || []).forEach((d: any) => {
+      disciplineNameMap.set(d.code, d.name);
+    });
+
+    // 3. Fetch all rank definitions grouped by discipline code (ordered by rank_order ASC)
+    const { data: allRanks, error: rListErr } = await supabaseAdmin
+      .from('martial_arts_ranks')
+      .select('*')
+      .order('rank_order', { ascending: true });
+
+    if (rListErr) throw new AppError(`Failed to fetch rank definitions: ${rListErr.message}`, 500);
+
+    const ranksByDiscipline = new Map<string, any[]>();
+    (allRanks || []).forEach((r: any) => {
+      const list = ranksByDiscipline.get(r.discipline_code) || [];
+      list.push(r);
+      ranksByDiscipline.set(r.discipline_code, list);
+    });
+
+    // 4. Fetch all existing student_ranks promotion records
+    const { data: studentRanks, error: rErr } = await supabaseAdmin
       .from('student_ranks')
       .select(`
         id,
@@ -260,13 +314,16 @@ export class RankService {
         represented_from,
         promoted_at,
         promoted_by,
+        created_at,
         martial_arts_ranks (
           id,
           rank_order,
           rank_name,
           belt_color,
           badge_bg,
-          badge_text
+          badge_text,
+          syllabus,
+          description
         ),
         martial_arts_disciplines (
           code,
@@ -274,60 +331,162 @@ export class RankService {
         )
       `);
 
-    if (disciplineCode) {
-      rankQuery = rankQuery.eq('discipline_code', disciplineCode);
-    }
-
-    const { data: studentRanks, error: rErr } = await rankQuery;
     if (rErr) throw new AppError(`Failed to fetch student ranks: ${rErr.message}`, 500);
 
-    // Fetch all available ranks for computing the "next rank"
-    const { data: allRanks } = await supabaseAdmin
-      .from('martial_arts_ranks')
-      .select('*')
-      .order('rank_order', { ascending: true });
-
-    const ranksByDiscipline = new Map<string, any[]>();
-    (allRanks || []).forEach((r: any) => {
-      const list = ranksByDiscipline.get(r.discipline_code) || [];
-      list.push(r);
-      ranksByDiscipline.set(r.discipline_code, list);
+    // 5. Index existing student_ranks by `student_id:discipline_code`
+    const rankMap = new Map<string, any>();
+    (studentRanks || []).forEach((sr: any) => {
+      rankMap.set(`${sr.student_id}:${sr.discipline_code}`, sr);
     });
 
-    const flatList = (studentRanks || []).map((sr: any) => {
-      const discRanks = ranksByDiscipline.get(sr.discipline_code) || [];
-      const currentRankObj = sr.martial_arts_ranks;
-      const currentOrder = currentRankObj?.rank_order || 0;
-      const nextRank = discRanks.find((r: any) => r.rank_order === currentOrder + 1) || null;
-      const studentObj = (students || []).find((s: any) => s.id === sr.student_id);
+    // 6. Iterate through every active student and resolve their eligible discipline(s)
+    const resultCards: any[] = [];
 
-      return {
-        id: sr.id,
-        student_id: sr.student_id,
-        student_name: studentObj?.name || 'Athlete',
-        student_code: sr.reg_number,
-        dob: sr.dob,
-        contact_number: studentObj?.parent_whatsapp || studentObj?.student_mobile || '',
-        parent_name: studentObj?.parent_name || '',
-        fatherName: studentObj?.parent_name || '',
-        discipline_code: sr.discipline_code,
-        discipline_name: sr.martial_arts_disciplines?.name || (
-          sr.discipline_code === 'KALARIPPAYATTU'
-            ? 'Kalarippayattu'
-            : sr.discipline_code === 'KARATE_WUSHU'
-            ? 'Karate'
-            : sr.discipline_code
-        ),
-        current_rank_name: currentRankObj?.rank_name || 'In-Training',
-        belt_color: currentRankObj?.belt_color || 'Yellow',
-        rank_order: currentOrder,
-        promoted_at: sr.promoted_at || sr.created_at,
-        certificate_number: sr.reg_number,
-        nextRank,
-      };
-    });
+    for (const student of (students || [])) {
+      const assignedDisciplines = new Set<string>();
 
-    return flatList;
+      // A. Check if student already has explicit rank record(s) in student_ranks
+      (studentRanks || []).forEach((sr: any) => {
+        if (sr.student_id === student.id && sr.discipline_code) {
+          assignedDisciplines.add(sr.discipline_code);
+        }
+      });
+
+      // B. Resolve from student's course string
+      const courseStr = (student.course || '').toLowerCase();
+      if (courseStr.includes('dual') || (courseStr.includes('kalari') && courseStr.includes('karate'))) {
+        assignedDisciplines.add('KALARIPPAYATTU');
+        assignedDisciplines.add('KARATE_WUSHU');
+      } else if (courseStr.includes('kalari')) {
+        assignedDisciplines.add('KALARIPPAYATTU');
+      } else if (
+        courseStr.includes('karate') ||
+        courseStr.includes('wushu') ||
+        courseStr.includes('taekwondo') ||
+        courseStr.includes('mma') ||
+        courseStr.includes('combat') ||
+        courseStr.includes('sparring') ||
+        courseStr.includes('kung')
+      ) {
+        assignedDisciplines.add('KARATE_WUSHU');
+      }
+
+      // Check any configured discipline codes/names against course string
+      (disciplines || []).forEach((d: any) => {
+        if (
+          courseStr.includes(d.name.toLowerCase()) ||
+          courseStr.includes(d.code.toLowerCase())
+        ) {
+          assignedDisciplines.add(d.code);
+        }
+      });
+
+      // C. Resolve from student's enrolled batches
+      if (Array.isArray(student.batch_students)) {
+        for (const bs of student.batch_students) {
+          if (bs.status !== 'ACTIVE' && bs.status !== undefined && bs.status !== null) continue;
+          const bObj: any = Array.isArray(bs.batches) ? bs.batches[0] : bs.batches;
+          const bText = `${bObj?.name || ''} ${bObj?.subject || ''}`.toLowerCase();
+          if (bText.includes('kalari')) {
+            assignedDisciplines.add('KALARIPPAYATTU');
+          }
+          if (
+            bText.includes('karate') ||
+            bText.includes('wushu') ||
+            bText.includes('taekwondo') ||
+            bText.includes('mma') ||
+            bText.includes('combat') ||
+            bText.includes('sparring') ||
+            bText.includes('kung')
+          ) {
+            assignedDisciplines.add('KARATE_WUSHU');
+          }
+          (disciplines || []).forEach((d: any) => {
+            if (
+              bText.includes(d.name.toLowerCase()) ||
+              bText.includes(d.code.toLowerCase())
+            ) {
+              assignedDisciplines.add(d.code);
+            }
+          });
+        }
+      }
+
+      // D. Fallback: If no discipline detected from course/batch, default to academy's primary disciplines
+      // Ensures no active student is dropped from the belt workflow
+      if (assignedDisciplines.size === 0) {
+        if ((disciplines || []).some((d: any) => d.code === 'KARATE_WUSHU')) {
+          assignedDisciplines.add('KARATE_WUSHU');
+        } else if (disciplines && disciplines[0]) {
+          assignedDisciplines.add(disciplines[0].code);
+        }
+      }
+
+      // E. Generate a card record for each eligible discipline
+      for (const dCode of assignedDisciplines) {
+        if (disciplineCode && dCode !== disciplineCode) {
+          continue;
+        }
+
+        const discRanks = ranksByDiscipline.get(dCode) || [];
+        const existingSr = rankMap.get(`${student.id}:${dCode}`);
+
+        if (existingSr) {
+          // Student has an existing promotion record
+          const currentRankObj = existingSr.martial_arts_ranks;
+          const currentOrder = currentRankObj?.rank_order || 0;
+          const nextRank = discRanks.find((r: any) => r.rank_order === currentOrder + 1) || null;
+
+          resultCards.push({
+            id: existingSr.id,
+            student_id: student.id,
+            student_name: student.name,
+            student_code: existingSr.reg_number,
+            dob: existingSr.dob,
+            contact_number: student.parent_whatsapp || student.student_mobile || '',
+            parent_name: student.parent_name || '',
+            fatherName: student.parent_name || '',
+            discipline_code: dCode,
+            discipline_name: existingSr.martial_arts_disciplines?.name || disciplineNameMap.get(dCode) || dCode,
+            current_rank_name: currentRankObj?.rank_name || 'In-Training',
+            belt_color: currentRankObj?.belt_color || 'Yellow',
+            rank_order: currentOrder,
+            promoted_at: existingSr.promoted_at || existingSr.created_at || student.admission_date,
+            certificate_number: existingSr.reg_number,
+            nextRank,
+          });
+        } else {
+          // Student is eligible but has not yet received their first belt promotion
+          // Display at baseline rank so the admin can promote them in 1-click
+          const firstRank = discRanks[0] || null;
+          const initialOrder = firstRank?.rank_order || 1;
+          const nextRank = discRanks.find((r: any) => r.rank_order === initialOrder + 1) || discRanks[1] || null;
+          const shortCode = dCode.substring(0, 3);
+          const studentCode = `GSA-${shortCode}-${student.id.substring(0, 4).toUpperCase()}`;
+
+          resultCards.push({
+            id: `first-enroll-${student.id}-${dCode}`,
+            student_id: student.id,
+            student_name: student.name,
+            student_code: studentCode,
+            dob: null,
+            contact_number: student.parent_whatsapp || student.student_mobile || '',
+            parent_name: student.parent_name || '',
+            fatherName: student.parent_name || '',
+            discipline_code: dCode,
+            discipline_name: disciplineNameMap.get(dCode) || dCode,
+            current_rank_name: firstRank?.rank_name || 'Level 1 - White Belt (Beginner)',
+            belt_color: firstRank?.belt_color || 'Yellow',
+            rank_order: initialOrder,
+            promoted_at: student.admission_date || 'Enrolled',
+            certificate_number: studentCode,
+            nextRank,
+          });
+        }
+      }
+    }
+
+    return resultCards;
   }
 
   /**
@@ -405,7 +564,7 @@ export class RankService {
 
     const representedFrom = dto.representedFrom || dto.represented_from || existingRank?.represented_from || 'Gurukul Sports Academy Central Dojo';
     const dob = dto.dob || existingRank?.dob || '2012-05-14';
-    const regNumber = dto.regNumber || dto.reg_number || existingRank?.reg_number || `GSA-${disciplineCode.substring(0, 3)}-${Date.now().toString().slice(-4)}`;
+    const regNumber = dto.regNumber || dto.reg_number || existingRank?.reg_number || `GSA-${disciplineCode.substring(0, 3)}-${studentId.substring(0, 4).toUpperCase()}`;
     const certificateNumber = `CERT-${promotionDate.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // 4. Upsert student_ranks
@@ -713,7 +872,7 @@ export class RankService {
     }
 
     const disciplinesToAssign = disciplineCode === 'BOTH'
-      ? ['BOTH', 'KALARIPPAYATTU', 'KARATE_WUSHU']
+      ? ['KALARIPPAYATTU', 'KARATE_WUSHU']
       : [disciplineCode];
 
     const results = [];
