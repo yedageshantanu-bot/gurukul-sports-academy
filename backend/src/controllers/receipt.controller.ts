@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { receiptService } from '../services/receipt.service.js';
+import { automationService } from '../services/whatsapp/automation.service.js';
 
 export class ReceiptController {
   // ============================================================================
@@ -27,6 +28,23 @@ export class ReceiptController {
 
       res.setHeader('Content-Type', 'text/html');
       res.status(200).send(html);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // 3. SEND OFFICIAL RECEIPT PDF VIA WHATSAPP
+  // ============================================================================
+  async sendReceiptWhatsApp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await automationService.sendFeeReceiptPdf(req.params.id);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.data,
+      });
     } catch (err) {
       next(err);
     }

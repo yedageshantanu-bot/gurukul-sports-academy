@@ -9,51 +9,74 @@ interface ThemeToggleProps {
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className, showLabel = true }) => {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === 'dark';
+  const { setTheme, isDark } = useTheme();
 
   return (
     <div
-      role="group"
-      aria-label="Theme selection"
+      role="radiogroup"
+      aria-label="Theme Mode Selection"
       className={cn(
-        'inline-flex items-center p-0.5 rounded-xl transition-all duration-200',
-        'bg-slate-200/80 dark:bg-slate-800/90 border border-slate-300/80 dark:border-slate-700/80 shadow-xs gap-0.5',
+        'inline-flex items-center p-1 rounded-xl transition-all duration-200',
+        'bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10 shadow-xs gap-1',
         className
       )}
     >
-      {/* Light Mode Button */}
+      {/* Faint Mode Button */}
       <button
         type="button"
-        onClick={() => setTheme('light')}
+        role="radio"
+        aria-checked={!isDark}
+        onClick={() => setTheme('faint')}
         className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/40',
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer select-none',
+          'focus:outline-none focus:ring-2 focus:ring-orange-500/30',
           !isDark
-            ? 'bg-white text-amber-700 font-bold shadow-xs border border-slate-200/80'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+            ? 'bg-white text-slate-900 font-bold shadow-sm border border-slate-200/80 scale-[1.02]'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
         )}
-        title="Choose Light Mode"
-        aria-pressed={!isDark}
+        title="Switch to Faint Mode (Soft light aesthetic theme)"
       >
-        <Sun className={cn('w-3.5 h-3.5 transition-transform duration-200', !isDark ? 'text-amber-500 scale-110' : 'text-slate-400')} />
-        {showLabel && <span>Light</span>}
+        <Sun
+          className={cn(
+            'w-3.5 h-3.5 transition-transform duration-200',
+            !isDark ? 'text-amber-500 scale-110' : 'text-slate-400'
+          )}
+        />
+        {showLabel && (
+          <span>
+            <span className="hidden sm:inline">Faint Mode</span>
+            <span className="sm:hidden">Faint</span>
+          </span>
+        )}
       </button>
 
       {/* Dark Mode Button */}
       <button
         type="button"
+        role="radio"
+        aria-checked={isDark}
         onClick={() => setTheme('dark')}
         className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/40',
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer select-none',
+          'focus:outline-none focus:ring-2 focus:ring-orange-500/30',
           isDark
-            ? 'bg-indigo-600 text-white font-bold shadow-xs'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+            ? 'bg-[#F97316] text-white font-bold shadow-sm shadow-orange-500/30 scale-[1.02]'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
         )}
-        title="Choose Dark Mode"
-        aria-pressed={isDark}
+        title="Switch to Dark Mode (Deep contrast dojo theme)"
       >
-        <Moon className={cn('w-3.5 h-3.5 transition-transform duration-200', isDark ? 'text-amber-300 scale-110' : 'text-slate-500')} />
-        {showLabel && <span>Dark</span>}
+        <Moon
+          className={cn(
+            'w-3.5 h-3.5 transition-transform duration-200',
+            isDark ? 'text-white scale-110' : 'text-slate-500'
+          )}
+        />
+        {showLabel && (
+          <span>
+            <span className="hidden sm:inline">Dark Mode</span>
+            <span className="sm:hidden">Dark</span>
+          </span>
+        )}
       </button>
     </div>
   );

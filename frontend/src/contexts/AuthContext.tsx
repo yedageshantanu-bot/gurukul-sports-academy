@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, refreshTokenFromServer } from '../lib/api';
 import { AuthContextType, Role, UserProfile } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -12,6 +12,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isExpiredParam) {
       try {
         localStorage.removeItem('gurukul_access_token');
+        localStorage.removeItem('gurukul_refresh_token');
         localStorage.removeItem('gurukul_user_profile');
       } catch {}
       return null;
@@ -56,11 +57,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Fetch backend profile using verified Supabase JWT with metadata fallback
+  // Fetch backend profile using verified Supabase JWT with server-side refresh and metadata fallback
   const fetchBackendProfile = async (accessToken: string, userObj?: any): Promise<UserProfile | null> => {
     try {
       const controller = new AbortController();
-      const fetchTimer = setTimeout(() => controller.abort(), 3500);
+      const fetchTimer = setTimeout(() => controller.abort(), 12000);
 
       const response = await fetch(getApiUrl('/auth/me'), {
         signal: controller.signal,
@@ -75,12 +76,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return json.data as UserProfile;
         }
       } else if (response.status === 401) {
+        // Token expired - attempt server-side refresh first
+        const newToken = await refreshTokenFromServer();
+        if (newToken) {
+          return fetchBackendProfile(newToken, userObj);
+        }
+
         const { data: refreshData } = await supabase.auth.refreshSession().catch(() => ({ data: null }));
         if (refreshData?.session?.access_token) {
           return fetchBackendProfile(refreshData.session.access_token, refreshData.session.user);
         } else {
           try {
             localStorage.removeItem('gurukul_access_token');
+            localStorage.removeItem('gurukul_refresh_token');
             localStorage.removeItem('gurukul_user_profile');
           } catch {}
           await supabase.auth.signOut().catch(() => {});
@@ -97,7 +105,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (err.message?.includes('trial has ended')) {
         throw err;
       }
-      console.warn('Backend profile endpoint not available; falling back to Supabase auth metadata.');
+      console.warn('Backend profile endpoint took too long or was unavailable; checking cached profile or metadata.');
+      
+      // If we have cached profile in localStorage, return it rather than killing the session!
+      try {
+        const cached = localStorage.getItem('gurukul_user_profile');
+        if (cached) {
+          return JSON.parse(cached) as UserProfile;
+        }
+      } catch {}
     }
 
     // Direct fallback from Supabase user session / metadata (essential for Cloudflare Pages preview)
@@ -136,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isExpiredParam) {
           try {
             localStorage.removeItem('gurukul_access_token');
+            localStorage.removeItem('gurukul_refresh_token');
             localStorage.removeItem('gurukul_user_profile');
           } catch {}
           if (isMounted) {
@@ -157,6 +174,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const cachedToken = localStorage.getItem('gurukul_access_token');
             if (cachedToken) {
               tokenToVerify = cachedToken;
+            }
+          } catch {}
+        }
+
+        if (!tokenToVerify) {
+          // Attempt session recovery via persistent refresh token!
+          try {
+            const cachedRefresh = localStorage.getItem('gurukul_refresh_token');
+            if (cachedRefresh) {
+              const refreshed = await refreshTokenFromServer();
+              if (refreshed) {
+                tokenToVerify = refreshed;
+              }
             }
           } catch {}
         }
@@ -186,14 +216,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.setItem('gurukul_user_profile', JSON.stringify(backendProfile));
             } catch {}
           } else {
-            // Token verification failed or expired - reset session cleanly
-            try {
-              localStorage.removeItem('gurukul_access_token');
-              localStorage.removeItem('gurukul_user_profile');
-            } catch {}
-            setUser(null);
-            setProfile(null);
-            setToken(null);
+            // Only wipe tokens if no cached profile exists
+            const cachedProfileStr = localStorage.getItem('gurukul_user_profile');
+            if (!cachedProfileStr) {
+              try {
+                localStorage.removeItem('gurukul_access_token');
+                localStorage.removeItem('gurukul_refresh_token');
+                localStorage.removeItem('gurukul_user_profile');
+              } catch {}
+              setUser(null);
+              setProfile(null);
+              setToken(null);
+            }
           }
           setLoading(false);
         }
@@ -222,9 +256,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch {}
           }
         } else {
-          // If session is null, do NOT wipe user if we have a valid cached token in localStorage!
+          // If session is null, do NOT wipe user if we have a valid cached token or refresh token in localStorage!
           const cachedToken = localStorage.getItem('gurukul_access_token');
-          if (!cachedToken) {
+          const cachedRefresh = localStorage.getItem('gurukul_refresh_token');
+          if (!cachedToken && !cachedRefresh) {
             setUser(null);
             setProfile(null);
             setToken(null);
@@ -264,6 +299,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setToken(jwtToken);
               try {
                 localStorage.setItem('gurukul_access_token', jwtToken);
+                if (refreshToken) {
+                  localStorage.setItem('gurukul_refresh_token', refreshToken);
+                }
               } catch {}
               setUser({ id: authUser.id, email: authUser.email });
 
@@ -323,6 +361,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(data.user);
       setToken(data.session.access_token);
+      try {
+        localStorage.setItem('gurukul_access_token', data.session.access_token);
+        if (data.session.refresh_token) {
+          localStorage.setItem('gurukul_refresh_token', data.session.refresh_token);
+        }
+      } catch {}
 
       const backendProfile = await fetchBackendProfile(data.session.access_token, data.user);
       if (!backendProfile) {
@@ -343,8 +387,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (): Promise<void> => {
     try {
       localStorage.removeItem('gurukul_access_token');
+      localStorage.removeItem('gurukul_refresh_token');
       localStorage.removeItem('gurukul_user_profile');
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(() => {});
       await fetch(getApiUrl('/auth/logout'), { method: 'POST' }).catch(() => {});
     } finally {
       setUser(null);

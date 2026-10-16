@@ -2,6 +2,7 @@ import { env } from '../../config/env.js';
 import {
   WhatsAppSender,
   SendMessageParams,
+  SendDocumentParams,
   SendMessageResult,
   WhatsAppDeviceStatus,
 } from './whatsappProvider.interface.js';
@@ -345,7 +346,7 @@ export class OpenWaProvider implements WhatsAppSender {
 
     console.log(`[OpenWA] Dispatching message to ${chatId} using session ${session.id} (${session.name})`);
 
-    // Anti-Ban Humanization: Simulate 1.2s - 2.2s of typing presence before dispatch
+    // Anti-Ban Humanization: Simulate 0.8s - 1.4s of typing presence before dispatch
     try {
       await fetch(`${baseUrl}/api/sessions/${session.id}/chats/send-state`, {
         method: 'POST',
@@ -353,7 +354,7 @@ export class OpenWaProvider implements WhatsAppSender {
         body: JSON.stringify({ chatId, state: 'typing' }),
         signal: AbortSignal.timeout(3000),
       }).catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 1200 + Math.floor(Math.random() * 1000)));
+      await new Promise((resolve) => setTimeout(resolve, 800 + Math.floor(Math.random() * 600)));
     } catch {}
 
     try {
@@ -388,6 +389,81 @@ export class OpenWaProvider implements WhatsAppSender {
       };
     } catch (err: any) {
       console.error(`[OpenWA] Error sending message to ${chatId}:`, err.message);
+      return {
+        success: false,
+        provider: 'OPENWA',
+        status: 'FAILED',
+        errorMessage: err.message,
+      };
+    }
+  }
+
+  async sendDocument(params: SendDocumentParams): Promise<SendMessageResult> {
+    const baseUrl = this.getBaseUrl();
+    const session = await this.getActiveSession();
+
+    if (!session) {
+      return {
+        success: false,
+        provider: 'OPENWA',
+        status: 'FAILED',
+        errorMessage: 'No active OpenWA session found on gateway',
+      };
+    }
+
+    const chatId = this.formatChatId(params.to);
+    const sendUrl = `${baseUrl}/api/sessions/${session.id}/messages/send-document`;
+
+    console.log(`[OpenWA] Dispatching document (${params.fileName}) to ${chatId} using session ${session.id}`);
+
+    // Anti-Ban Humanization: brief typing presence
+    try {
+      await fetch(`${baseUrl}/api/sessions/${session.id}/chats/send-state`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ chatId, state: 'typing' }),
+        signal: AbortSignal.timeout(3000),
+      }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 800 + Math.floor(Math.random() * 600)));
+    } catch {}
+
+    try {
+      const payload = {
+        chatId,
+        base64: params.documentBase64,
+        filename: params.fileName,
+        mimetype: params.mimetype || 'application/pdf',
+        caption: params.caption || '',
+      };
+
+      const res = await fetch(sendUrl, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as any;
+        console.log(`[OpenWA] Successfully sent document to ${chatId}:`, data);
+        return {
+          success: true,
+          provider: 'OPENWA',
+          messageId: data.messageId || `openwa_doc_${Date.now()}`,
+          status: 'SENT',
+        };
+      }
+
+      const errorText = await res.text().catch(() => '');
+      console.error(`[OpenWA] Document send failed with HTTP ${res.status}:`, errorText);
+      return {
+        success: false,
+        provider: 'OPENWA',
+        status: 'FAILED',
+        errorMessage: `OpenWA HTTP ${res.status}: ${errorText}`,
+      };
+    } catch (err: any) {
+      console.error(`[OpenWA] Error sending document to ${chatId}:`, err.message);
       return {
         success: false,
         provider: 'OPENWA',

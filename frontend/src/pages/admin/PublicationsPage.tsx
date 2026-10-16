@@ -550,17 +550,17 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       )}
 
       {/* Top Banner Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-white/10">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="p-2 rounded-xl bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20">
               <BookOpen className="w-5 h-5" />
             </span>
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               Published Document &amp; Book Register
             </h1>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage annual curriculum publications, internal &amp; external subscribers, validity periods, and publication fees (Standard ₹200).
           </p>
         </div>
@@ -582,59 +582,59 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
+        <Card className="p-5 bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 relative overflow-hidden shadow-xs dark:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Total Registered Customers</span>
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Registered Customers</span>
+            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white mt-2">{summary.totalStudents}</p>
-          <p className="text-xs text-slate-400 mt-1">Academy Athletes &amp; Outside Customers</p>
+          <p className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">{summary.totalStudents}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Academy Athletes &amp; Outside Customers</p>
         </Card>
 
-        <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
+        <Card className="p-5 bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 relative overflow-hidden shadow-xs dark:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Annual Publication Fees</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Annual Publication Fees</span>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-emerald-400 mt-2">
+          <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">
             ₹{summary.totalCollected.toLocaleString('en-IN')}
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Collected of ₹{summary.totalAnnualExpected.toLocaleString('en-IN')} Expected
           </p>
         </Card>
 
-        <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
+        <Card className="p-5 bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 relative overflow-hidden shadow-xs dark:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Pending Annual Dues</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pending Annual Dues</span>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-amber-400 mt-2">
+          <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2">
             ₹{summary.totalPending.toLocaleString('en-IN')}
           </p>
-          <p className="text-xs text-slate-400 mt-1">Segregated from monthly tuition</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Segregated from monthly tuition</p>
         </Card>
 
-        <Card className="p-5 bg-[#1E293B] border-white/10 relative overflow-hidden">
+        <Card className="p-5 bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 relative overflow-hidden shadow-xs dark:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Editions Dispatched</span>
-            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Editions Dispatched</span>
+            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500 dark:text-teal-400">
               <Truck className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-teal-300 mt-2">{summary.dispatchedCount}</p>
-          <p className="text-xs text-slate-400 mt-1">Handed over or shipped via courier</p>
+          <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-300 mt-2">{summary.dispatchedCount}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Handed over or shipped via courier</p>
         </Card>
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-4 bg-[#1E293B] border-white/10 shadow-sm">
+      <Card className="p-4 bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 shadow-xs dark:shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -643,7 +643,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               placeholder="Search by customer, parent, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-[#0F172A] border-white/10 text-white placeholder-slate-500 text-sm"
+              className="pl-9 bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 text-sm"
             />
           </div>
 
@@ -651,7 +651,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white text-sm"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
             >
               <option value="ALL">All Customer Types (Academy &amp; Outside)</option>
               <option value="INTERNAL">Academy Students Only</option>
@@ -663,7 +663,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <Select
               value={feeFilter}
               onChange={(e) => setFeeFilter(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white text-sm"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
             >
               <option value="ALL">All Fee Statuses</option>
               <option value="PAID">Paid in Full</option>
@@ -676,7 +676,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             <Select
               value={deliveryFilter}
               onChange={(e) => setDeliveryFilter(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white text-sm"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
             >
               <option value="ALL">All Delivery Statuses</option>
               <option value="HANDED_OVER">Handed Over in Academy</option>
@@ -728,17 +728,17 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           accentColor="indigo"
         />
       ) : (
-        <Card className="border-white/10 bg-[#1E293B] overflow-hidden shadow-xl">
+        <Card className="border-slate-200 dark:border-white/10 bg-white dark:bg-[#1E293B] overflow-hidden shadow-sm dark:shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-[#0F172A] text-slate-400 uppercase text-[11px] font-bold border-b border-white/10">
+            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+              <thead className="bg-slate-50 dark:bg-[#0F172A] text-slate-600 dark:text-slate-400 uppercase text-[11px] font-bold border-b border-slate-200 dark:border-white/10">
                 <tr>
                   <th className="px-4 py-3.5 w-10">
                     <input
                       type="checkbox"
                       checked={filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      className="rounded border-slate-300 dark:border-white/20 bg-white dark:bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                     />
                   </th>
                   <th className="px-5 py-3.5">Customer Name</th>
@@ -749,19 +749,19 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {filteredStudents.map((s) => {
                   const pendingDue = Math.max(0, Number(s.annual_fee) - Number(s.amount_paid));
                   const isExpired = s.renewal_due_date && new Date(s.renewal_due_date) < new Date();
 
                   return (
-                    <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-4 w-10">
                         <input
                           type="checkbox"
                           checked={selectedStudentIds.includes(s.id)}
                           onChange={() => toggleSelectStudent(s.id)}
-                          className="rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                          className="rounded border-slate-300 dark:border-white/20 bg-white dark:bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                         />
                       </td>
 
@@ -769,19 +769,19 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-base">{s.student_name}</span>
+                            <span className="font-bold text-slate-900 dark:text-white text-base">{s.student_name}</span>
                             {s.is_external ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
                                 Outside Customer
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
                                 Academy Athlete
                               </span>
                             )}
                           </div>
                           {s.parent_name && (
-                            <span className="text-xs text-slate-400 mt-0.5">Parent: {s.parent_name}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Parent: {s.parent_name}</span>
                           )}
                         </div>
                       </td>
@@ -789,12 +789,12 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       {/* Contact */}
                       <td className="px-5 py-4 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-slate-300">{s.contact_number}</span>
+                          <span className="font-mono text-slate-700 dark:text-slate-300">{s.contact_number}</span>
                           <button
                             type="button"
                             onClick={() => handleOpenSingleWa(s)}
                             title="Edit & send WhatsApp message"
-                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors cursor-pointer"
+                            className="p-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -804,18 +804,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       {/* Document Title & Validity (Kab Se Kab Hai) */}
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold text-amber-300">{s.publication_title}</span>
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-300">{s.publication_title}</span>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-white/10">
-                              <Calendar className="w-3 h-3 text-amber-400" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-200 dark:border-white/10">
+                              <Calendar className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                               <span>{formatDisplayPeriod(s.academic_year, s.renewal_due_date)}</span>
                             </span>
                             {isExpired ? (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30">
                                 Expired / Renewal Due
                               </span>
                             ) : (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20">
                                 Active
                               </span>
                             )}
@@ -827,15 +827,15 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">₹{Number(s.annual_fee).toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-slate-900 dark:text-white">₹{Number(s.annual_fee).toLocaleString('en-IN')}</span>
                             <StatusBadge status={s.fee_status} />
                           </div>
                           {pendingDue > 0 ? (
-                            <span className="text-[11px] text-amber-400 mt-0.5">
+                            <span className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">
                               Due: ₹{pendingDue.toLocaleString('en-IN')}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-emerald-400/80 mt-0.5">
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400/80 mt-0.5">
                               100% Settled
                             </span>
                           )}
@@ -850,18 +850,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                             onChange={(e) => handleToggleDelivery(s, e.target.value)}
                             className={`text-xs font-semibold rounded-lg px-2.5 py-1.5 border transition-all cursor-pointer focus:outline-none ${
                               s.delivery_status === 'HANDED_OVER'
-                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                                 : s.delivery_status === 'DISPATCHED'
-                                ? 'bg-teal-500/10 text-teal-300 border-teal-500/30'
+                                ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30'
                                 : s.delivery_status === 'IN_PRINT'
-                                ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
-                                : 'bg-slate-800 text-slate-300 border-white/10'
+                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10'
                             }`}
                           >
-                            <option value="PENDING" className="bg-slate-900 text-slate-200">⏳ Pending</option>
-                            <option value="IN_PRINT" className="bg-slate-900 text-slate-200">🖨️ In Print</option>
-                            <option value="DISPATCHED" className="bg-slate-900 text-slate-200">🚚 Dispatched</option>
-                            <option value="HANDED_OVER" className="bg-slate-900 text-slate-200">✅ Handed Over</option>
+                            <option value="PENDING">⏳ Pending</option>
+                            <option value="IN_PRINT">🖨️ In Print</option>
+                            <option value="DISPATCHED">🚚 Dispatched</option>
+                            <option value="HANDED_OVER">✅ Handed Over</option>
                           </select>
                         </div>
                       </td>
@@ -891,9 +891,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                             size="sm"
                             title="Edit Customer & Validity Dates"
                             onClick={() => handleOpenEdit(s)}
-                            className="text-xs h-8 text-slate-300 border-white/10 hover:bg-white/10 px-2"
+                            className="text-xs h-8 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 px-2"
                           >
-                            <Edit2 className="w-3.5 h-3.5 mr-1 text-indigo-400" />
+                            <Edit2 className="w-3.5 h-3.5 mr-1 text-indigo-500 dark:text-indigo-400" />
                             <span>Edit</span>
                           </Button>
 
@@ -903,7 +903,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                             size="sm"
                             title="Send WhatsApp Renewal Notice"
                             onClick={() => handleSendReminder(s)}
-                            className="text-xs h-8 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 px-2"
+                            className="text-xs h-8 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 px-2"
                           >
                             <Send className="w-3 h-3 mr-1" />
                             <span>Remind</span>
@@ -915,9 +915,9 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                               type="button"
                               title="Mark Handed Over"
                               onClick={() => handleToggleDelivery(s, 'HANDED_OVER')}
-                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors text-xs"
+                              className="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors text-xs cursor-pointer"
                             >
-                              <PackageCheck className="w-4 h-4 text-emerald-400" />
+                              <PackageCheck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                             </button>
                           )}
                         </div>
@@ -937,21 +937,21 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         onClose={() => setIsCreateModalOpen(false)}
         title="Register Publication Customer / Subscriber"
       >
-        <form onSubmit={handleCreateCustomer} className="space-y-4 text-slate-200">
+        <form onSubmit={handleCreateCustomer} className="space-y-4 text-slate-800 dark:text-slate-200">
           {/* Internal or External Toggle */}
-          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 flex items-center justify-between">
+          <div className="p-3 bg-slate-50 dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between">
             <div>
-              <span className="text-sm font-bold text-white block">Customer Category</span>
-              <span className="text-xs text-slate-400">Is this customer an academy athlete or an outside learner?</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white block">Customer Category</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Is this customer an academy athlete or an outside learner?</span>
             </div>
-            <div className="inline-flex rounded-lg bg-[#1E293B] p-1 border border-white/10">
+            <div className="inline-flex rounded-lg bg-slate-100 dark:bg-[#1E293B] p-1 border border-slate-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => {
                   setIsExternal(false);
                 }}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${
-                  !isExternal ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'
+                  !isExternal ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 Academy Athlete
@@ -966,7 +966,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   setFormContact('');
                 }}
                 className={`px-3 py-1 rounded text-xs font-bold transition-all ${
-                  isExternal ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400'
+                  isExternal ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 Outside Customer
@@ -977,13 +977,13 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           {/* If Academy Student: Quick Auto-Fill Dropdown */}
           {!isExternal && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Link Existing Academy Athlete
               </label>
               <Select
                 value={selectedAcademyStudentId}
                 onChange={(e) => handleSelectAcademyStudent(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white text-sm"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
               >
                 <option value="">-- Choose Athlete to Auto-Fill --</option>
                 {academyStudents.map((st) => (
@@ -994,8 +994,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               </Select>
 
               {selectedAcademyStudentId && (
-                <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                   <span>Verified Academy Athlete: Customer, Parent &amp; WhatsApp contact auto-filled from database.</span>
                 </div>
               )}
@@ -1005,25 +1005,25 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           {/* Customer Name & Parent Name */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Customer / Reader Name *</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Customer / Reader Name *</label>
               <Input
                 type="text"
                 required
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Full Customer Name"
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Parent / Guardian Name (Optional)</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Parent / Guardian Name (Optional)</label>
               <Input
                 type="text"
                 value={formParent}
                 onChange={(e) => setFormParent(e.target.value)}
                 placeholder="Parent Name"
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -1031,21 +1031,21 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           {/* WhatsApp Contact Only (NO EMAIL) & Annual Fee */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp Contact Number *</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Contact Number *</label>
               <Input
                 type="text"
                 required
                 value={formContact}
                 onChange={(e) => setFormContact(e.target.value)}
                 placeholder="+919876543210"
-                className="bg-[#0F172A] border-white/10 text-white font-mono"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-400">Annual Publication Fee (₹) *</label>
-                <span className="text-[10px] text-amber-400 font-mono">Standard ₹200</span>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">Annual Publication Fee (₹) *</label>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">Standard ₹200</span>
               </div>
               <Input
                 type="number"
@@ -1054,27 +1054,27 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                 value={formFee}
                 onChange={(e) => setFormFee(e.target.value)}
                 placeholder="200"
-                className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono font-bold"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Publication / Book Title *</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Publication / Book Title *</label>
             <Input
               type="text"
               required
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
             />
           </div>
 
           {/* Date Range: Kab Se Kab Tak (Start Date to End Date) */}
-          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 space-y-2.5">
+          <div className="p-3 bg-slate-50 dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-white/10 space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                <CalendarDays className="w-4 h-4 text-amber-400" />
+              <label className="block text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 <span>Validity Period (Kab Se Kab Tak) *</span>
               </label>
               <button
@@ -1086,7 +1086,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                     setFormEndDate(d.toISOString().split('T')[0]);
                   }
                 }}
-                className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+                className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 +1 Year Auto-Fill
               </button>
@@ -1094,31 +1094,31 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Start Date (Shuruat Ki Date)</label>
+                <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">Start Date (Shuruat Ki Date)</label>
                 <Input
                   type="date"
                   required
                   value={formStartDate}
                   onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                  className="bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">End Date / Valid Till (Renewal Date)</label>
+                <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">End Date / Valid Till (Renewal Date)</label>
                 <Input
                   type="date"
                   required
                   value={formEndDate}
                   onChange={(e) => setFormEndDate(e.target.value)}
-                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                  className="bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs"
                 />
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-white/5">
               <span>Customer Validity Preview:</span>
-              <span className="font-semibold text-amber-300">
+              <span className="font-semibold text-amber-600 dark:text-amber-300">
                 {formatDisplayPeriod(`${formStartDate} to ${formEndDate}`, formEndDate)}
               </span>
             </div>
@@ -1127,11 +1127,11 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           {/* Delivery & Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Delivery Status</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Delivery Status</label>
               <Select
                 value={formDelivery}
                 onChange={(e: any) => setFormDelivery(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white text-sm"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
               >
                 <option value="PENDING">⏳ Pending Action</option>
                 <option value="IN_PRINT">🖨️ In Print Queue</option>
@@ -1141,18 +1141,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Tracking / Delivery Notes</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tracking / Delivery Notes</label>
               <Input
                 type="text"
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 placeholder="e.g. Handed over at counter / SpeedPost #"
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
@@ -1173,71 +1173,71 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Publication Customer Details"
       >
-        <form onSubmit={handleUpdateCustomer} className="space-y-4 text-slate-200">
+        <form onSubmit={handleUpdateCustomer} className="space-y-4 text-slate-800 dark:text-slate-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Customer / Reader Name *</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Customer / Reader Name *</label>
               <Input
                 type="text"
                 required
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Parent / Guardian Name</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Parent / Guardian Name</label>
               <Input
                 type="text"
                 value={editParent}
                 onChange={(e) => setEditParent(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">WhatsApp Contact *</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Contact *</label>
               <Input
                 type="text"
                 required
                 value={editContact}
                 onChange={(e) => setEditContact(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white font-mono"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Annual Fee (₹) *</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Annual Fee (₹) *</label>
               <Input
                 type="number"
                 min="0"
                 required
                 value={editFee}
                 onChange={(e) => setEditFee(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white font-mono font-bold"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono font-bold"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Publication / Book Title *</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Publication / Book Title *</label>
             <Input
               type="text"
               required
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
             />
           </div>
 
           {/* Edit Date Range */}
-          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10 space-y-2.5">
+          <div className="p-3 bg-slate-50 dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-white/10 space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                <CalendarDays className="w-4 h-4 text-amber-400" />
+              <label className="block text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 <span>Validity Period (Kab Se Kab Tak) *</span>
               </label>
               <button
@@ -1249,7 +1249,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                     setEditEndDate(d.toISOString().split('T')[0]);
                   }
                 }}
-                className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
+                className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 +1 Year Auto-Fill
               </button>
@@ -1257,31 +1257,31 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Start Date</label>
+                <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">Start Date</label>
                 <Input
                   type="date"
                   required
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
-                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                  className="bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">End Date / Valid Till</label>
+                <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">End Date / Valid Till</label>
                 <Input
                   type="date"
                   required
                   value={editEndDate}
                   onChange={(e) => setEditEndDate(e.target.value)}
-                  className="bg-[#1E293B] border-white/10 text-white text-xs"
+                  className="bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs"
                 />
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-white/5">
               <span>Updated Validity:</span>
-              <span className="font-semibold text-amber-300">
+              <span className="font-semibold text-amber-600 dark:text-amber-300">
                 {formatDisplayPeriod(`${editStartDate} to ${editEndDate}`, editEndDate)}
               </span>
             </div>
@@ -1289,11 +1289,11 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Delivery Status</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Delivery Status</label>
               <Select
                 value={editDelivery}
                 onChange={(e: any) => setEditDelivery(e.target.value)}
-                className="bg-[#0F172A] border-white/10 text-white text-sm"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm"
               >
                 <option value="PENDING">⏳ Pending Action</option>
                 <option value="IN_PRINT">🖨️ In Print Queue</option>
@@ -1303,18 +1303,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Tracking / Delivery Notes</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tracking / Delivery Notes</label>
               <Input
                 type="text"
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
                 placeholder="e.g. Handed over at counter"
-                className="bg-[#0F172A] border-white/10 text-white"
+                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
@@ -1335,31 +1335,31 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         onClose={() => setIsPaymentModalOpen(false)}
         title="Record Publication Annual Fee"
       >
-        <form onSubmit={handleRecordPayment} className="space-y-4 text-slate-200">
-          <div className="p-3 bg-[#0F172A] rounded-xl border border-white/10">
-            <p className="text-xs text-slate-400">Customer / Subscriber</p>
-            <p className="text-base font-bold text-white">{selectedStudentForPay?.student_name}</p>
-            <p className="text-xs text-amber-300 mt-0.5">{selectedStudentForPay?.publication_title}</p>
+        <form onSubmit={handleRecordPayment} className="space-y-4 text-slate-800 dark:text-slate-200">
+          <div className="p-3 bg-slate-50 dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-white/10">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Customer / Subscriber</p>
+            <p className="text-base font-bold text-slate-900 dark:text-white">{selectedStudentForPay?.student_name}</p>
+            <p className="text-xs text-amber-600 dark:text-amber-300 mt-0.5">{selectedStudentForPay?.publication_title}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Settlement Amount (₹) *</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Settlement Amount (₹) *</label>
             <Input
               type="number"
               required
               min="1"
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white font-mono font-bold text-lg"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono font-bold text-lg"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Payment Method</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Payment Method</label>
             <Select
               value={payMethod}
               onChange={(e) => setPayMethod(e.target.value)}
-              className="bg-[#0F172A] border-white/10 text-white"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
             >
               <option value="UPI">UPI / Google Pay / PhonePe</option>
               <option value="CASH">Cash at Desk</option>
@@ -1369,17 +1369,17 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Settlement Notes (Optional)</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Settlement Notes (Optional)</label>
             <Input
               type="text"
               value={payNotes}
               onChange={(e) => setPayNotes(e.target.value)}
               placeholder="e.g. Cleared via UPI ref 109283"
-              className="bg-[#0F172A] border-white/10 text-white"
+              className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
               Cancel
             </Button>
@@ -1400,14 +1400,14 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
         onClose={() => setIsWaComposerOpen(false)}
         title={`Custom WhatsApp Composer (${waRecipients.length} Recipient${waRecipients.length > 1 ? 's' : ''})`}
       >
-        <div className="space-y-4 text-slate-200">
+        <div className="space-y-4 text-slate-800 dark:text-slate-200">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Recipients Preview</label>
-            <div className="max-h-24 overflow-y-auto p-2 bg-[#0F172A] rounded-lg border border-white/10 text-xs space-y-1">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Recipients Preview</label>
+            <div className="max-h-24 overflow-y-auto p-2 bg-slate-50 dark:bg-[#0F172A] rounded-lg border border-slate-200 dark:border-white/10 text-xs space-y-1">
               {waRecipients.map((r) => (
                 <div key={r.id} className="flex items-center justify-between">
-                  <span className="font-semibold text-white">{r.student_name}</span>
-                  <span className="font-mono text-slate-400">{r.contact_number}</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{r.student_name}</span>
+                  <span className="font-mono text-slate-500 dark:text-slate-400">{r.contact_number}</span>
                 </div>
               ))}
             </div>
@@ -1415,8 +1415,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-400">Message Text *</label>
-              <span className="text-[10px] text-slate-400">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">Message Text *</label>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                 Variables: {'{customer_name}'}, {'{publication_title}'}, {'{academic_year}'}, {'{delivery_status}'}, {'{fee_status}'}
               </span>
             </div>
@@ -1424,12 +1424,12 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
               rows={4}
               value={waMessageTemplate}
               onChange={(e) => setWaMessageTemplate(e.target.value)}
-              className="w-full p-2.5 bg-[#0F172A] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
+              className="w-full p-2.5 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
               placeholder="Type WhatsApp message..."
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsWaComposerOpen(false)}>
               Cancel
             </Button>

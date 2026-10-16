@@ -183,13 +183,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={cn(
-          'w-64 bg-[#0A1120] text-slate-200 border-r border-white/10 flex flex-col flex-shrink-0 h-screen transition-transform duration-200 ease-in-out z-50 shadow-xl',
+          'w-64 bg-white dark:bg-[#0A1120] text-slate-700 dark:text-slate-200 border-r border-slate-200/80 dark:border-white/10 flex flex-col flex-shrink-0 h-screen transition-all duration-200 ease-in-out z-50 shadow-sm dark:shadow-xl',
           'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Brand Header */}
-        <div className="h-[78px] flex items-center justify-between px-4 border-b border-white/10 gap-3 flex-shrink-0 bg-[#0A1120]">
+        <div className="h-[78px] flex items-center justify-between px-4 border-b border-slate-200/80 dark:border-white/10 gap-3 flex-shrink-0 bg-white dark:bg-[#0A1120]">
           <div className="flex items-center gap-3 overflow-hidden">
             <img
               src="/logo.png"
@@ -201,11 +201,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
             <div className="overflow-hidden">
-              <h1 className="text-sm font-bold text-white truncate leading-tight tracking-tight">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight tracking-tight">
                 {effectiveAcademyName}
               </h1>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
                   ATHLETICS & DOJO
                 </span>
               </div>
@@ -216,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Close Sidebar"
             >
               <X className="w-5 h-5" />
@@ -229,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {groups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
               {group.label && (
-                <div className="px-3 pb-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {group.label}
                 </div>
               )}
@@ -245,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150 group',
                         isActive
                           ? 'bg-[#F97316] text-white font-semibold shadow-md shadow-orange-500/35'
-                          : 'text-slate-400 hover:bg-[#273549] hover:text-white'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#273549] hover:text-slate-900 dark:hover:text-white'
                       )
                     }
                   >
@@ -254,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Icon
                           className={cn(
                             'w-[18px] h-[18px] flex-shrink-0 transition-transform duration-150',
-                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
                           )}
                         />
                         <span className="truncate flex-1">{item.name}</span>
@@ -264,7 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               'text-[10px] font-bold px-2 py-0.5 rounded-full',
                               isActive
                                 ? 'bg-white/20 text-white'
-                                : 'bg-[#334155] text-slate-300'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200 dark:border-transparent dark:bg-[#334155] dark:text-slate-300'
                             )}
                           >
                             {item.badge}
@@ -280,8 +280,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer Area - Stitch Academy Engine v2.4 */}
-        <div className="p-4 border-t border-white/10 bg-[#0A1120] flex-shrink-0">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="p-4 border-t border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-[#0A1120] flex-shrink-0">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
             <span className="font-medium">Academy Engine v2.4</span>
           </div>

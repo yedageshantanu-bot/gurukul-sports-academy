@@ -129,21 +129,21 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         aria-live="polite"
       >
         {toasts.map((t) => {
-          let borderClass = 'border-slate-700/60 bg-[#0F172A]/95 text-slate-100 shadow-slate-900/50';
-          let icon = <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />;
+          let borderClass = 'border-slate-200/90 dark:border-slate-700/60 bg-white/95 dark:bg-[#0F172A]/95 text-slate-800 dark:text-slate-100 shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50';
+          let icon = <Info className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />;
           let defaultTitle = 'Notification';
 
           if (t.type === 'success') {
-            borderClass = 'border-emerald-500/40 bg-[#0A1624]/95 text-emerald-50 shadow-emerald-950/40';
-            icon = <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />;
+            borderClass = 'border-emerald-200 dark:border-emerald-500/40 bg-emerald-50/95 dark:bg-[#0A1624]/95 text-emerald-950 dark:text-emerald-50 shadow-xl shadow-emerald-500/10 dark:shadow-emerald-950/40';
+            icon = <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />;
             defaultTitle = 'Success';
           } else if (t.type === 'error') {
-            borderClass = 'border-rose-500/40 bg-[#1A0C16]/95 text-rose-50 shadow-rose-950/40';
-            icon = <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />;
+            borderClass = 'border-rose-200 dark:border-rose-500/40 bg-rose-50/95 dark:bg-[#1A0C16]/95 text-rose-950 dark:text-rose-50 shadow-xl shadow-rose-500/10 dark:shadow-rose-950/40';
+            icon = <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />;
             defaultTitle = 'Notice';
           } else if (t.type === 'warning') {
-            borderClass = 'border-amber-500/40 bg-[#1C1608]/95 text-amber-50 shadow-amber-950/40';
-            icon = <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />;
+            borderClass = 'border-amber-200 dark:border-amber-500/40 bg-amber-50/95 dark:bg-[#1C1608]/95 text-amber-950 dark:text-amber-50 shadow-xl shadow-amber-500/10 dark:shadow-amber-950/40';
+            icon = <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />;
             defaultTitle = 'Attention';
           }
 

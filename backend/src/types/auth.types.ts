@@ -29,3 +29,7 @@ export interface LoginDTO {
 export interface PasswordResetDTO {
   email: string;
 }
+
+export interface RefreshTokenDTO {
+  refreshToken: string;
+}

@@ -45,6 +45,103 @@ export function getApiUrl(endpoint: string = ''): string {
   return `${base}${cleanEndpoint}`;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Server-side token refresh mutex.
+ * Rotates access token via backend POST /api/auth/refresh without race conditions.
+ */
+export async function refreshTokenFromServer(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      let refreshToken: string | null = null;
+      try {
+        refreshToken = localStorage.getItem('gurukul_refresh_token');
+      } catch {}
+
+      if (!refreshToken) {
+        // Fallback: check Supabase session if available
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          refreshToken = session?.refresh_token || null;
+        } catch {}
+      }
+
+      if (!refreshToken) {
+        return null;
+      }
+
+      const response = await fetch(getApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(isDemoDomain ? { 'X-Demo-Mode': 'true' } : {}),
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (response.ok) {
+        const json = await response.json().catch(() => null);
+        if (json?.success && json?.data) {
+          const { token: newToken, refreshToken: newRefreshToken, user } = json.data;
+          if (newToken) {
+            try {
+              localStorage.setItem('gurukul_access_token', newToken);
+              if (newRefreshToken) {
+                localStorage.setItem('gurukul_refresh_token', newRefreshToken);
+              }
+              if (user) {
+                const updatedProfile = {
+                  userId: user.id,
+                  profileId: user.id,
+                  email: user.email,
+                  fullName: user.fullName,
+                  role: user.role,
+                  teacherId: user.teacherId,
+                  isTrial: user.isTrial,
+                  trialExpiresAt: user.trialExpiresAt,
+                  daysRemaining: user.daysRemaining,
+                };
+                localStorage.setItem('gurukul_user_profile', JSON.stringify(updatedProfile));
+              }
+            } catch {}
+
+            if (newRefreshToken) {
+              supabase.auth.setSession({
+                access_token: newToken,
+                refresh_token: newRefreshToken,
+              }).catch(() => {});
+            }
+
+            return newToken;
+          }
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        // Refresh token was invalid, revoked, or trial ended
+        try {
+          localStorage.removeItem('gurukul_access_token');
+          localStorage.removeItem('gurukul_refresh_token');
+          localStorage.removeItem('gurukul_user_profile');
+        } catch {}
+        await supabase.auth.signOut().catch(() => {});
+        return null;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Network error while refreshing auth token:', err);
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -85,36 +182,23 @@ export async function apiClient<T>(
     headers,
   });
 
-  // Handle 401 (token expired or invalid)
-  if (response.status === 401) {
-    try {
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (!refreshError && refreshData.session?.access_token) {
-        token = refreshData.session.access_token;
-        headers['Authorization'] = `Bearer ${token}`;
-        response = await fetch(url, {
-          ...options,
-          headers,
-        });
-      } else {
-        // Stale or revoked token from previous instance
-        try {
-          localStorage.removeItem('gurukul_access_token');
-          localStorage.removeItem('gurukul_user_profile');
-        } catch {}
-        await supabase.auth.signOut().catch(() => {});
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.replace('/login?expired=1');
-          return {} as T;
-        }
-      }
-    } catch {
+  // Handle 401 (token expired or invalid) - bypass if calling auth endpoints directly
+  if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
+    const newToken = await refreshTokenFromServer();
+    if (newToken) {
+      headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } else {
+      // If refresh failed because refresh token is truly gone or revoked
+      let hasStoredRefreshToken = false;
       try {
-        localStorage.removeItem('gurukul_access_token');
-        localStorage.removeItem('gurukul_user_profile');
+        hasStoredRefreshToken = Boolean(localStorage.getItem('gurukul_refresh_token'));
       } catch {}
-      await supabase.auth.signOut().catch(() => {});
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+
+      if (!hasStoredRefreshToken && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.replace('/login?expired=1');
         return {} as T;
       }

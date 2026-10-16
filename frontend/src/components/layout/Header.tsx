@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LogOut, Menu, HelpCircle } from 'lucide-react';
 import { NeedHelpModal } from '../common/NeedHelpModal';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface HeaderProps {
   userName?: string;
@@ -95,13 +96,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="h-[78px] bg-[#0A1120] text-slate-100 border-b border-white/10 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
+      <header className="h-[78px] bg-white/95 dark:bg-[#0A1120] text-slate-800 dark:text-slate-100 border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 flex-shrink-0 backdrop-blur transition-colors">
         <div className="flex items-center gap-3">
           {/* Mobile menu toggle */}
           {onToggleMobileSidebar && (
             <button
               onClick={onToggleMobileSidebar}
-              className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="lg:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Open Navigation Menu"
             >
               <Menu className="w-5 h-5" />
@@ -109,22 +110,22 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <div className="flex flex-col">
-            <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-none">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">
               {pageTitle}
             </h1>
-            <p className="text-[11.5px] text-slate-400 mt-1 hidden sm:block">
+            <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">
               {pageSubtitle}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3.5">
-          {/* Search Input - Stitch style */}
-          <div className="relative hidden md:block w-56 lg:w-64">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Search Input */}
+          <div className="relative hidden md:block w-48 lg:w-56">
             <input
               type="text"
               placeholder="Search student, batch or fee..."
-              className="w-full h-9 pl-9 pr-3 bg-[#162235] border border-white/10 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#F97316] transition-colors"
+              className="w-full h-9 pl-9 pr-3 bg-slate-100/90 dark:bg-[#162235] border border-slate-200/90 dark:border-white/10 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#F97316] transition-colors"
             />
             <svg
               className="w-4 h-4 text-slate-400 absolute left-3 top-2.5"
@@ -137,27 +138,30 @@ export const Header: React.FC<HeaderProps> = ({
             </svg>
           </div>
 
+          {/* Theme Toggle - Faint Mode & Dark Mode Switcher */}
+          <ThemeToggle />
+
           {/* AI Need Help? Trigger Button */}
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-semibold transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-semibold transition-colors cursor-pointer"
             title="Open Academy CRM AI Assistant & Support"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-orange-400" />
+            <HelpCircle className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
             <span>Need Help?</span>
           </button>
 
-          {/* User Profile Pill - Stitch style */}
-          <div className="flex items-center gap-2 py-1 px-2 rounded-full bg-[#1E293B] border border-white/10">
+          {/* User Profile Pill */}
+          <div className="flex items-center gap-2 py-1 px-2 rounded-full bg-slate-100 dark:bg-[#1E293B] border border-slate-200/90 dark:border-white/10 shadow-xs">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0">
               {userInitials}
             </div>
             <div className="hidden sm:flex flex-col text-left leading-none pr-1">
-              <span className="text-xs font-semibold text-white truncate max-w-[110px]">
+              <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[110px]">
                 {userName}
               </span>
-              <span className="text-[9.5px] font-bold text-[#F97316] uppercase mt-0.5">
+              <span className="text-[9.5px] font-bold text-[#EA580C] dark:text-[#F97316] uppercase mt-0.5">
                 {userRole === 'DEMO_ADMIN' ? 'Demo' : userRole === 'ADMIN' ? 'Administrator' : 'Teacher'}
               </span>
             </div>
@@ -167,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
           {onLogout && (
             <button
               onClick={onLogout}
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />

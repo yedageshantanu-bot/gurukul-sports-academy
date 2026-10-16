@@ -65,25 +65,25 @@ export const TeacherDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 1. Top Coach Welcome & Status Strip (Stitch Teacher UI) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#1E293B] border border-white/10 rounded-xl p-5 shadow-lg">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1E293B] border border-slate-200/90 dark:border-white/10 rounded-xl p-5 shadow-sm dark:shadow-lg">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-[#F97316] flex-shrink-0">
             <Trophy className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
               Coach Performance &amp; Field Operations
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Lead Instructor: Turf Pitch 01, Main Pavilion &amp; Indoor Training Center
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#273549] border border-white/10 text-xs text-slate-300">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Biometrics: <strong className="text-emerald-400">Synced</strong></span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-[#273549] border border-slate-200 dark:border-white/10 text-xs text-slate-700 dark:text-slate-300">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Biometrics: <strong className="text-emerald-600 dark:text-emerald-400">Synced</strong></span>
           </div>
 
           <Link
@@ -205,36 +205,36 @@ export const TeacherDashboard: React.FC = () => {
                 </div>
                 <Link
                   to="/teacher/attendance"
-                  className="px-3 py-1.5 rounded-lg bg-[#1E293B] hover:bg-[#273549] border border-white/10 text-xs font-semibold text-slate-200 transition-colors self-end sm:self-center"
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E293B] hover:bg-slate-100 dark:hover:bg-[#273549] border border-slate-300 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors self-end sm:self-center shadow-xs"
                 >
                   View Roster
                 </Link>
               </div>
 
               {/* Session 2 */}
-              <div className="p-4 rounded-xl bg-[#0F172A] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-4 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200/90 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
                 <div className="flex items-start gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-[#1E293B] border border-white/10 flex flex-col items-center justify-center text-center flex-shrink-0">
-                    <span className="text-[9px] uppercase font-bold text-slate-400">MID-DAY</span>
-                    <span className="text-sm font-bold text-white">10:00</span>
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center text-center flex-shrink-0">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">MID-DAY</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">10:00</span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-white">Junior Fielding Drills &amp; Agility</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">Junior Fielding Drills &amp; Agility</h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                         Completed
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-[#F97316]" /> Indoor Ground 2</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 10:00 AM - 11:30 AM</span>
-                      <span className="flex items-center gap-1 text-slate-200"><Users className="w-3 h-3" /> 18 Athletes Checked In</span>
+                      <span className="flex items-center gap-1 text-slate-700 dark:text-slate-200"><Users className="w-3 h-3" /> 18 Athletes Checked In</span>
                     </div>
                   </div>
                 </div>
                 <Link
                   to="/teacher/attendance"
-                  className="px-3 py-1.5 rounded-lg bg-[#1E293B] hover:bg-[#273549] border border-white/10 text-xs font-semibold text-slate-200 transition-colors self-end sm:self-center"
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E293B] hover:bg-slate-100 dark:hover:bg-[#273549] border border-slate-300 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors self-end sm:self-center shadow-xs"
                 >
                   View Roster
                 </Link>

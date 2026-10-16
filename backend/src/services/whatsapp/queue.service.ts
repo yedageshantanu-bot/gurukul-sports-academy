@@ -28,7 +28,7 @@ export class WhatsAppQueueService {
   private inMemoryQueue: Map<string, WhatsAppQueueItem> = new Map();
   private processingRecipients: Set<string> = new Set();
   private lastDispatchedAt: number = 0;
-  public readonly MIN_DISPATCH_INTERVAL_MS = 15000; // 15-second anti-ban throttle
+  public readonly MIN_DISPATCH_INTERVAL_MS = 2500; // Safe anti-ban humanized throttle (2.5s - 4.5s)
 
   private get supabase() {
     return supabaseAdmin;
@@ -52,10 +52,10 @@ export class WhatsAppQueueService {
     return crypto.createHash('sha256').update(raw).digest('hex').substring(0, 32);
   }
 
-  // Stagger an array of messages so they dispatch with a humanized 15-25 second gap between each recipient
+  // Stagger an array of messages so they dispatch with a humanized 2.8 - 4.2 second gap between each recipient
   async enqueueBatchStaggered(
     items: EnqueueMessageParams[],
-    baseIntervalMs: number = 16000,
+    baseIntervalMs: number = 2800,
     startFromTimestamp?: number
   ): Promise<WhatsAppQueueItem[]> {
     if (env.DEMO_MODE || env.APP_ENV === 'demo' || !env.WHATSAPP_ENABLED) {
@@ -68,8 +68,8 @@ export class WhatsAppQueueService {
 
     for (let i = 0; i < items.length; i++) {
       if (i > 0) {
-        // Add random jitter of 3-7 seconds to prevent robotic periodic patterns
-        const jitter = Math.floor(Math.random() * 5000);
+        // Add random jitter of 0.5 - 1.5 seconds to prevent robotic periodic patterns
+        const jitter = Math.floor(Math.random() * 1200);
         currentSchedule += baseIntervalMs + jitter;
       }
       const scheduledTime = new Date(currentSchedule).toISOString();
@@ -267,14 +267,14 @@ export class WhatsAppQueueService {
     await this.updateItemStatus(item.id, 'PROCESSING');
 
     try {
-      // Anti-Ban Rate Limiting: Minimum 15-22 seconds randomized gap between consecutive WhatsApp deliveries
+      // Anti-Ban Rate Limiting: Humanized 2.5 - 4.0 seconds randomized gap between consecutive WhatsApp deliveries
       if ((provider.name === 'PROTOTYPE_LINKED_DEVICE' || provider.name === 'OPENWA') && this.lastDispatchedAt > 0) {
         const elapsed = Date.now() - this.lastDispatchedAt;
-        const dynamicDelay = this.MIN_DISPATCH_INTERVAL_MS + Math.floor(Math.random() * 6000); // 15s to 21s
+        const dynamicDelay = this.MIN_DISPATCH_INTERVAL_MS + Math.floor(Math.random() * 1500); // 2.5s to 4.0s
         if (elapsed < dynamicDelay) {
           const waitMs = dynamicDelay - elapsed;
           console.log(
-            `[QueueService] Anti-Ban throttle: waiting ${Math.ceil(waitMs / 1000)}s before dispatching to ${item.recipient_phone}...`
+            `[QueueService] Anti-Ban throttle: waiting ${(waitMs / 1000).toFixed(1)}s before dispatching to ${item.recipient_phone}...`
           );
           await new Promise((resolve) => setTimeout(resolve, waitMs));
         }

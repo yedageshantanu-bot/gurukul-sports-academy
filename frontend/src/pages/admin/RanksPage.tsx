@@ -8,10 +8,9 @@ import {
   Printer,
   Sparkles,
   UserCheck,
-  FileText,
   Layers,
   Medal,
-  Download,
+  Copy,
   Eye,
   FileSpreadsheet,
   Edit2,
@@ -31,8 +30,6 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { useToast } from '../../contexts/ToastContext';
-import { downloadCertificatePdf } from '../../utils/certificatePdfGenerator';
-import { downloadCombinedCertificatesPdf } from '../../utils/certificateBundlePdf';
 
 // Default martial arts belt & sash categories
 // Default martial arts belt & sash categories (Official Gurukul syllabus aligned)
@@ -174,14 +171,13 @@ export const RanksPage: React.FC = () => {
   const [disciplineForm, setDisciplineForm] = useState({ name: '', description: '' });
   const [savingDiscipline, setSavingDiscipline] = useState(false);
 
-  // Certificate Registry Date Filter States (The specific feature twist requested by user)
+  // Certificate Registry Date Filter States
   const [certStartDate, setCertStartDate] = useState('');
   const [certEndDate, setCertEndDate] = useState('');
   const [certDisciplineFilter, setCertDisciplineFilter] = useState('ALL');
   const [certSearchTerm, setCertSearchTerm] = useState('');
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [loadingCerts, setLoadingCerts] = useState(false);
-  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
 
   // Modals
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
@@ -211,7 +207,7 @@ export const RanksPage: React.FC = () => {
   });
   const [savingBelt, setSavingBelt] = useState(false);
 
-  // Preview Certificate Modal
+  // Preview Certificate Modal (Clean Excel Tabular View)
   const [previewCert, setPreviewCert] = useState<CertificateRecord | null>(null);
 
   // Export full certificate registry to Excel CSV spreadsheet
@@ -223,10 +219,11 @@ export const RanksPage: React.FC = () => {
     }
 
     const headers = [
+      'Sr No',
       'Athlete Reg No',
       'Student Full Name',
       'Parent / Guardian Name',
-      'Parent WhatsApp',
+      'Parent WhatsApp / Phone',
       'Date of Birth (DOB)',
       'Martial Arts Discipline',
       'From Rank (Previous Belt)',
@@ -238,7 +235,8 @@ export const RanksPage: React.FC = () => {
       'Chief Examiner Name',
     ];
 
-    const rows = list.map((cert) => [
+    const rows = list.map((cert, index) => [
+      index + 1,
       cert.student_code || 'GSA-ATH',
       cert.student_name,
       cert.parent_name || cert.fatherName || '',
@@ -274,6 +272,113 @@ export const RanksPage: React.FC = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success(`Exported ${list.length} certificate promotion records to Excel CSV!`);
+  };
+
+  // Export single certificate record to Excel CSV
+  const exportSingleCertificateToCsv = (cert: CertificateRecord) => {
+    const headers = [
+      'Athlete Reg No',
+      'Student Full Name',
+      'Parent / Guardian Name',
+      'Parent WhatsApp / Phone',
+      'Date of Birth (DOB)',
+      'Martial Arts Discipline',
+      'From Rank (Previous Belt)',
+      'To Rank (Promoted Belt)',
+      'Belt Color',
+      'Exam / Promotion Date',
+      'Certificate Number',
+      'Represented From',
+      'Chief Examiner Name',
+    ];
+
+    const row = [
+      cert.student_code || 'GSA-ATH',
+      cert.student_name,
+      cert.parent_name || cert.fatherName || '',
+      cert.contact_number || '',
+      cert.dob && !isNaN(new Date(cert.dob).getTime()) ? new Date(cert.dob).toLocaleDateString('en-IN') : '',
+      cert.discipline_name || cert.discipline_code,
+      cert.from_rank_name || 'Beginner',
+      cert.to_rank_name,
+      cert.belt_color,
+      cert.promoted_at && !isNaN(new Date(cert.promoted_at).getTime()) ? new Date(cert.promoted_at).toLocaleDateString('en-IN') : '',
+      cert.certificate_number,
+      cert.represented_from || 'Gurukul Sports Academy',
+      cert.examiner_name || 'Chief Master',
+    ];
+
+    const csvContent =
+      '\uFEFF' +
+      [headers, row]
+        .map((r) =>
+          r
+            .map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`)
+            .join(',')
+        )
+        .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const studentSafe = (cert.student_name || 'Athlete').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+    link.setAttribute('download', `Gurukul_Certificate_${studentSafe}_Excel.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${cert.student_name}'s record to Excel (CSV)!`);
+  };
+
+  // Copy records to clipboard as tab-delimited text for 1-click paste into Excel
+  const copyCertificatesToClipboard = (listToCopy?: CertificateRecord[]) => {
+    const list = listToCopy || (filteredCertificates.length > 0 ? filteredCertificates : certificates);
+    if (list.length === 0) {
+      toast.warning('No records to copy.');
+      return;
+    }
+
+    const headers = [
+      'Athlete Reg No',
+      'Student Full Name',
+      'Parent / Guardian Name',
+      'Parent WhatsApp / Phone',
+      'Date of Birth (DOB)',
+      'Martial Arts Discipline',
+      'From Rank (Previous Belt)',
+      'To Rank (Promoted Belt)',
+      'Belt Color',
+      'Exam / Promotion Date',
+      'Certificate Number',
+      'Represented From',
+      'Chief Examiner Name',
+    ];
+
+    const rows = list.map((cert) => [
+      cert.student_code || 'GSA-ATH',
+      cert.student_name,
+      cert.parent_name || cert.fatherName || '',
+      cert.contact_number || '',
+      cert.dob && !isNaN(new Date(cert.dob).getTime()) ? new Date(cert.dob).toLocaleDateString('en-IN') : '',
+      cert.discipline_name || cert.discipline_code,
+      cert.from_rank_name || 'Beginner',
+      cert.to_rank_name,
+      cert.belt_color,
+      cert.promoted_at && !isNaN(new Date(cert.promoted_at).getTime()) ? new Date(cert.promoted_at).toLocaleDateString('en-IN') : '',
+      cert.certificate_number,
+      cert.represented_from || 'Gurukul Sports Academy',
+      cert.examiner_name || 'Chief Master',
+    ]);
+
+    const tsvContent = [headers, ...rows]
+      .map((r) => r.map((c) => String(c ?? '').replace(/\t/g, ' ')).join('\t'))
+      .join('\n');
+
+    navigator.clipboard.writeText(tsvContent).then(
+      () => toast.success(`Copied ${list.length} row(s) to clipboard! Paste directly into Excel with Ctrl+V.`),
+      () => toast.error('Could not copy to clipboard. Please use Export to Excel.')
+    );
   };
 
   // Belt Category Management State
@@ -576,20 +681,6 @@ export const RanksPage: React.FC = () => {
     }
   };
 
-  // Handle direct PDF certificate generation & download
-  const handleDownloadCertificate = async (cert: CertificateRecord) => {
-    try {
-      setDownloadingCertId(cert.id);
-      toast.info(`Preparing official certificate for ${cert.student_name}...`);
-      await downloadCertificatePdf(cert);
-      toast.success(`Official certificate for ${cert.student_name} downloaded successfully!`);
-    } catch (err: any) {
-      console.error('Failed to generate certificate PDF:', err);
-      toast.error('Could not generate certificate PDF. Please retry.');
-    } finally {
-      setDownloadingCertId(null);
-    }
-  };
 
   // Fetch initial student ranks
   const fetchStudentRanks = async () => {
@@ -833,34 +924,6 @@ export const RanksPage: React.FC = () => {
     }
   };
 
-  // Download combined multi-page PDF bundle for all currently filtered certificates
-  const [generatingBundle, setGeneratingBundle] = useState(false);
-  const handleDownloadCombinedCertificates = async () => {
-    if (!certificates.length) {
-      toast.warning('No certificates to download in current filter.');
-      return;
-    }
-    try {
-      setGeneratingBundle(true);
-      const rangeLabel =
-        certStartDate && certEndDate
-          ? `${certStartDate}_to_${certEndDate}`
-          : certStartDate
-          ? `from_${certStartDate}`
-          : certEndDate
-          ? `until_${certEndDate}`
-          : 'all';
-
-      toast.info(`Generating combined PDF bundle for ${certificates.length} certificate(s)...`);
-      await downloadCombinedCertificatesPdf(certificates, rangeLabel);
-      toast.success(`Combined certificate bundle downloaded (${certificates.length} certificates).`);
-    } catch (err: any) {
-      console.error('Failed to generate combined certificates bundle:', err);
-      toast.error('Could not generate combined certificate PDF. Please retry.');
-    } finally {
-      setGeneratingBundle(false);
-    }
-  };
 
   // Print Certificate Registry sheet
   const handlePrintRegistry = () => {
@@ -909,17 +972,17 @@ export const RanksPage: React.FC = () => {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
             <span>Martial Arts & Athletics</span>
             <span>•</span>
-            <span className="text-orange-400 font-semibold">Belt Examinations & Certification</span>
+            <span className="text-orange-600 dark:text-orange-400 font-semibold">Belt Examinations & Certification</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mt-1 flex items-center gap-2.5">
-            <Award className="w-7 h-7 text-amber-400" />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mt-1 flex items-center gap-2.5">
+            <Award className="w-7 h-7 text-amber-500 dark:text-amber-400" />
             Martial Arts Belt Promotion & Certificate Registry
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Manage Kalarippayattu and Karate + Wushu belt progression, promote students with 1 click, and export date-filtered certificate registers (single or combined PDF bundle).
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Manage Kalarippayattu and Karate + Wushu belt progression, promote students with 1 click, and export date-filtered certificate registers in clean Excel spreadsheet (Row & Column) format.
           </p>
         </div>
 
@@ -935,13 +998,13 @@ export const RanksPage: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2">
         <button
           onClick={() => setActiveTab('STUDENTS')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
             activeTab === 'STUDENTS'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
           }`}
         >
           <UserCheck className="w-4 h-4" />
@@ -950,22 +1013,22 @@ export const RanksPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('CERTIFICATES')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
             activeTab === 'CERTIFICATES'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
           }`}
         >
-          <FileText className="w-4 h-4" />
-          Certificate Registry (Date Range Filter & PDF Export)
+          <FileSpreadsheet className="w-4 h-4" />
+          Certificate Registry (Row & Column Excel Export)
         </button>
 
         <button
           onClick={() => setActiveTab('CURRICULUM')}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
             activeTab === 'CURRICULUM'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -985,7 +1048,7 @@ export const RanksPage: React.FC = () => {
                 placeholder="Search athlete by name or reg no..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[#0F172A] border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
               />
             </div>
 
@@ -993,7 +1056,7 @@ export const RanksPage: React.FC = () => {
               <select
                 value={disciplineFilter}
                 onChange={(e) => setDisciplineFilter(e.target.value)}
-                className="bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="ALL">All Disciplines</option>
                 {disciplines.length > 0 ? (
@@ -1015,13 +1078,13 @@ export const RanksPage: React.FC = () => {
           {loading ? (
             <SkeletonLoader rows={5} />
           ) : filteredStudentRanks.length === 0 ? (
-            <Card className="p-10 text-center bg-[#0F172A]/70 border-white/10">
-              <Award className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-300">No students found in martial arts rank registry</p>
-              <p className="text-xs text-slate-500 mt-1">Enroll students to track their belt progression and issue certificates.</p>
+            <Card className="p-10 text-center bg-white dark:bg-[#0F172A]/70 border-slate-200 dark:border-white/10 shadow-sm">
+              <Award className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-300">No students found in martial arts rank registry</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Enroll students to track their belt progression and issue certificates.</p>
               <Button
                 onClick={() => setIsAssignModalOpen(true)}
-                className="mt-3 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs"
+                className="mt-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Enroll First Student
               </Button>
@@ -1034,39 +1097,39 @@ export const RanksPage: React.FC = () => {
                 return (
                   <Card
                     key={student.id}
-                    className="p-5 bg-gradient-to-b from-[#0F172A] to-[#0A1120] border-white/10 hover:border-amber-500/40 transition-all shadow-md group relative overflow-hidden"
+                    className="p-5 bg-white dark:bg-gradient-to-b dark:from-[#0F172A] dark:to-[#0A1120] border-slate-200 dark:border-white/10 hover:border-amber-500/50 transition-all shadow-sm group relative overflow-hidden"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
                             student.discipline_code === 'KALARIPPAYATTU'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
                               : student.discipline_code === 'KARATE_WUSHU'
-                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                              : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                              ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                              : 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30'
                           }`}>
                             {student.discipline_code === 'BOTH' ? 'Both (Kalari + Karate/Wushu)' : student.discipline_code.replace('_', ' ')}
                           </span>
                           {student.student_code && (
-                            <span className="text-[10px] text-slate-500 font-mono">#{student.student_code}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">#{student.student_code}</span>
                           )}
                         </div>
-                        <h3 className="text-base font-bold text-white group-hover:text-amber-400 transition-colors">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                           {student.student_name}
                         </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">{student.contact_number || 'No contact'}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">{student.contact_number || 'No contact'}</p>
                       </div>
 
-                      <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
                         <Medal className="w-5 h-5" />
                       </div>
                     </div>
 
                     {/* Current Belt Banner */}
-                    <div className="mt-4 p-3 bg-slate-900/80 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Current Belt</span>
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Current Belt</span>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${getBeltBadge(student.belt_color)}`}>
                             {student.current_rank_name}
@@ -1075,8 +1138,8 @@ export const RanksPage: React.FC = () => {
                       </div>
 
                       <div className="text-right">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Promoted On</span>
-                        <span className="text-xs font-semibold text-slate-300 mt-1 block">
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Promoted On</span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 mt-1 block">
                           {new Date(student.promoted_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
                       </div>
@@ -1084,17 +1147,17 @@ export const RanksPage: React.FC = () => {
 
                     {/* Next Belt Preview if available */}
                     {student.nextRank && (
-                      <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between px-1">
+                      <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between px-1">
                         <span>Next Target:</span>
-                        <span className="font-semibold text-amber-300 flex items-center gap-1">
+                        <span className="font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1">
                           {student.nextRank.rank_name} <ArrowUpRight className="w-3 h-3" />
                         </span>
                       </div>
                     )}
 
                     {/* Action button */}
-                    <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500 font-mono">
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                         {student.certificate_number ? `Cert: ${student.certificate_number}` : 'Awaiting Cert'}
                       </span>
 
@@ -1118,14 +1181,14 @@ export const RanksPage: React.FC = () => {
       {activeTab === 'CERTIFICATES' && (
         <div className="space-y-4">
           {/* User Request Highlight: Date Range Filter Toolbar */}
-          <Card className="p-4 bg-[#0F172A]/90 border-white/10 space-y-3">
+          <Card className="p-4 bg-white dark:bg-[#0F172A]/90 border-slate-200 dark:border-white/10 space-y-3 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                   Examination Date Range Filter for Physical Certificate Writing
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Select the date window to generate the exact roster for physical certificate inscription (Player Name, DOB, Reg No, Rank, Discipline, Dojo).
                 </p>
               </div>
@@ -1133,59 +1196,57 @@ export const RanksPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   onClick={exportCertificatesToCsv}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-3 font-bold shadow-md shadow-emerald-500/20"
-                  title="Download Excel-compatible CSV of all athlete promotions"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-3 font-bold shadow-md shadow-emerald-500/20 flex items-center cursor-pointer"
+                  title="Download Excel-compatible CSV spreadsheet of all athlete promotions"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
-                  Export to Excel (CSV)
+                  Export All to Excel (CSV)
                 </Button>
                 <Button
-                  onClick={handleDownloadCombinedCertificates}
-                  disabled={generatingBundle || certificates.length === 0}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs py-2 px-3 font-bold shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => copyCertificatesToClipboard()}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-white/10 text-xs py-2 px-3 font-semibold flex items-center shadow-xs cursor-pointer"
+                  title="Copy all rows to clipboard for 1-click paste into Microsoft Excel"
                 >
-                  <Download className="w-3.5 h-3.5 mr-1.5" />
-                  {generatingBundle
-                    ? 'Generating...'
-                    : `Download Combined PDF (${certificates.length})`}
+                  <Copy className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400" />
+                  Copy All for Excel
                 </Button>
                 <Button
                   onClick={handlePrintRegistry}
-                  className="bg-slate-800 hover:bg-slate-700 text-white border border-white/10 text-xs py-2 px-3"
+                  className="bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-white/10 text-xs py-2 px-3 font-semibold flex items-center shadow-xs cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-                  Print Registry Sheet
+                  <Printer className="w-3.5 h-3.5 mr-1.5 text-slate-700 dark:text-slate-300" />
+                  Print Spreadsheet Sheet
                 </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 border-t border-white/10">
               <div>
-                <label className="text-[11px] font-semibold text-slate-400 block mb-1">From Date (Exam Window)</label>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">From Date (Exam Window)</label>
                 <input
                   type="date"
                   value={certStartDate}
                   onChange={(e) => setCertStartDate(e.target.value)}
-                  className="w-full bg-[#0A1120] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#0A1120] border border-slate-300 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-400 block mb-1">To Date</label>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">To Date</label>
                 <input
                   type="date"
                   value={certEndDate}
                   onChange={(e) => setCertEndDate(e.target.value)}
-                  className="w-full bg-[#0A1120] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#0A1120] border border-slate-300 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-400 block mb-1">Discipline</label>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">Discipline</label>
                 <select
                   value={certDisciplineFilter}
                   onChange={(e) => setCertDisciplineFilter(e.target.value)}
-                  className="w-full bg-[#0A1120] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#0A1120] border border-slate-300 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 >
                   <option value="ALL">All Disciplines</option>
                   {disciplines.length > 0 ? (
@@ -1227,24 +1288,25 @@ export const RanksPage: React.FC = () => {
             </div>
           </Card>
 
-          {/* Certificate Records Table */}
+          {/* Certificate Records Table (Clean Excel Row & Column Grid) */}
           {loadingCerts ? (
             <SkeletonLoader rows={5} />
           ) : certificates.length === 0 ? (
-            <Card className="p-10 text-center bg-[#0F172A]/60 border-white/10">
-              <FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-300">No promotion records match this date filter</p>
-              <p className="text-xs text-slate-500 mt-1">Adjust the date range above to view promotions from previous examination cycles.</p>
+            <Card className="p-10 text-center bg-white dark:bg-[#0F172A]/60 border-slate-200 dark:border-white/10 shadow-sm">
+              <FileSpreadsheet className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-300">No promotion records match this date filter</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Adjust the date range above to view promotions from previous examination cycles.</p>
             </Card>
           ) : (
-            <div className="bg-[#0F172A] rounded-xl border border-white/10 overflow-hidden shadow-xl print:bg-white print:text-black print:border-black">
-              <div className="p-4 bg-[#0A1120] border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
+            <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm dark:shadow-xl print:bg-white print:text-black print:border-black">
+              <div className="p-4 bg-slate-50 dark:bg-[#0A1120] border-b border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
                     Showing {filteredCertificates.length} {filteredCertificates.length !== certificates.length ? `(filtered from ${certificates.length})` : ''} Certificate Records
                   </span>
-                  <span className="text-[11px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                    Ready for Inscription
+                  <span className="text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-medium flex items-center gap-1">
+                    <FileSpreadsheet className="w-3 h-3" />
+                    Excel Row &amp; Column Format
                   </span>
                 </div>
 
@@ -1256,88 +1318,94 @@ export const RanksPage: React.FC = () => {
                     placeholder="Search by student name, reg no, cert #..."
                     value={certSearchTerm}
                     onChange={(e) => setCertSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-[#0F172A] border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#0A1120] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/10 print:bg-slate-100 print:text-black">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-100 dark:bg-[#0A1120] text-slate-700 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-white/10 print:bg-slate-100 print:text-black">
                     <tr>
-                      <th className="py-3 px-3">Player Reg No.</th>
-                      <th className="py-3 px-3">Player Full Name</th>
-                      <th className="py-3 px-3">Date of Birth (DOB)</th>
-                      <th className="py-3 px-3">Martial Art Subject</th>
-                      <th className="py-3 px-3">From Rank (Previous)</th>
-                      <th className="py-3 px-3">To Rank (Belt Secured)</th>
-                      <th className="py-3 px-3">Represented From</th>
-                      <th className="py-3 px-3">Exam Date</th>
-                      <th className="py-3 px-3">Certificate No.</th>
-                      <th className="py-3 px-3 text-right print:hidden">Certificate Actions</th>
+                      <th className="py-3 px-2 text-center w-12 border-r border-slate-200 dark:border-white/5">Sr.</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Player Reg No.</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Athlete Full Name</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Parent / Guardian</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Parent Contact</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">DOB</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Martial Art Subject</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">From Rank</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">To Rank (Belt Secured)</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Exam Date</th>
+                      <th className="py-3 px-3 border-r border-slate-200 dark:border-white/5">Certificate No.</th>
+                      <th className="py-3 px-3 text-right print:hidden">Excel Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 bg-[#0F172A]/70 print:divide-slate-300">
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5 bg-white dark:bg-[#0F172A]/70 print:divide-slate-300">
                     {filteredCertificates.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-8 text-slate-400">
-                          No certificate records found matching "{certSearchTerm}".
+                        <td colSpan={12} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                          No certificate records found matching &quot;{certSearchTerm}&quot;.
                         </td>
                       </tr>
                     ) : (
-                      filteredCertificates.map((cert) => (
-                      <tr key={cert.id} className="hover:bg-white/5 transition-colors print:text-black">
-                        <td className="py-3 px-3 font-mono font-bold text-amber-400 print:text-black">
+                      filteredCertificates.map((cert, idx) => (
+                      <tr key={cert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors print:text-black">
+                        <td className="py-3 px-2 text-center font-mono text-slate-500 dark:text-slate-400 border-r border-slate-100 dark:border-white/5">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold text-amber-600 dark:text-amber-400 border-r border-slate-100 dark:border-white/5 print:text-black">
                           {cert.student_code || 'GSA-ATH'}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="font-bold text-white print:text-black block">{cert.student_name}</span>
-                          <span className="text-[11px] text-slate-400 print:text-slate-600">{cert.contact_number}</span>
+                        <td className="py-3 px-3 border-r border-slate-100 dark:border-white/5">
+                          <span className="font-bold text-slate-900 dark:text-white print:text-black block">{cert.student_name}</span>
                         </td>
-                        <td className="py-3 px-3 text-slate-300 print:text-black">
+                        <td className="py-3 px-3 text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-white/5 print:text-black">
+                          {cert.parent_name || cert.fatherName || 'On Record'}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-white/5 print:text-black">
+                          {cert.contact_number || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-white/5 print:text-black">
                           {cert.dob && !isNaN(new Date(cert.dob).getTime()) ? new Date(cert.dob).toLocaleDateString('en-IN') : 'On File'}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="font-semibold text-white print:text-black">{cert.discipline_name}</span>
+                        <td className="py-3 px-3 border-r border-slate-100 dark:border-white/5">
+                          <span className="font-semibold text-slate-800 dark:text-white print:text-black">{cert.discipline_name}</span>
                         </td>
-                        <td className="py-3 px-3 text-slate-400 print:text-black">
-                          {cert.from_rank_name || <span className="italic text-slate-500">Beginner</span>}
+                        <td className="py-3 px-3 text-slate-500 dark:text-slate-400 border-r border-slate-100 dark:border-white/5 print:text-black">
+                          {cert.from_rank_name || <span className="italic text-slate-400">Beginner</span>}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="inline-flex items-center gap-1 font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 print:border-black print:text-black">
-                            <Award className="w-3 h-3 text-amber-400 print:hidden" />
+                        <td className="py-3 px-3 border-r border-slate-100 dark:border-white/5">
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 print:border-black print:text-black">
+                            <Award className="w-3 h-3 text-amber-500 dark:text-amber-400 print:hidden" />
                             {cert.to_rank_name}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-slate-300 print:text-black">
-                          {cert.represented_from || 'Gurukul Sports Academy'}
-                        </td>
-                        <td className="py-3 px-3 text-slate-300 print:text-black">
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-white/5 print:text-black">
                           {cert.promoted_at && !isNaN(new Date(cert.promoted_at).getTime())
                             ? new Date(cert.promoted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : 'Current Session'}
                         </td>
-                        <td className="py-3 px-3 font-mono text-emerald-400 font-bold print:text-black">
+                        <td className="py-3 px-3 font-mono text-emerald-600 dark:text-emerald-400 font-bold border-r border-slate-100 dark:border-white/5 print:text-black">
                           {cert.certificate_number}
                         </td>
                         <td className="py-3 px-3 text-right print:hidden">
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
-                              onClick={() => handleDownloadCertificate(cert)}
-                              disabled={downloadingCertId === cert.id}
-                              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-[11px] font-bold py-1 px-2.5 shadow-sm rounded-md"
-                              title="Download Official PDF Certificate"
+                              onClick={() => exportSingleCertificateToCsv(cert)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1 px-2.5 shadow-xs rounded-md flex items-center gap-1 cursor-pointer"
+                              title="Export this row to Excel (CSV)"
                             >
-                              <Download className="w-3.5 h-3.5 mr-1" />
-                              {downloadingCertId === cert.id ? 'Generating...' : 'Download PDF'}
+                              <FileSpreadsheet className="w-3.5 h-3.5" />
+                              Export Excel
                             </Button>
                             <Button
                               onClick={() => setPreviewCert(cert)}
-                              className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] py-1 px-2 border border-white/10 rounded-md"
-                              title="Preview Certificate Card"
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-[11px] py-1 px-2 border border-slate-200 dark:border-white/10 rounded-md flex items-center gap-1 cursor-pointer"
+                              title="View Row Details"
                             >
-                              <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                              Preview
+                              <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                              Details
                             </Button>
                           </div>
                         </td>
@@ -1354,13 +1422,13 @@ export const RanksPage: React.FC = () => {
       {/* TAB 3: CURRICULUM & DISCIPLINES */}
       {activeTab === 'CURRICULUM' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0F172A]/70 p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#0F172A]/70 p-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 Academy Martial Arts &amp; Sports Belt Curriculum
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Customize belt progression orders, color tags, and grading requirements for each discipline.
               </p>
             </div>
@@ -1368,7 +1436,7 @@ export const RanksPage: React.FC = () => {
               <Button
                 type="button"
                 onClick={handleOpenAddDiscipline}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Discipline / Section
@@ -1377,14 +1445,14 @@ export const RanksPage: React.FC = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setIsManageCategoriesOpen(true)}
-                className="text-xs py-2 px-3 border-amber-500/30 text-amber-300 hover:text-white hover:bg-amber-500/10 font-bold flex items-center gap-1.5 shadow-sm"
+                className="text-xs py-2 px-3 border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
-                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                <Palette className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                 Manage Belt Colors &amp; Categories
               </Button>
               <Button
                 onClick={() => handleOpenAddBelt(disciplines[0]?.code || 'KARATE_WUSHU')}
-                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-orange-500/20"
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs py-2 px-3.5 font-bold shadow-md shadow-orange-500/20 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Add New Belt Rank
@@ -1394,8 +1462,8 @@ export const RanksPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {disciplines.length === 0 ? (
-              <div className="col-span-full p-8 rounded-xl bg-[#0F172A]/70 border border-white/10 text-center">
-                <p className="text-slate-400 text-sm">No disciplines configured. Click &quot;Add Discipline / Section&quot; to create one.</p>
+              <div className="col-span-full p-8 rounded-xl bg-white dark:bg-[#0F172A]/70 border border-slate-200 dark:border-white/10 text-center">
+                <p className="text-slate-600 dark:text-slate-400 text-sm">No disciplines configured. Click &quot;Add Discipline / Section&quot; to create one.</p>
               </div>
             ) : (
               disciplines.map((disc) => {
@@ -1407,7 +1475,7 @@ export const RanksPage: React.FC = () => {
                 return (
                   <Card
                     key={disc.id || disc.code}
-                    className="p-5 bg-[#0F172A]/90 border-white/10 space-y-4 flex flex-col justify-between"
+                    className="p-5 preserve-dark bg-[#0A1120] border-slate-700/80 space-y-4 flex flex-col justify-between rounded-2xl shadow-lg"
                   >
                     <div>
                       <div className="flex items-start justify-between pb-3 border-b border-white/10 gap-2">
@@ -1542,18 +1610,18 @@ export const RanksPage: React.FC = () => {
         title={`Promote Athlete: ${selectedStudentForPromotion?.student_name || ''}`}
       >
         <form onSubmit={handlePromoteStudent} className="space-y-4">
-          <div className="p-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl text-xs text-amber-200">
-            <span className="font-bold text-white block">Current Discipline: {selectedStudentForPromotion?.discipline_code.replace('_', ' ')}</span>
+          <div className="p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-800 dark:text-amber-200">
+            <span className="font-bold text-slate-900 dark:text-white block">Current Discipline: {selectedStudentForPromotion?.discipline_code.replace('_', ' ')}</span>
             Current Belt: <strong>{selectedStudentForPromotion?.current_rank_name}</strong>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Promote to New Rank / Belt *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Promote to New Rank / Belt *</label>
             <select
               required
               value={promotionTargetRankId}
               onChange={(e) => setPromotionTargetRankId(e.target.value)}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             >
               {allRanks
                 .filter((r) => r.discipline_code === selectedStudentForPromotion?.discipline_code)
@@ -1567,33 +1635,33 @@ export const RanksPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Chief Examiner / Master *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Chief Examiner / Master *</label>
             <input
               type="text"
               required
               value={examinerName}
               onChange={(e) => setExaminerName(e.target.value)}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Represented From (Dojo / Branch) *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Represented From (Dojo / Branch) *</label>
             <input
               type="text"
               required
               value={representedFrom}
               onChange={(e) => setRepresentedFrom(e.target.value)}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
-          <div className="p-3 bg-slate-800/80 border border-white/10 rounded-lg text-xs text-slate-300 flex items-center gap-2">
-            <Award className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            <span>Rank will be updated and logged in the Certificate Registry. Download certificates from the Certificate Registry tab.</span>
+          <div className="p-3 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-lg text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Award className="w-4 h-4 flex-shrink-0 text-amber-500 dark:text-amber-400" />
+            <span>Rank will be updated and recorded in the Certificate Registry. Export records to Excel from the Certificate Registry tab.</span>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button
               type="button"
               variant="outline"
@@ -1620,12 +1688,12 @@ export const RanksPage: React.FC = () => {
       >
         <form onSubmit={handleAssignStudent} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Select Academy Student *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Select Academy Student *</label>
             <select
               required
               value={assignStudentId}
               onChange={(e) => setAssignStudentId(e.target.value)}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             >
               <option value="">-- Choose Athlete --</option>
               {academyStudents.map((s) => (
@@ -1638,11 +1706,11 @@ export const RanksPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Discipline *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Discipline *</label>
               <select
                 value={assignDiscipline}
                 onChange={(e) => setAssignDiscipline(e.target.value)}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               >
                 {disciplines.length > 0 ? (
                   disciplines.map((d) => (
@@ -1660,11 +1728,11 @@ export const RanksPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Initial Belt / Grade *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Initial Belt / Grade *</label>
               <select
                 value={assignRankName}
                 onChange={(e) => setAssignRankName(e.target.value)}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               >
                 {allRanks
                   .filter((r) => r.discipline_code === assignDiscipline)
@@ -1678,7 +1746,7 @@ export const RanksPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button
               type="button"
               variant="outline"
@@ -1696,103 +1764,146 @@ export const RanksPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* MODAL 3: Digital Certificate Preview Card */}
+      {/* MODAL 3: Athlete Certificate Record (Excel Row & Column Table View) */}
       <Modal
         isOpen={Boolean(previewCert)}
         onClose={() => setPreviewCert(null)}
-        title="Official Certificate Inscription Card"
+        title="Athlete Promotion & Certificate Record (Row & Column View)"
+        maxWidth="lg"
       >
         {previewCert && (
-          <div className="p-6 bg-gradient-to-b from-[#0A1120] to-[#0F172A] rounded-2xl border-2 border-amber-500/40 text-center space-y-4 shadow-2xl relative">
-            <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400">
-                <Award className="w-8 h-8" />
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    {previewCert.student_name}
+                    <span className="text-[11px] font-mono font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      {previewCert.student_code || 'GSA-ATH'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Excel Spreadsheet Record • Certificate #{previewCert.certificate_number}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => exportSingleCertificateToCsv(previewCert)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-1.5 px-3 shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  Export to Excel (CSV)
+                </Button>
+                <Button
+                  onClick={() => copyCertificatesToClipboard([previewCert])}
+                  variant="outline"
+                  className="text-xs py-1.5 px-3 border-white/20 text-slate-300 hover:text-white flex items-center gap-1.5"
+                  title="Copy row to paste directly into Microsoft Excel"
+                >
+                  <Copy className="w-3.5 h-3.5 text-amber-400" />
+                  Copy for Excel
+                </Button>
               </div>
             </div>
 
-            <div>
-              <span className="text-[10px] uppercase tracking-widest text-amber-400 font-bold block">
-                Certificate of Rank Achievement
-              </span>
-              <h2 className="text-xl font-black text-white mt-1">Gurukul Sports Academy</h2>
-              <span className="text-xs text-slate-400">Department of Traditional & Combat Arts</span>
+            {/* Clean 2-Column Key/Value Excel Grid Table */}
+            <div className="rounded-xl border border-white/10 overflow-hidden bg-[#0A1120]">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-white/10">
+                    <th className="py-2.5 px-3.5 w-1/3 border-r border-white/10">Excel Column (Field Name)</th>
+                    <th className="py-2.5 px-3.5 w-2/3">Record Value (Cell Data)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Player Reg No</td>
+                    <td className="py-2.5 px-3.5 font-mono font-bold text-amber-400">{previewCert.student_code || 'GSA-ATH'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Student Full Name</td>
+                    <td className="py-2.5 px-3.5 font-bold text-white">{previewCert.student_name}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Parent / Guardian Name</td>
+                    <td className="py-2.5 px-3.5 text-slate-200">{previewCert.parent_name || previewCert.fatherName || 'On Record'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Parent Contact / WhatsApp</td>
+                    <td className="py-2.5 px-3.5 text-slate-200 font-mono">{previewCert.contact_number || 'N/A'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Date of Birth (DOB)</td>
+                    <td className="py-2.5 px-3.5 text-slate-200">{previewCert.dob && !isNaN(new Date(previewCert.dob).getTime()) ? new Date(previewCert.dob).toLocaleDateString('en-IN') : 'On File'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Martial Arts Discipline</td>
+                    <td className="py-2.5 px-3.5 text-slate-200 font-semibold">{previewCert.discipline_name}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">From Rank (Previous Belt)</td>
+                    <td className="py-2.5 px-3.5 text-slate-400">{previewCert.from_rank_name || 'Beginner'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">To Rank (Promoted Belt)</td>
+                    <td className="py-2.5 px-3.5 font-bold text-amber-300">
+                      <span className="inline-flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        <Award className="w-3.5 h-3.5 text-amber-400" />
+                        {previewCert.to_rank_name}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Belt Color</td>
+                    <td className="py-2.5 px-3.5">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded border ${getBeltBadgeClass(previewCert.belt_color)}`}>
+                        {previewCert.belt_color}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Exam / Promotion Date</td>
+                    <td className="py-2.5 px-3.5 text-slate-200 font-medium">
+                      {previewCert.promoted_at && !isNaN(new Date(previewCert.promoted_at).getTime())
+                        ? new Date(previewCert.promoted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : 'Current Session'}
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Certificate Number</td>
+                    <td className="py-2.5 px-3.5 font-mono font-bold text-emerald-400">{previewCert.certificate_number}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Represented From (Dojo / Branch)</td>
+                    <td className="py-2.5 px-3.5 text-slate-200">{previewCert.represented_from || 'Gurukul Sports Academy'}</td>
+                  </tr>
+                  <tr className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 px-3.5 font-semibold text-slate-400 border-r border-white/10">Chief Examiner / Master</td>
+                    <td className="py-2.5 px-3.5 text-slate-200">{previewCert.examiner_name || 'Chief Master (Gurukul Academy)'}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            <div className="py-3 border-y border-white/10 space-y-2">
-              <p className="text-xs text-slate-300">This is to certify that athlete</p>
-              <h3 className="text-2xl font-black text-amber-300">
-                {(() => {
-                  const sName = previewCert.student_name || '';
-                  const fName = previewCert.fatherName || previewCert.parent_name || '';
-
-                  // Split student name into first and surname
-                  const studentParts = sName.trim().split(/\s+/);
-                  const studentFirst = studentParts[0] || '';
-                  const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
-
-                  // Get just the father's first name
-                  const fatherParts = fName.trim().split(/\s+/);
-                  const fatherFirst = fatherParts[0] || '';
-
-                  // Build the new Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
-                  if (fatherFirst) {
-                    if (studentSurname && studentSurname !== studentFirst) {
-                      return `${studentFirst} ${fatherFirst} ${studentSurname}`;
-                    } else {
-                      return `${studentFirst} ${fatherFirst}`;
-                    }
-                  }
-                  return sName;
-                })()}
-              </h3>
-              <p className="text-xs text-slate-400">
-                Registration No: <span className="font-mono text-white font-semibold">{previewCert.student_code || 'GSA-ATH'}</span> | DOB: <span className="text-white font-semibold">{previewCert.dob ? new Date(previewCert.dob).toLocaleDateString('en-IN') : 'On File'}</span>
-              </p>
-              <p className="text-xs text-slate-300 mt-2">
-                has successfully passed the comprehensive examination and secured the rank of
-              </p>
-              <div className="inline-block bg-amber-500/20 border border-amber-400/50 rounded-lg px-4 py-1 text-sm font-black text-amber-300">
-                {previewCert.to_rank_name} ({previewCert.discipline_name})
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 text-left text-xs gap-3 pt-2 text-slate-400">
-              <div>
-                <span className="block text-[10px] text-slate-500 uppercase">Represented From</span>
-                <span className="font-semibold text-white">{previewCert.represented_from}</span>
-              </div>
-              <div className="text-right">
-                <span className="block text-[10px] text-slate-500 uppercase">Exam Date</span>
-                <span className="font-semibold text-white">{new Date(previewCert.promoted_at).toLocaleDateString('en-IN')}</span>
-              </div>
-              <div>
-                <span className="block text-[10px] text-slate-500 uppercase">Certificate Serial</span>
-                <span className="font-mono font-bold text-amber-400">{previewCert.certificate_number}</span>
-              </div>
-              <div className="text-right">
-                <span className="block text-[10px] text-slate-500 uppercase">Chief Examiner</span>
-                <span className="font-semibold text-white">{previewCert.examiner_name}</span>
-              </div>
-            </div>
-
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
               <Button
-                onClick={() => handleDownloadCertificate(previewCert)}
-                disabled={downloadingCertId === previewCert.id}
-                className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs py-2.5 px-5 shadow-lg shadow-orange-500/20"
+                variant="outline"
+                onClick={() => setPreviewCert(null)}
+                className="text-xs"
               >
-                <Download className="w-4 h-4 mr-2" />
-                {downloadingCertId === previewCert.id ? 'Generating High-Res PDF...' : 'Download Official PDF Certificate'}
+                Close
               </Button>
               <Button
-                onClick={() => {
-                  window.print();
-                }}
-                variant="outline"
-                className="w-full sm:w-auto text-xs py-2.5 px-4 border-white/20 text-slate-300 hover:text-white hover:bg-white/5"
+                onClick={() => exportSingleCertificateToCsv(previewCert)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5"
               >
-                <Printer className="w-3.5 h-3.5 mr-1.5" />
-                Print Certificate
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Download Excel (CSV)
               </Button>
             </div>
           </div>
@@ -1809,12 +1920,12 @@ export const RanksPage: React.FC = () => {
         <form onSubmit={handleSaveBelt} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Discipline *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Discipline *</label>
               <select
                 disabled={Boolean(editingBeltRank)}
                 value={beltForm.disciplineCode}
                 onChange={(e) => setBeltForm({ ...beltForm, disciplineCode: e.target.value })}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 disabled:opacity-50 shadow-xs"
               >
                 {disciplines.length > 0 ? (
                   disciplines.map((d) => (
@@ -1832,7 +1943,7 @@ export const RanksPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Rank Order / Level *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Rank Order / Level *</label>
               <input
                 type="number"
                 min="1"
@@ -1840,44 +1951,44 @@ export const RanksPage: React.FC = () => {
                 required
                 value={beltForm.rankOrder}
                 onChange={(e) => setBeltForm({ ...beltForm, rankOrder: parseInt(e.target.value, 10) || 1 })}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Rank / Belt Title *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Rank / Belt Title *</label>
             <input
               type="text"
               required
               placeholder="e.g. Yellow Belt (8th Kyu) or Meythari Level 1"
               value={beltForm.rankName}
               onChange={(e) => setBeltForm({ ...beltForm, rankName: e.target.value })}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
-          <div className="space-y-2 p-3 bg-slate-900/60 rounded-xl border border-white/10">
+          <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-white/10">
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-amber-400" />
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                 Belt Color Category *
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCustomColorInput(!isCustomColorInput)}
-                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 flex items-center gap-1"
+                  className="text-[11px] text-amber-600 dark:text-amber-400 hover:text-amber-500 font-semibold underline underline-offset-2 flex items-center gap-1"
                 >
                   {isCustomColorInput ? 'Select from Presets' : '+ Type Custom'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsManageCategoriesOpen(true)}
-                  className="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 font-medium"
+                  className="text-[11px] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-slate-200/60 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 font-medium"
                   title="Configure & Manage Academy Belt Categories"
                 >
-                  <Settings2 className="w-3 h-3 text-amber-400" />
+                  <Settings2 className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                   Manage Colors
                 </button>
               </div>
@@ -1892,7 +2003,7 @@ export const RanksPage: React.FC = () => {
                     placeholder="e.g. White Sash, Gold Belt, Yellow Stripe, Camo"
                     value={beltForm.beltColor}
                     onChange={(e) => setBeltForm({ ...beltForm, beltColor: e.target.value })}
-                    className="flex-1 bg-[#0F172A] border border-amber-500/50 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-medium"
+                    className="flex-1 bg-white dark:bg-[#0F172A] border border-amber-500/50 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-400 font-medium shadow-xs"
                   />
                   <Button
                     type="button"
@@ -1916,14 +2027,14 @@ export const RanksPage: React.FC = () => {
                       } catch (e) {}
                       toast.success(`Saved "${trimmed}" to belt categories!`);
                     }}
-                    className="text-[11px] h-8 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 whitespace-nowrap"
+                    className="text-[11px] h-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap"
                     title="Save this custom name to the persistent category dropdown"
                   >
                     <Plus className="w-3 h-3 mr-1" />
                     Save Category
                   </Button>
                 </div>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
                   Type any custom belt or sash color. Click &quot;Save Category&quot; to make it permanently available in the dropdown.
                 </p>
               </div>
@@ -1937,14 +2048,14 @@ export const RanksPage: React.FC = () => {
                     setBeltForm({ ...beltForm, beltColor: e.target.value });
                   }
                 }}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               >
                 {Array.from(new Set(customBeltCategories.map((c) => c.group))).map((groupName) => (
-                  <optgroup key={groupName} label={groupName} className="bg-[#0A1120] text-slate-300 font-bold">
+                  <optgroup key={groupName} label={groupName} className="bg-slate-100 dark:bg-[#0A1120] text-slate-700 dark:text-slate-300 font-bold">
                     {customBeltCategories
                       .filter((c) => c.group === groupName)
                       .map((cat) => (
-                        <option key={cat.id} value={cat.name} className="text-white py-1">
+                        <option key={cat.id} value={cat.name} className="text-slate-900 dark:text-white py-1">
                           {cat.name}
                         </option>
                       ))}
@@ -1954,27 +2065,27 @@ export const RanksPage: React.FC = () => {
                 {Array.from(new Set(allRanks.map((r) => r.belt_color).filter(Boolean)))
                   .filter((c) => !customBeltCategories.some((cat) => cat.name.toLowerCase() === c.toLowerCase()))
                   .length > 0 && (
-                  <optgroup label="Active In Database Curriculum" className="bg-[#0A1120] text-amber-400 font-bold">
+                  <optgroup label="Active In Database Curriculum" className="bg-slate-100 dark:bg-[#0A1120] text-amber-600 dark:text-amber-400 font-bold">
                     {Array.from(new Set(allRanks.map((r) => r.belt_color).filter(Boolean)))
                       .filter((c) => !customBeltCategories.some((cat) => cat.name.toLowerCase() === c.toLowerCase()))
                       .map((c) => (
-                        <option key={c} value={c} className="text-white">
+                        <option key={c} value={c} className="text-slate-900 dark:text-white">
                           {c}
                         </option>
                       ))}
                   </optgroup>
                 )}
 
-                <option value="__CUSTOM__" className="text-amber-400 font-bold bg-amber-950/40">
+                <option value="__CUSTOM__" className="text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/40">
                   ➕ Type Custom Belt Color / Category...
                 </option>
               </select>
             )}
 
             {/* Live Visual Badge Preview */}
-            <div className="mt-2.5 p-2 rounded-lg bg-slate-950/60 border border-white/5 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <div className="mt-2.5 p-2 rounded-lg bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                 Live Belt Badge Preview:
               </span>
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(beltForm.beltColor)}`}>
@@ -1984,18 +2095,18 @@ export const RanksPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Belt Grade Title / Mastery Description</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Belt Grade Title / Mastery Description</label>
             <input
               type="text"
               placeholder="e.g. बालशिष्य, Kata & Stances, or Form Mastery"
               value={beltForm.description}
               onChange={(e) => setBeltForm({ ...beltForm, description: e.target.value })}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               Official Examination Syllabus (Katas, Weapons, Techniques)
             </label>
             <textarea
@@ -2003,14 +2114,14 @@ export const RanksPage: React.FC = () => {
               placeholder="e.g. TAIKYOKU SHODAN, TAIKYOKU NIDAN | KATHI CHAUMUKHI or STICK BASICS"
               value={beltForm.syllabus}
               onChange={(e) => setBeltForm({ ...beltForm, syllabus: e.target.value })}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 shadow-xs"
             />
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
               Displays on athlete curriculum and grading examination records as per the official academy poster.
             </p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button
               type="button"
               variant="outline"
@@ -2038,20 +2149,20 @@ export const RanksPage: React.FC = () => {
         maxWidth="lg"
       >
         <div className="space-y-5">
-          <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/20 rounded-xl text-xs text-slate-300">
-            <div className="flex items-center gap-2 text-white font-bold mb-1">
-              <Palette className="w-4 h-4 text-amber-400" />
+          <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/20 rounded-xl text-xs text-slate-700 dark:text-slate-300">
+            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold mb-1">
+              <Palette className="w-4 h-4 text-amber-500 dark:text-amber-400" />
               <span>Full Admin Control Over Belt Colors &amp; Sashes</span>
             </div>
-            <p className="text-slate-400 text-[11px]">
+            <p className="text-slate-500 dark:text-slate-400 text-[11px]">
               Add custom martial arts belts, sashes (Kalari), or dual combinations. These categories will be available across the Academy curriculum, student promotions, and certificate registries.
             </p>
           </div>
 
           {/* Add Category Form */}
-          <form onSubmit={handleAddCategory} className="p-3.5 bg-slate-900/80 rounded-xl border border-white/10 space-y-3">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5 text-amber-400" />
+          <form onSubmit={handleAddCategory} className="p-3.5 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-white/10 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               Add New Belt / Sash Category
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -2062,14 +2173,14 @@ export const RanksPage: React.FC = () => {
                   placeholder="e.g. Camo Belt, White Sash, Gold Belt, Red-Black Stripe"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 shadow-xs"
                 />
               </div>
               <div>
                 <select
                   value={newCategoryGroup}
                   onChange={(e) => setNewCategoryGroup(e.target.value)}
-                  className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
                 >
                   <option value="Custom / Academy">Custom / Academy</option>
                   <option value="Standard Belts">Standard Belts</option>
@@ -2083,7 +2194,7 @@ export const RanksPage: React.FC = () => {
 
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-400">Live Preview:</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Live Preview:</span>
                 <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(newCategoryName || 'White Belt')}`}>
                   {newCategoryName || 'Category Preview'}
                 </span>
@@ -2102,14 +2213,14 @@ export const RanksPage: React.FC = () => {
           {editingCategory && (
             <form onSubmit={handleSaveEditCategory} className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <h4 className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Edit2 className="w-3.5 h-3.5" />
                   Edit Belt / Category Name &amp; Group
                 </h4>
                 <button
                   type="button"
                   onClick={() => setEditingCategory(null)}
-                  className="text-slate-400 hover:text-white p-1 rounded"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -2121,14 +2232,14 @@ export const RanksPage: React.FC = () => {
                     required
                     value={editingCategory.name}
                     onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                    className="w-full bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-white dark:bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 shadow-xs"
                   />
                 </div>
                 <div>
                   <select
                     value={editingCategory.group}
                     onChange={(e) => setEditingCategory({ ...editingCategory, group: e.target.value })}
-                    className="w-full bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-white dark:bg-[#0F172A] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 shadow-xs"
                   >
                     <option value="Custom / Academy">Custom / Academy</option>
                     <option value="Standard Belts">Standard Belts</option>
@@ -2141,7 +2252,7 @@ export const RanksPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400">Live Preview:</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Live Preview:</span>
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(editingCategory.name)}`}>
                     {editingCategory.name || 'Preview'}
                   </span>
@@ -2172,10 +2283,10 @@ export const RanksPage: React.FC = () => {
             {Array.from(new Set(customBeltCategories.map((c) => c.group))).map((groupName) => (
               <div key={groupName} className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                     {groupName} ({customBeltCategories.filter((c) => c.group === groupName).length})
                   </span>
-                  <span className="text-[9px] text-slate-500 flex items-center gap-1">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
                     <ArrowUpDown className="w-2.5 h-2.5" /> Kram Badalne Ke Liye Teer (↑/↓) Dabayein
                   </span>
                 </div>
@@ -2185,7 +2296,7 @@ export const RanksPage: React.FC = () => {
                     .map((cat, idx, arr) => (
                       <div
                         key={cat.id}
-                        className="p-2.5 rounded-lg bg-slate-900/80 border border-white/10 flex items-center justify-between gap-2 group hover:border-amber-500/40 transition-all shadow-sm"
+                        className="p-2.5 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 flex items-center justify-between gap-2 group hover:border-amber-500/40 transition-all shadow-xs"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`text-xs font-bold px-2.5 py-1 rounded border shadow-sm ${getBeltBadgeClass(cat.name)}`}>
@@ -2198,7 +2309,7 @@ export const RanksPage: React.FC = () => {
                             type="button"
                             onClick={() => handleMoveCategory(cat.id, 'UP')}
                             disabled={idx === 0}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                            className="p-1 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
                             title="Move Up (Kram Upar)"
                           >
                             <ChevronUp className="w-3.5 h-3.5" />
@@ -2207,7 +2318,7 @@ export const RanksPage: React.FC = () => {
                             type="button"
                             onClick={() => handleMoveCategory(cat.id, 'DOWN')}
                             disabled={idx === arr.length - 1}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
+                            className="p-1 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors disabled:opacity-20 disabled:hover:text-slate-400 disabled:hover:bg-transparent"
                             title="Move Down (Kram Niche)"
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
@@ -2215,7 +2326,7 @@ export const RanksPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setEditingCategory({ id: cat.id, name: cat.name, group: cat.group })}
-                            className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/10 rounded transition-colors ml-1"
+                            className="p-1 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors ml-1"
                             title={`Edit "${cat.name}"`}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -2223,7 +2334,7 @@ export const RanksPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                            className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded transition-colors"
                             title={`Delete category "${cat.name}"`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2236,18 +2347,18 @@ export const RanksPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-white/10">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
             <button
               type="button"
               onClick={handleResetCategories}
-              className="text-[11px] text-slate-400 hover:text-rose-300 underline"
+              className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-300 underline"
             >
               Reset to Defaults
             </button>
             <Button
               type="button"
               onClick={() => setIsManageCategoriesOpen(false)}
-              className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white text-xs font-semibold border border-slate-300 dark:border-white/10"
             >
               Done / Close
             </Button>
@@ -2264,7 +2375,7 @@ export const RanksPage: React.FC = () => {
       >
         <form onSubmit={handleSaveDiscipline} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               Discipline / Section Name *
             </label>
             <input
@@ -2273,15 +2384,15 @@ export const RanksPage: React.FC = () => {
               placeholder="e.g. Kung Fu, Taekwondo, Kickboxing, Boxing, Judo"
               value={disciplineForm.name}
               onChange={(e) => setDisciplineForm({ ...disciplineForm, name: e.target.value })}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
               Creates a dedicated belt curriculum section and allows athlete belt assignments.
             </p>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
               Description / Tagline (Optional)
             </label>
             <input
@@ -2289,11 +2400,11 @@ export const RanksPage: React.FC = () => {
               placeholder="e.g. Traditional Chinese Martial Art, Wushu & Sanda"
               value={disciplineForm.description}
               onChange={(e) => setDisciplineForm({ ...disciplineForm, description: e.target.value })}
-              className="w-full bg-[#0F172A] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button
               type="button"
               variant="outline"

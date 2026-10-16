@@ -5,9 +5,17 @@ export interface SendMessageParams {
   variables?: Record<string, string>;
 }
 
+export interface SendDocumentParams {
+  to: string;
+  documentBase64: string;
+  fileName: string;
+  caption?: string;
+  mimetype?: string;
+}
+
 export interface SendMessageResult {
   success: boolean;
-  provider: 'MOCK' | 'META' | 'PROTOTYPE_LINKED_DEVICE' | string;
+  provider: 'MOCK' | 'META' | 'PROTOTYPE_LINKED_DEVICE' | 'OPENWA' | string;
   messageId?: string;
   status: 'MOCK' | 'SENT' | 'FAILED';
   errorMessage?: string;
@@ -32,6 +40,7 @@ export interface WhatsAppSender {
   disconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }>;
   reconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }>;
   sendMessage(params: SendMessageParams): Promise<SendMessageResult>;
+  sendDocument?(params: SendDocumentParams): Promise<SendMessageResult>;
   healthCheck(): Promise<{ healthy: boolean; details?: string }>;
 }
 

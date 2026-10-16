@@ -140,32 +140,32 @@ export const MarkAttendancePage: React.FC = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             On-Field Roll Call &amp; Attendance
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Select training cohort, verify roster presence, and log biometric session counts.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-xs">
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 text-xs font-semibold shadow-xs">
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
             <span>WhatsApp Connected</span>
           </div>
         </div>
       </div>
 
       {/* Select Batch & Date Controls */}
-      <div className="p-5 bg-[#1E293B] border border-white/10 rounded-xl shadow-lg">
+      <div className="p-5 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs dark:shadow-lg">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
               Assigned Batch *
             </label>
             <select
               value={selectedBatchId}
               onChange={(e) => setSelectedBatchId(e.target.value)}
-              className="w-full h-10 px-3 bg-[#0F172A] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#F97316]"
+              className="w-full h-10 px-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#F97316]"
             >
               {batches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -176,7 +176,7 @@ export const MarkAttendancePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
               Session Date *
             </label>
             <div className="relative">
@@ -184,7 +184,7 @@ export const MarkAttendancePage: React.FC = () => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full h-10 px-3 bg-[#0F172A] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#F97316]"
+                className="w-full h-10 px-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#F97316]"
               />
             </div>
           </div>
@@ -193,7 +193,7 @@ export const MarkAttendancePage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleMarkAll('PRESENT')}
-              className="flex-1 h-10 px-3 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 h-10 px-3 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>All Present</span>
@@ -201,7 +201,7 @@ export const MarkAttendancePage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleMarkAll('ABSENT')}
-              className="flex-1 h-10 px-3 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 h-10 px-3 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-600 dark:text-rose-400 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <XCircle className="w-3.5 h-3.5" />
               <span>All Absent</span>
@@ -223,29 +223,29 @@ export const MarkAttendancePage: React.FC = () => {
 
         {/* Live Attendance Summary */}
         {totalCount > 0 && !sheetLoading && (
-          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3 w-full sm:w-auto text-xs">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 {presentCount} Present
               </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-rose-500/15 text-rose-400 font-bold border border-rose-500/30">
-                <span className="w-2 h-2 rounded-full bg-rose-400" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/30">
+                <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
                 {absentCount} Absent
               </span>
-              <span className="text-slate-400 font-medium">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">
                 Cohort: {totalCount} Athletes
               </span>
             </div>
 
             <div className="w-full sm:w-64 flex items-center gap-2">
-              <div className="flex-1 h-2 rounded-full bg-[#0F172A] overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-[#0F172A] overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-[#F97316] transition-all duration-300"
                   style={{ width: `${attendancePercent}%` }}
                 />
               </div>
-              <span className="text-xs font-bold text-white min-w-[36px] text-right">
+              <span className="text-xs font-bold text-slate-900 dark:text-white min-w-[36px] text-right">
                 {attendancePercent}%
               </span>
             </div>
@@ -255,14 +255,14 @@ export const MarkAttendancePage: React.FC = () => {
 
       {/* Feedback Messages */}
       {saveSuccessMsg && (
-        <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold rounded-xl flex items-center gap-2">
-          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold rounded-xl flex items-center gap-2">
+          <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
           <span>{saveSuccessMsg}</span>
         </div>
       )}
       {saveErrorMsg && (
-        <div className="p-3.5 bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold rounded-xl flex items-center gap-2">
-          <X className="w-4 h-4 text-rose-400 flex-shrink-0" />
+        <div className="p-3.5 bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold rounded-xl flex items-center gap-2">
+          <X className="w-4 h-4 text-rose-500 dark:text-rose-400 flex-shrink-0" />
           <span>{saveErrorMsg}</span>
         </div>
       )}
@@ -278,12 +278,12 @@ export const MarkAttendancePage: React.FC = () => {
           accentColor="indigo"
         />
       ) : (
-        <div className="bg-[#1E293B] border border-white/10 rounded-xl overflow-hidden shadow-lg">
-          <div className="px-6 py-3.5 bg-[#273549] border-b border-white/10 flex items-center justify-between text-xs">
-            <span className="font-bold text-white text-sm">
+        <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm dark:shadow-lg">
+          <div className="px-6 py-3.5 bg-slate-100 dark:bg-[#273549] border-b border-slate-200 dark:border-white/10 flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-900 dark:text-white text-sm">
               {sheetData?.batch.name} • {studentRows.length} Enrolled Athletes
             </span>
-            <span className="px-2.5 py-1 rounded bg-[#0F172A] border border-white/10 font-semibold text-slate-300">
+            <span className="px-2.5 py-1 rounded bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 font-semibold text-slate-700 dark:text-slate-300">
               Session: <span className="text-[#F97316] font-mono">{selectedDate}</span>
             </span>
           </div>
@@ -299,30 +299,30 @@ export const MarkAttendancePage: React.FC = () => {
                   <th className="text-right">Check-in Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {studentRows.map((s, idx) => (
                   <tr key={s.studentId}>
-                    <td className="text-xs text-slate-400 font-mono">{idx + 1}</td>
+                    <td className="text-xs text-slate-500 dark:text-slate-400 font-mono">{idx + 1}</td>
                     <td>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white text-xs">{s.name}</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">{s.name}</span>
                         {s.feeOverdue?.isOverdue && (
                           <span
                             title={`Fees unpaid for ${s.feeOverdue.daysOverdue} days (Pending: ₹${s.feeOverdue.pendingAmount})`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap"
                           >
-                            <AlertCircle className="w-3 h-3 text-amber-400" />
+                            <AlertCircle className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                             <span>Fees Due ({s.feeOverdue.daysOverdue}d)</span>
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="text-xs text-slate-400">
-                      {s.studentMobile || s.parentWhatsapp || <span className="text-slate-500 italic">No contact</span>}
+                    <td className="text-xs text-slate-500 dark:text-slate-400">
+                      {s.studentMobile || s.parentWhatsapp || <span className="text-slate-400 italic">No contact</span>}
                     </td>
                     <td>
                       {s.status === 'UNMARKED' ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#273549] text-slate-400">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-[#273549] text-slate-600 dark:text-slate-400">
                           Unmarked
                         </span>
                       ) : (
@@ -330,14 +330,14 @@ export const MarkAttendancePage: React.FC = () => {
                       )}
                     </td>
                     <td className="text-right">
-                      <div className="inline-flex rounded-lg p-1 bg-[#0F172A] border border-white/10 gap-1.5">
+                      <div className="inline-flex rounded-lg p-1 bg-slate-100 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleSetStudentStatus(s.studentId, 'PRESENT')}
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
                             s.status === 'PRESENT'
                               ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/40'
-                              : 'text-slate-400 hover:text-emerald-400 hover:bg-white/5'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-white/5'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -349,7 +349,7 @@ export const MarkAttendancePage: React.FC = () => {
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
                             s.status === 'ABSENT'
                               ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/40'
-                              : 'text-slate-400 hover:text-rose-400 hover:bg-white/5'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-white dark:hover:bg-white/5'
                           }`}
                         >
                           <X className="w-3.5 h-3.5" />

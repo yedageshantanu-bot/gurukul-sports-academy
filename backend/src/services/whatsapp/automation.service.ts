@@ -12,6 +12,7 @@ import {
 } from '../../types/whatsapp.types.js';
 import { PdfReportService, StudentReportData } from '../pdfReport.service.js';
 import { prototypeLinkedDeviceSender } from './prototypeLinkedDeviceSender.js';
+import { whatsappProviderFactory } from './whatsappProvider.factory.js';
 import { normalizePhoneNumber } from '../../utils/phone.js';
 
 export class WhatsAppAutomationService {
@@ -398,25 +399,13 @@ export class WhatsAppAutomationService {
       throw new AppError('Student has no WhatsApp/mobile number on record', 400, 'PHONE_NOT_FOUND');
     }
 
-    // 5-Day Overdue Cutoff Protection: Stop automatic spam if overdue for > 5 days
+    // Log overdue tracking information
     if (fee.due_date) {
       const dueDateMs = new Date(fee.due_date).getTime();
       const todayMs = new Date().setHours(0, 0, 0, 0);
       const daysOverdue = Math.floor((todayMs - dueDateMs) / (1000 * 60 * 60 * 24));
-      if (daysOverdue > 5) {
-        console.warn(`[WhatsAppAutomation] Fee for student ${student.name} is overdue by ${daysOverdue} days. Automated reminders halted; escalated to Admin.`);
-        return {
-          id: `escalated_${fee.id}`,
-          template_id: template.id,
-          student_id: student.id,
-          recipient_phone: recipientPhone,
-          event_type: 'FEE_OVERDUE',
-          message_body: `Automated WhatsApp reminders halted (> 5 days overdue). Escalated to Admin Dashboard.`,
-          status: 'ESCALATED_TO_ADMIN',
-          error_message: `Overdue cutoff reached (${daysOverdue} days overdue). Handled via Admin priority alert.`,
-          sent_at: null,
-          created_at: new Date().toISOString(),
-        };
+      if (daysOverdue > 0) {
+        console.log(`[WhatsAppAutomation] Fee for student ${student.name} is overdue by ${daysOverdue} days. Dispatching reminder.`);
       }
     }
 
@@ -977,8 +966,7 @@ export class WhatsAppAutomationService {
       .from('whatsapp_messages')
       .select(`
         *,
-        student:students(id, name, course, parent_name),
-        template:whatsapp_templates(id, name, event_type)
+        student:students(id, name, course, parent_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -1209,14 +1197,26 @@ export class WhatsAppAutomationService {
       : '';
     const caption = `*Monthly Progress & Attendance Report: ${academyName}*\n\nDear Parent,\nPlease find attached the official monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${feeStatus}${upiPayNote}\n\nPlease review the attached document for detailed session breakdown.\n\n- ${academyName} Administration`;
 
-    // Dispatch via companion socket
-    const sendResult = await prototypeLinkedDeviceSender.sendDocument({
-      to: reportData.recipientPhone,
-      documentBase64: base64Doc,
-      fileName,
-      caption,
-      mimetype: 'application/pdf',
-    });
+    // Dispatch via active connected provider
+    const provider = whatsappProviderFactory.getProvider();
+    let sendResult: any;
+    if (provider.sendDocument) {
+      sendResult = await provider.sendDocument({
+        to: reportData.recipientPhone,
+        documentBase64: base64Doc,
+        fileName,
+        caption,
+        mimetype: 'application/pdf',
+      });
+    } else {
+      sendResult = await prototypeLinkedDeviceSender.sendDocument({
+        to: reportData.recipientPhone,
+        documentBase64: base64Doc,
+        fileName,
+        caption,
+        mimetype: 'application/pdf',
+      });
+    }
 
     // Record in whatsapp_messages log table
     try {
@@ -1226,7 +1226,7 @@ export class WhatsAppAutomationService {
         message_body: caption,
         event_type: 'CUSTOM_OUTBOX',
         status: sendResult.success ? 'SENT' : 'FAILED',
-        provider_name: 'PROTOTYPE_LINKED_DEVICE',
+        provider_name: provider.name,
         provider_message_id: sendResult.messageId || null,
         error_message: sendResult.errorMessage || null,
         sent_at: sendResult.success ? new Date().toISOString() : null,
@@ -1272,9 +1272,9 @@ export class WhatsAppAutomationService {
         results.push({ studentId: student.id, studentName: student.name, success: false, error: err.message });
       }
 
-      // Safe 15-second gap between students to prevent spam bans!
+      // Safe 3.5-second gap between students to prevent spam bans
       if (i < eligible.length - 1) {
-        await new Promise((r) => setTimeout(r, 15000));
+        await new Promise((r) => setTimeout(r, 3500));
       }
     }
 
@@ -1292,6 +1292,100 @@ export class WhatsAppAutomationService {
     const safeStudentName = reportData.studentName.replace(/[^a-zA-Z0-9]/g, '_');
     const fileName = `${safeStudentName}_Monthly_Report_${reportData.fees.billingPeriod}.pdf`;
     return { buffer, fileName };
+  }
+
+  /**
+   * Generates and dispatches an official branded PDF fee receipt to parent via WhatsApp
+   */
+  async sendFeeReceiptPdf(receiptId: string): Promise<{ success: boolean; message: string; data?: any }> {
+    const { receiptService } = await import('../receipt.service.js');
+    const { receipt, academy } = await receiptService.getReceiptById(receiptId);
+
+    const student = (receipt as any).student;
+    if (!student) {
+      throw new AppError('Student information not associated with this receipt', 404, 'RESOURCE_NOT_FOUND');
+    }
+
+    const recipientPhone = student.parent_whatsapp || student.student_mobile;
+    if (!recipientPhone) {
+      throw new AppError('Student has no WhatsApp/mobile number on record', 400, 'PHONE_NOT_FOUND');
+    }
+
+    const payment = (receipt as any).payment || {};
+    const academyName = academy?.name || 'Gurukul Sports Academy';
+
+    const pdfBuffer = await PdfReportService.generateReceiptPdf({
+      receiptNumber: receipt.receipt_number,
+      studentName: student.name,
+      course: student.course,
+      amount: Number(receipt.amount),
+      issuedAt: receipt.issued_at,
+      paymentMode: payment.provider || 'ONLINE/UPI',
+      transactionRef: payment.provider_payment_id || payment.id,
+      academyName,
+      academyAddress: academy?.address,
+      academyPhone: academy?.contact_phone,
+      academyEmail: academy?.contact_email,
+    });
+
+    const base64Doc = pdfBuffer.toString('base64');
+    const fileName = `Receipt_${receipt.receipt_number}_${student.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const caption = `🧾 *Official Payment Receipt #${receipt.receipt_number}*\n\nDear Parent,\nThank you for your fee payment of *₹${Number(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}* for *${student.name}* (${student.course || 'Training'}).\n\nPlease find your official digitally verified receipt attached.\n\n- *${academyName} Accounts Department*`;
+
+    const provider = whatsappProviderFactory.getProvider();
+    let sendResult: any;
+    if (provider.sendDocument) {
+      sendResult = await provider.sendDocument({
+        to: recipientPhone,
+        documentBase64: base64Doc,
+        fileName,
+        caption,
+        mimetype: 'application/pdf',
+      });
+    } else {
+      sendResult = await prototypeLinkedDeviceSender.sendDocument({
+        to: recipientPhone,
+        documentBase64: base64Doc,
+        fileName,
+        caption,
+        mimetype: 'application/pdf',
+      });
+    }
+
+    // Record in whatsapp_messages log table
+    try {
+      await this.supabase.from('whatsapp_messages').insert({
+        student_id: student.id,
+        recipient_phone: recipientPhone,
+        message_body: caption,
+        event_type: 'PAYMENT_RECEIVED',
+        status: sendResult.success ? 'SENT' : 'FAILED',
+        provider_name: provider.name,
+        provider_message_id: sendResult.messageId || null,
+        error_message: sendResult.errorMessage || null,
+        sent_at: sendResult.success ? new Date().toISOString() : null,
+        metadata: {
+          type: 'RECEIPT_PDF',
+          receiptNumber: receipt.receipt_number,
+          amount: receipt.amount,
+        },
+      });
+    } catch {}
+
+    if (!sendResult.success) {
+      throw new AppError(sendResult.errorMessage || 'Failed to send receipt PDF via WhatsApp', 500);
+    }
+
+    return {
+      success: true,
+      message: `Official receipt PDF dispatched to ${student.name} (${recipientPhone}) via WhatsApp!`,
+      data: {
+        receiptId: receipt.id,
+        receiptNumber: receipt.receipt_number,
+        recipientPhone,
+        messageId: sendResult.messageId,
+      },
+    };
   }
 }
 

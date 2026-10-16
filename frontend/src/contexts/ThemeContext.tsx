@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'dark' | 'faint' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
+  isDark: boolean;
+  isFaint: boolean;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
 }
@@ -16,7 +18,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<Theme>(() => {
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === 'light' || stored === 'dark') {
+      if (stored === 'faint' || stored === 'light' || stored === 'dark') {
         return stored;
       }
     } catch {
@@ -26,17 +28,25 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return 'dark';
   });
 
+  const isDark = theme === 'dark';
+  const isFaint = !isDark;
+
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
-    if (theme === 'dark') {
+
+    if (isDark) {
       root.classList.add('dark');
       body?.classList.add('dark');
+      root.classList.remove('faint', 'light');
+      body?.classList.remove('faint', 'light');
       root.setAttribute('data-theme', 'dark');
     } else {
       root.classList.remove('dark');
       body?.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
+      root.classList.add('faint', 'light');
+      body?.classList.add('faint', 'light');
+      root.setAttribute('data-theme', 'faint');
     }
 
     try {
@@ -44,10 +54,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {
       // Ignore storage write errors
     }
-  }, [theme]);
+  }, [theme, isDark]);
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setThemeState((prev) => (prev === 'dark' ? 'faint' : 'dark'));
   };
 
   const setTheme = (newTheme: Theme) => {
@@ -55,7 +65,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, isDark, isFaint, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

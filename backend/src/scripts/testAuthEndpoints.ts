@@ -124,11 +124,36 @@ async function runTests() {
       headers: { Authorization: 'Bearer fake.invalid.jwt.token' },
     });
     const fakeTokenJson = await fakeTokenRes.json();
-    // Since Supabase credentials are not configured yet, it properly reports 500 INTERNAL_SERVER_ERROR or 401
     assert(
       'Invalid token is safely rejected by auth middleware',
       fakeTokenRes.status === 401 || fakeTokenRes.status === 500,
       fakeTokenJson
+    );
+
+    // Test 11: POST /api/auth/refresh with missing refreshToken rejected
+    const missingRefreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const missingRefreshJson = await missingRefreshRes.json();
+    assert(
+      'POST /auth/refresh rejects missing refreshToken with 400 VALIDATION_ERROR',
+      missingRefreshRes.status === 400 && missingRefreshJson.error?.code === 'VALIDATION_ERROR',
+      missingRefreshJson
+    );
+
+    // Test 12: POST /api/auth/refresh with invalid refreshToken safely rejected
+    const invalidRefreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: 'invalid-refresh-token' }),
+    });
+    const invalidRefreshJson = await invalidRefreshRes.json();
+    assert(
+      'POST /auth/refresh rejects invalid refreshToken with 401 INVALID_REFRESH_TOKEN',
+      invalidRefreshRes.status === 401,
+      invalidRefreshJson
     );
 
     console.log(`\n📊 Summary: ${passedCount}/${totalCount} tests passed.\n`);

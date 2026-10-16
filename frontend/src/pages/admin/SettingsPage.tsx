@@ -193,8 +193,8 @@ export const SettingsPage: React.FC = () => {
               System Administration
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight mt-1">Academy Profile & Settings</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">Academy Profile & Settings</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage organization branding, official contact channels, and central operational parameters.
           </p>
         </div>
@@ -204,7 +204,7 @@ export const SettingsPage: React.FC = () => {
             type="button"
             onClick={handleReset}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#1E293B] hover:bg-[#334155] border border-white/10 text-slate-300 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-[#1E293B] hover:bg-slate-100 dark:hover:bg-[#334155] border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer shadow-xs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset</span>
@@ -240,19 +240,19 @@ export const SettingsPage: React.FC = () => {
         {/* Left Column: Organization & Logo (1 col) */}
         <div className="space-y-6">
           {/* Logo Card */}
-          <div className="bg-[#1E293B] border border-white/10 rounded-xl p-5 shadow-lg space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-orange-400" />
                 Academy Logo
               </h2>
-              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                 Transparent 2D
               </span>
             </div>
 
             {/* Logo Preview */}
-            <div className="flex flex-col items-center justify-center p-6 bg-[#0F172A] border border-white/5 rounded-xl">
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 rounded-xl">
               <img
                 src={formData.logo_url || '/logo.png'}
                 alt="Academy Logo Preview"
@@ -261,7 +261,7 @@ export const SettingsPage: React.FC = () => {
                   (e.currentTarget as HTMLImageElement).src = '/logo.png';
                 }}
               />
-              <span className="text-[11px] text-slate-400 mt-3 font-medium">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 font-medium">
                 Live Navbar & Receipt Logo
               </span>
             </div>
@@ -278,7 +278,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#273549] dark:hover:bg-[#334155] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white transition-colors cursor-pointer shadow-xs"
               >
                 <Upload className="w-3.5 h-3.5 text-orange-400" />
                 Upload New
@@ -286,60 +286,60 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleInputChange('logo_url', '/logo.png')}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-[#0F172A] hover:bg-[#162235] border border-white/10 text-slate-300 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-[#0F172A] dark:hover:bg-[#162235] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 text-slate-400" />
                 Default Logo
               </button>
             </div>
-            <p className="text-[10.5px] text-slate-400 leading-relaxed">
+            <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Recommended: High-resolution PNG or SVG with transparent background for pristine 2D display.
             </p>
           </div>
 
           {/* Quick System Status Card */}
-          <div className="bg-[#1E293B] border border-white/10 rounded-xl p-5 shadow-lg space-y-3">
-            <h2 className="text-sm font-bold text-white flex items-center justify-between">
+          <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-3">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
               <span>Instance Status</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
                 Operational
               </span>
             </h2>
-            <div className="space-y-2.5 text-xs text-slate-300">
-              <div className="flex items-center justify-between py-1.5 border-b border-white/5">
-                <span className="text-slate-400">Database Engine</span>
-                <span className="font-semibold text-emerald-400">Supabase PG17 (Connected)</span>
+            <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-white/5">
+                <span className="text-slate-500 dark:text-slate-400">Database Engine</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Supabase PG17 (Connected)</span>
               </div>
-              <div className="flex items-center justify-between py-1.5 border-b border-white/5">
-                <span className="text-slate-400">API Status</span>
-                <span className="font-semibold text-emerald-400">Active (v2.4)</span>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-white/5">
+                <span className="text-slate-500 dark:text-slate-400">API Status</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Active (v2.4)</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
-                <span className="text-slate-400">Security Layer</span>
-                <span className="font-semibold text-orange-400">JWT + RBAC Enforced</span>
+                <span className="text-slate-500 dark:text-slate-400">Security Layer</span>
+                <span className="font-semibold text-orange-500 dark:text-orange-400">JWT + RBAC Enforced</span>
               </div>
             </div>
           </div>
 
           {/* WhatsApp Messaging Dispatch & Analytics Card */}
-          <div className="bg-[#1E293B] border border-emerald-500/20 rounded-xl p-5 shadow-lg space-y-4 relative overflow-hidden">
+          <div className="bg-white dark:bg-[#1E293B] border border-emerald-500/30 dark:border-emerald-500/20 rounded-xl p-5 shadow-sm dark:shadow-lg space-y-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
 
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-white leading-none">WhatsApp Messaging</h2>
-                  <span className="text-[10px] text-slate-400">System Gateway Dispatch Counter</span>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-none">WhatsApp Messaging</h2>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">System Gateway Dispatch Counter</span>
                 </div>
               </div>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                 whatsappStats.isConnected
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
               }`}>
                 {whatsappStats.isConnected ? 'Connected' : 'Standby'}
               </span>
@@ -347,42 +347,42 @@ export const SettingsPage: React.FC = () => {
 
             {/* Total Messages Highlight Grid */}
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 bg-[#0F172A] border border-white/5 rounded-xl text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              <div className="p-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 rounded-xl text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block tracking-wider">
                   Total Dispatched
                 </span>
-                <span className="text-xl font-black text-emerald-400 block mt-0.5">
+                <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 block mt-0.5">
                   {whatsappStats.totalSent || whatsappStats.sent || 0}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">All-time count</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">All-time count</span>
               </div>
 
-              <div className="p-3 bg-[#0F172A] border border-white/5 rounded-xl text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              <div className="p-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 rounded-xl text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block tracking-wider">
                   Sent Today
                 </span>
-                <span className="text-xl font-black text-white block mt-0.5">
+                <span className="text-xl font-black text-slate-900 dark:text-white block mt-0.5">
                   {whatsappStats.sent || 0}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                   Limit: {whatsappStats.dailyLimit}/day
                 </span>
               </div>
             </div>
 
             {/* Details List */}
-            <div className="space-y-2 text-xs text-slate-300 pt-1">
-              <div className="flex items-center justify-between py-1 border-b border-white/5">
-                <span className="text-slate-400">Remaining Quota Today</span>
-                <span className="font-semibold text-white">{whatsappStats.remainingLimit} msgs</span>
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 pt-1">
+              <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/5">
+                <span className="text-slate-500 dark:text-slate-400">Remaining Quota Today</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{whatsappStats.remainingLimit} msgs</span>
               </div>
-              <div className="flex items-center justify-between py-1 border-b border-white/5">
-                <span className="text-slate-400">Queue Backlog</span>
-                <span className="font-semibold text-slate-300">{whatsappStats.queued} pending</span>
+              <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/5">
+                <span className="text-slate-500 dark:text-slate-400">Queue Backlog</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{whatsappStats.queued} pending</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-slate-400">Dispatch Status</span>
-                <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Dispatch Status</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   Anti-Ban Engine Active
                 </span>
@@ -392,7 +392,7 @@ export const SettingsPage: React.FC = () => {
             {/* Quick Link to WhatsApp Manager */}
             <Link
               to="/admin/whatsapp"
-              className="inline-flex items-center justify-center gap-2 w-full px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 w-full px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
             >
               <span>Manage WhatsApp Gateway & Logs</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -402,20 +402,20 @@ export const SettingsPage: React.FC = () => {
 
         {/* Right Column: Institutional & Contact Details (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-[#1E293B] border border-white/10 rounded-xl p-6 shadow-lg space-y-5">
-            <div className="pb-3 border-b border-white/10">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-sm dark:shadow-lg space-y-5">
+            <div className="pb-3 border-b border-slate-200 dark:border-white/10">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-orange-400" />
                 Institutional Details
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 These details will appear across fee receipts, student report cards, and communication headers.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-300">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Academy Name <span className="text-orange-400">*</span>
                 </label>
                 <input
@@ -424,7 +424,7 @@ export const SettingsPage: React.FC = () => {
                   value={formData.academy_name}
                   onChange={(e) => handleInputChange('academy_name', e.target.value)}
                   placeholder="e.g. Gurukul Sports Academy"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
                 />
               </div>
 
@@ -437,7 +437,7 @@ export const SettingsPage: React.FC = () => {
               />
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Mail className="w-3 h-3 text-orange-400" />
                   Official Email Address
                 </label>
@@ -446,12 +446,12 @@ export const SettingsPage: React.FC = () => {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="admin@gurukulsports.in"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Globe className="w-3 h-3 text-orange-400" />
                   Official Website
                 </label>
@@ -460,19 +460,19 @@ export const SettingsPage: React.FC = () => {
                   value={formData.website}
                   onChange={(e) => handleInputChange('website', e.target.value)}
                   placeholder="https://gurukulsports.in"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Coins className="w-3 h-3 text-orange-400" />
                   Primary Billing Currency
                 </label>
                 <select
                   value={formData.currency}
                   onChange={(e) => handleInputChange('currency', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
                 >
                   <option value="INR">INR (₹) — Indian Rupee</option>
                   <option value="USD">USD ($) — US Dollar</option>
@@ -482,7 +482,7 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <MapPin className="w-3 h-3 text-orange-400" />
                   Campus / Facility Physical Address
                 </label>
@@ -491,12 +491,12 @@ export const SettingsPage: React.FC = () => {
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   placeholder="Full physical sports complex address..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
                 />
               </div>
             </div>
 
-            <div className="pt-4 border-t border-white/10 flex justify-end">
+            <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex justify-end">
               <button
                 type="submit"
                 disabled={saving}
@@ -509,27 +509,27 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           {/* Direct UPI Settlement (0% Transaction Fee) Card */}
-          <div className="bg-[#1E293B] border border-emerald-500/30 rounded-xl p-6 shadow-lg space-y-5 relative overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-white/10 gap-2">
+          <div className="bg-white dark:bg-[#1E293B] border border-emerald-500/30 rounded-xl p-6 shadow-sm dark:shadow-lg space-y-5 relative overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 gap-2">
               <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   Direct UPI Fee Settlement (0% Gateway Cut)
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Collect tuition fees directly into your academy bank account with 0% commission. Parents tap on WhatsApp to open GPay, PhonePe, Paytm, or BHIM.
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                 0.00% Commission (Zero Cut)
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-                  Academy UPI ID (VPA) <span className="text-emerald-400">*</span>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                  Academy UPI ID (VPA) <span className="text-emerald-500 dark:text-emerald-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -537,16 +537,16 @@ export const SettingsPage: React.FC = () => {
                   value={formData.upi_id}
                   onChange={(e) => handleInputChange('upi_id', e.target.value)}
                   placeholder="e.g. gurukulsports@okaxis or 9876543210@upi"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
                 />
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
                   Google Pay, PhonePe, Paytm or Bank UPI VPA where fees will be deposited directly.
                 </span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  Registered Bank Account / Payee Name <span className="text-emerald-400">*</span>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Registered Bank Account / Payee Name <span className="text-emerald-500 dark:text-emerald-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -554,24 +554,24 @@ export const SettingsPage: React.FC = () => {
                   value={formData.upi_payee_name}
                   onChange={(e) => handleInputChange('upi_payee_name', e.target.value)}
                   placeholder="e.g. Gurukul Sports Academy"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0F172A] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
                 />
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
                   Exact beneficiary title verified by NPCI UPI apps during payment.
                 </span>
               </div>
             </div>
 
             {/* Live Deep-Link Preview Box */}
-            <div className="p-4 rounded-xl bg-[#0F172A] border border-white/5 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
                 Live 1-Tap UPI Intent Preview:
               </span>
-              <p className="text-xs text-slate-300 font-mono break-all bg-black/40 p-2.5 rounded-lg border border-white/5">
+              <p className="text-xs text-slate-800 dark:text-slate-300 font-mono break-all bg-slate-100 dark:bg-black/40 p-2.5 rounded-lg border border-slate-200 dark:border-white/5">
                 upi://pay?pa={formData.upi_id || 'gurukulsports@upi'}&amp;pn={encodeURIComponent(formData.upi_payee_name || 'Gurukul Sports Academy')}&amp;am=1000&amp;cu=INR&amp;tn=Gurukul%20Tuition%20Fee
               </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-400">
-                <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Direct Bank Credit
                 </span>
                 <span>•</span>

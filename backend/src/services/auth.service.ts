@@ -3,7 +3,7 @@ import { supabaseAdmin, getPublicClient, getDemoClient } from '../config/supabas
 import { env } from '../config/env.js';
 import { AppError } from '../middlewares/errorHandler.js';
 import { ROLES, STATUS } from '../constants/index.js';
-import { LoginDTO, PasswordResetDTO } from '../types/auth.types.js';
+import { LoginDTO, PasswordResetDTO, RefreshTokenDTO } from '../types/auth.types.js';
 
 export class AuthService {
   /**
@@ -96,6 +96,115 @@ export class AuthService {
     return {
       token: authData.session.access_token,
       refreshToken: authData.session.refresh_token,
+      user: {
+        id: authUserId,
+        email: profile.email,
+        fullName: profile.full_name,
+        role: profile.role,
+        teacherId,
+        isTrial: isTrialUser,
+        trialExpiresAt: profile.trial_expires_at || undefined,
+        daysRemaining,
+      },
+    };
+  }
+
+  /**
+   * Rotate and refresh user JWT session using Supabase refresh token
+   */
+  async refresh({ refreshToken }: RefreshTokenDTO) {
+    if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+      throw new AppError('Supabase is not configured on the server.', 500, 'INTERNAL_SERVER_ERROR');
+    }
+
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new AppError('Refresh token is required.', 400, 'BAD_REQUEST');
+    }
+
+    const authClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: refreshData, error: refreshError } = await authClient.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (refreshError || !refreshData.session || !refreshData.user) {
+      throw new AppError(
+        refreshError?.message || 'Your session has expired or is invalid. Please log in again.',
+        401,
+        'INVALID_REFRESH_TOKEN'
+      );
+    }
+
+    const authUserId = refreshData.user.id;
+
+    // Retrieve corresponding profile from public schema first, then demo schema fallback
+    let profile: any = null;
+    const pubClient = getPublicClient();
+    if (pubClient) {
+      const { data } = await pubClient
+        .from('profiles')
+        .select('id, role, full_name, email, status, is_trial, trial_started_at, trial_expires_at')
+        .eq('id', authUserId)
+        .maybeSingle();
+      if (data) profile = data;
+    }
+
+    const demoClient = getDemoClient();
+    if (!profile && demoClient) {
+      const { data } = await demoClient
+        .from('profiles')
+        .select('id, role, full_name, email, status, is_trial, trial_started_at, trial_expires_at')
+        .eq('id', authUserId)
+        .maybeSingle();
+      if (data) profile = data;
+    }
+
+    if (!profile) {
+      throw new AppError('Profile record not found for authenticated user.', 401, 'UNAUTHORIZED');
+    }
+
+    if (profile.status !== STATUS.ACTIVE) {
+      throw new AppError('Your account has been deactivated. Please contact the administrator.', 403, 'FORBIDDEN');
+    }
+
+    // Server-side 3-Day Trial Expiry Enforcement on Refresh
+    const isTrialUser = Boolean(profile.is_trial || profile.role === ROLES.DEMO_ADMIN);
+    let daysRemaining: number | undefined = undefined;
+
+    if (isTrialUser && profile.trial_expires_at) {
+      const expiresAtTime = new Date(profile.trial_expires_at).getTime();
+      const currentTime = Date.now();
+
+      if (currentTime > expiresAtTime) {
+        throw new AppError(
+          'Your 3-day trial has ended. Please contact us to continue using Academy CRM.',
+          403,
+          'TRIAL_EXPIRED'
+        );
+      }
+
+      const diffMs = expiresAtTime - currentTime;
+      daysRemaining = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    }
+
+    // Resolve teacher ID if Teacher role
+    let teacherId: string | undefined = undefined;
+
+    if (profile.role === ROLES.TEACHER && supabaseAdmin) {
+      const { data: teacher } = await supabaseAdmin
+        .from('teachers')
+        .select('id')
+        .eq('profile_id', authUserId)
+        .single();
+
+      teacherId = teacher?.id;
+    }
+
+    return {
+      token: refreshData.session.access_token,
+      refreshToken: refreshData.session.refresh_token,
       user: {
         id: authUserId,
         email: profile.email,

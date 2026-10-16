@@ -1045,17 +1045,17 @@ export const AnnouncementsPage: React.FC = () => {
             onChange={(e) => setNewPresetLabel(e.target.value)}
           />
 
-          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Draft Preview:</div>
-            <div className="text-xs font-bold text-white">
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Draft Preview:</div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white">
               {presetTargetSource === 'CREATE' ? formData.title || '(No title)' : editFormData.title || '(No title)'}
             </div>
-            <div className="text-[11px] text-slate-400 line-clamp-2">
+            <div className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2">
               {presetTargetSource === 'CREATE' ? formData.message || '(No message)' : editFormData.message || '(No message)'}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button variant="outline" onClick={() => setIsSavePresetModalOpen(false)}>
               Cancel
             </Button>
@@ -1100,16 +1100,16 @@ export const AnnouncementsPage: React.FC = () => {
                   onClick={() => setBroadcastMode('NOW')}
                   className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
                     broadcastMode === 'NOW'
-                      ? 'border-indigo-600 bg-indigo-500/10 text-white'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-400 hover:border-slate-300'
+                      ? 'border-indigo-600 bg-indigo-500/10 text-indigo-900 dark:text-white'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
-                  <Send className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'NOW' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <Send className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'NOW' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
                   <div>
-                    <div className={`text-xs font-bold ${broadcastMode === 'NOW' ? 'text-indigo-300' : 'text-slate-300'}`}>
+                    <div className={`text-xs font-bold ${broadcastMode === 'NOW' ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>
                       ⚡ Send Now (Instant Queue)
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                       Immediately enqueues with 16-22s anti-ban spacing between each parent.
                     </div>
                   </div>
@@ -1120,16 +1120,16 @@ export const AnnouncementsPage: React.FC = () => {
                   onClick={() => setBroadcastMode('SCHEDULED')}
                   className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
                     broadcastMode === 'SCHEDULED'
-                      ? 'border-indigo-600 bg-indigo-500/10 text-white'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-400 hover:border-slate-300'
+                      ? 'border-indigo-600 bg-indigo-500/10 text-indigo-900 dark:text-white'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
-                  <Clock className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'SCHEDULED' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <Clock className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastMode === 'SCHEDULED' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
                   <div>
-                    <div className={`text-xs font-bold ${broadcastMode === 'SCHEDULED' ? 'text-indigo-300' : 'text-slate-300'}`}>
+                    <div className={`text-xs font-bold ${broadcastMode === 'SCHEDULED' ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>
                       ⏰ Schedule for Later
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                       Set a specific date & time (e.g. tomorrow at 9:00 AM) to avoid night alerts.
                     </div>
                   </div>
@@ -1138,18 +1138,18 @@ export const AnnouncementsPage: React.FC = () => {
 
               {/* Scheduled DateTime Picker */}
               {broadcastMode === 'SCHEDULED' && (
-                <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
                     <span>Select Dispatch Date & Time (IST):</span>
                   </label>
                   <input
                     type="datetime-local"
                     value={scheduledDateTime}
                     onChange={(e) => setScheduledDateTime(e.target.value)}
-                    className="w-full text-sm rounded-lg border border-slate-700 bg-slate-800 text-white p-2.5 focus:outline-none focus:border-indigo-500"
+                    className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 focus:outline-none focus:border-indigo-500"
                   />
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     * The system will automatically wake up and begin staggered dispatches at this exact time.
                   </p>
                 </div>
@@ -1157,8 +1157,8 @@ export const AnnouncementsPage: React.FC = () => {
 
               {/* Night time warning if sending now late */}
               {broadcastMode === 'NOW' && isNightTime && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   <span>
                     Notice: It is currently late evening. Sending broadcasts at night may disturb parents. You may choose <b>Schedule for Later</b> (e.g. tomorrow morning) for higher engagement.
                   </span>
@@ -1168,8 +1168,8 @@ export const AnnouncementsPage: React.FC = () => {
 
             {/* Real WhatsApp Chat Bubble Preview */}
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                 <span>WhatsApp Recipient View:</span>
               </div>
               <div className="bg-[#0b141a] rounded-xl p-4 border border-white/5">
@@ -1186,7 +1186,7 @@ export const AnnouncementsPage: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-700">
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-700">
               <Button variant="outline" onClick={() => setBroadcastTarget(null)}>
                 Cancel
               </Button>

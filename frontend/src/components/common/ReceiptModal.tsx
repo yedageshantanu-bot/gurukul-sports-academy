@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Printer } from 'lucide-react';
+import { Printer, MessageSquare, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Badge } from '../ui/Badge';
-import { getApiUrl } from '../../lib/api';
+import { getApiUrl, apiClient } from '../../lib/api';
 
 interface ReceiptModalProps {
   receiptId: string | null;
@@ -51,11 +51,31 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptId, onClose }
 
   if (!receiptId) return null;
 
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+
   const handlePrint = () => {
     const url = getApiUrl(`/receipts/${receiptId}/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`);
     const printWindow = window.open(url, '_blank');
     if (printWindow) {
       printWindow.focus();
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!receiptId) return;
+    try {
+      setSendingWhatsapp(true);
+      setError(null);
+      await apiClient(`/receipts/${receiptId}/send-whatsapp`, {
+        method: 'POST',
+      });
+      setSentSuccess(true);
+      setTimeout(() => setSentSuccess(false), 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send receipt PDF via WhatsApp');
+    } finally {
+      setSendingWhatsapp(false);
     }
   };
 
@@ -154,6 +174,24 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptId, onClose }
           <div className="flex justify-between items-center pt-2">
             <div className="text-xs text-slate-400 dark:text-slate-500">Official digitally verifiable receipt</div>
             <div className="flex items-center gap-2.5">
+              <Button
+                variant="outline"
+                onClick={handleSendWhatsApp}
+                disabled={sendingWhatsapp}
+                className="gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              >
+                {sentSuccess ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    Sent to WhatsApp!
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className={`w-4 h-4 text-emerald-600 ${sendingWhatsapp ? 'animate-spin' : ''}`} />
+                    {sendingWhatsapp ? 'Sending PDF...' : 'Send WhatsApp PDF'}
+                  </>
+                )}
+              </Button>
               <Button variant="outline" onClick={handlePrint} className="gap-2">
                 <Printer className="w-4 h-4" />
                 Print / PDF

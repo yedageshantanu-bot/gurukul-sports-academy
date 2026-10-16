@@ -22,14 +22,14 @@
     --brand-orange: #F97316;
     --brand-orange-hover: #EA580C;
     --brand-orange-light: rgba(249, 115, 22, 0.12);
-    --state-success: #22C55E;
-    --state-success-light: rgba(34, 197, 94, 0.12);
-    --state-warning: #F59E0B;
-    --state-warning-light: rgba(245, 158, 11, 0.12);
-    --state-danger: #EF4444;
-    --state-danger-light: rgba(239, 68, 68, 0.12);
-    --state-info: #38BDF8;
-    --state-info-light: rgba(56, 189, 248, 0.12);
+    --state-success: #16A34A;
+    --state-success-light: rgba(22, 163, 74, 0.12);
+    --state-warning: #D97706;
+    --state-warning-light: rgba(217, 119, 6, 0.12);
+    --state-danger: #DC2626;
+    --state-danger-light: rgba(220, 38, 38, 0.12);
+    --state-info: #0284C7;
+    --state-info-light: rgba(2, 132, 199, 0.12);
 
     --radius-xs: 4px;
     --radius-sm: 8px;
@@ -41,6 +41,34 @@
     --sidebar-width: 256px;
     --header-height: 68px;
 
+    /* Faint Mode Surfaces & Typography (Soft subtle light aesthetic) */
+    --bg-app: #F8FAFC;
+    --bg-sidebar: #FFFFFF;
+    --bg-surface: #FFFFFF;
+    --bg-surface-elevated: #F1F5F9;
+    --bg-surface-hover: #E2E8F0;
+    --bg-input: #FFFFFF;
+    --border-subtle: #E2E8F0;
+    --border-medium: #CBD5E1;
+    --border-strong: #94A3B8;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  }
+
+  .dark {
+    color-scheme: dark;
+    --state-success: #22C55E;
+    --state-success-light: rgba(34, 197, 94, 0.12);
+    --state-warning: #F59E0B;
+    --state-warning-light: rgba(245, 158, 11, 0.12);
+    --state-danger: #EF4444;
+    --state-danger-light: rgba(239, 68, 68, 0.12);
+    --state-info: #38BDF8;
+    --state-info-light: rgba(56, 189, 248, 0.12);
+
+    /* Dark Mode Dojo Surfaces & Typography */
     --bg-app: #0F172A;
     --bg-sidebar: #0A1120;
     --bg-surface: #1E293B;
@@ -53,6 +81,7 @@
     --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
     --text-muted: #64748B;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 
   body {
@@ -62,31 +91,28 @@
     min-height: 100vh;
     font-size: 14px;
     line-height: 1.5;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   /* Universal high-contrast text selection for light and dark modes across all elements */
   ::selection {
-    background-color: #4f46e5 !important; /* Rich Indigo */
+    background-color: #f97316 !important; /* Orange accent */
     color: #ffffff !important;           /* Crisp Pure White */
   }
 
   ::-moz-selection {
-    background-color: #4f46e5 !important;
+    background-color: #f97316 !important;
     color: #ffffff !important;
   }
 
   .dark ::selection {
-    background-color: #6366f1 !important; /* Bright Indigo Accent */
+    background-color: #ea580c !important; /* Deep Orange Accent */
     color: #ffffff !important;           /* Crisp Pure White */
   }
 
   .dark ::-moz-selection {
-    background-color: #6366f1 !important;
+    background-color: #ea580c !important;
     color: #ffffff !important;
-  }
-
-  .dark {
-    color-scheme: dark;
   }
 }
 
@@ -348,7 +374,7 @@ select option:checked {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 22px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
 }
@@ -415,6 +441,367 @@ select option:checked {
 
 .crm-table tr:hover td {
   background-color: var(--bg-surface-elevated);
+}
+
+/* ==============================================================================
+   FAINT MODE ADAPTIVE STYLING (Soft, elegant light aesthetic with crisp contrast)
+   Enforces zero white-on-white text, clean subtle borders, and readable inputs
+   ============================================================================== */
+
+/* Card and Container Backgrounds in Faint Mode */
+html:not(.dark) .stitch-card,
+html.faint .stitch-card {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  color: #0F172A;
+}
+
+html:not(.dark) .kpi-card,
+html.faint .kpi-card {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+}
+
+html:not(.dark) .fee-stat-box,
+html.faint .fee-stat-box {
+  background-color: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+/* Table styling in Faint Mode */
+html:not(.dark) .crm-table th,
+html.faint .crm-table th {
+  background-color: #F1F5F9;
+  color: #475569;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+html:not(.dark) .crm-table td,
+html.faint .crm-table td {
+  color: #0F172A;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+html:not(.dark) .crm-table tr:hover td,
+html.faint .crm-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+/* Automated conversion of arbitrary dark classes in Faint Mode */
+html:not(.dark) [class*="bg-[#1E293B]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#1E293B]"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) [class*="bg-[#0F172A]"]:not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#0F172A]"]:not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #F8FAFC !important;
+}
+
+html:not(.dark) [class*="bg-[#0A1120]"]:not(header):not(aside):not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#0A1120]"]:not(header):not(aside):not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #F8FAFC !important;
+}
+
+html:not(.dark) [class*="bg-[#0b141a]"],
+html.faint [class*="bg-[#0b141a]"] {
+  background-color: #EFEAE2 !important;
+  border-color: #E2E8F0 !important;
+}
+
+html:not(.dark) [class*="bg-[#162235]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#162235]"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) [class*="bg-[#273549]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#273549]"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #F1F5F9 !important;
+}
+
+html:not(.dark) [class*="bg-[#334155]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-[#334155]"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+/* Automatic divider contrast in Faint Mode */
+html:not(.dark) [class*="divide-white/"],
+html.faint [class*="divide-white/"] {
+  border-color: #E2E8F0 !important;
+}
+
+/* Light/Dark system color scheme synchronization for input pickers */
+html:not(.dark) input,
+html.faint input {
+  color-scheme: light;
+}
+
+.dark input {
+  color-scheme: dark !important;
+}
+
+/* Prevent pale text on faint surfaces when elements lack dual dark: classes */
+html:not(.dark) [class*="text-slate-200"]:not([class*="dark:"]):not(button[class*="bg-"]):not(a[class*="bg-"]),
+html.faint [class*="text-slate-200"]:not([class*="dark:"]):not(button[class*="bg-"]):not(a[class*="bg-"]) {
+  color: #334155 !important;
+}
+
+html:not(.dark) [class*="text-slate-300"]:not([class*="dark:"]):not(button[class*="bg-"]):not(a[class*="bg-"]),
+html.faint [class*="text-slate-300"]:not([class*="dark:"]):not(button[class*="bg-"]):not(a[class*="bg-"]) {
+  color: #475569 !important;
+}
+
+/* Gradients that fade from dark to dark become clean faint surfaces */
+html:not(.dark) [class*="from-slate-900"]:not(.preserve-dark):not(.preserve-dark *),
+html:not(.dark) [class*="from-[#0F172A]"]:not(.preserve-dark):not(.preserve-dark *),
+html:not(.dark) [class*="from-[#0A1120]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="from-slate-900"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="from-[#0F172A]"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="from-[#0A1120]"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-image: none !important;
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important;
+}
+
+html:not(.dark) [class*="bg-black/"]:not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-black/"]:not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Inner dark slate boxes inside cards become clean faint surfaces */
+html:not(.dark) [class*="bg-slate-900/"]:not([role="tooltip"]):not([class*="group-hover"]):not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *),
+html.faint [class*="bg-slate-900/"]:not([role="tooltip"]):not([class*="group-hover"]):not([class*="dark:"]):not(.preserve-dark):not(.preserve-dark *) {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Border subtle & medium conversions in Faint Mode */
+html:not(.dark) [class*="border-white/"]:not(button):not(button *):not(a):not(a *),
+html.faint [class*="border-white/"]:not(button):not(button *):not(a):not(a *) {
+  border-color: #E2E8F0 !important;
+}
+
+/* Preserve Dark Mode sections (e.g. Martial Arts Belt Syllabus Tree, Dojo Cards, Code Terminals) */
+.preserve-dark,
+.preserve-dark * {
+  /* Keeps authentic dark aesthetic in both faint and dark mode */
+}
+html:not(.dark) .preserve-dark,
+html.faint .preserve-dark {
+  background-color: #0A1120 !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+html:not(.dark) .preserve-dark [class*="bg-slate-900"],
+html.faint .preserve-dark [class*="bg-slate-900"] {
+  background-color: #162235 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F8FAFC !important;
+}
+html:not(.dark) .preserve-dark h1,
+html:not(.dark) .preserve-dark h2,
+html:not(.dark) .preserve-dark h3,
+html:not(.dark) .preserve-dark h4,
+html:not(.dark) .preserve-dark .text-white,
+html.faint .preserve-dark h1,
+html.faint .preserve-dark h2,
+html.faint .preserve-dark h3,
+html.faint .preserve-dark h4,
+html.faint .preserve-dark .text-white {
+  color: #FFFFFF !important;
+}
+html:not(.dark) .preserve-dark .text-slate-400,
+html.faint .preserve-dark .text-slate-400 {
+  color: #94A3B8 !important;
+}
+html:not(.dark) .preserve-dark .text-slate-300,
+html.faint .preserve-dark .text-slate-300 {
+  color: #CBD5E1 !important;
+}
+
+/* Headings and primary text in Faint Mode (deep crisp slate for high readability) */
+html:not(.dark) h1.text-white:not(.preserve-dark *),
+html:not(.dark) h2.text-white:not(.preserve-dark *),
+html:not(.dark) h3.text-white:not(.preserve-dark *),
+html:not(.dark) h4.text-white:not(.preserve-dark *),
+html:not(.dark) h5.text-white:not(.preserve-dark *),
+html:not(.dark) h6.text-white:not(.preserve-dark *),
+html:not(.dark) p.text-white:not(.preserve-dark *),
+html:not(.dark) strong.text-white:not(.preserve-dark *),
+html:not(.dark) b.text-white:not(.preserve-dark *),
+html:not(.dark) span.text-white:not(button *):not(a *):not([class*="bg-"]):not([class*="badge"]):not(.preserve-dark *),
+html:not(.dark) td.text-white:not(.preserve-dark *),
+html:not(.dark) th.text-white:not(.preserve-dark *),
+html:not(.dark) label.text-white:not(.preserve-dark *),
+html:not(.dark) div.text-white:not([class*="bg-"]):not(button *):not(a *):not(.preserve-dark *),
+html.faint h1.text-white:not(.preserve-dark *),
+html.faint h2.text-white:not(.preserve-dark *),
+html.faint h3.text-white:not(.preserve-dark *),
+html.faint h4.text-white:not(.preserve-dark *),
+html.faint h5.text-white:not(.preserve-dark *),
+html.faint h6.text-white:not(.preserve-dark *),
+html.faint p.text-white:not(.preserve-dark *),
+html.faint strong.text-white:not(.preserve-dark *),
+html.faint b.text-white:not(.preserve-dark *),
+html.faint span.text-white:not(button *):not(a *):not([class*="bg-"]):not([class*="badge"]):not(.preserve-dark *),
+html.faint td.text-white:not(.preserve-dark *),
+html.faint th.text-white:not(.preserve-dark *),
+html.faint label.text-white:not(.preserve-dark *),
+html.faint div.text-white:not([class*="bg-"]):not(button *):not(a *):not(.preserve-dark *) {
+  color: #0F172A !important;
+}
+
+/* Preserve bright crisp white text ONLY on intentionally colored buttons, links, banners, and badges */
+html:not(.dark) [class*="bg-orange"] .text-white,
+html:not(.dark) [class*="bg-orange"] text-white,
+html:not(.dark) [class*="bg-[#F97316]"] .text-white,
+html:not(.dark) [class*="bg-[#F97316]"] text-white,
+html:not(.dark) [class*="bg-emerald"] .text-white,
+html:not(.dark) [class*="bg-emerald"] text-white,
+html:not(.dark) [class*="bg-rose"] .text-white,
+html:not(.dark) [class*="bg-rose"] text-white,
+html:not(.dark) [class*="bg-indigo"] .text-white,
+html:not(.dark) [class*="bg-indigo"] text-white,
+html:not(.dark) [class*="bg-purple"] .text-white,
+html:not(.dark) [class*="bg-purple"] text-white,
+html:not(.dark) [class*="bg-blue"] .text-white,
+html:not(.dark) [class*="bg-blue"] text-white,
+html:not(.dark) [class*="bg-amber-500"] .text-white,
+html:not(.dark) [class*="bg-amber-600"] .text-white,
+html:not(.dark) [class*="bg-[#005c4b]"],
+html:not(.dark) [class*="bg-[#005c4b]"] *,
+html.faint [class*="bg-orange"] .text-white,
+html.faint [class*="bg-[#F97316]"] .text-white,
+html.faint [class*="bg-emerald"] .text-white,
+html.faint [class*="bg-emerald"] text-white,
+html.faint [class*="bg-rose"] .text-white,
+html.faint [class*="bg-rose"] text-white,
+html.faint [class*="bg-indigo"] .text-white,
+html.faint [class*="bg-indigo"] text-white,
+html.faint [class*="bg-purple"] .text-white,
+html.faint [class*="bg-purple"] text-white,
+html.faint [class*="bg-blue"] .text-white,
+html.faint [class*="bg-blue"] text-white,
+html.faint [class*="bg-amber-500"] .text-white,
+html.faint [class*="bg-amber-600"] .text-white,
+html.faint [class*="bg-[#005c4b]"],
+html.faint [class*="bg-[#005c4b]"] * {
+  color: #FFFFFF !important;
+}
+
+/* Form controls in Faint Mode */
+html:not(.dark) input[class*="bg-[#"],
+html:not(.dark) select[class*="bg-[#"],
+html:not(.dark) textarea[class*="bg-[#"],
+html:not(.dark) input[class*="bg-slate-900"],
+html:not(.dark) select[class*="bg-slate-900"],
+html:not(.dark) textarea[class*="bg-slate-900"],
+html.faint input[class*="bg-[#"],
+html.faint select[class*="bg-[#"],
+html.faint textarea[class*="bg-[#"],
+html.faint input[class*="bg-slate-900"],
+html.faint select[class*="bg-slate-900"],
+html.faint textarea[class*="bg-slate-900"] {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder,
+html.faint input::placeholder,
+html.faint textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Secondary Quick Action Buttons in Faint Mode */
+html:not(.dark) a[class*="bg-[#1E293B]"],
+html:not(.dark) button[class*="bg-[#1E293B]"],
+html:not(.dark) a[class*="bg-slate-800"],
+html:not(.dark) button[class*="bg-slate-800"],
+html.faint a[class*="bg-[#1E293B]"],
+html.faint button[class*="bg-[#1E293B]"],
+html.faint a[class*="bg-slate-800"],
+html.faint button[class*="bg-slate-800"] {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) a[class*="bg-[#1E293B]"]:hover,
+html:not(.dark) button[class*="bg-[#1E293B]"]:hover,
+html:not(.dark) a[class*="bg-slate-800"]:hover,
+html:not(.dark) button[class*="bg-slate-800"]:hover,
+html.faint a[class*="bg-[#1E293B]"]:hover,
+html.faint button[class*="bg-[#1E293B]"]:hover,
+html.faint a[class*="bg-slate-800"]:hover,
+html.faint button[class*="bg-slate-800"]:hover {
+  background-color: #FFF7ED !important;
+  border-color: #F97316 !important;
+  color: #EA580C !important;
+}
+
+/* Action button inside tables in Faint Mode */
+html:not(.dark) .crm-table button[class*="bg-[#273549]"],
+html.faint .crm-table button[class*="bg-[#273549]"] {
+  background-color: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .crm-table button[class*="bg-[#273549]"]:hover,
+html.faint .crm-table button[class*="bg-[#273549]"]:hover {
+  background-color: #DCFCE7 !important;
+  border-color: #22C55E !important;
+  color: #15803D !important;
+}
+
+/* Sub-labels and muted texts in Faint Mode */
+html:not(.dark) .kpi-label,
+html.faint .kpi-label {
+  color: #475569;
+}
+
+html:not(.dark) .kpi-sublabel,
+html.faint .kpi-sublabel {
+  color: #64748B;
+}
+
+/* Inactive tabs hover contrast preservation in Faint Mode */
+html:not(.dark) [class*="hover:text-white"]:not(button[class*="bg-"]):not(a[class*="bg-"]):hover,
+html.faint [class*="hover:text-white"]:not(button[class*="bg-"]):not(a[class*="bg-"]):hover {
+  color: #0F172A !important;
+}
+
+html:not(.dark) [class*="hover:bg-white/"]:not(button[class*="bg-"]):not(a[class*="bg-"]):hover,
+html.faint [class*="hover:bg-white/"]:not(button[class*="bg-"]):not(a[class*="bg-"]):hover {
+  background-color: #F1F5F9 !important;
+}
+
+/* Modals backdrop in Faint Mode */
+html:not(.dark) [class*="bg-slate-950/60"],
+html:not(.dark) [class*="bg-slate-900/60"],
+html.faint [class*="bg-slate-950/60"],
+html.faint [class*="bg-slate-900/60"] {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
+
+/* Ensure tooltips remain dark and legible */
+.group-hover\:opacity-100 [class*="bg-slate-900"],
+[role="tooltip"] {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  border-color: #334155 !important;
+}
+
+.group-hover\:opacity-100 .text-white {
+  color: #FFFFFF !important;
 }
 
 /* ==============================================================================

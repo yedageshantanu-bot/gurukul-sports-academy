@@ -580,10 +580,10 @@ export const StudentsPage: React.FC = () => {
       {/* Page Header - Stitch Style */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Students Directory
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Manage active enrollments, batch rosters, parent WhatsApp contacts, and fee profiles.
           </p>
         </div>
@@ -600,43 +600,43 @@ export const StudentsPage: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="kpi-card">
           <div className="kpi-top">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Enrolled</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">All Batches</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Enrolled</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">All Batches</span>
           </div>
           <div className="kpi-value">{totalCount}</div>
-          <div className="kpi-sublabel text-slate-400">Registered academy athletes</div>
+          <div className="kpi-sublabel text-slate-500 dark:text-slate-400">Registered academy athletes</div>
         </div>
 
         <div className="kpi-card">
           <div className="kpi-top">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Status</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">On Duty</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Active Status</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">On Duty</span>
           </div>
-          <div className="kpi-value text-emerald-400">{activeCount}</div>
-          <div className="kpi-sublabel text-slate-400">Actively attending training</div>
+          <div className="kpi-value text-emerald-600 dark:text-emerald-400">{activeCount}</div>
+          <div className="kpi-sublabel text-slate-500 dark:text-slate-400">Actively attending training</div>
         </div>
 
         <div className="kpi-card">
           <div className="kpi-top">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fee Compliant</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">Current Cycle</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fee Compliant</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">Current Cycle</span>
           </div>
-          <div className="kpi-value text-sky-400">{feeCompliantCount}%</div>
-          <div className="kpi-sublabel text-slate-400">Cleared monthly subscriptions</div>
+          <div className="kpi-value text-sky-600 dark:text-sky-400">{feeCompliantCount}%</div>
+          <div className="kpi-sublabel text-slate-500 dark:text-slate-400">Cleared monthly subscriptions</div>
         </div>
 
         <div className="kpi-card">
           <div className="kpi-top">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fee Pending</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">Action Required</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fee Pending</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Action Required</span>
           </div>
-          <div className="kpi-value text-amber-400">{pendingFeeCount}</div>
-          <div className="kpi-sublabel text-slate-400">Athletes requiring follow-up</div>
+          <div className="kpi-value text-amber-600 dark:text-amber-400">{pendingFeeCount}</div>
+          <div className="kpi-sublabel text-slate-500 dark:text-slate-400">Athletes requiring follow-up</div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 bg-[#1E293B] border border-white/10 rounded-xl">
+      <div className="p-4 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs">
         <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -645,14 +645,14 @@ export const StudentsPage: React.FC = () => {
               placeholder="Search by student name, parent, phone, batch, sport, or belt..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-3.5 py-2 text-sm border border-white/10 rounded-lg focus:outline-none focus:border-[#F97316] bg-[#0F172A] text-white placeholder:text-slate-400 transition-all"
+              className="w-full pl-10 pr-3.5 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:border-[#F97316] bg-slate-50 dark:bg-[#0F172A] text-slate-900 dark:text-white placeholder:text-slate-400 transition-all"
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-36 text-xs h-9 bg-[#0F172A] border-white/10 text-white"
+              className="w-full sm:w-36 text-xs h-9 bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">Active Only</option>
@@ -660,7 +660,7 @@ export const StudentsPage: React.FC = () => {
             </Select>
             <button
               type="submit"
-              className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#273549] hover:bg-[#334155] border border-white/10 text-white transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-[#273549] hover:bg-slate-200 dark:hover:bg-[#334155] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white transition-colors cursor-pointer"
             >
               Filter
             </button>
@@ -681,7 +681,7 @@ export const StudentsPage: React.FC = () => {
           accentColor="indigo"
         />
       ) : (
-        <div className="bg-[#1E293B] border border-white/10 rounded-xl overflow-hidden shadow-lg">
+        <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm dark:shadow-lg">
           <div className="overflow-x-auto">
             <table className="crm-table">
               <thead>

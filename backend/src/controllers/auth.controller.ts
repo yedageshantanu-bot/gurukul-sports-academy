@@ -11,11 +11,29 @@ const passwordResetSchema = z.object({
   email: z.string().email('Please provide a valid email address.'),
 });
 
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required.'),
+});
+
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = loginSchema.parse(req.body);
       const result = await authService.login(validated);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = refreshSchema.parse(req.body);
+      const result = await authService.refresh(validated);
 
       res.status(200).json({
         success: true,

@@ -278,7 +278,7 @@ export class AnnouncementService {
       })
       .filter(Boolean) as any[];
 
-    const queuedItems = await queueService.enqueueBatchStaggered(items, 16000, startTimestamp);
+    const queuedItems = await queueService.enqueueBatchStaggered(items, 2800, startTimestamp);
 
     // If scheduled for immediately (now), trigger queue processor in background
     if (startTimestamp <= Date.now() + 30000) {

@@ -452,4 +452,123 @@ export class PdfReportService {
       }
     });
   }
+
+  /**
+   * Generates a modern branded A4 PDF receipt buffer for payment confirmations
+   */
+  static async generateReceiptPdf(data: {
+    receiptNumber: string;
+    studentName: string;
+    course?: string;
+    amount: number;
+    issuedAt: string;
+    paymentMode: string;
+    transactionRef?: string;
+    academyName?: string;
+    academyAddress?: string;
+    academyPhone?: string;
+    academyEmail?: string;
+  }): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ size: 'A4', margin: 40 });
+        const chunks: Buffer[] = [];
+
+        doc.on('data', (chunk) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', (err) => reject(err));
+
+        const contentWidth = 515;
+
+        // Header Background
+        doc.rect(40, 40, contentWidth, 90).fill('#0F172A');
+
+        // Academy Branding
+        doc
+          .fillColor('#F8FAFC')
+          .fontSize(18)
+          .font('Helvetica-Bold')
+          .text(data.academyName || 'Gurukul Sports Academy', 60, 58);
+
+        doc
+          .fillColor('#94A3B8')
+          .fontSize(9)
+          .font('Helvetica')
+          .text(data.academyAddress || 'Main Sports Campus', 60, 80)
+          .text(`${data.academyEmail || 'contact@academy.com'} • ${data.academyPhone || '+91 94212 48210'}`, 60, 94);
+
+        // Receipt Pill
+        doc.roundedRect(380, 55, 155, 26, 6).fill('#059669');
+        doc
+          .fillColor('#FFFFFF')
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text('PAID IN FULL', 380, 63, { width: 155, align: 'center' });
+
+        doc
+          .fillColor('#E2E8F0')
+          .fontSize(9)
+          .font('Helvetica')
+          .text(`Receipt #${data.receiptNumber}`, 380, 90, { width: 155, align: 'center' });
+
+        // Body Card
+        const cardY = 150;
+        doc.roundedRect(40, cardY, contentWidth, 260, 10).fillAndStroke('#FFFFFF', '#E2E8F0');
+
+        doc
+          .fillColor('#1E293B')
+          .fontSize(13)
+          .font('Helvetica-Bold')
+          .text('Official Payment Receipt Confirmation', 60, cardY + 20);
+
+        doc.rect(60, cardY + 42, contentWidth - 40, 1).fill('#F1F5F9');
+
+        const rows = [
+          ['Receipt Number', `#${data.receiptNumber}`],
+          ['Payment Date', new Date(data.issuedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })],
+          ['Student Name', data.studentName],
+          ['Discipline / Course', data.course || 'Sports & Martial Arts Training'],
+          ['Payment Method', data.paymentMode || 'UPI / Direct Online'],
+          ['Transaction Reference', data.transactionRef || 'VERIFIED-SETTLEMENT'],
+        ];
+
+        let rowY = cardY + 56;
+        for (const [label, val] of rows) {
+          doc.fillColor('#64748B').fontSize(10).font('Helvetica').text(label, 60, rowY);
+          doc.fillColor('#0F172A').fontSize(10).font('Helvetica-Bold').text(val, 240, rowY, { width: 290 });
+          rowY += 26;
+        }
+
+        // Amount Box
+        const amountY = cardY + 215;
+        doc.roundedRect(55, amountY, contentWidth - 30, 36, 6).fill('#F0FDF4');
+        doc.fillColor('#166534').fontSize(11).font('Helvetica-Bold').text('Total Amount Settled:', 70, amountY + 12);
+        doc.fillColor('#15803D').fontSize(14).font('Helvetica-Bold').text(`Rs. ${Number(data.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 350, amountY + 10, { width: 185, align: 'right' });
+
+        // Verification Footer
+        const footerY = 720;
+        doc.rect(40, footerY, contentWidth, 0.5).fill('#CBD5E1');
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .fillColor('#64748B')
+          .text(
+            'Official digitally verified payment confirmation issued by Academy Accounts Department.',
+            40,
+            footerY + 15,
+            { align: 'center', width: contentWidth }
+          )
+          .text(
+            'Thank you for your timely payment and dedication to athletic excellence.',
+            40,
+            footerY + 30,
+            { align: 'center', width: contentWidth }
+          );
+
+        doc.end();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
 }
