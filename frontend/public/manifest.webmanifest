@@ -1,26 +1,55 @@
 {
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
   "name": "Gurukul Sports Academy",
   "short_name": "Gurukul Sports",
   "description": "Gurukul Sports & Martial Arts Academy - Student & Parent Portal",
-  "start_url": "/login",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0F172A",
   "theme_color": "#0ea5e9",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "categories": ["education", "sports", "lifestyle"],
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1024x912",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Student Attendance",
+      "short_name": "Attendance",
+      "url": "/student/attendance",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fee Records",
+      "short_name": "Fees",
+      "url": "/student/fees",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

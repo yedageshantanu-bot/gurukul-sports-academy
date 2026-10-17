@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Gurukul Sports Academy — CRM & Academy Management</title>
     <!-- PWA Capabilities -->
@@ -12,11 +13,44 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Gurukul Sports" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+    
+    <!-- Early PWA Prompt Capture: Register listener before any component renders -->
     <script>
+      window.__pwaDeferredPrompt = null;
+      window.__pwaPromptFired = false;
+      window.__pwaIsInstalled = false;
+
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+        window.__pwaIsInstalled = true;
+      }
+
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__pwaDeferredPrompt = e;
+        window.__pwaPromptFired = true;
+        console.log('[PWA] Early beforeinstallprompt captured successfully.');
+        window.dispatchEvent(new CustomEvent('pwa-deferred-prompt-ready', { detail: e }));
+      });
+
+      window.addEventListener('appinstalled', function() {
+        window.__pwaDeferredPrompt = null;
+        window.__pwaIsInstalled = true;
+        console.log('[PWA] App installation completed.');
+        window.dispatchEvent(new CustomEvent('pwa-app-installed'));
+      });
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js').catch(function() {});
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[PWA] ServiceWorker active with scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[PWA] ServiceWorker registration notice:', err);
+            });
         });
       }
     </script>
