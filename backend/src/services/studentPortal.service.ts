@@ -577,6 +577,118 @@ export class StudentPortalService {
       receiptNumber: receipt.receipt_number,
     };
   }
+
+  /**
+   * Get Consolidated Student Notifications (Absences, Announcements, Fees, Attendance, Welcome)
+   */
+  async getStudentNotifications(studentId: string) {
+    const notifications: any[] = [];
+
+    // 1. Fetch Absences and Attendance
+    const { data: attendanceRecords } = await this.supabase
+      .from('attendance')
+      .select('id, date, status, batches(name, start_time, end_time)')
+      .eq('student_id', studentId)
+      .order('date', { ascending: false })
+      .limit(20);
+
+    (attendanceRecords || []).forEach((att: any) => {
+      const batchName = att.batches?.name || 'MMA & Combat Sparring (Kalarippayattu Squad)';
+      const batchTime = att.batches?.start_time ? ` (${att.batches.start_time.slice(0, 5)})` : '';
+      const dateFormatted = new Date(att.date).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+
+      if (att.status === 'ABSENT') {
+        notifications.push({
+          id: `att-absent-${att.id}`,
+          type: 'ABSENCE',
+          title: '⚠️ Unexcused Absence Alert',
+          message: `You were marked ABSENT on ${dateFormatted} in ${batchName}${batchTime}. Contact your Sensei if this was an excused absence.`,
+          date: att.date,
+          createdAt: new Date(att.date).toISOString(),
+          priority: 'HIGH',
+          actionUrl: '/student/attendance',
+          actionText: 'View Calendar',
+        });
+      } else if (att.status === 'PRESENT') {
+        notifications.push({
+          id: `att-present-${att.id}`,
+          type: 'ATTENDANCE',
+          title: '🥋 Attendance Marked: Present',
+          message: `Attendance verified as PRESENT for ${batchName} on ${dateFormatted}. Streak active!`,
+          date: att.date,
+          createdAt: new Date(att.date).toISOString(),
+          priority: 'NORMAL',
+          actionUrl: '/student/attendance',
+          actionText: 'View Details',
+        });
+      }
+    });
+
+    // 2. Fetch Receipts & Fees
+    const { data: receipts } = await this.supabase
+      .from('receipts')
+      .select('id, receipt_number, amount, receipt_date, created_at')
+      .eq('student_id', studentId)
+      .order('receipt_date', { ascending: false })
+      .limit(5);
+
+    (receipts || []).forEach((r: any) => {
+      const dateFormatted = new Date(r.receipt_date || r.created_at).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      notifications.push({
+        id: `receipt-${r.id}`,
+        type: 'FEES',
+        title: '🧾 Official Fee Receipt Issued',
+        message: `Verified Receipt #${r.receipt_number} for ₹${r.amount} is generated for ${dateFormatted}. Tap to download your official PDF.`,
+        date: r.receipt_date || r.created_at,
+        createdAt: r.created_at || new Date().toISOString(),
+        priority: 'NORMAL',
+        actionUrl: `/student/fees`,
+        actionText: 'Download Receipt',
+      });
+    });
+
+    // 3. Fetch Announcements
+    try {
+      const announcements = await this.getStudentAnnouncements(studentId);
+      (announcements || []).slice(0, 10).forEach((ann: any) => {
+        notifications.push({
+          id: `ann-${ann.id}`,
+          type: 'ANNOUNCEMENT',
+          title: `📢 ${ann.title}`,
+          message: ann.message,
+          date: ann.created_at,
+          createdAt: ann.created_at,
+          priority: ann.priority || 'NORMAL',
+          actionUrl: '/student/announcements',
+          actionText: 'Read Notice',
+        });
+      });
+    } catch {}
+
+    // 4. Welcome System Notification
+    notifications.push({
+      id: `welcome-${studentId}`,
+      type: 'SYSTEM',
+      title: '🥋 Welcome to Gurukul Sports Academy',
+      message: 'Your official student mobile portal is active! Access your attendance calendar, fee receipts, and training schedules anytime.',
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+      priority: 'NORMAL',
+      actionUrl: '/student/dashboard',
+      actionText: 'Explore Dashboard',
+    });
+
+    // Sort by createdAt descending
+    return notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
 }
 
 export const studentPortalService = new StudentPortalService();

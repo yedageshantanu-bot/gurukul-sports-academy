@@ -88,10 +88,9 @@ const AdminLayoutWrapper: React.FC = () => {
 
   const isDemoHost = typeof window !== 'undefined' && (
     window.location.hostname.includes('effort-career') ||
-    window.location.hostname.includes('demo') ||
     window.location.port === '3005'
   );
-  const isDemo = isDemoHost || role === 'DEMO_ADMIN' || profile?.role === 'DEMO_ADMIN' || profile?.isTrial;
+  const isDemo = isDemoHost || role === 'DEMO_ADMIN' || profile?.role === 'DEMO_ADMIN';
   const effectiveRole = (isDemo ? 'DEMO_ADMIN' : 'ADMIN') as 'ADMIN' | 'DEMO_ADMIN';
   const displayLogo = isDemo ? '/effort-career-logo.png' : (logoUrl && !logoUrl.includes('effort-career') ? logoUrl : '/logo.png');
   const displayName = isDemo ? 'Effort Career Classes' : academyName;

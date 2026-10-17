@@ -19,6 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getApiUrl } from '../../lib/api';
 import { InstallPwaPrompt } from '../../components/pwa/InstallPwaPrompt';
 import { NotificationPromptCard } from '../../components/notifications/NotificationPromptCard';
+import { AbsenceWarningBanner } from '../../components/notifications/AbsenceWarningBanner';
 
 export const StudentDashboard: React.FC = () => {
   const { token, profile } = useAuth();
@@ -83,10 +84,18 @@ export const StudentDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* 1. Proactive Push Notification Permission Request Card */}
+      {/* 1. Absence Alert Red Warning Banner (shown when absences exist) */}
+      <AbsenceWarningBanner
+        records={attendanceData?.records || []}
+        absentCount={attendanceData?.absentCount || 0}
+        coachPhone="9404849500"
+        studentName={student?.name || profile?.fullName || 'Student'}
+      />
+
+      {/* 2. Proactive Push Notification Permission Request Card */}
       <NotificationPromptCard />
 
-      {/* 2. PWA Native Install Prompt Banner */}
+      {/* 3. PWA Native Install Prompt Banner */}
       <InstallPwaPrompt />
 
       {/* 3. Athlete Welcome Profile Card */}

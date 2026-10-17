@@ -286,6 +286,60 @@ export class StudentPortalController {
       next(err);
     }
   }
+
+  /**
+   * Get Student In-App Notifications
+   * GET /api/student-portal/notifications
+   */
+  async getNotifications(req: Request, res: Response, next: NextFunction) {
+    try {
+      const studentId = req.user?.studentId;
+      if (!studentId) {
+        throw new AppError('Student context required.', 401);
+      }
+
+      const notifications = await studentPortalService.getStudentNotifications(studentId);
+      return res.status(200).json({
+        success: true,
+        data: notifications,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Send In-App & Web Push Notification to a Student
+   * POST /api/student-portal/send-notification
+   */
+  async sendNotification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { title, message, url, studentId } = req.body;
+      const targetUserId = req.user?.userId;
+
+      if (!title || !message) {
+        throw new AppError('Title and message are required.', 400);
+      }
+
+      let pushResult = { sentCount: 0, failedCount: 0 };
+      if (targetUserId) {
+        const { webPushService } = await import('../services/webpush.service.js');
+        pushResult = await webPushService.sendNotificationToUser(targetUserId, {
+          title,
+          body: message,
+          url: url || '/student/dashboard',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Notification processed successfully!',
+        pushResult,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const studentPortalController = new StudentPortalController();

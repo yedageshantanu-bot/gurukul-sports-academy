@@ -104,7 +104,11 @@ export const Login: React.FC = () => {
       if (loginType === 'STUDENT') {
         const cleanMobile = studentMobile.trim();
         await studentLogin(cleanMobile, password);
-        navigate('/student/dashboard', { replace: true });
+        if (fromDestination && fromDestination !== '/login' && fromDestination.startsWith('/student')) {
+          navigate(fromDestination, { replace: true });
+        } else {
+          navigate('/student/dashboard', { replace: true });
+        }
       } else {
         const result = await login(email.trim(), password);
         if (fromDestination && fromDestination !== '/login') {

@@ -76,6 +76,19 @@ router.post(
   (req, res, next) => studentPortalController.testPush(req, res, next)
 );
 
+router.get(
+  '/notifications',
+  verifyAuth,
+  requireRole(ROLES.STUDENT),
+  (req, res, next) => studentPortalController.getNotifications(req, res, next)
+);
+
+router.post(
+  '/send-notification',
+  verifyAuth,
+  (req, res, next) => studentPortalController.sendNotification(req, res, next)
+);
+
 // ==========================================
 // ADMIN ONBOARDING & CHASER CONTROLS
 // ==========================================

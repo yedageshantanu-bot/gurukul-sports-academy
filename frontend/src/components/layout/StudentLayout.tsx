@@ -1,15 +1,18 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, CreditCard, Megaphone, Settings, LogOut, Award } from 'lucide-react';
+import { Home, Calendar, CreditCard, Megaphone, Settings, LogOut, Award, Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { InstallPwaPrompt } from '../pwa/InstallPwaPrompt';
 import { TableSkeleton } from '../common/SkeletonLoader';
+import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
 
 export const StudentLayout: React.FC = () => {
   const { profile, logout } = useAuth();
   const { academyName, logoUrl } = useSettings();
   const navigate = useNavigate();
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = async () => {
     await logout();
@@ -25,7 +28,7 @@ export const StudentLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 md:pb-6 selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-6 selection:bg-blue-500 selection:text-white">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -67,7 +70,22 @@ export const StudentLayout: React.FC = () => {
             })}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* Notification Center Bell Trigger */}
+            <button
+              onClick={() => setIsNotificationsOpen(true)}
+              className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              aria-label="Open notifications"
+              title="Notification Center"
+            >
+              <Bell className="w-5 h-5 text-slate-200" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-rose-950/50 border border-slate-900 animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
             <div className="hidden sm:block">
               <InstallPwaPrompt compact />
             </div>
@@ -95,8 +113,15 @@ export const StudentLayout: React.FC = () => {
         </Suspense>
       </main>
 
+      {/* Notification Center Modal / Drawer */}
+      <NotificationCenterModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onUnreadCountChange={setUnreadCount}
+      />
+
       {/* Mobile Bottom Navigation Bar (Persistent 5-Item Native App Navigation) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 px-2 py-2 md:hidden shadow-2xl">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] md:hidden shadow-2xl">
         <div className="max-w-md mx-auto grid grid-cols-5 gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;

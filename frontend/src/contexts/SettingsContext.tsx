@@ -58,10 +58,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const isDemoHost = typeof window !== 'undefined' && (
     window.location.hostname.includes('effort-career') ||
-    window.location.hostname.includes('demo') ||
     window.location.port === '3005'
   );
-  const isDemo = isDemoHost || role === 'DEMO_ADMIN' || user?.isTrial || user?.role === 'DEMO_ADMIN';
+  const isDemo = isDemoHost || role === 'DEMO_ADMIN' || user?.role === 'DEMO_ADMIN';
   let academyName = 'Gurukul Sports Academy';
   if (isDemo) {
     academyName = 'Effort Career Classes';

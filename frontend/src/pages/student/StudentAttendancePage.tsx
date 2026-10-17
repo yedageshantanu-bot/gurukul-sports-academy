@@ -12,9 +12,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getApiUrl } from '../../lib/api';
+import { AbsenceWarningBanner } from '../../components/notifications/AbsenceWarningBanner';
 
 export const StudentAttendancePage: React.FC = () => {
-  const { token } = useAuth();
+  const { token, profile } = useAuth();
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // 1-indexed
@@ -126,6 +127,14 @@ export const StudentAttendancePage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Absence Warning Banner */}
+      <AbsenceWarningBanner
+        records={data?.records || []}
+        absentCount={data?.absentCount || 0}
+        coachPhone="9404849500"
+        studentName={profile?.fullName || 'Student'}
+      />
 
       {/* KPI Stats Comparison Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
