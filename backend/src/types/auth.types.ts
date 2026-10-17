@@ -5,6 +5,7 @@ export interface AuthenticatedUser {
   profileId: string;
   role: Role;
   teacherId?: string;
+  studentId?: string;
   email: string;
   fullName: string;
   isTrial?: boolean;

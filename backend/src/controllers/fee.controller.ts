@@ -125,6 +125,8 @@ export class FeeController {
         status: req.query.status as StudentFeeStatus | undefined,
         billingPeriod: req.query.billingPeriod as string | undefined,
         search: req.query.search as string | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+        page: req.query.page ? parseInt(req.query.page as string, 10) : undefined,
       };
 
       const fees = await feeService.listStudentFees(filters);

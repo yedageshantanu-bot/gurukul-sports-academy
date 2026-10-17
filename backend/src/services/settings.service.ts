@@ -5,12 +5,27 @@ import { AuthenticatedUser } from '../types/auth.types.js';
 import { env } from '../config/env.js';
 import { requestContext } from '../config/requestContext.js';
 import { ROLES } from '../constants/index.js';
+import { memoryCache } from '../utils/cache.js';
 
 export class SettingsService {
   // ============================================================================
   // 1. GET ACADEMY SETTINGS
   // ============================================================================
   async getSettings(requestingUser?: AuthenticatedUser): Promise<AcademySettingsResponse> {
+    const isDemo =
+      env.DEMO_MODE ||
+      env.APP_ENV === 'demo' ||
+      requestingUser?.role === ROLES.DEMO_ADMIN ||
+      requestingUser?.isTrial ||
+      requestContext.getStore()?.user?.role === ROLES.DEMO_ADMIN ||
+      requestContext.getStore()?.user?.isTrial;
+
+    const cacheKey = `settings:${isDemo ? 'demo' : 'public'}`;
+    const cached = memoryCache.get<AcademySettingsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const db = getDb(requestingUser);
     const { data, error } = await db
       .from('academy_settings')
@@ -62,9 +77,11 @@ export class SettingsService {
         throw new AppError(`Failed to initialize academy settings: ${seedError?.message}`, 500);
       }
 
+      memoryCache.set(cacheKey, seeded, 5 * 60 * 1000, ['settings']);
       return seeded;
     }
 
+    memoryCache.set(cacheKey, data, 5 * 60 * 1000, ['settings']);
     return data;
   }
 
@@ -99,6 +116,9 @@ export class SettingsService {
     if (error || !updated) {
       throw new AppError(`Failed to update academy settings: ${error?.message}`, 500);
     }
+
+    // Invalidate cached settings
+    memoryCache.invalidateTag('settings');
 
     return updated;
   }

@@ -80,9 +80,27 @@ export class WhatsAppAutomationService {
   // ============================================================================
   renderTemplate(templateBody: string, variables: Record<string, string>): string {
     let rendered = templateBody;
+    const expandedVars: Record<string, string> = {};
+
     for (const [key, value] of Object.entries(variables)) {
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      rendered = rendered.replace(regex, value !== undefined && value !== null ? String(value) : '');
+      const valStr = value !== undefined && value !== null ? String(value) : '';
+      expandedVars[key] = valStr;
+
+      // CamelCase conversion: student_name -> studentName
+      const camel = key.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+      expandedVars[camel] = valStr;
+
+      // SnakeCase conversion: studentName -> student_name
+      const snake = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      expandedVars[snake] = valStr;
+
+      // Lowercase alphanumeric: studentname
+      expandedVars[key.toLowerCase().replace(/_/g, '')] = valStr;
+    }
+
+    for (const [key, value] of Object.entries(expandedVars)) {
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
+      rendered = rendered.replace(regex, value);
     }
     return rendered;
   }
@@ -1387,6 +1405,188 @@ export class WhatsAppAutomationService {
       },
     };
   }
+
+  /**
+   * Dispatch Student Welcome Invite via WhatsApp with PWA Portal Link & Credentials
+   */
+  async triggerStudentInvite(studentId: string, customPin?: string) {
+    const { studentPortalService } = await import('../studentPortal.service.js');
+    const authInfo = await studentPortalService.ensureStudentUser(studentId, customPin);
+
+    const { data: student } = await this.supabase
+      .from('students')
+      .select('*')
+      .eq('id', studentId)
+      .single();
+
+    if (!student) {
+      throw new AppError('Student not found', 404);
+    }
+
+    const rawPhone = student.parent_whatsapp || student.student_mobile || '';
+    const recipientPhone = normalizePhoneNumber(rawPhone) || rawPhone;
+    if (!recipientPhone) {
+      throw new AppError('Valid recipient mobile phone is required to send WhatsApp invite.', 400);
+    }
+
+    const academyName = await this.getAcademyName();
+    const portalUrl = 'https://gurukul-sports-academy.pages.dev/login';
+    const autoLoginLink = `${portalUrl}?phone=${encodeURIComponent(authInfo.phone)}&pin=${encodeURIComponent(authInfo.password)}&autologin=1`;
+
+    const messageBody = [
+      `🥋 *Welcome to ${academyName}, ${student.name}!*`,
+      ``,
+      `Your official Student Mobile App is ready! You can now track your daily attendance, belt ranks, and fee records right on your phone:`,
+      ``,
+      `🚀 *Direct 1-Tap Auto-Login Link*:`,
+      `${autoLoginLink}`,
+      `_(Tap this link to open the app and log in automatically without typing password!)_`,
+      ``,
+      `📱 *Manual Login Credentials (if needed)*:`,
+      `• Mobile: *${authInfo.phone}*`,
+      `• Password: *${authInfo.password}*`,
+      `• App Portal: ${portalUrl}`,
+      ``,
+      `📲 *How to install on your phone home screen*:`,
+      `1. Open the direct login link above in Chrome or Safari.`,
+      `2. Click *"Add to Home Screen"* / *"Install App"* when prompted for 1-tap app access!`,
+      ``,
+      `- ${academyName} Administration`,
+    ].join('\n');
+
+    const provider = await whatsappProviderFactory.getProvider();
+    const sendResult = await provider.sendMessage({
+      to: recipientPhone,
+      body: messageBody,
+    });
+
+    await this.supabase.from('whatsapp_messages').insert({
+      student_id: student.id,
+      recipient_phone: recipientPhone,
+      message_body: messageBody,
+      event_type: 'STUDENT_INVITE',
+      status: sendResult.success ? 'SENT' : 'FAILED',
+      provider_name: provider.name,
+      provider_message_id: sendResult.messageId || null,
+      error_message: sendResult.errorMessage || null,
+      sent_at: sendResult.success ? new Date().toISOString() : null,
+      metadata: {
+        type: 'STUDENT_INVITE',
+        studentId: student.id,
+        phone: authInfo.phone,
+      },
+    });
+
+    const { data: uData } = await this.supabase.auth.admin.getUserById(authInfo.authUserId);
+    if (uData?.user) {
+      await this.supabase.auth.admin.updateUserById(authInfo.authUserId, {
+        user_metadata: {
+          ...uData.user.user_metadata,
+          portal_status: 'INVITED',
+          invite_sent_at: new Date().toISOString(),
+          reminder_count: 0,
+        },
+      });
+    }
+
+    return {
+      success: sendResult.success,
+      recipientPhone,
+      studentName: student.name,
+      authInfo,
+      message: sendResult.success
+        ? `WhatsApp invite dispatched to ${student.name} (${recipientPhone})!`
+        : `Failed to dispatch WhatsApp message: ${sendResult.errorMessage}`,
+    };
+  }
+
+  /**
+   * Run automated onboarding chaser: scans invited students who haven't logged in yet
+   */
+  async triggerStudentOnboardingChaser() {
+    const { data: usersData } = await this.supabase.auth.admin.listUsers();
+    const academyName = await this.getAcademyName();
+    const portalUrl = 'https://gurukul-sports-academy.pages.dev/login';
+
+    const provider = await whatsappProviderFactory.getProvider();
+    const reminded: any[] = [];
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    for (const u of usersData?.users || []) {
+      const meta = u.user_metadata || {};
+      if (meta.role !== ROLES.STUDENT) continue;
+      if (meta.last_login_at) continue;
+      if (!meta.invite_sent_at) continue;
+
+      const inviteTime = new Date(meta.invite_sent_at).getTime();
+      const lastReminderTime = meta.last_reminder_sent_at ? new Date(meta.last_reminder_sent_at).getTime() : inviteTime;
+      const reminderCount = Number(meta.reminder_count || 0);
+
+      if (reminderCount >= 3) continue;
+      if (now - lastReminderTime < ONE_DAY_MS) continue;
+
+      const phone = meta.phone;
+      const studentName = meta.student_name || 'Student';
+      const studentId = meta.student_id;
+      if (!phone) continue;
+
+      const recipientPhone = normalizePhoneNumber(phone) || phone;
+      const pin = meta.initial_pin || `Gurukul@${phone.slice(-4)}`;
+      const autoLoginLink = `${portalUrl}?phone=${encodeURIComponent(phone)}&pin=${encodeURIComponent(pin)}&autologin=1`;
+
+      const reminderBody = [
+        `🥋 *Reminder from ${academyName}*`,
+        ``,
+        `Hi ${studentName}, your official Student Mobile App is ready!`,
+        ``,
+        `🚀 *Direct 1-Tap Auto-Login Link*:`,
+        `${autoLoginLink}`,
+        `_(Tap to login automatically without typing password!)_`,
+        ``,
+        `📱 *Login Mobile*: *${phone}*`,
+        `🔑 *Password*: *${pin}*`,
+        ``,
+        `📲 Open the app to view your class schedule, monthly attendance, and belt progress!`,
+        ``,
+        `- ${academyName}`,
+      ].join('\n');
+
+      const sendResult = await provider.sendMessage({
+        to: recipientPhone,
+        body: reminderBody,
+      });
+
+      await this.supabase.from('whatsapp_messages').insert({
+        student_id: studentId || null,
+        recipient_phone: recipientPhone,
+        message_body: reminderBody,
+        event_type: 'STUDENT_REMINDER',
+        status: sendResult.success ? 'SENT' : 'FAILED',
+        provider_name: provider.name,
+        provider_message_id: sendResult.messageId || null,
+        sent_at: sendResult.success ? new Date().toISOString() : null,
+      });
+
+      if (sendResult.success) {
+        await this.supabase.auth.admin.updateUserById(u.id, {
+          user_metadata: {
+            ...meta,
+            reminder_count: reminderCount + 1,
+            last_reminder_sent_at: new Date().toISOString(),
+          },
+        });
+        reminded.push({ studentName, phone: recipientPhone, reminderCount: reminderCount + 1 });
+      }
+    }
+
+    return {
+      success: true,
+      remindedCount: reminded.length,
+      reminded,
+    };
+  }
 }
 
 export const automationService = new WhatsAppAutomationService();
+

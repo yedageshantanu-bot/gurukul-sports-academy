@@ -133,6 +133,8 @@ export interface StudentFeeFilterQuery {
   status?: StudentFeeStatus;
   billingPeriod?: string;
   search?: string;
+  limit?: number;
+  page?: number;
 }
 
 export interface PaymentFilterQuery {

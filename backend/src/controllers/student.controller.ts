@@ -9,8 +9,10 @@ export class StudentController {
       const search = typeof req.query.search === 'string' ? req.query.search : undefined;
       const status = typeof req.query.status === 'string' ? req.query.status : undefined;
       const batchId = typeof req.query.batchId === 'string' ? req.query.batchId : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
 
-      const data = await StudentService.listStudents({ search, status, batchId }, req.user!);
+      const data = await StudentService.listStudents({ search, status, batchId, limit, page }, req.user!);
       res.status(200).json({
         success: true,
         data,

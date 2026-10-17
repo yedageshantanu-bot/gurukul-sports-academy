@@ -5,37 +5,57 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
-import { AdminRoute, TeacherRoute } from './components/auth/ProtectedRoute';
+import { AdminRoute, TeacherRoute, StudentRoute } from './components/auth/ProtectedRoute';
 import { Login } from './pages/auth/Login';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { TeachersPage } from './pages/admin/TeachersPage';
-import { StudentsPage } from './pages/admin/StudentsPage';
-import { CoursesPage } from './pages/admin/CoursesPage';
-import { StudentProfilePage } from './pages/admin/StudentProfilePage';
-import { BatchesPage } from './pages/admin/BatchesPage';
-import { AttendancePage } from './pages/admin/AttendancePage';
-import { FeesPage } from './pages/admin/FeesPage';
-import { PaymentsPage } from './pages/admin/PaymentsPage';
-import { WhatsAppPage } from './pages/admin/WhatsAppPage';
-import { ReportsPage } from './pages/admin/ReportsPage';
-import { AnnouncementsPage } from './pages/admin/AnnouncementsPage';
-import { SettingsPage } from './pages/admin/SettingsPage';
-import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
-import { TeacherBatchesPage } from './pages/teacher/TeacherBatchesPage';
-import { MarkAttendancePage } from './pages/teacher/MarkAttendancePage';
-import { AttendanceHistoryPage } from './pages/teacher/AttendanceHistoryPage';
-import { TeacherProfilePage } from './pages/teacher/TeacherProfilePage';
-import { TeacherProfilePage as AdminTeacherProfilePage } from './pages/admin/TeacherProfilePage';
-import { PublicationsPage } from './pages/admin/PublicationsPage';
-import { TournamentsPage } from './pages/admin/TournamentsPage';
-import { RanksPage } from './pages/admin/RanksPage';
 import { AppLayout } from './components/layout/AppLayout';
-
+import { StudentLayout } from './components/layout/StudentLayout';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingScreen } from './components/common/LoadingScreen';
 
-const queryClient = new QueryClient();
+// Lazy-loaded Admin Pages (Code-splitting)
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const TeachersPage = React.lazy(() => import('./pages/admin/TeachersPage').then((m) => ({ default: m.TeachersPage })));
+const AdminTeacherProfilePage = React.lazy(() => import('./pages/admin/TeacherProfilePage').then((m) => ({ default: m.TeacherProfilePage })));
+const StudentsPage = React.lazy(() => import('./pages/admin/StudentsPage').then((m) => ({ default: m.StudentsPage })));
+const StudentProfilePage = React.lazy(() => import('./pages/admin/StudentProfilePage').then((m) => ({ default: m.StudentProfilePage })));
+const CoursesPage = React.lazy(() => import('./pages/admin/CoursesPage').then((m) => ({ default: m.CoursesPage })));
+const BatchesPage = React.lazy(() => import('./pages/admin/BatchesPage').then((m) => ({ default: m.BatchesPage })));
+const AttendancePage = React.lazy(() => import('./pages/admin/AttendancePage').then((m) => ({ default: m.AttendancePage })));
+const PublicationsPage = React.lazy(() => import('./pages/admin/PublicationsPage').then((m) => ({ default: m.PublicationsPage })));
+const TournamentsPage = React.lazy(() => import('./pages/admin/TournamentsPage').then((m) => ({ default: m.TournamentsPage })));
+const RanksPage = React.lazy(() => import('./pages/admin/RanksPage').then((m) => ({ default: m.RanksPage })));
+const FeesPage = React.lazy(() => import('./pages/admin/FeesPage').then((m) => ({ default: m.FeesPage })));
+const PaymentsPage = React.lazy(() => import('./pages/admin/PaymentsPage').then((m) => ({ default: m.PaymentsPage })));
+const ReportsPage = React.lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const AnnouncementsPage = React.lazy(() => import('./pages/admin/AnnouncementsPage').then((m) => ({ default: m.AnnouncementsPage })));
+const WhatsAppPage = React.lazy(() => import('./pages/admin/WhatsAppPage').then((m) => ({ default: m.WhatsAppPage })));
+const SettingsPage = React.lazy(() => import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+
+// Lazy-loaded Teacher Pages (Code-splitting)
+const TeacherDashboard = React.lazy(() => import('./pages/teacher/TeacherDashboard').then((m) => ({ default: m.TeacherDashboard })));
+const TeacherBatchesPage = React.lazy(() => import('./pages/teacher/TeacherBatchesPage').then((m) => ({ default: m.TeacherBatchesPage })));
+const MarkAttendancePage = React.lazy(() => import('./pages/teacher/MarkAttendancePage').then((m) => ({ default: m.MarkAttendancePage })));
+const AttendanceHistoryPage = React.lazy(() => import('./pages/teacher/AttendanceHistoryPage').then((m) => ({ default: m.AttendanceHistoryPage })));
+const TeacherProfilePage = React.lazy(() => import('./pages/teacher/TeacherProfilePage').then((m) => ({ default: m.TeacherProfilePage })));
+
+// Lazy-loaded Student PWA Pages (Code-splitting)
+const StudentDashboard = React.lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const StudentAttendancePage = React.lazy(() => import('./pages/student/StudentAttendancePage').then((m) => ({ default: m.StudentAttendancePage })));
+const StudentFeesPage = React.lazy(() => import('./pages/student/StudentFeesPage').then((m) => ({ default: m.StudentFeesPage })));
+const StudentSettingsPage = React.lazy(() => import('./pages/student/StudentSettingsPage').then((m) => ({ default: m.StudentSettingsPage })));
+
+// Client-side cache configuration: 60s staleTime prevents re-render thrashing & spinner flickers
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // Data remains fresh for 60 seconds
+      gcTime: 10 * 60 * 1000, // Retain cache for 10 minutes
+      refetchOnWindowFocus: false, // Prevent jarring layout refetches on window focus
+      retry: 1,
+    },
+  },
+});
 
 // Authenticated root redirector
 const RootRedirect: React.FC = () => {
@@ -51,6 +71,10 @@ const RootRedirect: React.FC = () => {
 
   if (role === 'ADMIN' || role === 'DEMO_ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (role === 'STUDENT') {
+    return <Navigate to="/student/dashboard" replace />;
   }
 
   return <Navigate to="/teacher/dashboard" replace />;
@@ -156,6 +180,17 @@ export const App: React.FC = () => {
                         <Route path="/teacher/attendance-history" element={<AttendanceHistoryPage />} />
                         <Route path="/teacher/profile" element={<TeacherProfilePage />} />
                         <Route path="/teacher/*" element={<TeacherDashboard />} />
+                      </Route>
+                    </Route>
+
+                    {/* Protected Student PWA Routes */}
+                    <Route element={<StudentRoute />}>
+                      <Route element={<StudentLayout />}>
+                        <Route path="/student/dashboard" element={<StudentDashboard />} />
+                        <Route path="/student/attendance" element={<StudentAttendancePage />} />
+                        <Route path="/student/fees" element={<StudentFeesPage />} />
+                        <Route path="/student/settings" element={<StudentSettingsPage />} />
+                        <Route path="/student/*" element={<StudentDashboard />} />
                       </Route>
                     </Route>
 

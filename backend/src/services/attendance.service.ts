@@ -4,6 +4,7 @@ import { ROLES, STATUS } from '../constants/index.js';
 import { AuthenticatedUser } from '../types/auth.types.js';
 import { BulkAttendanceDTO, UpdateAttendanceDTO, AttendanceSheetStudent } from '../types/attendance.types.js';
 import { automationService } from './whatsapp/automation.service.js';
+import { memoryCache } from '../utils/cache.js';
 
 export class AttendanceService {
   /**
@@ -319,6 +320,8 @@ export class AttendanceService {
         }
       })().catch((err) => console.warn('[AttendanceService] Background WhatsApp dispatch warning:', err.message));
     }
+
+    memoryCache.invalidateTag('dashboard');
 
     return {
       batchId: dto.batchId,

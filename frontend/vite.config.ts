@@ -19,4 +19,27 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 4173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:10000',
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-pdflib': ['pdf-lib'],
+          'vendor-icons': ['lucide-react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 });

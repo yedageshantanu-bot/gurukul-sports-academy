@@ -1,7 +1,10 @@
 import { supabaseAdmin, getDb } from '../config/supabase.js';
 import { AppError } from '../middlewares/errorHandler.js';
-import { STATUS } from '../constants/index.js';
+import { STATUS, ROLES } from '../constants/index.js';
 import { AuthenticatedUser } from '../types/auth.types.js';
+import { env } from '../config/env.js';
+import { requestContext } from '../config/requestContext.js';
+import { memoryCache } from '../utils/cache.js';
 
 export class DashboardService {
   /**
@@ -27,6 +30,20 @@ export class DashboardService {
    * Get Admin dashboard KPIs and actionable business views from live database
    */
   static async getAdminKPIs(requestingUser?: AuthenticatedUser) {
+    const isDemo =
+      env.DEMO_MODE ||
+      env.APP_ENV === 'demo' ||
+      requestingUser?.role === ROLES.DEMO_ADMIN ||
+      requestingUser?.isTrial ||
+      requestContext.getStore()?.user?.role === ROLES.DEMO_ADMIN ||
+      requestContext.getStore()?.user?.isTrial;
+
+    const cacheKey = `dashboard:admin:${isDemo ? 'demo' : 'public'}`;
+    const cached = memoryCache.get<any>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const db = getDb(requestingUser);
     if (!db) {
       throw new AppError('Database connection unavailable', 500);
@@ -397,7 +414,7 @@ export class DashboardService {
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
 
-    return {
+    const result = {
       kpis: {
         totalStudents: totalStudents || 0,
         activeStudents: activeStudents || 0,
@@ -436,6 +453,9 @@ export class DashboardService {
       recentStudents: recentStudents || [],
       recentBatches: allBatches?.slice(0, 5) || [],
     };
+
+    memoryCache.set(cacheKey, result, 30 * 1000, ['dashboard']);
+    return result;
   }
 
   /**

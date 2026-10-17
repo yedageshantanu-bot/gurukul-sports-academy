@@ -8,6 +8,7 @@ import {
   StudentFeeFilterQuery,
   StudentFeeStatus,
 } from '../types/fee.types.js';
+import { memoryCache } from '../utils/cache.js';
 
 export class FeeService {
   private get supabase() {
@@ -211,6 +212,8 @@ export class FeeService {
       throw new AppError(`Failed to assign student fee: ${error.message}`, 500);
     }
 
+    memoryCache.invalidateTag('dashboard');
+
     return {
       ...data,
       pending_amount: Math.max(0, Number(data.amount_due) - Number(data.amount_paid)),
@@ -237,6 +240,13 @@ export class FeeService {
 
     if (filters.status) {
       query = query.eq('status', filters.status);
+    }
+
+    if (filters.limit && filters.limit > 0) {
+      const page = filters.page && filters.page > 0 ? filters.page : 1;
+      const from = (page - 1) * filters.limit;
+      const to = from + filters.limit - 1;
+      query = query.range(from, to);
     }
 
     const { data, error } = await query;
@@ -331,6 +341,8 @@ export class FeeService {
       console.error('[FeeService.updateStudentFee] Error:', error);
       throw new AppError(`Failed to update student fee: ${error.message}`, 500);
     }
+
+    memoryCache.invalidateTag('dashboard');
 
     return {
       ...data,

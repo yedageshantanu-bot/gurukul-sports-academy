@@ -32,7 +32,6 @@ export async function seedGurukulDemo() {
   // 2. Coaches / Instructors
   const coachData = [
     {
-      id: 'a02e9080-7cd2-4590-91f7-3272be4ba7ba',
       name: 'Sensei Vikram Salunkhe',
       email: 'teacher@gurukulsports.in',
       phone: '+91 98220 11223',
@@ -48,18 +47,19 @@ export async function seedGurukulDemo() {
     },
   ];
 
-  const coaches: any[] = [];
-  for (const c of coachData) {
-    const { data: existing } = await supabaseAdmin.from('teachers').select('*').eq('email', c.email).maybeSingle();
-    if (existing) {
-      coaches.push(existing);
-    } else {
-      const { data: created, error } = await supabaseAdmin.from('teachers').insert(c as any).select().single();
-      if (error) console.error('Error inserting coach:', error.message);
-      else coaches.push(created);
-    }
+  // 2. Coaches & Senseis (Bulk Lookup & Insert)
+  const coachEmails = coachData.map((c) => c.email);
+  const { data: existingCoaches } = await supabaseAdmin.from('teachers').select('*').in('email', coachEmails);
+  const coachMap = new Map((existingCoaches || []).map((c: any) => [c.email, c]));
+  const missingCoaches = coachData.filter((c) => !coachMap.has(c.email));
+  let coaches: any[] = Array.from(coachMap.values());
+
+  if (missingCoaches.length > 0) {
+    const { data: created, error } = await supabaseAdmin.from('teachers').insert(missingCoaches as any).select();
+    if (error) console.error('Error inserting coaches:', error.message);
+    else if (created) coaches = [...coaches, ...created];
   }
-  console.log(`✅ Loaded ${coaches.length} Coaches & Senseis`);
+  console.log(`✅ Loaded ${coaches.length} Coaches & Senseis (Bulk)`);
 
   // 3. Batches (Martial Arts, Boxing & Athletics)
   const batchDefinitions = [
@@ -105,29 +105,28 @@ export async function seedGurukulDemo() {
     },
   ];
 
-  const batches: any[] = [];
-  for (const bDef of batchDefinitions) {
-    const { data: existing } = await supabaseAdmin.from('batches').select('*').eq('name', bDef.name).maybeSingle();
-    if (existing) {
-      batches.push(existing);
-    } else {
-      const { data: created, error } = await supabaseAdmin.from('batches').insert(bDef).select().single();
-      if (error) console.error('Error creating batch:', error.message);
-      else batches.push(created);
-    }
-  }
-  console.log(`✅ Loaded ${batches.length} Sports & Martial Arts Batches`);
+  const batchNames = batchDefinitions.map((b) => b.name);
+  const { data: existingBatches } = await supabaseAdmin.from('batches').select('*').in('name', batchNames);
+  const batchMap = new Map((existingBatches || []).map((b: any) => [b.name, b]));
+  const missingBatches = batchDefinitions.filter((b) => !batchMap.has(b.name));
+  let batches: any[] = Array.from(batchMap.values());
 
-  // Assign coaches to batches
+  if (missingBatches.length > 0) {
+    const { data: created, error } = await supabaseAdmin.from('batches').insert(missingBatches).select();
+    if (error) console.error('Error creating batches:', error.message);
+    else if (created) batches = [...batches, ...created];
+  }
+  console.log(`✅ Loaded ${batches.length} Sports & Martial Arts Batches (Bulk)`);
+
+  // Assign coaches to batches in bulk
   if (coaches.length > 0 && batches.length > 0) {
     const leadCoach = coaches[0];
-    for (const b of batches) {
-      await supabaseAdmin.from('batch_teachers').upsert(
-        { batch_id: b.id, teacher_id: leadCoach.id },
-        { onConflict: 'batch_id,teacher_id' }
-      );
-    }
-    console.log(`✅ Assigned Head Coach to ${batches.length} squads`);
+    const assignments = batches.map((b) => ({
+      batch_id: b.id,
+      teacher_id: leadCoach.id,
+    }));
+    await supabaseAdmin.from('batch_teachers').upsert(assignments, { onConflict: 'batch_id,teacher_id' });
+    console.log(`✅ Assigned Head Coach to ${batches.length} squads (Bulk)`);
   }
 
   // 4. Students / Athletes
@@ -200,96 +199,107 @@ export async function seedGurukulDemo() {
     },
   ];
 
-  const studentRecords: any[] = [];
-  for (let i = 0; i < athletes.length; i++) {
-    const ath = athletes[i];
-    const { data: existing } = await supabaseAdmin.from('students').select('*').eq('email', ath.email).maybeSingle();
-    let stu = existing;
-    if (!stu) {
-      const { data: created, error } = await supabaseAdmin.from('students').insert(ath).select().single();
-      if (error) {
-        console.error('Error creating athlete:', error.message);
-        continue;
-      }
-      stu = created;
-    }
-    studentRecords.push(stu);
+  const athleteEmails = athletes.map((a) => a.email);
+  const { data: existingAthletes } = await supabaseAdmin.from('students').select('*').in('email', athleteEmails);
+  const athleteMap = new Map((existingAthletes || []).map((a: any) => [a.email, a]));
+  const missingAthletes = athletes.filter((a) => !athleteMap.has(a.email));
+  let studentRecords: any[] = Array.from(athleteMap.values());
 
-    // Assign to batch
-    const targetBatch = batches[i % batches.length];
-    if (targetBatch && stu) {
-      await supabaseAdmin.from('batch_students').upsert(
-        { batch_id: targetBatch.id, student_id: stu.id, status: 'ACTIVE' },
-        { onConflict: 'batch_id,student_id' }
-      );
-    }
+  if (missingAthletes.length > 0) {
+    const { data: created, error } = await supabaseAdmin.from('students').insert(missingAthletes).select();
+    if (error) console.error('Error creating athletes:', error.message);
+    else if (created) studentRecords = [...studentRecords, ...created];
   }
-  console.log(`✅ Loaded ${studentRecords.length} Athletes & Enrolled in Squads`);
 
-  // 5. Generate Current Month Student Fees & Followups
+  // Bulk assign to batches
+  if (batches.length > 0 && studentRecords.length > 0) {
+    const enrollments = studentRecords.map((stu, i) => ({
+      batch_id: batches[i % batches.length].id,
+      student_id: stu.id,
+      status: 'ACTIVE',
+    }));
+    await supabaseAdmin.from('batch_students').upsert(enrollments, { onConflict: 'batch_id,student_id' });
+  }
+  console.log(`✅ Loaded ${studentRecords.length} Athletes & Enrolled in Squads (Bulk)`);
+
+  // 5. Generate Current Month Student Fees & Followups in Bulk
   const now = new Date();
   const currentBillingPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const studentIds = studentRecords.map((s) => s.id);
 
-  for (let i = 0; i < studentRecords.length; i++) {
-    const stu = studentRecords[i];
-    const { data: feeExists } = await supabaseAdmin
-      .from('student_fees')
-      .select('*')
-      .eq('student_id', stu.id)
-      .eq('billing_period', currentBillingPeriod)
-      .maybeSingle();
+  const { data: existingFees } = await supabaseAdmin
+    .from('student_fees')
+    .select('student_id')
+    .in('student_id', studentIds)
+    .eq('billing_period', currentBillingPeriod);
 
-    if (!feeExists) {
+  const existingFeeStudentIds = new Set((existingFees || []).map((f: any) => f.student_id));
+  const feesToInsert: any[] = [];
+
+  studentRecords.forEach((stu, i) => {
+    if (!existingFeeStudentIds.has(stu.id)) {
       const amountDue = stu.monthly_fee || 3000;
-      const isPaid = i < 3; // First 3 paid, rest pending/overdue
+      const isPaid = i < 3;
       const amountPaid = isPaid ? amountDue : 0;
       const feeStatus = isPaid ? 'PAID' : i === 3 ? 'OVERDUE' : 'PENDING';
       const dueDate = new Date(now.getFullYear(), now.getMonth(), stu.fee_due_day || 10).toISOString().split('T')[0];
 
-      const { data: fee } = await supabaseAdmin
-        .from('student_fees')
-        .insert({
-          student_id: stu.id,
-          billing_period: currentBillingPeriod,
-          amount_due: amountDue,
-          amount_paid: amountPaid,
-          due_date: dueDate,
-          status: feeStatus,
-        })
-        .select()
-        .single();
+      feesToInsert.push({
+        student_id: stu.id,
+        billing_period: currentBillingPeriod,
+        amount_due: amountDue,
+        amount_paid: amountPaid,
+        due_date: dueDate,
+        status: feeStatus,
+        _isPaid: isPaid,
+      });
+    }
+  });
 
-      if (isPaid && fee) {
-        await supabaseAdmin.from('payments').insert({
-          student_fee_id: fee.id,
-          student_id: stu.id,
-          amount: amountPaid,
-          payment_method: 'UPI',
-          payment_date: new Date().toISOString(),
-          status: 'SUCCESS',
-        });
+  if (feesToInsert.length > 0) {
+    const insertPayload = feesToInsert.map(({ _isPaid, ...rest }) => rest);
+    const { data: createdFees, error: feeErr } = await supabaseAdmin
+      .from('student_fees')
+      .insert(insertPayload)
+      .select();
+
+    if (!feeErr && createdFees) {
+      const paymentsToInsert: any[] = [];
+      createdFees.forEach((fee: any, idx: number) => {
+        if (feesToInsert[idx]?._isPaid) {
+          paymentsToInsert.push({
+            student_fee_id: fee.id,
+            student_id: fee.student_id,
+            amount: fee.amount_paid,
+            payment_method: 'UPI',
+            payment_date: new Date().toISOString(),
+            status: 'SUCCESS',
+          });
+        }
+      });
+
+      if (paymentsToInsert.length > 0) {
+        await supabaseAdmin.from('payments').insert(paymentsToInsert);
       }
     }
   }
-  console.log('✅ Generated Monthly Fees & Payment Records for Athletes');
+  console.log('✅ Generated Monthly Fees & Payment Records for Athletes (Bulk)');
 
-  // 6. Attendance Records
+  // 6. Attendance Records in Bulk
   if (batches.length > 0 && studentRecords.length > 0) {
     const todayStr = new Date().toISOString().split('T')[0];
     const firstBatch = batches[0];
-    for (let i = 0; i < Math.min(studentRecords.length, 4); i++) {
-      const stu = studentRecords[i];
-      await supabaseAdmin.from('attendance').upsert(
-        {
-          student_id: stu.id,
-          batch_id: firstBatch.id,
-          date: todayStr,
-          status: i === 3 ? 'ABSENT' : 'PRESENT',
-        },
-        { onConflict: 'student_id,batch_id,date' }
-      );
-    }
-    console.log('✅ Generated Today Attendance Roll Call for Combat Squad');
+    const attendanceBatch = studentRecords.slice(0, 4).map((stu, i) => ({
+      student_id: stu.id,
+      batch_id: firstBatch.id,
+      date: todayStr,
+      status: i === 3 ? 'ABSENT' : 'PRESENT',
+    }));
+
+    await supabaseAdmin.from('attendance').upsert(attendanceBatch, {
+      onConflict: 'student_id,batch_id,date',
+    });
+    console.log('✅ Generated Today Attendance Roll Call for Combat Squad (Bulk)');
   }
 
   console.log('🎉 Gurukul Sports & Martial Arts Academy Database is 100% READY!');

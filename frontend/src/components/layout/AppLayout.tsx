@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { TableSkeleton } from '../common/SkeletonLoader';
 
 interface AppLayoutProps {
   role: 'ADMIN' | 'TEACHER' | 'DEMO_ADMIN';
@@ -60,7 +61,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 bg-[#F8FAFC] dark:bg-[#0F172A] transition-colors">
           <div className="max-w-[1600px] w-full mx-auto pb-16">
-            <Outlet />
+            <React.Suspense fallback={<TableSkeleton rows={6} cols={4} />}>
+              <Outlet />
+            </React.Suspense>
           </div>
         </main>
       </div>

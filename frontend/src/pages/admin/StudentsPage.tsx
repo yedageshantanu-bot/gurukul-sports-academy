@@ -34,6 +34,7 @@ import {
   Banknote,
   QrCode,
   Calendar,
+  Smartphone,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -64,6 +65,10 @@ export const StudentsPage: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Student PWA Onboarding & Chaser Bot State
+  const [sendingInviteStudentId, setSendingInviteStudentId] = useState<string | null>(null);
+  const [chaserLoading, setChaserLoading] = useState(false);
 
   // Form Fields - Prioritized for Real Data Entry
   const [name, setName] = useState('');
@@ -357,6 +362,47 @@ export const StudentsPage: React.FC = () => {
     }
   };
 
+  const handleSendStudentInvite = async (s: StudentItem) => {
+    if (!s.parentWhatsapp && !s.studentMobile) {
+      toast.error('Student does not have a registered mobile number for WhatsApp invite.');
+      return;
+    }
+    setSendingInviteStudentId(s.id);
+    try {
+      const res = await apiClient<any>(`/student-portal/admin/invite/${s.id}`, {
+        method: 'POST',
+      });
+      if (res?.success) {
+        toast.success(`WhatsApp Mobile App invite dispatched to ${s.name} with PWA link & credentials!`);
+      } else {
+        toast.error(res?.message || 'Failed to dispatch WhatsApp invite.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send WhatsApp invite.');
+    } finally {
+      setSendingInviteStudentId(null);
+    }
+  };
+
+  const handleRunChaserBot = async () => {
+    setChaserLoading(true);
+    try {
+      const res = await apiClient<any>('/student-portal/admin/run-chaser', {
+        method: 'POST',
+      });
+      const count = res?.data?.remindedCount || 0;
+      if (count > 0) {
+        toast.success(`Chaser Bot: Sent follow-up WhatsApp reminders to ${count} students!`);
+      } else {
+        toast.info('Chaser Bot: All invited students have already logged in or no follow-ups due.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to run chaser bot.');
+    } finally {
+      setChaserLoading(false);
+    }
+  };
+
   const filteredStudents = useMemo(() => {
     if (!search.trim()) return students;
     const q = search.toLowerCase();
@@ -608,7 +654,7 @@ export const StudentsPage: React.FC = () => {
           parentWhatsapp: pCheck.normalized,
           studentMobile: normalizedStudentMobile,
           batchId: batchId || undefined,
-          whatsappOptIn: false, // Intentionally disabled automatic WhatsApp per user instruction
+          whatsappOptIn,
           status,
           course: course.trim() || undefined,
           monthlyFee: Number(monthlyFee) || 0,
@@ -771,13 +817,24 @@ export const StudentsPage: React.FC = () => {
             Manage active enrollments, batch rosters, parent WhatsApp contacts, and fee profiles.
           </p>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-lg text-sm font-semibold shadow-md shadow-orange-500/30 transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Student</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRunChaserBot}
+            disabled={chaserLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Scan and send WhatsApp follow-up reminders to students who have not logged in yet"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>{chaserLoading ? 'Scanning Chaser...' : 'WhatsApp Chaser Bot 🤖'}</span>
+          </button>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-lg text-sm font-semibold shadow-md shadow-orange-500/30 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Student</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 KPI Summary Cards (Stitch Students Directory) */}
@@ -1036,6 +1093,17 @@ export const StudentsPage: React.FC = () => {
                       {/* Actions */}
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-1">
+                          {/* 1-Click Send Mobile App Onboarding WhatsApp Invite */}
+                          <button
+                            type="button"
+                            onClick={() => handleSendStudentInvite(s)}
+                            disabled={sendingInviteStudentId === s.id}
+                            className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                            title="Send Student Mobile App (PWA) Login Credentials & Link via WhatsApp"
+                          >
+                            <Smartphone className={`w-4 h-4 ${sendingInviteStudentId === s.id ? 'animate-bounce text-amber-500' : ''}`} />
+                          </button>
+
                           {/* 1-Click Send Monthly Progress PDF via WhatsApp */}
                           <button
                             type="button"

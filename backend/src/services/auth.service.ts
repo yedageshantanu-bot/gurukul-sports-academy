@@ -82,6 +82,7 @@ export class AuthService {
 
     // Resolve teacher ID if Teacher role
     let teacherId: string | undefined = undefined;
+    let studentId: string | undefined = undefined;
 
     if (profile.role === ROLES.TEACHER) {
       const { data: teacher } = await supabaseAdmin
@@ -91,6 +92,15 @@ export class AuthService {
         .single();
 
       teacherId = teacher?.id;
+    } else if (profile.role === ROLES.STUDENT) {
+      const { data: student } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .or(`auth_user_id.eq.${authUserId},id.eq.${authUserId}`)
+        .limit(1)
+        .maybeSingle();
+
+      studentId = student?.id;
     }
 
     return {
@@ -102,6 +112,7 @@ export class AuthService {
         fullName: profile.full_name,
         role: profile.role,
         teacherId,
+        studentId,
         isTrial: isTrialUser,
         trialExpiresAt: profile.trial_expires_at || undefined,
         daysRemaining,
@@ -191,6 +202,7 @@ export class AuthService {
 
     // Resolve teacher ID if Teacher role
     let teacherId: string | undefined = undefined;
+    let studentId: string | undefined = undefined;
 
     if (profile.role === ROLES.TEACHER && supabaseAdmin) {
       const { data: teacher } = await supabaseAdmin
@@ -200,6 +212,15 @@ export class AuthService {
         .single();
 
       teacherId = teacher?.id;
+    } else if (profile.role === ROLES.STUDENT && supabaseAdmin) {
+      const { data: student } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .or(`auth_user_id.eq.${authUserId},id.eq.${authUserId}`)
+        .limit(1)
+        .maybeSingle();
+
+      studentId = student?.id;
     }
 
     return {
@@ -211,6 +232,7 @@ export class AuthService {
         fullName: profile.full_name,
         role: profile.role,
         teacherId,
+        studentId,
         isTrial: isTrialUser,
         trialExpiresAt: profile.trial_expires_at || undefined,
         daysRemaining,

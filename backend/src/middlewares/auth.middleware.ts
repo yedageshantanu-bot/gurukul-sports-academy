@@ -96,17 +96,40 @@ export const verifyAuth = async (
       teacherId = teacher.id;
     }
 
+    // 8. If role is STUDENT, resolve studentId from students table
+    let studentId: string | undefined = undefined;
+
+    if (profile.role === ROLES.STUDENT) {
+      const { data: student, error: studentError } = await supabaseAdmin
+        .from('students')
+        .select('id, status')
+        .or(`auth_user_id.eq.${authUserId},id.eq.${authUserId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (studentError || !student) {
+        throw new AppError('Student record not found for this profile.', 403, 'FORBIDDEN');
+      }
+
+      if (student.status !== STATUS.ACTIVE) {
+        throw new AppError('Student record is inactive.', 403, 'FORBIDDEN');
+      }
+
+      studentId = student.id;
+    }
+
     const isDemoOrigin =
       req.headers['x-demo-mode'] === 'true' ||
       Boolean(typeof req.headers['origin'] === 'string' && (req.headers['origin'].includes('effort-career') || req.headers['origin'].includes('demo'))) ||
       Boolean(typeof req.headers['referer'] === 'string' && (req.headers['referer'].includes('effort-career') || req.headers['referer'].includes('demo')));
 
-    // 8. Attach validated context to request (Never trust frontend-supplied values)
+    // 9. Attach validated context to request (Never trust frontend-supplied values)
     const userContext: AuthenticatedUser = {
       userId: authUserId,
       profileId: profile.id,
       role: isDemoOrigin ? ROLES.DEMO_ADMIN : profile.role,
       teacherId,
+      studentId,
       email: profile.email,
       fullName: isDemoOrigin && profile.role === ROLES.ADMIN ? 'Effort Admin' : profile.full_name,
       isTrial: isTrialUser || isDemoOrigin,

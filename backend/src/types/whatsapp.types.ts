@@ -10,6 +10,8 @@ export const WHATSAPP_EVENT_TYPES = [
   'FEE_UPCOMING',
   'ANNOUNCEMENT',
   'CUSTOM_NOTIFICATION',
+  'STUDENT_INVITE',
+  'STUDENT_REMINDER',
 ] as const;
 export type WhatsAppEventType = typeof WHATSAPP_EVENT_TYPES[number];
 
@@ -67,6 +69,9 @@ export const ALLOWED_TEMPLATE_VARIABLES = [
   '{{payment_link}}',
   '{{date}}',
   '{{receipt_number}}',
+  '{{login_url}}',
+  '{{username}}',
+  '{{password}}',
 ] as const;
 
 // Template schemas

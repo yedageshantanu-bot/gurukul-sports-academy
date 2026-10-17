@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import { env } from './config/env.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
@@ -19,6 +20,7 @@ import settingsRoutes from './routes/settings.routes.js';
 import publicationRoutes from './routes/publication.routes.js';
 import tournamentRoutes from './routes/tournament.routes.js';
 import rankRoutes from './routes/rank.routes.js';
+import studentPortalRoutes from './routes/studentPortal.routes.js';
 import { verifyAuth } from './middlewares/auth.middleware.js';
 import { requireRole } from './middlewares/rbac.middleware.js';
 import { ROLES } from './constants/index.js';
@@ -61,6 +63,9 @@ app.use(cors({
     return callback(new Error(`CORS policy does not allow access from origin: ${origin}`));
   },
   credentials: true,
+}));
+app.use(compression({
+  threshold: 256, // compress payloads over 256 bytes
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -125,6 +130,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/publications', publicationRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/ranks', rankRoutes);
+app.use('/api/student-portal', studentPortalRoutes);
 
 // Test RBAC endpoints (used to verify role gates in tests/acceptance)
 app.get('/api/test/admin-only', verifyAuth, requireRole(ROLES.ADMIN), (req: Request, res: Response) => {

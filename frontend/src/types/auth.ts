@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'TEACHER' | 'DEMO_ADMIN';
+export type Role = 'ADMIN' | 'TEACHER' | 'DEMO_ADMIN' | 'STUDENT';
 
 export interface UserProfile {
   userId: string;
@@ -7,6 +7,8 @@ export interface UserProfile {
   fullName: string;
   role: Role;
   teacherId?: string;
+  studentId?: string;
+  phone?: string;
   isTrial?: boolean;
   trialExpiresAt?: string;
   daysRemaining?: number;
@@ -20,6 +22,8 @@ export interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ role: Role }>;
+  studentLogin: (identifier: string, password: string) => Promise<{ role: Role }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
+

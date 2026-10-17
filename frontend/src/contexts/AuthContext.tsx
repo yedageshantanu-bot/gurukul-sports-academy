@@ -120,8 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const activeUser = userObj || user;
     if (activeUser) {
       const meta = activeUser.user_metadata || {};
-      const role = (meta.role || (activeUser.email?.includes('teacher') ? 'TEACHER' : 'ADMIN')) as Role;
-      const fullName = meta.full_name || (role === 'ADMIN' ? 'Academy Administrator' : 'Lead Instructor');
+      const role = (meta.role || (activeUser.email?.includes('student') ? 'STUDENT' : activeUser.email?.includes('teacher') ? 'TEACHER' : 'ADMIN')) as Role;
+      const fullName = meta.full_name || (role === 'STUDENT' ? (meta.student_name || 'Academy Student') : role === 'ADMIN' ? 'Academy Administrator' : 'Lead Instructor');
 
       return {
         userId: activeUser.id,
@@ -130,6 +130,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName,
         role,
         teacherId: meta.teacherId || (role === 'TEACHER' ? activeUser.id : undefined),
+        studentId: meta.student_id || (role === 'STUDENT' ? activeUser.id : undefined),
+        phone: meta.phone,
       };
     }
 
@@ -384,6 +386,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const studentLogin = async (identifier: string, passwordInput: string): Promise<{ role: Role }> => {
+    setLoading(true);
+    try {
+      const response = await fetch(getApiUrl('/student-portal/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password: passwordInput }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || resData.error || 'Student login failed.');
+      }
+
+      const { token: accessToken, refreshToken, user: authUser, student } = resData.data;
+
+      const studentProfile: UserProfile = {
+        userId: authUser.id,
+        profileId: authUser.id,
+        email: authUser.email,
+        fullName: authUser.fullName || student?.name || 'Academy Student',
+        role: 'STUDENT',
+        studentId: authUser.studentId || student?.id,
+        phone: authUser.phone || student?.student_mobile,
+      };
+
+      setUser({ id: authUser.id, email: authUser.email });
+      setToken(accessToken);
+      setProfile(studentProfile);
+
+      try {
+        localStorage.setItem('gurukul_access_token', accessToken);
+        if (refreshToken) {
+          localStorage.setItem('gurukul_refresh_token', refreshToken);
+        }
+        localStorage.setItem('gurukul_user_profile', JSON.stringify(studentProfile));
+      } catch {}
+
+      return { role: 'STUDENT' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async (): Promise<void> => {
     try {
       localStorage.removeItem('gurukul_access_token');
@@ -416,6 +462,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     isAuthenticated: !!user && !!profile,
     login,
+    studentLogin,
     logout,
     resetPassword,
   };

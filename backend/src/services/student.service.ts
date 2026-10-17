@@ -6,6 +6,7 @@ import { CreateStudentDTO, UpdateStudentDTO } from '../types/crm.types.js';
 import { normalizePhoneNumber, validatePhoneNumber } from '../utils/phone.js';
 import { automationService } from './whatsapp/automation.service.js';
 import { RankService } from './rank.service.js';
+import { memoryCache } from '../utils/cache.js';
 
 export class StudentService {
   /**
@@ -14,7 +15,7 @@ export class StudentService {
    * Teacher: can ONLY see students enrolled in batches assigned to them
    */
   static async listStudents(
-    query: { search?: string; status?: string; batchId?: string },
+    query: { search?: string; status?: string; batchId?: string; limit?: number; page?: number },
     requestingUser: AuthenticatedUser
   ) {
     if (!supabaseAdmin) {
@@ -108,6 +109,13 @@ export class StudentService {
         return [];
       }
       dbQuery = dbQuery.in('id', allowedStudentIds);
+    }
+
+    if (query.limit && query.limit > 0) {
+      const page = query.page && query.page > 0 ? query.page : 1;
+      const from = (page - 1) * query.limit;
+      const to = from + query.limit - 1;
+      dbQuery = dbQuery.range(from, to);
     }
 
     const { data, error } = await dbQuery;
@@ -909,7 +917,7 @@ export class StudentService {
     }
     */
 
-    return {
+    const result = {
       id: student.id,
       name: student.name,
       parentName: student.parent_name,
@@ -925,6 +933,9 @@ export class StudentService {
       batchId: targetBatchIds[0] || '',
       createdAt: student.created_at,
     };
+
+    memoryCache.invalidateTag('dashboard');
+    return result;
   }
 
   /**
@@ -1013,6 +1024,8 @@ export class StudentService {
       }
     }
 
+    memoryCache.invalidateTag('dashboard');
+
     return {
       id: updated.id,
       name: updated.name,
@@ -1066,6 +1079,7 @@ export class StudentService {
       throw new AppError(`Failed to delete student: ${error.message}`, 500);
     }
 
+    memoryCache.invalidateTag('dashboard');
     return { id, success: true };
   }
 }

@@ -27,19 +27,21 @@ build/
 # WhatsApp multi-device persistent sessions & credentials (CRITICAL: NEVER COMMIT)
 wa-bridge/.session/
 wa-bridge/.test-session/
+wa-bridge/auth/
+backend/.session/
 .session/
 data/session/
 /data/session/
 *.session
 **/.session/
 **/session/
-auth/
 credentials/
 tokens/
 *.token
 *.key
 .env.demo
 .env.production
+!frontend/src/**
 
 # Logs & temp files
 *.log
