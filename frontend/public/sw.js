@@ -95,6 +95,23 @@ self.addEventListener('push', (event) => {
   }
 });
 
+// Native Device Message & Push Notifications
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const title = event.data.title || 'Gurukul Sports Academy 🥋';
+    const options = {
+      body: event.data.body || 'You have a new update from Gurukul Sports Academy.',
+      icon: event.data.icon || '/icon-192.png',
+      badge: '/icon-192.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: event.data.url || '/student/dashboard',
+      },
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+  }
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(

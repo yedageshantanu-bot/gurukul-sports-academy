@@ -56,6 +56,26 @@ router.post(
   (req, res, next) => studentPortalController.changePassword(req, res, next)
 );
 
+// Web Push API
+router.get(
+  '/push-vapid-key',
+  (req, res, next) => studentPortalController.getVapidPublicKey(req, res, next)
+);
+
+router.post(
+  '/push-subscribe',
+  verifyAuth,
+  requireRole(ROLES.STUDENT),
+  (req, res, next) => studentPortalController.subscribePush(req, res, next)
+);
+
+router.post(
+  '/test-push',
+  verifyAuth,
+  requireRole(ROLES.STUDENT),
+  (req, res, next) => studentPortalController.testPush(req, res, next)
+);
+
 // ==========================================
 // ADMIN ONBOARDING & CHASER CONTROLS
 // ==========================================

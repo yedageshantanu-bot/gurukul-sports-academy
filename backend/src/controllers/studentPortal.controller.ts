@@ -210,6 +210,82 @@ export class StudentPortalController {
       next(err);
     }
   }
+
+  /**
+   * Get VAPID Public Key for Web Push
+   * GET /api/student-portal/push-vapid-key
+   */
+  async getVapidPublicKey(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const { VAPID_PUBLIC_KEY } = await import('../services/webpush.service.js');
+      return res.status(200).json({
+        success: true,
+        data: { publicKey: VAPID_PUBLIC_KEY },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Register Web Push Subscription
+   * POST /api/student-portal/push-subscribe
+   */
+  async subscribePush(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      const { subscription } = req.body;
+      if (!userId || !subscription) {
+        throw new AppError('Subscription and user context required.', 400);
+      }
+
+      const { webPushService } = await import('../services/webpush.service.js');
+      const result = await webPushService.saveSubscription(userId, subscription);
+
+      // Trigger immediate confirmation push to the device
+      await webPushService.sendNotificationToUser(userId, {
+        title: 'Gurukul Sports Academy 🥋',
+        body: 'Push notifications are now active on this device! Tap to view your dashboard.',
+        url: '/student/dashboard',
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Push notifications enabled on this device!',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Trigger Test Push Notification
+   * POST /api/student-portal/test-push
+   */
+  async testPush(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User context required.', 401);
+      }
+
+      const { webPushService } = await import('../services/webpush.service.js');
+      const result = await webPushService.sendNotificationToUser(userId, {
+        title: '🥋 Gurukul Sports Academy Alert',
+        body: 'Success! Your mobile app push notifications are functioning perfectly.',
+        url: '/student/dashboard',
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.sentCount > 0 ? 'Push notification delivered to device!' : 'No active device subscription found.',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const studentPortalController = new StudentPortalController();
