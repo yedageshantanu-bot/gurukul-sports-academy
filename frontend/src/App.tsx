@@ -43,6 +43,7 @@ const TeacherProfilePage = React.lazy(() => import('./pages/teacher/TeacherProfi
 const StudentDashboard = React.lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
 const StudentAttendancePage = React.lazy(() => import('./pages/student/StudentAttendancePage').then((m) => ({ default: m.StudentAttendancePage })));
 const StudentFeesPage = React.lazy(() => import('./pages/student/StudentFeesPage').then((m) => ({ default: m.StudentFeesPage })));
+const StudentAnnouncementsPage = React.lazy(() => import('./pages/student/StudentAnnouncementsPage').then((m) => ({ default: m.StudentAnnouncementsPage })));
 const StudentSettingsPage = React.lazy(() => import('./pages/student/StudentSettingsPage').then((m) => ({ default: m.StudentSettingsPage })));
 
 // Client-side cache configuration: 60s staleTime prevents re-render thrashing & spinner flickers
@@ -189,6 +190,7 @@ export const App: React.FC = () => {
                         <Route path="/student/dashboard" element={<StudentDashboard />} />
                         <Route path="/student/attendance" element={<StudentAttendancePage />} />
                         <Route path="/student/fees" element={<StudentFeesPage />} />
+                        <Route path="/student/announcements" element={<StudentAnnouncementsPage />} />
                         <Route path="/student/settings" element={<StudentSettingsPage />} />
                         <Route path="/student/*" element={<StudentDashboard />} />
                       </Route>

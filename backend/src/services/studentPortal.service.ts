@@ -4,6 +4,8 @@ import { env } from '../config/env.js';
 import { AppError } from '../middlewares/errorHandler.js';
 import { ROLES, STATUS } from '../constants/index.js';
 import { normalizePhoneNumber } from '../utils/phone.js';
+import { PdfReportService } from './pdfReport.service.js';
+import { receiptService } from './receipt.service.js';
 
 export interface StudentAuthProfile {
   studentId: string;
@@ -490,6 +492,90 @@ export class StudentPortalService {
         hasAuthAccount: Boolean(authUser),
       };
     });
+  }
+
+  /**
+   * Get Announcements relevant to this Student
+   */
+  async getStudentAnnouncements(studentId: string) {
+    // 1. Resolve student's batches
+    const { data: batchLinks } = await this.supabase
+      .from('batch_students')
+      .select('batch_id')
+      .eq('student_id', studentId);
+
+    const studentBatchIds = (batchLinks || []).map((b) => b.batch_id);
+
+    // 2. Fetch announcements
+    const { data: announcements, error } = await this.supabase
+      .from('announcements')
+      .select(`
+        id,
+        title,
+        message,
+        priority,
+        scope,
+        metadata,
+        created_at,
+        updated_at,
+        batches:announcement_batches(
+          batch:batches(id, name, subject)
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new AppError(`Failed to fetch announcements: ${error.message}`, 500);
+    }
+
+    // 3. Filter announcements applicable to student (scope ALL, no batch links, or targeting student's batch)
+    const filtered = (announcements || []).filter((a: any) => {
+      if (a.scope === 'ALL') return true;
+      const targetedBatchIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
+      if (targetedBatchIds.length === 0) return true;
+      return targetedBatchIds.some((bId: string) => studentBatchIds.includes(bId));
+    });
+
+    return filtered;
+  }
+
+  /**
+   * Get Official PDF Receipt Buffer for download
+   */
+  async getReceiptPdfBuffer(receiptId: string, studentId: string): Promise<{ buffer: Buffer; fileName: string; receiptNumber: string }> {
+    const { receipt, academy } = await receiptService.getReceiptById(receiptId);
+
+    // Ensure receipt belongs to this student
+    const student = (receipt as any).student;
+    if (student && student.id !== studentId) {
+      throw new AppError('Unauthorized access to this receipt record.', 403, 'FORBIDDEN');
+    }
+
+    const payment = (receipt as any).payment || {};
+    const academyName = academy?.name || 'Gurukul Sports Academy';
+
+    const pdfBuffer = await PdfReportService.generateReceiptPdf({
+      receiptNumber: receipt.receipt_number,
+      studentName: student?.name || 'Student',
+      course: student?.course,
+      amount: Number(receipt.amount),
+      issuedAt: receipt.issued_at || (receipt as any).created_at,
+      paymentMode: payment.provider || 'CASH/UPI',
+      transactionRef: payment.provider_payment_id || payment.id,
+      academyName,
+      academyAddress: academy?.address,
+      academyPhone: academy?.contact_phone,
+      academyEmail: academy?.contact_email,
+    });
+
+    const safeStudentName = (student?.name || 'Student').replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `Receipt_${receipt.receipt_number || receipt.id.slice(0, 8)}_${safeStudentName}.pdf`;
+
+    return {
+      buffer: pdfBuffer,
+      fileName,
+      receiptNumber: receipt.receipt_number,
+    };
   }
 }
 

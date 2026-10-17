@@ -35,6 +35,20 @@ router.get(
   (req, res, next) => studentPortalController.getFees(req, res, next)
 );
 
+router.get(
+  '/announcements',
+  verifyAuth,
+  requireRole(ROLES.STUDENT),
+  (req, res, next) => studentPortalController.getAnnouncements(req, res, next)
+);
+
+router.get(
+  '/receipt/:id/pdf',
+  verifyAuth,
+  requireRole(ROLES.STUDENT, ROLES.ADMIN, ROLES.DEMO_ADMIN),
+  (req, res, next) => studentPortalController.downloadReceiptPdf(req, res, next)
+);
+
 router.post(
   '/change-password',
   verifyAuth,

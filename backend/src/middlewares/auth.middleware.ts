@@ -42,7 +42,7 @@ export const verifyAuth = async (
     // 4. Retrieve user profile from the database
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, role, full_name, email, status, is_trial, trial_started_at, trial_expires_at')
+      .select('id, role, full_name, email, phone, status, is_trial, trial_started_at, trial_expires_at')
       .eq('id', authUserId)
       .single();
 
@@ -96,26 +96,43 @@ export const verifyAuth = async (
       teacherId = teacher.id;
     }
 
-    // 8. If role is STUDENT, resolve studentId from students table
+    // 8. If role is STUDENT, resolve studentId from auth user metadata or matching student record
     let studentId: string | undefined = undefined;
 
     if (profile.role === ROLES.STUDENT) {
-      const { data: student, error: studentError } = await supabaseAdmin
-        .from('students')
-        .select('id, status')
-        .or(`auth_user_id.eq.${authUserId},id.eq.${authUserId}`)
-        .limit(1)
-        .maybeSingle();
+      let resolvedStudentId = authData.user.user_metadata?.student_id;
+      let studentRecord: any = null;
 
-      if (studentError || !student) {
+      if (resolvedStudentId) {
+        const { data: s } = await supabaseAdmin
+          .from('students')
+          .select('id, status')
+          .eq('id', resolvedStudentId)
+          .maybeSingle();
+        studentRecord = s;
+      }
+
+      if (!studentRecord) {
+        const digits = ((profile as any).phone || authData.user.phone || '').replace(/\D/g, '').slice(-10);
+        if (digits) {
+          const { data: fallbackList } = await supabaseAdmin
+            .from('students')
+            .select('id, status')
+            .or(`student_mobile.ilike.%${digits}%,parent_whatsapp.ilike.%${digits}%`)
+            .limit(1);
+          studentRecord = fallbackList?.[0] || null;
+        }
+      }
+
+      if (!studentRecord) {
         throw new AppError('Student record not found for this profile.', 403, 'FORBIDDEN');
       }
 
-      if (student.status !== STATUS.ACTIVE) {
+      if (studentRecord.status !== STATUS.ACTIVE) {
         throw new AppError('Student record is inactive.', 403, 'FORBIDDEN');
       }
 
-      studentId = student.id;
+      studentId = studentRecord.id;
     }
 
     const isDemoOrigin =

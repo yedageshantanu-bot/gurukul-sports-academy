@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, CreditCard, Settings, LogOut, Award } from 'lucide-react';
+import { Home, Calendar, CreditCard, Megaphone, Settings, LogOut, Award } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { InstallPwaPrompt } from '../pwa/InstallPwaPrompt';
@@ -19,16 +19,17 @@ export const StudentLayout: React.FC = () => {
   const navItems = [
     { label: 'Home', path: '/student/dashboard', icon: Home },
     { label: 'Attendance', path: '/student/attendance', icon: Calendar },
-    { label: 'Fees', path: '/student/fees', icon: CreditCard },
+    { label: 'Fees & PDF', path: '/student/fees', icon: CreditCard },
+    { label: 'Notices', path: '/student/announcements', icon: Megaphone },
     { label: 'Settings', path: '/student/settings', icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-20 md:pb-6 selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 md:pb-6 selection:bg-blue-500 selection:text-white">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <NavLink to="/student/dashboard" className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 p-1 flex items-center justify-center shrink-0 shadow-sm">
               <img src={logoUrl || '/logo.png'} alt="Gurukul" className="w-full h-full object-contain" />
             </div>
@@ -41,6 +42,29 @@ export const StudentLayout: React.FC = () => {
                 Student Mobile App
               </span>
             </div>
+          </NavLink>
+
+          {/* Desktop Nav Links */}
+          <div className="hidden md:flex items-center gap-1 bg-slate-950/60 border border-slate-800 rounded-2xl p-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                      isActive
+                        ? 'text-blue-300 bg-blue-500/20 shadow-sm border border-blue-500/30'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`
+                  }
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -71,9 +95,9 @@ export const StudentLayout: React.FC = () => {
         </Suspense>
       </main>
 
-      {/* Mobile Bottom Navigation Bar (Persistent Native App Feel) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 px-3 py-2 md:hidden shadow-2xl">
-        <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
+      {/* Mobile Bottom Navigation Bar (Persistent 5-Item Native App Navigation) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 px-2 py-2 md:hidden shadow-2xl">
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -81,15 +105,15 @@ export const StudentLayout: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-[11px] font-medium transition-all ${
+                  `flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-[10px] font-medium transition-all ${
                     isActive
                       ? 'text-blue-400 bg-blue-500/15 font-bold shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`
                 }
               >
-                <Icon className="w-5 h-5 mb-0.5" />
-                <span>{item.label}</span>
+                <Icon className="w-4 h-4 mb-0.5" />
+                <span className="truncate max-w-full">{item.label}</span>
               </NavLink>
             );
           })}

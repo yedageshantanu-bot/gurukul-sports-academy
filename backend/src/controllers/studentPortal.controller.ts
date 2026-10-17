@@ -93,6 +93,54 @@ export class StudentPortalController {
   }
 
   /**
+   * Get Academy Announcements for Student
+   * GET /api/student-portal/announcements
+   */
+  async getAnnouncements(req: Request, res: Response, next: NextFunction) {
+    try {
+      const studentId = req.user?.studentId;
+      if (!studentId) {
+        throw new AppError('Student ID not found in session context.', 400);
+      }
+
+      const announcements = await studentPortalService.getStudentAnnouncements(studentId);
+      return res.status(200).json({
+        success: true,
+        data: announcements,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Download Student Official PDF Receipt
+   * GET /api/student-portal/receipt/:id/pdf
+   */
+  async downloadReceiptPdf(req: Request, res: Response, next: NextFunction) {
+    try {
+      const studentId = req.user?.studentId;
+      const receiptId = req.params.id;
+
+      if (!studentId) {
+        throw new AppError('Student context required.', 401);
+      }
+      if (!receiptId) {
+        throw new AppError('Receipt ID is required.', 400);
+      }
+
+      const { buffer, fileName } = await studentPortalService.getReceiptPdfBuffer(receiptId, studentId);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length);
+      return res.status(200).send(buffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Student Self Password Change
    * POST /api/student-portal/change-password
    */
