@@ -13,7 +13,9 @@ export const Login: React.FC = () => {
   const { login, studentLogin, isAuthenticated, role } = useAuth();
   const { settings } = useSettings();
 
-  const [loginType, setLoginType] = useState<'STUDENT' | 'STAFF'>('STUDENT');
+  const ENABLE_STUDENT_LOGIN = false;
+
+  const [loginType, setLoginType] = useState<'STUDENT' | 'STAFF'>('STAFF');
   const [email, setEmail] = useState('');
   const [studentMobile, setStudentMobile] = useState('');
   const [password, setPassword] = useState('');
@@ -32,31 +34,32 @@ export const Login: React.FC = () => {
       return;
     }
 
-    // Check for Magic Link / Auto-Login Query Parameters
-    const params = new URLSearchParams(location.search);
-    const phoneParam = params.get('phone');
-    const pinParam = params.get('pin') || params.get('password');
-    const autoLoginFlag = params.get('autologin');
+    if (ENABLE_STUDENT_LOGIN) {
+      const params = new URLSearchParams(location.search);
+      const phoneParam = params.get('phone');
+      const pinParam = params.get('pin') || params.get('password');
+      const autoLoginFlag = params.get('autologin');
 
-    if (phoneParam) {
-      setLoginType('STUDENT');
-      setStudentMobile(phoneParam);
-      if (pinParam) {
-        setPassword(pinParam);
-      }
-      if (pinParam && (autoLoginFlag === '1' || autoLoginFlag === 'true')) {
-        setAutoLoggingIn(true);
-        setIsLoading(true);
-        studentLogin(phoneParam.trim(), pinParam)
-          .then(() => {
-            navigate('/student/dashboard', { replace: true });
-          })
-          .catch((err: any) => {
-            setAutoLoggingIn(false);
-            setIsLoading(false);
-            setErrorMessage(err.message || 'Auto-login failed. Please enter your credentials manually.');
-          });
-        return;
+      if (phoneParam) {
+        setLoginType('STUDENT');
+        setStudentMobile(phoneParam);
+        if (pinParam) {
+          setPassword(pinParam);
+        }
+        if (pinParam && (autoLoginFlag === '1' || autoLoginFlag === 'true')) {
+          setAutoLoggingIn(true);
+          setIsLoading(true);
+          studentLogin(phoneParam.trim(), pinParam)
+            .then(() => {
+              navigate('/student/dashboard', { replace: true });
+            })
+            .catch((err: any) => {
+              setAutoLoggingIn(false);
+              setIsLoading(false);
+              setErrorMessage(err.message || 'Auto-login failed. Please enter your credentials manually.');
+            });
+          return;
+        }
       }
     }
 
@@ -175,45 +178,47 @@ export const Login: React.FC = () => {
             {academyName}
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {loginType === 'STUDENT' ? 'Student Mobile App & Parent Portal' : 'Administrator & Coach Management Portal'}
+            Administrator & Coach Management Portal
           </p>
         </div>
 
         {/* Login Card */}
         <div className="mt-6 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm py-6 px-6 shadow-card border border-slate-200/80 dark:border-slate-800 rounded-3xl sm:px-8">
-          {/* Tab Selector */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-950/70 rounded-2xl mb-6 border border-slate-200 dark:border-slate-800/80">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginType('STUDENT');
-                setErrorMessage(null);
-              }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                loginType === 'STUDENT'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              Student App
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginType('STAFF');
-                setErrorMessage(null);
-              }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                loginType === 'STAFF'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Admin / Staff
-            </button>
-          </div>
+          {/* Tab Selector (Dormant when ENABLE_STUDENT_LOGIN is false) */}
+          {ENABLE_STUDENT_LOGIN && (
+            <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-950/70 rounded-2xl mb-6 border border-slate-200 dark:border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginType('STUDENT');
+                  setErrorMessage(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  loginType === 'STUDENT'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Student App
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginType('STAFF');
+                  setErrorMessage(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  loginType === 'STAFF'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Admin / Staff
+              </button>
+            </div>
+          )}
 
           {/* Demo Account Helper for Demo Host */}
           {isDemoHost && loginType === 'STAFF' && (

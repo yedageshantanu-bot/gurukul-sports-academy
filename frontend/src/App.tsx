@@ -58,6 +58,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// Master feature toggle for Student PWA Portal (temporarily dormant per user request)
+const ENABLE_STUDENT_PORTAL = false;
+
 // Authenticated root redirector
 const RootRedirect: React.FC = () => {
   const { isAuthenticated, role, loading } = useAuth();
@@ -75,7 +78,7 @@ const RootRedirect: React.FC = () => {
   }
 
   if (role === 'STUDENT') {
-    return <Navigate to="/student/dashboard" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Navigate to="/teacher/dashboard" replace />;
@@ -183,17 +186,21 @@ export const App: React.FC = () => {
                       </Route>
                     </Route>
 
-                    {/* Protected Student PWA Routes */}
-                    <Route element={<StudentRoute />}>
-                      <Route element={<StudentLayout />}>
-                        <Route path="/student/dashboard" element={<StudentDashboard />} />
-                        <Route path="/student/attendance" element={<StudentAttendancePage />} />
-                        <Route path="/student/fees" element={<StudentFeesPage />} />
-                        <Route path="/student/announcements" element={<StudentAnnouncementsPage />} />
-                        <Route path="/student/settings" element={<StudentSettingsPage />} />
-                        <Route path="/student/*" element={<StudentDashboard />} />
+                    {/* Protected Student PWA Routes (Feature flag: dormant per user request) */}
+                    {ENABLE_STUDENT_PORTAL ? (
+                      <Route element={<StudentRoute />}>
+                        <Route element={<StudentLayout />}>
+                          <Route path="/student/dashboard" element={<StudentDashboard />} />
+                          <Route path="/student/attendance" element={<StudentAttendancePage />} />
+                          <Route path="/student/fees" element={<StudentFeesPage />} />
+                          <Route path="/student/announcements" element={<StudentAnnouncementsPage />} />
+                          <Route path="/student/settings" element={<StudentSettingsPage />} />
+                          <Route path="/student/*" element={<StudentDashboard />} />
+                        </Route>
                       </Route>
-                    </Route>
+                    ) : (
+                      <Route path="/student/*" element={<Navigate to="/login" replace />} />
+                    )}
 
                     {/* Catch-all fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />

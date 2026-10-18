@@ -66,7 +66,8 @@ export const StudentsPage: React.FC = () => {
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Student PWA Onboarding & Chaser Bot State
+  // Student PWA Onboarding & Chaser Bot Feature Flag (Dormant per user request)
+  const ENABLE_STUDENT_APP_INVITES = false;
   const [sendingInviteStudentId, setSendingInviteStudentId] = useState<string | null>(null);
   const [chaserLoading, setChaserLoading] = useState(false);
 
@@ -818,15 +819,17 @@ export const StudentsPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleRunChaserBot}
-            disabled={chaserLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
-            title="Scan and send WhatsApp follow-up reminders to students who have not logged in yet"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>{chaserLoading ? 'Scanning Chaser...' : 'WhatsApp Chaser Bot 🤖'}</span>
-          </button>
+          {ENABLE_STUDENT_APP_INVITES && (
+            <button
+              onClick={handleRunChaserBot}
+              disabled={chaserLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              title="Scan and send WhatsApp follow-up reminders to students who have not logged in yet"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{chaserLoading ? 'Scanning Chaser...' : 'WhatsApp Chaser Bot 🤖'}</span>
+            </button>
+          )}
           <button
             onClick={handleOpenAdd}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-lg text-sm font-semibold shadow-md shadow-orange-500/30 transition-all cursor-pointer"
@@ -1093,16 +1096,18 @@ export const StudentsPage: React.FC = () => {
                       {/* Actions */}
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-1">
-                          {/* 1-Click Send Mobile App Onboarding WhatsApp Invite */}
-                          <button
-                            type="button"
-                            onClick={() => handleSendStudentInvite(s)}
-                            disabled={sendingInviteStudentId === s.id}
-                            className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-                            title="Send Student Mobile App (PWA) Login Credentials & Link via WhatsApp"
-                          >
-                            <Smartphone className={`w-4 h-4 ${sendingInviteStudentId === s.id ? 'animate-bounce text-amber-500' : ''}`} />
-                          </button>
+                          {/* 1-Click Send Mobile App Onboarding WhatsApp Invite (Dormant when ENABLE_STUDENT_APP_INVITES is false) */}
+                          {ENABLE_STUDENT_APP_INVITES && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendStudentInvite(s)}
+                              disabled={sendingInviteStudentId === s.id}
+                              className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                              title="Send Student Mobile App (PWA) Login Credentials & Link via WhatsApp"
+                            >
+                              <Smartphone className={`w-4 h-4 ${sendingInviteStudentId === s.id ? 'animate-bounce text-amber-500' : ''}`} />
+                            </button>
+                          )}
 
                           {/* 1-Click Send Monthly Progress PDF via WhatsApp */}
                           <button
