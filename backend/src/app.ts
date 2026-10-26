@@ -21,6 +21,7 @@ import publicationRoutes from './routes/publication.routes.js';
 import tournamentRoutes from './routes/tournament.routes.js';
 import rankRoutes from './routes/rank.routes.js';
 import studentPortalRoutes from './routes/studentPortal.routes.js';
+import teamMessageRoutes from './routes/teamMessage.routes.js';
 import { verifyAuth } from './middlewares/auth.middleware.js';
 import { requireRole } from './middlewares/rbac.middleware.js';
 import { ROLES } from './constants/index.js';
@@ -131,6 +132,7 @@ app.use('/api/publications', publicationRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/ranks', rankRoutes);
 app.use('/api/student-portal', studentPortalRoutes);
+app.use('/api/team-messages', teamMessageRoutes);
 
 // Test RBAC endpoints (used to verify role gates in tests/acceptance)
 app.get('/api/test/admin-only', verifyAuth, requireRole(ROLES.ADMIN), (req: Request, res: Response) => {

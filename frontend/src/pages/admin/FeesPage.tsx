@@ -795,10 +795,10 @@ export const FeesPage: React.FC = () => {
                 onClick={handleTriggerMonthlyReminders}
                 disabled={triggeringMonthly}
                 className="gap-2 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold text-xs sm:text-sm"
-                title="Trigger automated WhatsApp fee reminders for unpaid monthly fees (15s throttle)"
+                title="Trigger automated WhatsApp fee reminders for pending student dues"
               >
                 <MessageSquare className={`w-4 h-4 text-emerald-600 ${triggeringMonthly ? 'animate-spin' : ''}`} />
-                <span>{triggeringMonthly ? 'Queuing Reminders...' : 'Send Monthly 5th Reminders'}</span>
+                <span>{triggeringMonthly ? 'Queuing Reminders...' : 'Send Fee Reminders'}</span>
               </Button>
 
               {activeTab === 'student_fees' ? (
