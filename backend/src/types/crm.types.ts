@@ -39,6 +39,7 @@ export const createStudentSchema = z.object({
   feeDueDay: z.number().int().min(1).max(31).default(5),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
   batchId: z.string().uuid().optional().or(z.literal('')),
+  batchIds: z.array(z.string().uuid()).optional(),
   initialBatchIds: z.array(z.string().uuid()).optional(),
   whatsappOptIn: z.boolean().default(true).optional(),
   backfillPastFees: z.boolean().default(false).optional(),

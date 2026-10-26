@@ -600,16 +600,20 @@ export class StudentService {
       throw new AppError(`Failed to create student: ${error?.message}`, 500);
     }
 
-    // Handle batch enrollment (either direct batchId or initialBatchIds)
-    const targetBatchIds: string[] = [];
+    // Handle batch enrollment (supports multiple batches in initialBatchIds or batchIds)
+    const targetBatchIds = new Set<string>();
+    if (Array.isArray(dto.initialBatchIds) && dto.initialBatchIds.length > 0) {
+      dto.initialBatchIds.forEach((bId) => { if (bId && bId.trim()) targetBatchIds.add(bId.trim()); });
+    }
+    if (Array.isArray(dto.batchIds) && dto.batchIds.length > 0) {
+      dto.batchIds.forEach((bId) => { if (bId && bId.trim()) targetBatchIds.add(bId.trim()); });
+    }
     if (dto.batchId && dto.batchId.trim()) {
-      targetBatchIds.push(dto.batchId.trim());
-    } else if (dto.initialBatchIds && dto.initialBatchIds.length > 0) {
-      targetBatchIds.push(...dto.initialBatchIds);
+      targetBatchIds.add(dto.batchId.trim());
     }
 
-    if (targetBatchIds.length > 0) {
-      const enrollments = targetBatchIds.map((bId) => ({
+    if (targetBatchIds.size > 0) {
+      const enrollments = Array.from(targetBatchIds).map((bId) => ({
         batch_id: bId,
         student_id: student.id,
         status: STATUS.ACTIVE,
@@ -902,7 +906,7 @@ export class StudentService {
       feeDueDay: student.fee_due_day,
       status: student.status,
       whatsappOptIn: student.whatsapp_opt_in !== false,
-      batchId: targetBatchIds[0] || '',
+      batchId: Array.from(targetBatchIds)[0] || '',
       createdAt: student.created_at,
     };
 

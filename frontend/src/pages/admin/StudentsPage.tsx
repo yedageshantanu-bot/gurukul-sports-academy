@@ -718,6 +718,7 @@ export const StudentsPage: React.FC = () => {
           parentWhatsapp: pCheck.normalized,
           studentMobile: normalizedStudentMobile,
           batchId: selectedBatchIds[0] || batchId || undefined,
+          batchIds: selectedBatchIds.length > 0 ? selectedBatchIds : (batchId ? [batchId] : undefined),
           initialBatchIds: selectedBatchIds.length > 0 ? selectedBatchIds : (batchId ? [batchId] : undefined),
           whatsappOptIn,
           status,
