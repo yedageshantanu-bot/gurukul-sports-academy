@@ -52,6 +52,7 @@ export const PaymentsPage: React.FC = () => {
   // Manual payment form
   const [manualForm, setManualForm] = useState({
     studentId: '',
+    studentFeeId: '',
     amount: '',
     paymentMethod: 'CASH',
     paymentDate: new Date().toISOString().split('T')[0],
@@ -94,6 +95,7 @@ export const PaymentsPage: React.FC = () => {
     const pending = Number(item.pendingBalance || item.pending_amount || 0);
     setManualForm({
       studentId: item.studentId || item.student_id,
+      studentFeeId: item.feeId || item.rawFee?.id || '',
       amount: String(pending > 0 ? pending : item.totalPackage || item.amount_due || 700),
       paymentMethod: 'CASH',
       paymentDate: new Date().toISOString().split('T')[0],
@@ -118,6 +120,7 @@ export const PaymentsPage: React.FC = () => {
         },
         body: JSON.stringify({
           studentId: manualForm.studentId,
+          studentFeeId: manualForm.studentFeeId || undefined,
           amount: parseFloat(manualForm.amount),
           paymentMethod: manualForm.paymentMethod,
           paidAt: manualForm.paymentDate,
@@ -131,6 +134,7 @@ export const PaymentsPage: React.FC = () => {
       setIsManualModalOpen(false);
       setManualForm({
         studentId: '',
+        studentFeeId: '',
         amount: '',
         paymentMethod: 'CASH',
         paymentDate: new Date().toISOString().slice(0, 10),
@@ -193,6 +197,19 @@ export const PaymentsPage: React.FC = () => {
 
     // 1. Process all active students first
     (students || []).forEach((s) => {
+      // Reconcile all confirmed payments for this student
+      const studentPayments = (payments || []).filter(
+        (p) => (p.student_id === s.id || p.student?.id === s.id) && p.status === 'SUCCESS'
+      );
+      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+      const pkg = Number(s.monthlyFee || 0);
+      const pending = Math.max(0, pkg - totalPaidLogs);
+
+      let st = 'PENDING';
+      if (totalPaidLogs >= pkg && pkg > 0) st = 'PAID';
+      else if (totalPaidLogs > 0) st = 'PARTIAL';
+      else if (pkg === 0) st = 'PAID';
+
       studentMap.set(s.id, {
         id: s.id,
         studentId: s.id,
@@ -201,13 +218,13 @@ export const PaymentsPage: React.FC = () => {
         parentWhatsapp: s.parentWhatsapp,
         studentMobile: s.studentMobile,
         course: s.course || 'Martial Arts Training',
-        totalPackage: Number(s.monthlyFee || 0),
-        amountPaid: 0,
-        pendingBalance: Number(s.monthlyFee || 0),
+        totalPackage: pkg,
+        amountPaid: totalPaidLogs,
+        pendingBalance: pending,
         dueDate: null,
         admissionDate: s.admissionDate || s.admission_date || s.createdAt || s.created_at,
         billingPeriod: 'Current Enrollment',
-        status: Number(s.monthlyFee || 0) > 0 ? 'PENDING' : 'PAID',
+        status: st,
         rawFee: null,
       });
     });
@@ -216,9 +233,15 @@ export const PaymentsPage: React.FC = () => {
     (studentFees || []).forEach((f) => {
       const studentId = f.student_id;
       const existing = studentMap.get(studentId);
-      const totalAmount = Number(f.amount_due || 0);
-      const paid = Number(f.amount_paid || 0);
-      const pending = Number(f.pending_amount !== undefined ? f.pending_amount : Math.max(0, totalAmount - paid));
+      const totalAmount = Number(f.amount_due || 0) || Number(existing?.totalPackage || 0);
+
+      // Reconcile payments matching this student or fee
+      const studentPayments = (payments || []).filter(
+        (p) => (p.student_id === studentId || p.student?.id === studentId || p.student_fee_id === f.id) && p.status === 'SUCCESS'
+      );
+      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+      const paid = Math.max(Number(f.amount_paid || 0), totalPaidLogs);
+      const pending = Math.max(0, totalAmount - paid);
 
       let calculatedStatus = f.status || 'PENDING';
       if (paid >= totalAmount && totalAmount > 0) {
@@ -236,7 +259,7 @@ export const PaymentsPage: React.FC = () => {
         parentWhatsapp: f.student?.parent_whatsapp || existing?.parentWhatsapp,
         studentMobile: f.student?.student_mobile || existing?.studentMobile,
         course: f.student?.course || existing?.course || 'Martial Arts Training',
-        totalPackage: totalAmount || existing?.totalPackage || 0,
+        totalPackage: totalAmount,
         amountPaid: paid,
         pendingBalance: pending,
         dueDate: f.due_date,
@@ -251,7 +274,7 @@ export const PaymentsPage: React.FC = () => {
     });
 
     return Array.from(studentMap.values());
-  }, [students, studentFees]);
+  }, [students, studentFees, payments]);
 
   // Overall Financial Metrics
   const totalBilledReceivables = useMemo(() => {
@@ -340,6 +363,7 @@ export const PaymentsPage: React.FC = () => {
             onClick={() => {
               setManualForm({
                 studentId: '',
+                studentFeeId: '',
                 amount: '',
                 paymentMethod: 'CASH',
                 paymentDate: new Date().toISOString().split('T')[0],

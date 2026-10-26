@@ -1,5 +1,5 @@
 // Gurukul Sports Academy - PWA Service Worker
-const CACHE_NAME = 'gurukul-sports-v5';
+const CACHE_NAME = 'gurukul-sports-v6';
 const CORE_ASSETS = [
   '/',
   '/login',
