@@ -520,64 +520,80 @@ export const StudentProfilePage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Monthly Fee */}
-        <Card className="p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tuition Fee</span>
-            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400">
-              <CreditCard className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900 dark:text-white">
-              ₹{Number(student.monthlyFee || 0).toLocaleString('en-IN')}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">/ month</span>
-          </div>
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Due every {student.feeDueDay || 5}th of the month
-          </div>
-        </Card>
+        {/* Tuition Fee */}
+        {(() => {
+          const isYearly =
+            (student as any).feeFrequency === 'YEARLY' ||
+            feeHistory.some((f: any) => String(f.billingPeriod || '').toUpperCase().includes('YEARLY')) ||
+            (student.course || '').toLowerCase().includes('yearly') ||
+            (student.course || '').toLowerCase().includes('annual') ||
+            Number(student.monthlyFee) >= 5000;
 
-        {/* Current Month Fee Status */}
-        <Card className="p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Current Month Fee</span>
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            {student.currentMonthFeeStatus === 'PAID' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
-                PAID IN FULL
-              </span>
-            )}
-            {student.currentMonthFeeStatus === 'PARTIAL' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
-                PARTIAL (₹{student.currentMonthPendingAmount} due)
-              </span>
-            )}
-            {student.currentMonthFeeStatus === 'PENDING' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
-                PENDING (₹{student.currentMonthPendingAmount || student.monthlyFee} due)
-              </span>
-            )}
-            {student.currentMonthFeeStatus === 'OVERDUE' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300">
-                OVERDUE (₹{student.currentMonthPendingAmount || student.monthlyFee} due)
-              </span>
-            )}
-            {(!student.currentMonthFeeStatus || student.currentMonthFeeStatus === 'NOT_ASSIGNED') && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                No Fee Bill Generated
-              </span>
-            )}
-          </div>
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Billing Period: {new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}
-          </div>
-        </Card>
+          return (
+            <>
+              <Card className="p-5 border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {isYearly ? 'Annual Tuition Fee' : 'Tuition Fee'}
+                  </span>
+                  <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-slate-900 dark:text-white">
+                    ₹{Number(student.monthlyFee || 0).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                    {isYearly ? '/ year (Annual)' : '/ month'}
+                  </span>
+                </div>
+                <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {isYearly ? 'Annual 365-Day Subscription' : `Due every ${student.feeDueDay || 5}th of the month`}
+                </div>
+              </Card>
+
+              {/* Fee Settlement Status */}
+              <Card className="p-5 border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {isYearly ? 'Annual Fee Status' : 'Current Month Fee'}
+                  </span>
+                  <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  {student.currentMonthFeeStatus === 'PAID' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                      PAID IN FULL
+                    </span>
+                  )}
+                  {student.currentMonthFeeStatus === 'PARTIAL' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                      PARTIAL (₹{student.currentMonthPendingAmount} due)
+                    </span>
+                  )}
+                  {student.currentMonthFeeStatus === 'PENDING' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
+                      PENDING (₹{student.currentMonthPendingAmount || student.monthlyFee} due)
+                    </span>
+                  )}
+                  {student.currentMonthFeeStatus === 'OVERDUE' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300">
+                      OVERDUE (₹{student.currentMonthPendingAmount || student.monthlyFee} due)
+                    </span>
+                  )}
+                  {(!student.currentMonthFeeStatus || student.currentMonthFeeStatus === 'NOT_ASSIGNED') && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      No Fee Bill Generated
+                    </span>
+                  )}
+                </div>
+              </Card>
+            </>
+          );
+        })()}
       </div>
 
       {/* Tabs Navigation */}

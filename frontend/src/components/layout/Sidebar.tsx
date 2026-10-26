@@ -20,6 +20,7 @@ import {
   BookMarked,
   Trophy,
   Award,
+  Send,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { apiClient } from '../../lib/api';
@@ -139,6 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { name: 'Payments', to: '/admin/payments', icon: Receipt },
         { name: 'Reports', to: '/admin/reports', icon: FileText },
         { name: 'Announcements', to: '/admin/announcements', icon: Megaphone },
+        { name: 'Team Messaging', to: '/admin/team-messaging', icon: Send },
         { name: 'WhatsApp', to: '/admin/whatsapp-templates', icon: MessageSquare },
         { name: 'Settings', to: '/admin/settings', icon: Settings },
       ],

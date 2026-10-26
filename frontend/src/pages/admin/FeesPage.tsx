@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PublicationsPage } from './PublicationsPage';
 import { TournamentsPage } from './TournamentsPage';
@@ -37,7 +37,17 @@ const MONTH_NAMES = [
 ];
 
 export function formatBillingPeriod(periodStr: string): string {
-  if (!periodStr || !periodStr.includes('-')) return periodStr;
+  if (!periodStr) return '';
+  if (periodStr.includes('_YEARLY')) {
+    const year = periodStr.split('-')[0];
+    const nextYear = parseInt(year, 10) + 1;
+    return `Annual Package (${year} - ${isNaN(nextYear) ? '2027' : nextYear})`;
+  }
+  if (periodStr.includes('_INST_')) {
+    const instNum = periodStr.split('_INST_')[1];
+    return `Scheduled Installment #${instNum}`;
+  }
+  if (!periodStr.includes('-')) return periodStr;
   const [year, month] = periodStr.split('-');
   const monthIdx = parseInt(month, 10) - 1;
   if (monthIdx >= 0 && monthIdx < 12) {
@@ -578,28 +588,79 @@ export const FeesPage: React.FC = () => {
     }
   };
 
-  // Metrics calculation
-  const totalBilled = (studentFees || []).reduce((acc, f) => acc + Number(f?.amount_due || 0), 0);
-  const totalCollected = (studentFees || []).reduce((acc, f) => acc + Number(f?.amount_paid || 0), 0);
-  const totalPending = (studentFees || []).reduce((acc, f) => acc + Number(f?.pending_amount || 0), 0);
-  const overdueCount = (studentFees || []).filter((f) => f?.status === 'OVERDUE').length;
+  // View mode: consolidated (1 clean row per student) vs detailed (every sub-installment)
+  const [viewMode, setViewMode] = useState<'consolidated' | 'detailed'>('consolidated');
+
+  // Master fee items for financial totals (prevents double-counting sub-installments)
+  const masterFees = useMemo(() => {
+    const hasMasterYearly = new Set(
+      (studentFees || [])
+        .filter((f) => (f.billing_period || '').includes('_YEARLY'))
+        .map((f) => f.student_id)
+    );
+
+    return (studentFees || []).filter((f) => {
+      if ((f.billing_period || '').includes('_INST_') && hasMasterYearly.has(f.student_id)) {
+        return false;
+      }
+      return true;
+    });
+  }, [studentFees]);
+
+  // Metrics calculation based on genuine accounts
+  const totalBilled = masterFees.reduce((acc, f) => acc + Number(f?.amount_due || 0), 0);
+  const totalCollected = masterFees.reduce((acc, f) => acc + Number(f?.amount_paid || 0), 0);
+  const totalPending = masterFees.reduce((acc, f) => acc + Number(f?.pending_amount || 0), 0);
+  const overdueCount = masterFees.filter((f) => f?.status === 'OVERDUE').length;
 
   // Filtered student fees
   const q = (searchQuery || '').trim().toLowerCase();
-  const filteredFees = (studentFees || []).filter((fee) => {
-    const studentName = (fee.student?.name || '').toLowerCase();
-    const billingPeriod = (fee.billing_period || '').toLowerCase();
-    const planName = (fee.fee_plan?.name || '').toLowerCase();
+  const filteredFees = useMemo(() => {
+    return (studentFees || []).filter((fee) => {
+      const studentName = (fee.student?.name || '').toLowerCase();
+      const billingPeriod = (fee.billing_period || '').toLowerCase();
+      const planName = (fee.fee_plan?.name || '').toLowerCase();
 
-    const matchesSearch =
-      !q ||
-      studentName.includes(q) ||
-      billingPeriod.includes(q) ||
-      planName.includes(q);
+      const matchesSearch =
+        !q ||
+        studentName.includes(q) ||
+        billingPeriod.includes(q) ||
+        planName.includes(q);
 
-    const matchesStatus = statusFilter === 'ALL' || fee.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+      const matchesStatus = statusFilter === 'ALL' || fee.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [studentFees, q, statusFilter]);
+
+  // Consolidated view: ensures each student appears EXACTLY ONCE with their total package & scheduled installments
+  const displayFees = useMemo(() => {
+    if (viewMode === 'detailed') return filteredFees;
+
+    const yearlyMap = new Map<string, any>();
+    const installmentList: any[] = [];
+    const regularFees: any[] = [];
+
+    filteredFees.forEach((fee) => {
+      const p = fee.billing_period || '';
+      if (p.includes('_YEARLY')) {
+        yearlyMap.set(fee.student_id, { ...fee, scheduledInstallments: [] });
+      } else if (p.includes('_INST_')) {
+        installmentList.push(fee);
+      } else {
+        regularFees.push(fee);
+      }
+    });
+
+    installmentList.forEach((inst) => {
+      if (yearlyMap.has(inst.student_id)) {
+        yearlyMap.get(inst.student_id).scheduledInstallments.push(inst);
+      } else {
+        regularFees.push(inst);
+      }
+    });
+
+    return [...Array.from(yearlyMap.values()), ...regularFees];
+  }, [filteredFees, viewMode]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -853,6 +914,34 @@ export const FeesPage: React.FC = () => {
                 <option value="PAID">Paid Only</option>
                 <option value="OVERDUE">Overdue Only</option>
               </Select>
+
+              {/* View Mode Switcher */}
+              <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200/80 dark:border-slate-800 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('consolidated')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'consolidated'
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                  }`}
+                  title="Show 1 consolidated row per student with scheduled installments attached"
+                >
+                  Student View (1 Row)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('detailed')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'detailed'
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                  }`}
+                  title="Show all individual installment invoices separately"
+                >
+                  All Invoices
+                </button>
+              </div>
             </div>
           </Card>
 
@@ -892,7 +981,7 @@ export const FeesPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {filteredFees.map((fee) => (
+                    {displayFees.map((fee) => (
                       <tr key={fee.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
@@ -905,10 +994,10 @@ export const FeesPage: React.FC = () => {
                         <td className="px-5 py-4">
                           <div className="flex flex-col gap-1 items-start">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-                              {fee.fee_plan?.name || 'Custom Plan'}
+                              {fee.fee_plan?.name || (fee.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Custom Plan')}
                             </span>
-                            {fee.fee_plan?.frequency === 'YEARLY' && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            {(fee.fee_plan?.frequency === 'YEARLY' || fee.billing_period?.includes('YEARLY')) && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30">
                                 📅 1-Year Package
                               </span>
                             )}
@@ -921,6 +1010,19 @@ export const FeesPage: React.FC = () => {
                           <div className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
                             {fee.billing_period}
                           </div>
+                          {fee.scheduledInstallments && fee.scheduledInstallments.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {fee.scheduledInstallments.map((inst: any) => (
+                                <span
+                                  key={inst.id}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                  title={`Due Date: ${inst.due_date}`}
+                                >
+                                  Inst 2: ₹{Number(inst.amount_due).toLocaleString('en-IN')} (Due {inst.due_date ? new Date(inst.due_date).toLocaleDateString() : 'TBD'})
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-5 py-4 text-xs text-slate-600 dark:text-slate-400">
                           {fee.due_date ? new Date(fee.due_date).toLocaleDateString() : '—'}

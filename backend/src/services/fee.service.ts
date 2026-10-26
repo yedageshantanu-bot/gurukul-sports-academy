@@ -380,12 +380,11 @@ export class FeeService {
 
     const existingStudentIds = new Set((existingFees || []).map((f) => f.student_id));
 
-    // 3. Fetch any active YEARLY fees
+    // 3. Fetch any active YEARLY fees (PAID, PARTIAL, or PENDING) to protect yearly students
     const { data: yearlyFees } = await this.supabase
       .from('student_fees')
-      .select('student_id, billing_period, due_date')
-      .like('billing_period', '%_YEARLY%')
-      .eq('status', 'PAID');
+      .select('student_id, billing_period, due_date, status')
+      .like('billing_period', '%_YEARLY%');
 
     const yearlyStudentIds = new Set((yearlyFees || []).map((yf) => yf.student_id));
 

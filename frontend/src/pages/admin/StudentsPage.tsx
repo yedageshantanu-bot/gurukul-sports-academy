@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   Phone,
   MessageSquare,
-  Layers,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -932,7 +931,7 @@ export const StudentsPage: React.FC = () => {
                 <tr>
                   <th>Student &amp; ID</th>
                   <th>Parent Contact</th>
-                  <th>Batch &amp; Sport / Belt</th>
+                  <th>Sport &amp; Belt Rank</th>
                   <th>WhatsApp</th>
                   <th>Fee Status</th>
                   <th>Status</th>
@@ -950,10 +949,6 @@ export const StudentsPage: React.FC = () => {
                         .substring(0, 2)
                     : 'ST';
                   const gradient = avatarColors[idx % avatarColors.length];
-
-                  const assignedBatchName =
-                    s.batchName ||
-                    (s.enrolledBatches && s.enrolledBatches.length > 0 ? s.enrolledBatches[0].name : null);
 
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
@@ -1014,18 +1009,9 @@ export const StudentsPage: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Assigned Batch & Sport/Belt */}
+                      {/* Sport & Belt Rank (Batch pill hidden per academy requirements) */}
                       <td className="px-5 py-4 text-xs">
                         <div className="space-y-1.5">
-                          {assignedBatchName ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80">
-                              <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                              {assignedBatchName}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 dark:text-slate-500 italic block text-[11px]">Unassigned Batch</span>
-                          )}
-
                           {s.martialArtsRanks && s.martialArtsRanks.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {s.martialArtsRanks.map((r: any, rIdx: number) => (
@@ -1040,7 +1026,11 @@ export const StudentsPage: React.FC = () => {
                                 </span>
                               ))}
                             </div>
-                          ) : null}
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500 italic block text-[11px]">
+                              {s.course || 'Rank Pending'}
+                            </span>
+                          )}
                         </div>
                       </td>
 

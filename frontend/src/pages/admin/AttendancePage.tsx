@@ -8,7 +8,7 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { apiClient } from '../../lib/api';
 import { BatchItem } from '../../types/crm';
 import { AttendanceRecord, AttendanceSheetResponse, AttendanceSheetStudentRow } from '../../types/attendance';
-import { Calendar, Users, Save, Check, X, CheckCircle2, XCircle, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react';
+import { Calendar, Users, Save, Check, X, CheckCircle2, XCircle, RefreshCw, AlertCircle, MessageSquare, RotateCcw } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const AttendancePage: React.FC = () => {
@@ -29,6 +29,31 @@ export const AttendancePage: React.FC = () => {
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [sendingWaId, setSendingWaId] = useState<string | null>(null);
 
+  // Admin Configurable WhatsApp Template
+  const DEFAULT_ATTENDANCE_MSG =
+    "Hello Parent, Attendance Update: Athlete {student_name} is marked {status} for today's training session ({date}) at Gurukul Sports Academy. Batch: {batch_name}.";
+  const [customWaTemplate, setCustomWaTemplate] = useState<string>(() => {
+    return localStorage.getItem('gurukul_attendance_wa_template') || DEFAULT_ATTENDANCE_MSG;
+  });
+  const [templateSavedMsg, setTemplateSavedMsg] = useState(false);
+
+  const handleSaveTemplate = () => {
+    localStorage.setItem('gurukul_attendance_wa_template', customWaTemplate);
+    setTemplateSavedMsg(true);
+    toast.success('Custom attendance WhatsApp message template saved!');
+    setTimeout(() => setTemplateSavedMsg(false), 4000);
+  };
+
+  const handleResetTemplate = () => {
+    setCustomWaTemplate(DEFAULT_ATTENDANCE_MSG);
+    localStorage.setItem('gurukul_attendance_wa_template', DEFAULT_ATTENDANCE_MSG);
+    toast.info('Template reset to default demo message.');
+  };
+
+  const handleInsertTag = (tag: string) => {
+    setCustomWaTemplate((prev) => `${prev} ${tag}`);
+  };
+
   const handleSendDirectWhatsApp = async (s: AttendanceSheetStudentRow) => {
     const rawPhone = s.parentWhatsapp || s.studentMobile;
     if (!rawPhone) {
@@ -37,11 +62,22 @@ export const AttendancePage: React.FC = () => {
     }
     setSendingWaId(s.studentId);
     try {
+      const selectedBatch = batches.find((b) => b.id === selectedBatchId);
+      const batchName = selectedBatch ? selectedBatch.name : 'Training Batch';
+      const resolvedMessage = (customWaTemplate || DEFAULT_ATTENDANCE_MSG)
+        .replace(/{student_name}/g, s.name)
+        .replace(/{athlete_name}/g, s.name)
+        .replace(/{name}/g, s.name)
+        .replace(/{status}/g, s.status || 'PRESENT')
+        .replace(/{date}/g, selectedDate)
+        .replace(/{batch_name}/g, batchName)
+        .replace(/{parent_name}/g, s.name.split(' ')[0] ? `${s.name.split(' ')[0]}'s Parent` : 'Parent');
+
       await apiClient<any>('/whatsapp/send', {
         method: 'POST',
         body: JSON.stringify({
           phone: rawPhone,
-          message: `Hello Parent, Attendance Update: Athlete ${s.name} is marked ${s.status || 'PRESENT'} for today's training session at Gurukul Sports Academy.`,
+          message: resolvedMessage,
         }),
       });
       toast.success(`Direct WhatsApp alert sent to ${s.name} via OpenWA gateway!`);
@@ -255,6 +291,79 @@ export const AttendancePage: React.FC = () => {
            TAB 1: MARK ATTENDANCE SHEET
            ========================================================= */
         <div className="space-y-5">
+          {/* Top Admin Configurable Message Template Card */}
+          <Card className="p-5 border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-[#1E293B] to-[#0F172A] text-white shadow-md rounded-2xl border border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    WhatsApp Attendance Message Template
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Configurable Template
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Admin sets and controls the notification message dispatched to parents for daily attendance &amp; 1-click WhatsApp alerts.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResetTemplate}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Reset to default demo message"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Demo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTemplate}
+                  className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{templateSavedMsg ? 'Saved!' : 'Save Template'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3.5 space-y-2.5">
+              <textarea
+                rows={3}
+                value={customWaTemplate}
+                onChange={(e) => setCustomWaTemplate(e.target.value)}
+                placeholder="Type the WhatsApp attendance message template..."
+                className="w-full p-3 bg-slate-950/60 border border-white/10 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans leading-relaxed"
+              />
+
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-[11px] text-slate-400 font-semibold mr-1">Click to insert variables:</span>
+                {[
+                  { tag: '{student_name}', label: 'Student Name' },
+                  { tag: '{status}', label: 'Status (PRESENT/ABSENT)' },
+                  { tag: '{date}', label: 'Date' },
+                  { tag: '{batch_name}', label: 'Batch Name' },
+                  { tag: '{parent_name}', label: 'Parent Name' },
+                ].map((item) => (
+                  <button
+                    key={item.tag}
+                    type="button"
+                    onClick={() => handleInsertTag(item.tag)}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white/10 hover:bg-white/20 text-emerald-300 border border-white/10 transition-colors cursor-pointer"
+                    title={`Insert ${item.tag}`}
+                  >
+                    + {item.tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Card>
+
           {/* Controls bar: Select Batch & Date */}
           <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-card">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">

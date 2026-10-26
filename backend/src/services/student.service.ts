@@ -689,16 +689,6 @@ export class StudentService {
           status: feeStatus,
         });
 
-        // Also ensure current month identifier reflects the installment status and pending balance
-        feeRecordsToInsert.push({
-          student_id: student.id,
-          billing_period: currentBillingPeriod,
-          amount_due: totalAnnualFee,
-          amount_paid: amountPaid,
-          due_date: dueDate,
-          status: feeStatus,
-        });
-
         // Insert individual scheduled future installments
         if (dto.installments && Array.isArray(dto.installments) && dto.installments.length > 0) {
           dto.installments.forEach((inst, idx) => {
