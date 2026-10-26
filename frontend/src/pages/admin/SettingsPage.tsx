@@ -309,7 +309,7 @@ export const SettingsPage: React.FC = () => {
             <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
               <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400">Database Engine</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Supabase PG17 (Connected)</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Academy Cloud Engine (Connected)</span>
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400">API Status</span>

@@ -15,7 +15,7 @@ export const AdminDashboardPlaceholder: React.FC = () => {
           <Badge variant="info">ADMIN ROLE</Badge>
         </div>
         <p className="text-sm text-slate-500 mt-1">
-          Authenticated administrative session verified via Supabase JWT and backend RBAC.
+          Authenticated administrative session verified with role-based access control.
         </p>
       </div>
 

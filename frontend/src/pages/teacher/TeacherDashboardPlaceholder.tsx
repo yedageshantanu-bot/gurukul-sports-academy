@@ -15,7 +15,7 @@ export const TeacherDashboardPlaceholder: React.FC = () => {
           <Badge variant="success">TEACHER ROLE</Badge>
         </div>
         <p className="text-sm text-slate-500 mt-1">
-          Authenticated teacher session verified via Supabase JWT and backend RBAC.
+          Authenticated teacher session verified with role-based access control.
         </p>
       </div>
 
