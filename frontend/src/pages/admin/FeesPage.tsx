@@ -627,9 +627,6 @@ export const FeesPage: React.FC = () => {
     }
   };
 
-  // View mode: consolidated (1 clean row per student) vs detailed (every sub-installment)
-  const [viewMode, setViewMode] = useState<'consolidated' | 'detailed'>('consolidated');
-
   // Master fee items for financial totals (prevents double-counting sub-installments)
   const masterFees = useMemo(() => {
     const hasMasterYearly = new Set(
@@ -671,35 +668,28 @@ export const FeesPage: React.FC = () => {
     });
   }, [studentFees, q, statusFilter]);
 
-  // Consolidated view: ensures each student appears EXACTLY ONCE with their total package & scheduled installments
+  // Strict 1-to-1 student representation: Each student appears EXACTLY ONCE in ledger
   const displayFees = useMemo(() => {
-    if (viewMode === 'detailed') return filteredFees;
-
-    const yearlyMap = new Map<string, any>();
-    const installmentList: any[] = [];
-    const regularFees: any[] = [];
+    const studentMap = new Map<string, any>();
 
     filteredFees.forEach((fee) => {
-      const p = fee.billing_period || '';
-      if (p.includes('_YEARLY')) {
-        yearlyMap.set(fee.student_id, { ...fee, scheduledInstallments: [] });
-      } else if (p.includes('_INST_')) {
-        installmentList.push(fee);
+      const studentId = fee.student_id;
+      if (!studentMap.has(studentId)) {
+        studentMap.set(studentId, { ...fee, scheduledInstallments: [] });
       } else {
-        regularFees.push(fee);
+        const existing = studentMap.get(studentId);
+        // If this record is the master yearly account, prioritize it
+        if ((fee.billing_period || '').includes('_YEARLY')) {
+          studentMap.set(studentId, {
+            ...fee,
+            scheduledInstallments: existing.scheduledInstallments || [],
+          });
+        }
       }
     });
 
-    installmentList.forEach((inst) => {
-      if (yearlyMap.has(inst.student_id)) {
-        yearlyMap.get(inst.student_id).scheduledInstallments.push(inst);
-      } else {
-        regularFees.push(inst);
-      }
-    });
-
-    return [...Array.from(yearlyMap.values()), ...regularFees];
-  }, [filteredFees, viewMode]);
+    return Array.from(studentMap.values());
+  }, [filteredFees]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -912,7 +902,7 @@ export const FeesPage: React.FC = () => {
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
           }`}
         >
-          Student Dues Ledger ({studentFees.length})
+          Student Dues Ledger ({displayFees.length})
         </button>
         <button
           onClick={() => setActiveTab('fee_plans')}
@@ -953,34 +943,6 @@ export const FeesPage: React.FC = () => {
                 <option value="PAID">Paid Only</option>
                 <option value="OVERDUE">Overdue Only</option>
               </Select>
-
-              {/* View Mode Switcher */}
-              <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200/80 dark:border-slate-800 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('consolidated')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    viewMode === 'consolidated'
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-                  }`}
-                  title="Show 1 consolidated row per student with scheduled installments attached"
-                >
-                  Student View (1 Row)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('detailed')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    viewMode === 'detailed'
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-                  }`}
-                  title="Show all individual installment invoices separately"
-                >
-                  All Invoices
-                </button>
-              </div>
             </div>
           </Card>
 

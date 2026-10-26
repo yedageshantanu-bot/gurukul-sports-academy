@@ -404,21 +404,30 @@ export const StudentsPage: React.FC = () => {
   };
 
   const filteredStudents = useMemo(() => {
-    if (!search.trim()) return students;
-    const q = search.toLowerCase();
-    return students.filter((s) => {
-      const matchName = s.name?.toLowerCase().includes(q);
-      const matchParent = s.parentName?.toLowerCase().includes(q);
-      const matchWa = s.parentWhatsapp?.toLowerCase().includes(q);
-      const matchMob = s.studentMobile?.toLowerCase().includes(q);
-      const matchCourse = s.course?.toLowerCase().includes(q);
-      const matchBatch = s.batchName?.toLowerCase().includes(q);
-      const matchRank = s.martialArtsRanks?.some((r: any) =>
-        r.rankName?.toLowerCase().includes(q) ||
-        r.beltColor?.toLowerCase().includes(q) ||
-        r.disciplineName?.toLowerCase().includes(q)
-      );
-      return matchName || matchParent || matchWa || matchMob || matchCourse || matchBatch || matchRank;
+    const list = !search.trim()
+      ? students
+      : students.filter((s) => {
+          const q = search.toLowerCase();
+          const matchName = s.name?.toLowerCase().includes(q);
+          const matchParent = s.parentName?.toLowerCase().includes(q);
+          const matchWa = s.parentWhatsapp?.toLowerCase().includes(q);
+          const matchMob = s.studentMobile?.toLowerCase().includes(q);
+          const matchCourse = s.course?.toLowerCase().includes(q);
+          const matchBatch = s.batchName?.toLowerCase().includes(q);
+          const matchRank = s.martialArtsRanks?.some((r: any) =>
+            r.rankName?.toLowerCase().includes(q) ||
+            r.beltColor?.toLowerCase().includes(q) ||
+            r.disciplineName?.toLowerCase().includes(q)
+          );
+          return matchName || matchParent || matchWa || matchMob || matchCourse || matchBatch || matchRank;
+        });
+
+    // Guarantee 1-to-1: each student ID appears at most once
+    const seen = new Set<string>();
+    return list.filter((s) => {
+      if (!s.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
     });
   }, [students, search]);
 

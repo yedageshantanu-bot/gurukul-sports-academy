@@ -174,9 +174,7 @@ export const PaymentsPage: React.FC = () => {
   const successCount = (payments || []).filter((p) => p.status === 'SUCCESS').length;
 
   const consolidatedPendingFees = useMemo(() => {
-    const yearlyMap = new Map<string, any>();
-    const subInstallments: any[] = [];
-    const regularPending: any[] = [];
+    const studentMap = new Map<string, any>();
 
     (studentFees || []).forEach((fee) => {
       const amountDue = Number(fee.amount_due || 0);
@@ -185,25 +183,18 @@ export const PaymentsPage: React.FC = () => {
 
       if (pending <= 0 && fee.status === 'PAID') return;
 
-      const p = fee.billing_period || '';
-      if (p.includes('_YEARLY')) {
-        yearlyMap.set(fee.student_id, { ...fee, computedPending: pending, subInstallments: [] });
-      } else if (p.includes('_INST_')) {
-        subInstallments.push({ ...fee, computedPending: pending });
+      const studentId = fee.student_id;
+      if (!studentMap.has(studentId)) {
+        studentMap.set(studentId, { ...fee, computedPending: pending });
       } else {
-        regularPending.push({ ...fee, computedPending: pending });
+        // If master yearly account, prioritize its data
+        if ((fee.billing_period || '').includes('_YEARLY')) {
+          studentMap.set(studentId, { ...fee, computedPending: pending });
+        }
       }
     });
 
-    subInstallments.forEach((inst) => {
-      if (yearlyMap.has(inst.student_id)) {
-        yearlyMap.get(inst.student_id).subInstallments.push(inst);
-      } else {
-        regularPending.push(inst);
-      }
-    });
-
-    return [...Array.from(yearlyMap.values()), ...regularPending];
+    return Array.from(studentMap.values());
   }, [studentFees]);
 
   const totalPendingDues = useMemo(() => {

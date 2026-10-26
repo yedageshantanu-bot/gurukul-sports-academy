@@ -688,24 +688,6 @@ export class StudentService {
           due_date: dueDate,
           status: feeStatus,
         });
-
-        // Insert individual scheduled future installments
-        if (dto.installments && Array.isArray(dto.installments) && dto.installments.length > 0) {
-          dto.installments.forEach((inst, idx) => {
-            const instDueDate = inst.dueDate;
-            const instAmount = Number(inst.amount) || 0;
-            if (instAmount > 0) {
-              feeRecordsToInsert.push({
-                student_id: student.id,
-                billing_period: `${currentBillingPeriod}_INST_${idx + 2}`,
-                amount_due: instAmount,
-                amount_paid: 0,
-                due_date: instDueDate,
-                status: 'PENDING',
-              });
-            }
-          });
-        }
       }
       // CASE B: "PAID UP TO" SMART SELECTOR (Zero math: e.g. paid up to Sept 2026, Oct 2026 is due)
       else if (dto.feePaymentType === 'PAID_UP_TO' && dto.paidUpToMonth) {
