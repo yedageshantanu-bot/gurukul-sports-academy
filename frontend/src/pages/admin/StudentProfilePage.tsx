@@ -499,24 +499,24 @@ export const StudentProfilePage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Enrolled Batches */}
+        {/* Enrolled Course / Training Program */}
         <Card className="p-5 border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Batches</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Discipline / Course</span>
             <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-              <Layers className="w-4 h-4" />
+              <Award className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900 dark:text-white">
-              {enrolledBatches.length}
+          <div className="mt-3">
+            <span className="text-lg font-black text-slate-900 dark:text-white truncate block">
+              {student.course || 'Regular Training'}
             </span>
             <span className="text-xs text-slate-500 font-medium">
-              Active Enrollment{enrolledBatches.length !== 1 ? 's' : ''}
+              Registered Martial Arts Program
             </span>
           </div>
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 truncate">
-            {enrolledBatches[0]?.name ? `Primary: ${enrolledBatches[0].name}` : 'No batch assigned'}
+          <div className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-semibold truncate">
+            Status: {student.status === 'ACTIVE' ? 'Active Member' : student.status}
           </div>
         </Card>
 
@@ -632,18 +632,6 @@ export const StudentProfilePage: React.FC = () => {
         >
           <Calendar className="w-4 h-4" />
           Attendance Records ({attendanceHistory.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('batches')}
-          className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            activeTab === 'batches'
-              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          Enrolled Batches ({enrolledBatches.length})
         </button>
 
         <button
@@ -968,30 +956,15 @@ export const StudentProfilePage: React.FC = () => {
 
             <Card className="p-6 border-slate-200/80 dark:border-slate-800 shadow-card">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-600" />
-                Current Batches
+                <Award className="w-4 h-4 text-indigo-600" />
+                Training Program
               </h4>
-              {enrolledBatches.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No batches assigned yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {enrolledBatches.map((b: any) => (
-                    <div
-                      key={b.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 text-xs"
-                    >
-                      <div className="font-bold text-slate-900 dark:text-white">{b.name}</div>
-                      {b.subject && <div className="text-slate-500 mt-0.5">{b.subject}</div>}
-                      {b.start_time && (
-                        <div className="text-indigo-600 dark:text-indigo-400 font-medium mt-1 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {b.start_time} - {b.end_time || 'End'}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 text-xs space-y-1">
+                <div className="font-bold text-slate-900 dark:text-white">{student.course || 'Regular Martial Arts Training'}</div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  Status: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{student.status === 'ACTIVE' ? 'Active Member' : student.status}</span>
                 </div>
-              )}
+              </div>
             </Card>
           </div>
         </div>

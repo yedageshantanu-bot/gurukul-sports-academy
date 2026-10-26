@@ -257,6 +257,18 @@ export const FeesPage: React.FC = () => {
 
   // Auto-fill amount when fee plan selected
   const handlePlanSelect = (planId: string) => {
+    if (planId === 'STUDENT_COURSE') {
+      const selectedStudent = students.find((s) => s.id === assignForm.studentId);
+      if (selectedStudent && selectedStudent.monthlyFee) {
+        setAssignForm((prev) => ({
+          ...prev,
+          feePlanId: '',
+          amountDue: String(selectedStudent.monthlyFee),
+        }));
+      }
+      return;
+    }
+
     const selected = feePlans.find((p) => p.id === planId);
     if (selected) {
       setAssignForm((prev) => ({
@@ -267,6 +279,33 @@ export const FeesPage: React.FC = () => {
     } else {
       setAssignForm((prev) => ({ ...prev, feePlanId: planId }));
     }
+  };
+
+  const handleStudentSelect = (studentId: string) => {
+    const sel = students.find((s) => s.id === studentId);
+    let detectedPlanId = '';
+    let detectedAmount = '';
+
+    if (sel) {
+      const matched = feePlans.find(
+        (p) =>
+          p.id === (sel as any).feePlanId ||
+          p.name.trim().toLowerCase() === (sel.course || '').trim().toLowerCase()
+      );
+      if (matched) {
+        detectedPlanId = matched.id;
+        detectedAmount = String(matched.amount);
+      } else if (sel.monthlyFee) {
+        detectedAmount = String(sel.monthlyFee);
+      }
+    }
+
+    setAssignForm((prev) => ({
+      ...prev,
+      studentId,
+      feePlanId: detectedPlanId || prev.feePlanId,
+      amountDue: detectedAmount || prev.amountDue,
+    }));
   };
 
   // Open pay modal
@@ -1276,34 +1315,67 @@ export const FeesPage: React.FC = () => {
       {/* Modal 2: Assign Student Fee */}
       <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title="Assign Fee to Student" maxWidth="lg">
         <form onSubmit={handleAssignFee} className="space-y-4">
-          <Select
-            label="Student *"
-            required
-            value={assignForm.studentId}
-            onChange={(e) => setAssignForm({ ...assignForm, studentId: e.target.value })}
-          >
-            <option value="">Select a student...</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.course || 'General'})
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            label="Fee Plan Template (Optional)"
-            value={assignForm.feePlanId}
-            onChange={(e) => handlePlanSelect(e.target.value)}
-          >
-            <option value="">Custom / Direct Entry</option>
-            {feePlans
-              .filter((p) => p.active)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (₹{p.amount} / {p.frequency})
+          <div>
+            <Select
+              label="Select Student *"
+              required
+              value={assignForm.studentId}
+              onChange={(e) => handleStudentSelect(e.target.value)}
+            >
+              <option value="">-- Choose a student --</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.course || 'General'})
                 </option>
               ))}
-          </Select>
+            </Select>
+
+            {(() => {
+              const sel = students.find((s) => s.id === assignForm.studentId);
+              if (!sel) return null;
+              return (
+                <div className="mt-2 p-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white">{sel.name}</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">· Enrolled Course: <strong>{sel.course || 'Regular Training'}</strong></span>
+                  </div>
+                  <div className="font-extrabold text-indigo-700 dark:text-indigo-300">
+                    Standard Fee: ₹{sel.monthlyFee || 0}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div>
+            <Select
+              label="Select Course / Fee Plan *"
+              value={assignForm.feePlanId}
+              onChange={(e) => handlePlanSelect(e.target.value)}
+            >
+              {(() => {
+                const sel = students.find((s) => s.id === assignForm.studentId);
+                return (
+                  <>
+                    {sel && sel.course && (
+                      <option value="STUDENT_COURSE">
+                        🎯 Current Enrolled Course: {sel.course} (₹{sel.monthlyFee || 0})
+                      </option>
+                    )}
+                    <option value="">-- Select Course / Training Plan --</option>
+                    {feePlans
+                      .filter((p) => p.active)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          🥋 {p.name} — ₹{p.amount} / {p.frequency}
+                        </option>
+                      ))}
+                    <option value="CUSTOM">✏️ Custom Course / Direct Amount</option>
+                  </>
+                );
+              })()}
+            </Select>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
@@ -1324,7 +1396,7 @@ export const FeesPage: React.FC = () => {
               step="0.01"
               min="0"
               required
-              placeholder="e.g. 3500"
+              placeholder="e.g. 700"
               value={assignForm.amountDue}
               onChange={(e) => setAssignForm({ ...assignForm, amountDue: e.target.value })}
             />

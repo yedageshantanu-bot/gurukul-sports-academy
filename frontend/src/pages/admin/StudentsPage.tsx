@@ -571,10 +571,27 @@ export const StudentsPage: React.FC = () => {
     setBatchId(currentBatchId);
     setWhatsappOptIn(s.whatsappOptIn !== false);
     setStatus(s.status || 'ACTIVE');
-    setCourse(s.course || '');
+    const studentCourse = (s.course || '').trim();
+    setCourse(studentCourse);
     setMonthlyFee(s.monthlyFee || 0);
     setFeeDueDay(s.feeDueDay || 5);
     setAdmissionDate(s.admissionDate ? s.admissionDate.split('T')[0] : '');
+
+    // Match plan from feePlans or preserve current enrolled course
+    const matchedPlan = feePlans.find(
+      (p) =>
+        p.id === (s as any).feePlanId ||
+        p.name.trim().toLowerCase() === studentCourse.toLowerCase()
+    );
+
+    if (matchedPlan) {
+      setSelectedPlanId(matchedPlan.id);
+    } else if (studentCourse) {
+      setSelectedPlanId('CURRENT');
+    } else {
+      setSelectedPlanId('');
+    }
+
     setFormError('');
     setIsEditModalOpen(true);
   };
@@ -1437,6 +1454,43 @@ export const StudentsPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Course Selector Dropdown */}
+              <div>
+                <Select
+                  label="Select Course / Training Plan Template"
+                  value={selectedPlanId}
+                  onChange={(e) => {
+                    const planId = e.target.value;
+                    setSelectedPlanId(planId);
+                    if (planId === 'CUSTOM') {
+                      // Manual entry mode
+                    } else if (planId) {
+                      const found = feePlans.find((p) => p.id === planId);
+                      if (found) {
+                        setCourse(found.name);
+                        setMonthlyFee(Number(found.amount));
+                        if (found.due_day) setFeeDueDay(found.due_day);
+                        if (found.frequency === 'YEARLY') {
+                          setFeeFrequency('YEARLY');
+                          setFeePaymentType('YEARLY_PAID');
+                        } else {
+                          setFeeFrequency('MONTHLY');
+                        }
+                      }
+                    }
+                  }}
+                  className="bg-slate-900 text-white border-slate-700"
+                >
+                  <option value="">-- Quick Pick from Existing Courses / Plans --</option>
+                  {feePlans.filter((p) => p.active !== false).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
+                    </option>
+                  ))}
+                  <option value="CUSTOM">✏️ Custom Course Entry</option>
+                </Select>
+              </div>
+
               {/* Course Name & Fee Amount */}
               <div className="grid grid-cols-2 gap-3">
                 <Input
@@ -2022,12 +2076,18 @@ export const StudentsPage: React.FC = () => {
             <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3">
               <div>
                 <Select
-                  label="Course / Fee Plan"
+                  label="Course / Training Plan *"
                   value={selectedPlanId}
                   onChange={(e) => {
                     const planId = e.target.value;
                     setSelectedPlanId(planId);
-                    if (planId === 'CUSTOM') {
+                    if (planId === 'CURRENT') {
+                      if (editingStudent) {
+                        setCourse(editingStudent.course || '');
+                        setMonthlyFee(editingStudent.monthlyFee || 0);
+                        if (editingStudent.feeDueDay) setFeeDueDay(editingStudent.feeDueDay);
+                      }
+                    } else if (planId === 'CUSTOM') {
                       // Manual entry mode
                     } else if (planId) {
                       const found = feePlans.find((p) => p.id === planId);
@@ -2039,31 +2099,39 @@ export const StudentsPage: React.FC = () => {
                     }
                   }}
                 >
-                  <option value="">-- Select Course / Fee Plan --</option>
+                  {/* Current course option if not already a standard plan ID match */}
+                  {course && !feePlans.some((p) => p.id === selectedPlanId) && (
+                    <option value="CURRENT">
+                      🎯 Current Course: {course} ({monthlyFee ? `₹${monthlyFee}` : 'No Fee'})
+                    </option>
+                  )}
+                  <option value="">-- Select Course / Training Plan --</option>
                   {feePlans.filter((p) => p.active !== false).map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
+                      🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
                     </option>
                   ))}
-                  <option value="CUSTOM">Custom Course / Other Entry</option>
+                  <option value="CUSTOM">✏️ Custom Course / Other Entry</option>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="Course Name"
+                  label="Course Name *"
                   value={course}
                   onChange={(e) => setCourse(e.target.value)}
                   placeholder="e.g. Kalarippayattu (Monthly)"
+                  required
                 />
                 <Input
-                  label="Fee Amount (₹)"
+                  label="Fee Amount (₹) *"
                   type="number"
                   min="0"
                   step="1"
                   value={monthlyFee === 0 ? '' : monthlyFee}
                   onChange={(e) => setMonthlyFee(Number(e.target.value))}
                   placeholder="e.g. 700"
+                  required
                 />
               </div>
             </div>
