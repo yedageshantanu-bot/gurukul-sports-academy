@@ -8,6 +8,10 @@ import {
   Phone,
   RefreshCw,
   Building,
+  Edit2,
+  Check,
+  MessageSquare,
+  X,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -108,14 +112,32 @@ export const TeamMessagingPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPhone, setManualPhone] = useState('');
 
-  // Composer fields (Sender Name & Position optional per user requirement)
+  // Composer fields (Sender Name optional, Position removed per user requirement)
   const [senderName, setSenderName] = useState('');
-  const [senderPosition, setSenderPosition] = useState('');
   const [recipientRole, setRecipientRole] = useState('ALL_STAFF');
   const [priority, setPriority] = useState<'NORMAL' | 'URGENT' | 'ANNOUNCEMENT'>('NORMAL');
   const [subject, setSubject] = useState('');
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+
+  // Multi-Slot Scheduling
+  const [broadcastMode, setBroadcastMode] = useState<'NOW' | 'SCHEDULED'>('NOW');
+  const [scheduledTimes, setScheduledTimes] = useState<string[]>([
+    new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+  ]);
+
+  // Top WhatsApp Team Broadcast Template Configurator
+  const DEFAULT_TEAM_TEMPLATE =
+    '🥋 *Gurukul Sports Academy Team Notice*\n\nDear {recipient_name},\n{message}\n\nPriority: {priority}\nFrom: {sender_name}\nGurukul Sports Academy Administration';
+
+  const [teamWhatsappTemplate, setTeamWhatsappTemplate] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gurukul_team_whatsapp_template') || DEFAULT_TEAM_TEMPLATE;
+    } catch {
+      return DEFAULT_TEAM_TEMPLATE;
+    }
+  });
+  const [isTeamTemplateOpen, setIsTeamTemplateOpen] = useState(false);
 
   // Modal: Add Team Member
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -231,11 +253,13 @@ export const TeamMessagingPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({
           sender_name: senderName.trim() || null,
-          sender_position: senderPosition.trim() || null,
           recipient_role: recipientRole,
           subject: subject.trim() || null,
           message: messageText.trim(),
           priority: priority,
+          scheduled_at: broadcastMode === 'SCHEDULED' ? scheduledTimes[0] : null,
+          scheduled_times: broadcastMode === 'SCHEDULED' ? scheduledTimes : [],
+          status: broadcastMode === 'SCHEDULED' ? 'SCHEDULED' : 'SENT',
         }),
       });
 
@@ -244,59 +268,65 @@ export const TeamMessagingPage: React.FC = () => {
       } else {
         fetchDbMessages();
       }
-      toast.success('Team broadcast stored in academy database!');
+      if (broadcastMode === 'SCHEDULED') {
+        toast.success(`Team message scheduled across ${scheduledTimes.length} delivery slot(s)!`);
+      } else {
+        toast.success('Team broadcast stored in academy database!');
+      }
     } catch (err: any) {
       console.error('Error storing team message:', err);
       toast.warning('Stored locally; backend sync noted.');
     }
 
-    // 2. Dispatch WhatsApp if contacts selected
-    const recipients: Array<{ phone: string; name?: string }> = [];
-    teamMembers
-      .filter((m) => selectedIds.includes(m.id))
-      .forEach((m) => recipients.push({ phone: m.phone, name: m.name }));
+    // 2. Dispatch WhatsApp immediately if Mode is NOW and contacts selected
+    if (broadcastMode === 'NOW') {
+      const recipients: Array<{ phone: string; name?: string }> = [];
+      teamMembers
+        .filter((m) => selectedIds.includes(m.id))
+        .forEach((m) => recipients.push({ phone: m.phone, name: m.name }));
 
-    if (manualPhone.trim()) {
-      recipients.push({ phone: manualPhone.trim(), name: 'Ad-hoc Contact' });
-    }
-
-    if (recipients.length > 0) {
-      let successCount = 0;
-      const newLogs: DispatchedLog[] = [];
-
-      for (const r of recipients) {
-        try {
-          await apiClient<any>('/whatsapp/send', {
-            method: 'POST',
-            body: JSON.stringify({
-              phone: r.phone,
-              message: messageText.trim(),
-            }),
-          });
-          successCount++;
-          newLogs.unshift({
-            id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            recipientPhone: r.phone,
-            recipientName: r.name,
-            message: messageText.trim(),
-            status: 'SENT',
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          newLogs.unshift({
-            id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            recipientPhone: r.phone,
-            recipientName: r.name,
-            message: messageText.trim(),
-            status: 'FAILED',
-            timestamp: new Date().toISOString(),
-          });
-        }
+      if (manualPhone.trim()) {
+        recipients.push({ phone: manualPhone.trim(), name: 'Ad-hoc Contact' });
       }
 
-      setDispatchLogs((prev) => [...newLogs, ...prev].slice(0, 50));
-      if (successCount > 0) {
-        toast.success(`WhatsApp dispatched to ${successCount} contact(s)!`);
+      if (recipients.length > 0) {
+        let successCount = 0;
+        const newLogs: DispatchedLog[] = [];
+
+        for (const r of recipients) {
+          try {
+            await apiClient<any>('/whatsapp/send', {
+              method: 'POST',
+              body: JSON.stringify({
+                phone: r.phone,
+                message: messageText.trim(),
+              }),
+            });
+            successCount++;
+            newLogs.unshift({
+              id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              recipientPhone: r.phone,
+              recipientName: r.name,
+              message: messageText.trim(),
+              status: 'SENT',
+              timestamp: new Date().toISOString(),
+            });
+          } catch {
+            newLogs.unshift({
+              id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              recipientPhone: r.phone,
+              recipientName: r.name,
+              message: messageText.trim(),
+              status: 'FAILED',
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+
+        setDispatchLogs((prev) => [...newLogs, ...prev].slice(0, 50));
+        if (successCount > 0) {
+          toast.success(`WhatsApp dispatched to ${successCount} contact(s)!`);
+        }
       }
     }
 
@@ -338,6 +368,125 @@ export const TeamMessagingPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* WhatsApp Team Broadcast Template Configurator */}
+      <Card className="p-4 bg-gradient-to-br from-indigo-950/20 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">Team WhatsApp Message &amp; Multi-Schedule Automation</h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Active Team Config
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Staff notices, duty rosters, and meeting reminders sent directly to instructors and coaches via WhatsApp.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTeamTemplateOpen(!isTeamTemplateOpen)}
+            className="text-xs h-8 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10"
+          >
+            <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+            {isTeamTemplateOpen ? 'Collapse Editor' : 'Edit Template & Preview'}
+          </Button>
+        </div>
+
+        {/* Collapsed Preview */}
+        {!isTeamTemplateOpen && (
+          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
+            "{teamWhatsappTemplate}"
+          </div>
+        )}
+
+        {/* Expanded Editor */}
+        {isTeamTemplateOpen && (
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  Template Message Text
+                </label>
+                <textarea
+                  value={teamWhatsappTemplate}
+                  onChange={(e) => setTeamWhatsappTemplate(e.target.value)}
+                  rows={4}
+                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Dynamic Variable Tags:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['{recipient_name}', '{message}', '{priority}', '{sender_name}', '{date}'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTeamWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    localStorage.setItem('gurukul_team_whatsapp_template', teamWhatsappTemplate);
+                    toast.success('Team WhatsApp template saved!');
+                  }}
+                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1.5" />
+                  Save Template
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTeamWhatsappTemplate(DEFAULT_TEAM_TEMPLATE)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Reset Default
+                </Button>
+              </div>
+            </div>
+
+            {/* Live WhatsApp Bubble */}
+            <div>
+              <span className="text-xs font-bold text-slate-200 block mb-1.5">
+                📱 Live Team Recipient WhatsApp Preview
+              </span>
+              <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100">
+                <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
+                    {teamWhatsappTemplate
+                      .replace('{recipient_name}', 'Head Coach Rahul')
+                      .replace('{message}', messageText.trim() || 'Notice to Academy Staff: A short coordination briefing will take place today.')
+                      .replace('{priority}', priority)
+                      .replace('{sender_name}', senderName.trim() || 'Academy Admin')
+                      .replace('{date}', new Date().toLocaleDateString('en-IN'))}
+                  </p>
+                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
+                    <span>09:45 AM</span>
+                    <span className="text-[#53bdeb]">✓✓</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Main Grid: Team Contacts (Left) & Composer (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -451,33 +600,18 @@ export const TeamMessagingPage: React.FC = () => {
               </span>
             </div>
 
-            {/* Optional Sender Name and Position (User Requested) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Sender Name <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="e.g. Master Shihan / Admin Desk"
-                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Sender Position / Role <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={senderPosition}
-                  onChange={(e) => setSenderPosition(e.target.value)}
-                  placeholder="e.g. Chief Instructor / Operations Head"
-                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+            {/* Sender Name (Optional) - Position removed per user instructions */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Sender Name <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="e.g. Master Shihan / Academy Reception"
+                className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
             </div>
 
             {/* Target Role & Priority */}
@@ -567,6 +701,87 @@ export const TeamMessagingPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Multi-slot Broadcast Scheduling */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                  Delivery Timing:
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMode('NOW')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      broadcastMode === 'NOW'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Send Immediately
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMode('SCHEDULED')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      broadcastMode === 'SCHEDULED'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Schedule Multi-Slot Times
+                  </button>
+                </div>
+              </div>
+
+              {broadcastMode === 'SCHEDULED' && (
+                <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                  <span className="text-[11px] font-semibold text-slate-400 block">
+                    Configured Delivery Time Slots:
+                  </span>
+                  {scheduledTimes.map((time, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-indigo-400 w-12 flex-shrink-0">
+                        Slot #{idx + 1}:
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={time}
+                        onChange={(e) => {
+                          const updated = [...scheduledTimes];
+                          updated[idx] = e.target.value;
+                          setScheduledTimes(updated);
+                        }}
+                        className="px-2.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono flex-1"
+                      />
+                      {scheduledTimes.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setScheduledTimes(scheduledTimes.filter((_, i) => i !== idx))}
+                          className="p-1 text-rose-400 hover:text-rose-600 rounded"
+                          title="Remove slot"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const lastTime = scheduledTimes[scheduledTimes.length - 1];
+                      const nextDate = lastTime ? new Date(new Date(lastTime).getTime() + 86400000) : new Date(Date.now() + 86400000);
+                      setScheduledTimes([...scheduledTimes, nextDate.toISOString().slice(0, 16)]);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline mt-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Another Schedule Slot
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Dispatch Action */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
               <Button
@@ -585,10 +800,20 @@ export const TeamMessagingPage: React.FC = () => {
                 type="button"
                 onClick={handleDispatchAndSave}
                 disabled={sending || !messageText.trim()}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm"
+                className={`gap-2 text-white font-bold text-xs cursor-pointer shadow-sm ${
+                  broadcastMode === 'SCHEDULED'
+                    ? 'bg-indigo-600 hover:bg-indigo-500'
+                    : 'bg-emerald-600 hover:bg-emerald-500'
+                }`}
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{sending ? 'Saving & Dispatching...' : 'Save Bulletin & Send Alert'}</span>
+                <span>
+                  {sending
+                    ? 'Saving & Scheduling...'
+                    : broadcastMode === 'SCHEDULED'
+                    ? `Schedule Broadcast (${scheduledTimes.length} Slot${scheduledTimes.length === 1 ? '' : 's'})`
+                    : 'Save Bulletin & Send Alert'}
+                </span>
               </Button>
             </div>
           </Card>

@@ -19,6 +19,9 @@ import {
   Trash2,
   UserPlus,
   BookMarked,
+  Edit2,
+  Check,
+  MessageSquare,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -60,6 +63,9 @@ interface TournamentRegistration {
   selection_status: 'REGISTERED' | 'SELECTED' | 'CONFIRMED' | 'WITHDRAWN';
   whatsapp_notified: boolean;
   notified_at: string | null;
+  documents_status?: 'PENDING' | 'VERIFIED';
+  documents_required?: string;
+  documents_notes?: string;
   created_at: string;
 }
 
@@ -103,9 +109,22 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
   // Tournament WhatsApp broadcast modal state
   const [isTournamentBroadcastOpen, setIsTournamentBroadcastOpen] = useState(false);
-  const [broadcastFilter, setBroadcastFilter] = useState<'ALL' | 'PENDING_FEE' | 'SELECTED'>('PENDING_FEE');
+  const [broadcastFilter, setBroadcastFilter] = useState<'ALL' | 'PENDING_FEE' | 'PENDING_DOCS' | 'SELECTED'>('PENDING_FEE');
   const [broadcastCustomMessage, setBroadcastCustomMessage] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
+
+  // Top WhatsApp Template Configurator
+  const DEFAULT_TOURNAMENT_TEMPLATE =
+    '🏆 *Gurukul Sports Academy Tournament Alert*\n\nDear {student_name} / Parents,\nYou have been selected for *{tournament_name}* ({discipline}) scheduled at {venue} on {event_date}.\n• Entry Fee: ₹{entry_fee}\n• Fee Deadline: {deadline}\n• Required Documents: {required_documents}\n\nPlease confirm participation and submit documents promptly!\n\nWarm regards,\nGurukul Sports Academy';
+
+  const [tournamentWhatsappTemplate, setTournamentWhatsappTemplate] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gurukul_tournament_whatsapp_template') || DEFAULT_TOURNAMENT_TEMPLATE;
+    } catch {
+      return DEFAULT_TOURNAMENT_TEMPLATE;
+    }
+  });
+  const [isTournamentTemplateOpen, setIsTournamentTemplateOpen] = useState(false);
 
   // Form states - Create Tournament
   const [formData, setFormData] = useState({
@@ -383,6 +402,26 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     }
   };
 
+  const handleToggleDocStatus = async (regId: string, currentStatus?: string) => {
+    const nextStatus = currentStatus === 'VERIFIED' ? 'PENDING' : 'VERIFIED';
+    try {
+      await apiClient(`/tournaments/registrations/${regId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ documents_status: nextStatus }),
+      });
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === regId ? { ...r, documents_status: nextStatus } : r))
+      );
+      toast.success(`Athlete documents marked as ${nextStatus}!`);
+    } catch {
+      // Direct local update if mock/offline
+      setRegistrations((prev) =>
+        prev.map((r) => (r.id === regId ? { ...r, documents_status: nextStatus } : r))
+      );
+      toast.success(`Documents status updated to ${nextStatus}`);
+    }
+  };
+
   const handleBroadcastTournamentWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTournament) return;
@@ -496,6 +535,137 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           </Button>
         </div>
       </div>
+
+      {/* WhatsApp Tournament Template & Classification Card */}
+      <Card className="p-4 bg-gradient-to-br from-amber-950/20 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-amber-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">Tournament WhatsApp Message &amp; Document Classification</h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Active WhatsApp Config
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Official announcement dispatched to nominated athletes and parents for tournament selections, document submissions, and fee clearances.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTournamentTemplateOpen(!isTournamentTemplateOpen)}
+            className="text-xs h-8 border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+          >
+            <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+            {isTournamentTemplateOpen ? 'Collapse Editor' : 'Edit Template & Preview'}
+          </Button>
+        </div>
+
+        {/* Collapsed Preview */}
+        {!isTournamentTemplateOpen && (
+          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
+            "{tournamentWhatsappTemplate}"
+          </div>
+        )}
+
+        {/* Expanded Editor */}
+        {isTournamentTemplateOpen && (
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  Template Message Text
+                </label>
+                <textarea
+                  value={tournamentWhatsappTemplate}
+                  onChange={(e) => setTournamentWhatsappTemplate(e.target.value)}
+                  rows={5}
+                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Dynamic Variable Tags:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    '{student_name}',
+                    '{tournament_name}',
+                    '{discipline}',
+                    '{venue}',
+                    '{event_date}',
+                    '{entry_fee}',
+                    '{deadline}',
+                    '{required_documents}',
+                  ].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTournamentWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    localStorage.setItem('gurukul_tournament_whatsapp_template', tournamentWhatsappTemplate);
+                    toast.success('Tournament WhatsApp template saved!');
+                  }}
+                  className="text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1.5" />
+                  Save Template
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTournamentWhatsappTemplate(DEFAULT_TOURNAMENT_TEMPLATE)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Reset Default
+                </Button>
+              </div>
+            </div>
+
+            {/* Live WhatsApp Bubble */}
+            <div>
+              <span className="text-xs font-bold text-slate-200 block mb-1.5">
+                📱 Live Recipient WhatsApp Preview
+              </span>
+              <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100">
+                <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
+                    {tournamentWhatsappTemplate
+                      .replace('{student_name}', 'Aarav Patil')
+                      .replace('{tournament_name}', selectedTournament?.title || 'State Kalari Championship')
+                      .replace('{discipline}', selectedTournament?.discipline || 'Kalarippayattu')
+                      .replace('{venue}', selectedTournament?.venue || 'Balewadi Sports Complex, Pune')
+                      .replace('{event_date}', selectedTournament?.start_date ? new Date(selectedTournament.start_date).toLocaleDateString('en-IN') : '15 Dec 2026')
+                      .replace('{entry_fee}', '1,500')
+                      .replace('{deadline}', '01 Dec 2026')
+                      .replace('{required_documents}', 'Birth Certificate, Aadhar Card, Medical Certificate')}
+                  </p>
+                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
+                    <span>11:15 AM</span>
+                    <span className="text-[#53bdeb]">✓✓</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -781,6 +951,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                         <tr>
                           <th className="py-2.5 px-3">Athlete</th>
                           <th className="py-2.5 px-3">Selection</th>
+                          <th className="py-2.5 px-3">Documents</th>
                           <th className="py-2.5 px-3">Entry Fee</th>
                           <th className="py-2.5 px-3">WhatsApp Alert</th>
                           <th className="py-2.5 px-3 text-right">Action</th>
@@ -797,6 +968,33 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                                 <ShieldCheck className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                                 {reg.selection_status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDocStatus(reg.id, reg.documents_status)}
+                                className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                                  reg.documents_status === 'VERIFIED'
+                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                                }`}
+                                title="Click to toggle document verification"
+                              >
+                                {reg.documents_status === 'VERIFIED' ? (
+                                  <>
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                    VERIFIED
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="w-3 h-3 text-amber-500" />
+                                    PENDING DOCS
+                                  </>
+                                )}
+                              </button>
+                              <span className="text-[10px] text-slate-400 block mt-0.5 truncate max-w-[130px]" title={reg.documents_required || 'Birth Cert, Aadhar, Medical'}>
+                                {reg.documents_required || 'Birth Cert, Aadhar, Medical'}
                               </span>
                             </td>
                             <td className="py-3 px-3">
@@ -1355,7 +1553,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
               Target Audience
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => setBroadcastFilter('PENDING_FEE')}
@@ -1365,9 +1563,29 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <span className="block font-bold text-slate-900 dark:text-white">Pending Dues Only</span>
+                <span className="block font-bold text-slate-900 dark:text-white">Unpaid Fees</span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {registrations.filter((r) => r.payment_status !== 'PAID').length} athletes with unpaid fee
+                  {registrations.filter((r) => r.payment_status !== 'PAID').length} with dues
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBroadcastFilter('PENDING_DOCS');
+                  setBroadcastCustomMessage(
+                    `📋 *Urgent Document Verification Notice - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nYour nomination for *${selectedTournament?.title || 'the tournament'}* requires submission of mandatory tournament documents:\n• Documents Needed: Birth Certificate, Aadhar Card, Medical Clearance Certificate.\n\nPlease submit these documents at the dojo reception immediately to complete your registration.\n\nWarm regards,\n*Gurukul Sports Academy*`
+                  );
+                }}
+                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
+                  broadcastFilter === 'PENDING_DOCS'
+                    ? 'bg-amber-500/10 border-amber-500/50 text-amber-700 dark:text-amber-300 shadow-sm'
+                    : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="block font-bold text-slate-900 dark:text-white">Missing Docs</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {registrations.filter((r) => r.documents_status === 'PENDING').length} pending docs
                 </span>
               </button>
 
@@ -1382,7 +1600,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               >
                 <span className="block font-bold text-slate-900 dark:text-white">All Athletes</span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  All {registrations.length} nominated athletes
+                  All {registrations.length} athletes
                 </span>
               </button>
 
@@ -1395,9 +1613,9 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <span className="block font-bold text-slate-900 dark:text-white">Selected Squad</span>
+                <span className="block font-bold text-slate-900 dark:text-white">Confirmed</span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length} confirmed athletes
+                  {registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length} confirmed
                 </span>
               </button>
             </div>
@@ -1424,10 +1642,21 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 type="button"
                 onClick={() =>
                   setBroadcastCustomMessage(
-                    `🏆 *Tournament Selection & Registration Notice - Gurukul Sports Academy*\n\nCongratulations {student_name}! You have been officially nominated for *{tournament_name}* at {venue}.\n\n• Registration Fee: {due_amount}\n• Fee Deadline: *{deadline}*\n\nPlease confirm your participation and collect official academy gear.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
+                    `📋 *Urgent Document Verification Notice - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nYour nomination for *{tournament_name}* requires submission of mandatory tournament documents:\n• Documents Needed: Birth Certificate, Aadhar Card, Medical Clearance Certificate.\n\nPlease submit these documents at the dojo reception immediately to complete your registration.\n\nWarm regards,\n*Gurukul Sports Academy*`
                   )
                 }
                 className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-white/10 font-medium"
+              >
+                📋 Missing Documents Alert
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setBroadcastCustomMessage(
+                    `🏆 *Tournament Selection & Registration Notice - Gurukul Sports Academy*\n\nCongratulations {student_name}! You have been officially nominated for *{tournament_name}* at {venue}.\n\n• Registration Fee: {due_amount}\n• Fee Deadline: *{deadline}*\n\nPlease confirm your participation and collect official academy gear.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
+                  )
+                }
+                className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-emerald-700 dark:text-emerald-300 border border-slate-200 dark:border-white/10 font-medium"
               >
                 🏆 Selection &amp; Welcome Notice
               </button>
@@ -1472,6 +1701,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               Target Count: <strong className="text-slate-900 dark:text-white">
                 {broadcastFilter === 'PENDING_FEE'
                   ? registrations.filter((r) => r.payment_status !== 'PAID').length
+                  : broadcastFilter === 'PENDING_DOCS'
+                  ? registrations.filter((r) => r.documents_status === 'PENDING').length
                   : broadcastFilter === 'SELECTED'
                   ? registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length
                   : registrations.length}

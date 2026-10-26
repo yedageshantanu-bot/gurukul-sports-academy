@@ -28,6 +28,7 @@ import {
   Trophy,
   BookmarkPlus,
   X,
+  Check,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
 
@@ -114,6 +115,22 @@ export const AnnouncementsPage: React.FC = () => {
   // Broadcast & Scheduling Form state
   const [broadcastMode, setBroadcastMode] = useState<'NOW' | 'SCHEDULED'>('NOW');
   const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
+  const [scheduledDateTimes, setScheduledDateTimes] = useState<string[]>([
+    new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+  ]);
+
+  // Top WhatsApp Broadcast Template Configurator
+  const DEFAULT_ANNOUNCEMENT_TEMPLATE =
+    '🥋 *Gurukul Sports Academy Announcement*\n\nDear {student_name} / Parents,\n*{title}*\n\n{message}\n\nWarm regards,\nGurukul Sports Academy Administration';
+
+  const [announcementWhatsappTemplate, setAnnouncementWhatsappTemplate] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gurukul_announcement_whatsapp_template') || DEFAULT_ANNOUNCEMENT_TEMPLATE;
+    } catch {
+      return DEFAULT_ANNOUNCEMENT_TEMPLATE;
+    }
+  });
+  const [isAnnouncementTemplateOpen, setIsAnnouncementTemplateOpen] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -425,13 +442,14 @@ export const AnnouncementsPage: React.FC = () => {
       .toISOString()
       .slice(0, 16);
     setScheduledDateTime(localIso);
+    setScheduledDateTimes([localIso]);
   };
 
   const handleConfirmBroadcast = async () => {
     if (!broadcastTarget) return;
 
-    if (broadcastMode === 'SCHEDULED' && !scheduledDateTime) {
-      toast.warning('Please select a valid scheduled date and time.');
+    if (broadcastMode === 'SCHEDULED' && scheduledDateTimes.length === 0 && !scheduledDateTime) {
+      toast.warning('Please select at least one valid scheduled delivery time.');
       return;
     }
 
@@ -439,8 +457,10 @@ export const AnnouncementsPage: React.FC = () => {
       setSubmitting(true);
       setError(null);
 
+      const targetIso = scheduledDateTimes[0] || scheduledDateTime;
       const payload = {
-        scheduledTime: broadcastMode === 'SCHEDULED' ? new Date(scheduledDateTime).toISOString() : undefined,
+        scheduledTime: broadcastMode === 'SCHEDULED' && targetIso ? new Date(targetIso).toISOString() : undefined,
+        scheduledTimes: broadcastMode === 'SCHEDULED' ? scheduledDateTimes.map((t) => new Date(t).toISOString()) : undefined,
       };
 
       const res = await apiClient<any>(`/announcements/${broadcastTarget.id}/send`, {
@@ -512,6 +532,126 @@ export const AnnouncementsPage: React.FC = () => {
           Create Announcement
         </Button>
       </div>
+
+      {/* WhatsApp Broadcast Template Configurator */}
+      <Card className="p-4 bg-gradient-to-br from-indigo-950/20 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">WhatsApp Broadcast Announcement Message &amp; Automation</h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Active Broadcast Config
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Official announcement template dispatched to student batches and tournament squads with live preview.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAnnouncementTemplateOpen(!isAnnouncementTemplateOpen)}
+            className="text-xs h-8 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10"
+          >
+            <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+            {isAnnouncementTemplateOpen ? 'Collapse Editor' : 'Edit Template & Preview'}
+          </Button>
+        </div>
+
+        {/* Collapsed Preview */}
+        {!isAnnouncementTemplateOpen && (
+          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
+            "{announcementWhatsappTemplate}"
+          </div>
+        )}
+
+        {/* Expanded Editor */}
+        {isAnnouncementTemplateOpen && (
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  Template Message Text
+                </label>
+                <textarea
+                  value={announcementWhatsappTemplate}
+                  onChange={(e) => setAnnouncementWhatsappTemplate(e.target.value)}
+                  rows={4}
+                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Dynamic Variable Tags:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['{student_name}', '{parent_name}', '{title}', '{message}', '{batch_name}', '{date}'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setAnnouncementWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    localStorage.setItem('gurukul_announcement_whatsapp_template', announcementWhatsappTemplate);
+                    toast.success('Announcement WhatsApp template saved!');
+                  }}
+                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1.5" />
+                  Save Template
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAnnouncementWhatsappTemplate(DEFAULT_ANNOUNCEMENT_TEMPLATE)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Reset Default
+                </Button>
+              </div>
+            </div>
+
+            {/* Live WhatsApp Bubble */}
+            <div>
+              <span className="text-xs font-bold text-slate-200 block mb-1.5">
+                📱 Live Recipient WhatsApp Preview
+              </span>
+              <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100">
+                <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
+                    {announcementWhatsappTemplate
+                      .replace('{student_name}', 'Aarav Patil')
+                      .replace('{parent_name}', 'Rajesh Patil')
+                      .replace('{title}', 'Important Academy Notice')
+                      .replace('{message}', 'Training timings updated for this weekend. Please check your schedule.')
+                      .replace('{batch_name}', 'Kalari Morning Batch')
+                      .replace('{date}', new Date().toLocaleDateString('en-IN'))}
+                  </p>
+                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
+                    <span>08:15 AM</span>
+                    <span className="text-[#53bdeb]">✓✓</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Anti-Ban Safety Guide Banner */}
       <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-300">
@@ -1136,21 +1276,66 @@ export const AnnouncementsPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Scheduled DateTime Picker */}
+              {/* Multi-slot Scheduled DateTime Picker */}
               {broadcastMode === 'SCHEDULED' && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                    <span>Select Dispatch Date & Time (IST):</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={scheduledDateTime}
-                    onChange={(e) => setScheduledDateTime(e.target.value)}
-                    className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 focus:outline-none focus:border-indigo-500"
-                  />
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    * The system will automatically wake up and begin staggered dispatches at this exact time.
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                      <span>Configured Dispatch Slots (IST):</span>
+                    </label>
+                    <span className="text-[11px] font-semibold text-indigo-500">
+                      {scheduledDateTimes.length} Slot(s)
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {scheduledDateTimes.map((time, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-indigo-400 w-14 shrink-0">
+                          Slot #{idx + 1}:
+                        </span>
+                        <input
+                          type="datetime-local"
+                          value={time}
+                          onChange={(e) => {
+                            const updated = [...scheduledDateTimes];
+                            updated[idx] = e.target.value;
+                            setScheduledDateTimes(updated);
+                            if (idx === 0) setScheduledDateTime(e.target.value);
+                          }}
+                          className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2 focus:outline-none focus:border-indigo-500 font-mono"
+                        />
+                        {scheduledDateTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setScheduledDateTimes(scheduledDateTimes.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-rose-400 hover:text-rose-600 rounded"
+                            title="Remove slot"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const last = scheduledDateTimes[scheduledDateTimes.length - 1];
+                      const next = last ? new Date(new Date(last).getTime() + 86400000) : new Date(Date.now() + 86400000);
+                      const iso = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                      setScheduledDateTimes([...scheduledDateTimes, iso]);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline pt-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Another Broadcast Slot</span>
+                  </button>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-2">
+                    * The system will automatically wake up and begin staggered dispatches at each scheduled time slot.
                   </p>
                 </div>
               )}

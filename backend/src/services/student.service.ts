@@ -965,28 +965,35 @@ export class StudentService {
       throw new AppError(`Failed to update student: ${error?.message || 'Not found'}`, error ? 500 : 404);
     }
 
-    // Handle batch update if batchId is provided
-    if (dto.batchId !== undefined) {
-      const newBatchId = dto.batchId ? dto.batchId.trim() : '';
-      if (newBatchId) {
-        // Deactivate any other batches for this student
+    // Handle batch update if batchId or batchIds is provided
+    const requestedBatchIds: string[] = [];
+    if (dto.batchIds && Array.isArray(dto.batchIds)) {
+      requestedBatchIds.push(...dto.batchIds.filter((b): b is string => typeof b === 'string' && b.trim().length > 0));
+    } else if (dto.initialBatchIds && Array.isArray(dto.initialBatchIds)) {
+      requestedBatchIds.push(...dto.initialBatchIds.filter((b): b is string => typeof b === 'string' && b.trim().length > 0));
+    } else if (dto.batchId !== undefined) {
+      if (dto.batchId && dto.batchId.trim()) requestedBatchIds.push(dto.batchId.trim());
+    }
+
+    if (dto.batchIds !== undefined || dto.initialBatchIds !== undefined || dto.batchId !== undefined) {
+      if (requestedBatchIds.length > 0) {
+        // Deactivate any batches not in requestedBatchIds
         await supabaseAdmin
           .from('batch_students')
           .update({ status: STATUS.INACTIVE })
           .eq('student_id', id)
-          .neq('batch_id', newBatchId);
+          .not('batch_id', 'in', `(${requestedBatchIds.join(',')})`);
 
-        // Upsert new batch as ACTIVE
+        // Upsert requested batches as ACTIVE
+        const batchRows = requestedBatchIds.map((bId) => ({
+          batch_id: bId,
+          student_id: id,
+          status: STATUS.ACTIVE,
+        }));
+
         await supabaseAdmin
           .from('batch_students')
-          .upsert(
-            {
-              batch_id: newBatchId,
-              student_id: id,
-              status: STATUS.ACTIVE,
-            },
-            { onConflict: 'batch_id,student_id' }
-          );
+          .upsert(batchRows, { onConflict: 'batch_id,student_id' });
       } else {
         // Deactivate all batches if cleared
         await supabaseAdmin

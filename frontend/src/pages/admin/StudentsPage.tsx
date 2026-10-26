@@ -76,6 +76,7 @@ export const StudentsPage: React.FC = () => {
   const [parentWhatsapp, setParentWhatsapp] = useState('');
   const [studentMobile, setStudentMobile] = useState('');
   const [batchId, setBatchId] = useState('');
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [status, setStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
   const [admissionDate, setAdmissionDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -503,15 +504,44 @@ export const StudentsPage: React.FC = () => {
     }
   };
 
+  const toggleBatch = (bId: string) => {
+    setSelectedBatchIds((prev) => {
+      const next = prev.includes(bId) ? prev.filter((id) => id !== bId) : [...prev, bId];
+      if (next.length > 0) {
+        setBatchId(next[0]);
+      } else {
+        setBatchId('');
+      }
+      return next;
+    });
+  };
+
   const handleOpenAdd = () => {
     setName('');
     setParentName('');
     setParentWhatsapp('');
     setStudentMobile('');
     setBatchId(batches.length > 0 ? batches[0].id : '');
+    setSelectedBatchIds(batches.length > 0 ? [batches[0].id] : []);
     setWhatsappOptIn(true);
-    setCourse(course || 'Kalarippayattu (Regular)');
-    setMonthlyFee(monthlyFee || 700);
+    const defaultPlan = feePlans.find((p) => p.active !== false) || feePlans[0];
+    if (defaultPlan) {
+      setSelectedPlanId(defaultPlan.id);
+      setCourse(defaultPlan.name);
+      setMonthlyFee(Number(defaultPlan.amount));
+      if (defaultPlan.due_day) setFeeDueDay(defaultPlan.due_day);
+      if (defaultPlan.frequency === 'YEARLY') {
+        setFeeFrequency('YEARLY');
+        setFeePaymentType('YEARLY_PAID');
+      } else {
+        setFeeFrequency('MONTHLY');
+      }
+    } else {
+      setSelectedPlanId('');
+      setCourse('Kalarippayattu (Regular)');
+      setMonthlyFee(700);
+      setFeeFrequency('MONTHLY');
+    }
     setFeeDueDay(5);
     setInitialPaymentAmount('');
     setPaymentMethod('CASH');
@@ -523,7 +553,6 @@ export const StudentsPage: React.FC = () => {
     const d1 = availableDisciplines[0]?.code || 'KARATE_WUSHU';
     const r1 = getRanksForDiscipline(d1)[0]?.rank_name || 'White Belt (10th Kyu)';
     setSelectedSports([{ id: '1', disciplineCode: d1, rankName: r1 }]);
-    setFeeFrequency('MONTHLY');
     setFeePaymentType('PAID_UP_TO');
     setYearlyPaymentMode('FULL');
     setYearlyPaidAmount('');
@@ -578,6 +607,8 @@ export const StudentsPage: React.FC = () => {
 
     const currentBatchId = s.batchId || (s.enrolledBatches && s.enrolledBatches[0]?.id) || '';
     setBatchId(currentBatchId);
+    const enrolledIds = (s.enrolledBatches?.map((b: any) => b.id) || (s.batchId ? [s.batchId] : [])).filter(Boolean);
+    setSelectedBatchIds(enrolledIds.length > 0 ? enrolledIds : (currentBatchId ? [currentBatchId] : []));
     setWhatsappOptIn(s.whatsappOptIn !== false);
     setStatus(s.status || 'ACTIVE');
     const studentCourse = (s.course || '').trim();
@@ -626,6 +657,13 @@ export const StudentsPage: React.FC = () => {
     const pCheck = validatePhoneNumber(parentWhatsapp, true);
     if (!pCheck.valid) {
       setFormError(pCheck.error || 'Please provide a valid 10-digit or international Parent WhatsApp number.');
+      setFormLoading(false);
+      return;
+    }
+
+    // Validate Batch Assignment
+    if (selectedBatchIds.length === 0 && !batchId) {
+      setFormError('Please select at least 1 training batch for the student.');
       setFormLoading(false);
       return;
     }
@@ -679,7 +717,8 @@ export const StudentsPage: React.FC = () => {
           parentName: parentName.trim(),
           parentWhatsapp: pCheck.normalized,
           studentMobile: normalizedStudentMobile,
-          batchId: batchId || undefined,
+          batchId: selectedBatchIds[0] || batchId || undefined,
+          initialBatchIds: selectedBatchIds.length > 0 ? selectedBatchIds : (batchId ? [batchId] : undefined),
           whatsappOptIn,
           status,
           course: course.trim() || undefined,
@@ -780,7 +819,8 @@ export const StudentsPage: React.FC = () => {
           parentName: parentName.trim(),
           parentWhatsapp: normalizedParentWhatsapp,
           studentMobile: normalizedStudentMobile,
-          batchId: batchId !== undefined ? batchId : undefined,
+          batchId: selectedBatchIds[0] || batchId || undefined,
+          batchIds: selectedBatchIds,
           whatsappOptIn,
           status,
           course: course.trim() || undefined,
@@ -1463,62 +1503,72 @@ export const StudentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Course Selector Dropdown */}
-              <div>
-                <Select
-                  label="Select Course / Training Plan Template"
-                  value={selectedPlanId}
-                  onChange={(e) => {
-                    const planId = e.target.value;
-                    setSelectedPlanId(planId);
-                    if (planId === 'CUSTOM') {
-                      // Manual entry mode
-                    } else if (planId) {
-                      const found = feePlans.find((p) => p.id === planId);
-                      if (found) {
-                        setCourse(found.name);
-                        setMonthlyFee(Number(found.amount));
-                        if (found.due_day) setFeeDueDay(found.due_day);
-                        if (found.frequency === 'YEARLY') {
-                          setFeeFrequency('YEARLY');
-                          setFeePaymentType('YEARLY_PAID');
-                        } else {
-                          setFeeFrequency('MONTHLY');
+              {/* Course Selector Dropdown & Fee Amount */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Course / Training Plan *
+                    </label>
+                    <Select
+                      value={selectedPlanId}
+                      onChange={(e) => {
+                        const planId = e.target.value;
+                        setSelectedPlanId(planId);
+                        if (planId === 'CUSTOM') {
+                          // Manual custom course entry
+                        } else if (planId) {
+                          const found = feePlans.find((p) => p.id === planId);
+                          if (found) {
+                            setCourse(found.name);
+                            setMonthlyFee(Number(found.amount));
+                            if (found.due_day) setFeeDueDay(found.due_day);
+                            if (found.frequency === 'YEARLY') {
+                              setFeeFrequency('YEARLY');
+                              setFeePaymentType('YEARLY_PAID');
+                            } else {
+                              setFeeFrequency('MONTHLY');
+                            }
+                          }
                         }
-                      }
-                    }
-                  }}
-                  className="bg-slate-900 text-white border-slate-700"
-                >
-                  <option value="">-- Quick Pick from Existing Courses / Plans --</option>
-                  {feePlans.filter((p) => p.active !== false).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
-                    </option>
-                  ))}
-                  <option value="CUSTOM">✏️ Custom Course Entry</option>
-                </Select>
-              </div>
+                      }}
+                      className="bg-slate-900 text-white border-slate-700 font-medium"
+                    >
+                      <option value="">-- Select Registered Academy Course --</option>
+                      {feePlans.filter((p) => p.active !== false).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
+                        </option>
+                      ))}
+                      <option value="CUSTOM">✏️ Custom Course Name...</option>
+                    </Select>
+                  </div>
 
-              {/* Course Name & Fee Amount */}
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Course / Training Package *"
-                  value={course}
-                  onChange={(e) => setCourse(e.target.value)}
-                  required
-                  placeholder="e.g. Karate & Wushu Training"
-                />
-                <Input
-                  label={feeFrequency === 'YEARLY' ? 'Annual Fee Amount (₹) *' : 'Monthly Fee (₹) *'}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={monthlyFee === 0 ? '' : monthlyFee}
-                  onChange={(e) => setMonthlyFee(Number(e.target.value))}
-                  required
-                  placeholder={feeFrequency === 'YEARLY' ? 'e.g. 7000' : 'e.g. 700'}
-                />
+                  <div>
+                    <Input
+                      label={feeFrequency === 'YEARLY' ? 'Annual Fee Amount (₹) *' : 'Monthly Fee (₹) *'}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={monthlyFee === 0 ? '' : monthlyFee}
+                      onChange={(e) => setMonthlyFee(Number(e.target.value))}
+                      required
+                      placeholder={feeFrequency === 'YEARLY' ? 'e.g. 10000' : 'e.g. 700'}
+                    />
+                  </div>
+                </div>
+
+                {selectedPlanId === 'CUSTOM' && (
+                  <div className="pt-1">
+                    <Input
+                      label="Custom Course Name *"
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      required
+                      placeholder="e.g. Mixed Martial Arts Pro Batch"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* CASE 1: EXISTING STUDENT MONTHLY CLEARANCE */}
@@ -1958,19 +2008,67 @@ export const StudentsPage: React.FC = () => {
               )}
             </div>
 
-            {/* 5. Batch Selector */}
-            <Select
-              label="Assign to Batch (Optional)"
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-            >
-              <option value="">-- No Batch Assigned / Assign Later --</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} {b.subject ? `(${b.subject})` : ''}
-                </option>
-              ))}
-            </Select>
+            {/* 5. Multi-Batch Selector */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Assign Training Batches (Select 1, 2 or more) *
+                </label>
+                <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                  {selectedBatchIds.length} batch{selectedBatchIds.length === 1 ? '' : 'es'} selected
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {batches.map((b) => {
+                  const isSelected = selectedBatchIds.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => toggleBatch(b.id)}
+                      className={`text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 ${
+                        isSelected
+                          ? 'bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-500 shadow-sm ring-1 ring-indigo-500/50'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 pointer-events-none"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-950 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {b.name}
+                        </div>
+                        {b.subject && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {b.subject}
+                          </div>
+                        )}
+                        {(b.startTime || b.endTime) && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            ⏰ {b.startTime || ''}{b.endTime ? ` - ${b.endTime}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedBatchIds.length === 0 ? (
+                <p className="text-[11px] font-medium text-rose-500">
+                  ⚠️ Mandatory: Select at least 1 batch so student appears in attendance roll-call.
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  💡 Student will automatically appear in attendance roll-call for each selected batch.
+                </p>
+              )}
+            </div>
 
             {/* 6. Continuous Entry / Fast Batch Mode for 30-40 Students */}
             <div className="p-3 bg-indigo-50/80 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/80 rounded-xl flex items-center justify-between">
@@ -2083,81 +2181,136 @@ export const StudentsPage: React.FC = () => {
 
             {/* Course & Fee Plan Selection */}
             <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3">
-              <div>
-                <Select
-                  label="Course / Training Plan *"
-                  value={selectedPlanId}
-                  onChange={(e) => {
-                    const planId = e.target.value;
-                    setSelectedPlanId(planId);
-                    if (planId === 'CURRENT') {
-                      if (editingStudent) {
-                        setCourse(editingStudent.course || '');
-                        setMonthlyFee(editingStudent.monthlyFee || 0);
-                        if (editingStudent.feeDueDay) setFeeDueDay(editingStudent.feeDueDay);
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Select
+                    label="Course / Training Plan *"
+                    value={selectedPlanId}
+                    onChange={(e) => {
+                      const planId = e.target.value;
+                      setSelectedPlanId(planId);
+                      if (planId === 'CURRENT') {
+                        if (editingStudent) {
+                          setCourse(editingStudent.course || '');
+                          setMonthlyFee(editingStudent.monthlyFee || 0);
+                          if (editingStudent.feeDueDay) setFeeDueDay(editingStudent.feeDueDay);
+                        }
+                      } else if (planId === 'CUSTOM') {
+                        // Manual entry mode
+                      } else if (planId) {
+                        const found = feePlans.find((p) => p.id === planId);
+                        if (found) {
+                          setCourse(found.name);
+                          setMonthlyFee(Number(found.amount));
+                          if (found.due_day) setFeeDueDay(found.due_day);
+                        }
                       }
-                    } else if (planId === 'CUSTOM') {
-                      // Manual entry mode
-                    } else if (planId) {
-                      const found = feePlans.find((p) => p.id === planId);
-                      if (found) {
-                        setCourse(found.name);
-                        setMonthlyFee(Number(found.amount));
-                        if (found.due_day) setFeeDueDay(found.due_day);
-                      }
-                    }
-                  }}
-                >
-                  {/* Current course option if not already a standard plan ID match */}
-                  {course && !feePlans.some((p) => p.id === selectedPlanId) && (
-                    <option value="CURRENT">
-                      🎯 Current Course: {course} ({monthlyFee ? `₹${monthlyFee}` : 'No Fee'})
-                    </option>
-                  )}
-                  <option value="">-- Select Course / Training Plan --</option>
-                  {feePlans.filter((p) => p.active !== false).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
-                    </option>
-                  ))}
-                  <option value="CUSTOM">✏️ Custom Course / Other Entry</option>
-                </Select>
+                    }}
+                  >
+                    {/* Current course option if not already a standard plan ID match */}
+                    {course && !feePlans.some((p) => p.id === selectedPlanId) && (
+                      <option value="CURRENT">
+                        🎯 Current: {course} ({monthlyFee ? `₹${monthlyFee}` : 'No Fee'})
+                      </option>
+                    )}
+                    <option value="">-- Select Course / Training Plan --</option>
+                    {feePlans.filter((p) => p.active !== false).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        🥋 {p.name} — ₹{Number(p.amount).toLocaleString('en-IN')} / {p.frequency ? p.frequency.toLowerCase() : 'cycle'}
+                      </option>
+                    ))}
+                    <option value="CUSTOM">✏️ Custom Course / Other Entry</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <Input
+                    label="Fee Amount (₹) *"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={monthlyFee === 0 ? '' : monthlyFee}
+                    onChange={(e) => setMonthlyFee(Number(e.target.value))}
+                    placeholder="e.g. 700"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Course Name *"
-                  value={course}
-                  onChange={(e) => setCourse(e.target.value)}
-                  placeholder="e.g. Kalarippayattu (Monthly)"
-                  required
-                />
-                <Input
-                  label="Fee Amount (₹) *"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={monthlyFee === 0 ? '' : monthlyFee}
-                  onChange={(e) => setMonthlyFee(Number(e.target.value))}
-                  placeholder="e.g. 700"
-                  required
-                />
-              </div>
+              {selectedPlanId === 'CUSTOM' && (
+                <div className="pt-1">
+                  <Input
+                    label="Custom Course Name *"
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    placeholder="e.g. Kalarippayattu (Special Batch)"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
-            {/* 5. Batch Selector */}
-            <Select
-              label="Assigned Batch"
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-            >
-              <option value="">-- No Batch Assigned --</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} {b.subject ? `(${b.subject})` : ''}
-                </option>
-              ))}
-            </Select>
+            {/* 5. Multi-Batch Selector */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Assigned Training Batches (Select 1, 2 or more) *
+                </label>
+                <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                  {selectedBatchIds.length} batch{selectedBatchIds.length === 1 ? '' : 'es'} assigned
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {batches.map((b) => {
+                  const isSelected = selectedBatchIds.includes(b.id);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => toggleBatch(b.id)}
+                      className={`text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 ${
+                        isSelected
+                          ? 'bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-500 shadow-sm ring-1 ring-indigo-500/50'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 pointer-events-none"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-950 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {b.name}
+                        </div>
+                        {b.subject && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {b.subject}
+                          </div>
+                        )}
+                        {(b.startTime || b.endTime) && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            ⏰ {b.startTime || ''}{b.endTime ? ` - ${b.endTime}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedBatchIds.length === 0 ? (
+                <p className="text-[11px] font-medium text-rose-500">
+                  ⚠️ Please select at least 1 batch for attendance tracking.
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  💡 Student will appear in attendance roll-call for all selected batches.
+                </p>
+              )}
+            </div>
 
             {/* 6. WhatsApp Opt-in Card */}
             <div className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">

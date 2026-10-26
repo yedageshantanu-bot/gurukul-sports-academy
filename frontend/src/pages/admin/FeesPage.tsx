@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Check,
   QrCode,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FeePlan, StudentFee } from '../../types/fee';
@@ -115,6 +116,35 @@ export const FeesPage: React.FC = () => {
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [triggeringMonthly, setTriggeringMonthly] = useState(false);
   const [reminderSuccessMessage, setReminderSuccessMessage] = useState<string | null>(null);
+
+  // WhatsApp Fee Reminder Template & Rules
+  const DEFAULT_FEE_TEMPLATE =
+    'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues or pay online: {payment_link}. Thank you!';
+
+  const [feeWhatsappTemplate, setFeeWhatsappTemplate] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gurukul_whatsapp_fee_template') || DEFAULT_FEE_TEMPLATE;
+    } catch {
+      return DEFAULT_FEE_TEMPLATE;
+    }
+  });
+
+  const [isFeeTemplateOpen, setIsFeeTemplateOpen] = useState(false);
+  const [reminderRules, setReminderRules] = useState({
+    twoDaysBefore: true,
+    onDueDate: true,
+    overdueNotice: true,
+  });
+
+  // Adjust Student Fee Modal state
+  const [isAdjustFeeModalOpen, setIsAdjustFeeModalOpen] = useState(false);
+  const [adjustingFee, setAdjustingFee] = useState<{
+    id: string;
+    studentName: string;
+    amountDue: string;
+    dueDate: string;
+  } | null>(null);
+  const [adjustingLoading, setAdjustingLoading] = useState(false);
 
   // Form states
   const [planForm, setPlanForm] = useState({
@@ -523,6 +553,57 @@ export const FeesPage: React.FC = () => {
     }
   };
 
+  const handleOpenAdjustFee = (fee: StudentFee) => {
+    setAdjustingFee({
+      id: fee.id,
+      studentName: fee.student?.name || 'Student',
+      amountDue: String(fee.amount_due || fee.pending_amount || 0),
+      dueDate: fee.due_date ? fee.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+    });
+    setIsAdjustFeeModalOpen(true);
+  };
+
+  const handleSaveAdjustFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !adjustingFee) return;
+    setAdjustingLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/fees/students/${adjustingFee.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amountDue: parseFloat(adjustingFee.amountDue),
+          dueDate: adjustingFee.dueDate,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to update student fee');
+
+      setReminderSuccessMessage(`Fee dues updated successfully for ${adjustingFee.studentName}!`);
+      setTimeout(() => setReminderSuccessMessage(null), 5000);
+      setIsAdjustFeeModalOpen(false);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Error updating student fee');
+    } finally {
+      setAdjustingLoading(false);
+    }
+  };
+
+  const handleSaveFeeTemplate = () => {
+    try {
+      localStorage.setItem('gurukul_whatsapp_fee_template', feeWhatsappTemplate);
+      setReminderSuccessMessage('WhatsApp Fee Reminder template saved successfully!');
+      setTimeout(() => setReminderSuccessMessage(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [syncingMonthly, setSyncingMonthly] = useState(false);
   const handleSyncMonthlyFees = async () => {
     if (!token) return;
@@ -835,6 +916,189 @@ export const FeesPage: React.FC = () => {
         </div>
       )}
 
+      {/* WhatsApp Fee Reminder Template & Schedule Automation Card */}
+      <Card className="p-4 bg-gradient-to-br from-emerald-950/20 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-emerald-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">WhatsApp Fee Reminder Message &amp; Automation</h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Active Template
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Automated dues notification sent to parents. Admin can edit message text and scheduling triggers anytime.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFeeTemplateOpen(!isFeeTemplateOpen)}
+              className="text-xs h-8 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+            >
+              <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+              {isFeeTemplateOpen ? 'Collapse Editor' : 'Edit Template & Rules'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleTriggerMonthlyReminders}
+              disabled={triggeringMonthly}
+              className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+              {triggeringMonthly ? 'Dispatching...' : 'Send Reminders Now'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Live Preview Summary when collapsed */}
+        {!isFeeTemplateOpen && (
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="md:col-span-2 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
+              "{feeWhatsappTemplate}"
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-slate-300">
+              <span className="font-semibold text-emerald-300">Active Rules:</span>
+              <div className="flex gap-1.5 text-[10px]">
+                {reminderRules.twoDaysBefore && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">2 Days Before</span>}
+                {reminderRules.onDueDate && <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">On Due Date</span>}
+                {reminderRules.overdueNotice && <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">Overdue Notice</span>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expanded Editor & Rules */}
+        {isFeeTemplateOpen && (
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                  Template Message Text
+                </label>
+                <textarea
+                  value={feeWhatsappTemplate}
+                  onChange={(e) => setFeeWhatsappTemplate(e.target.value)}
+                  rows={4}
+                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  placeholder="Enter message text..."
+                />
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Insert Dynamic Variable Tags:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    '{student_name}',
+                    '{parent_name}',
+                    '{course}',
+                    '{pending_amount}',
+                    '{due_date}',
+                    '{payment_link}',
+                  ].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setFeeWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <Button
+                  size="sm"
+                  onClick={handleSaveFeeTemplate}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1.5" />
+                  Save Template Changes
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFeeWhatsappTemplate(DEFAULT_FEE_TEMPLATE)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Reset Default
+                </Button>
+              </div>
+            </div>
+
+            {/* Live Recipient WhatsApp Bubble & Multi-Rule Triggers */}
+            <div className="space-y-3">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block mb-1.5">
+                  📱 Live Recipient WhatsApp Preview
+                </span>
+                <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100 relative">
+                  <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
+                    <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
+                      {feeWhatsappTemplate
+                        .replace('{student_name}', 'Aarav Patil')
+                        .replace('{parent_name}', 'Rajesh Patil')
+                        .replace('{course}', 'Kalarippayattu')
+                        .replace('{pending_amount}', '10,000')
+                        .replace('{due_date}', '10 Nov 2026')
+                        .replace('{payment_link}', 'https://gurukul-sports-academy.pages.dev/pay')}
+                    </p>
+                    <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
+                      <span>10:30 AM</span>
+                      <span className="text-[#53bdeb]">✓✓</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-slate-300 block">
+                  ⚙️ Automated WhatsApp Dispatch Rules:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reminderRules.twoDaysBefore}
+                      onChange={(e) => setReminderRules((r) => ({ ...r, twoDaysBefore: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-300">2 Days Before Due</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reminderRules.onDueDate}
+                      onChange={(e) => setReminderRules((r) => ({ ...r, onDueDate: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-300">On Due Date</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reminderRules.overdueNotice}
+                      onChange={(e) => setReminderRules((r) => ({ ...r, overdueNotice: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-300">Overdue Notice</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
       {/* 4 Financial KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card hoverEffect accent="indigo" className="p-5 flex flex-col justify-between">
@@ -1049,49 +1313,62 @@ export const FeesPage: React.FC = () => {
                           <StatusBadge status={fee.status} />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {fee.status === 'PAID' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                              Fully Settled
-                            </span>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* 1-Click Instant Mark Paid Checkmark Button */}
-                              <button
-                                type="button"
-                                onClick={() => handleQuickMarkPaid(fee)}
-                                disabled={markingPaidId === fee.id}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                                title="1-Click Mark Fully Paid"
-                              >
-                                <Check className={`w-3.5 h-3.5 ${markingPaidId === fee.id ? 'animate-spin' : ''}`} />
-                                <span>{markingPaidId === fee.id ? 'Settling...' : 'Mark Paid'}</span>
-                              </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {fee.status === 'PAID' ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                Fully Settled
+                              </span>
+                            ) : (
+                              <>
+                                {/* 1-Click Instant Mark Paid Checkmark Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickMarkPaid(fee)}
+                                  disabled={markingPaidId === fee.id}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                  title="1-Click Mark Fully Paid"
+                                >
+                                  <Check className={`w-3.5 h-3.5 ${markingPaidId === fee.id ? 'animate-spin' : ''}`} />
+                                  <span>{markingPaidId === fee.id ? 'Settling...' : 'Mark Paid'}</span>
+                                </button>
 
-                              {/* Installment / Partial Payment Collector */}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenPay(fee, 'CASH')}
-                                className="text-xs h-8 px-2.5 gap-1 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                title="Collect installment amount or record custom payment"
-                              >
-                                <Banknote className="w-3.5 h-3.5 text-amber-500" />
-                                <span>Installment</span>
-                              </Button>
+                                {/* Installment / Partial Payment Collector */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenPay(fee, 'CASH')}
+                                  className="text-xs h-8 px-2.5 gap-1 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  title="Collect installment amount or record custom payment"
+                                >
+                                  <Banknote className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>Installment</span>
+                                </Button>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSendWhatsAppReminder(fee)}
-                                disabled={sendingReminderId === fee.id}
-                                className="text-xs h-8 px-2 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100"
-                                title="Send WhatsApp Fee Reminder"
-                              >
-                                <MessageSquare className={`w-3.5 h-3.5 text-emerald-600 ${sendingReminderId === fee.id ? 'animate-spin' : ''}`} />
-                              </Button>
-                            </div>
-                          )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSendWhatsAppReminder(fee)}
+                                  disabled={sendingReminderId === fee.id}
+                                  className="text-xs h-8 px-2 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100"
+                                  title="Send WhatsApp Fee Reminder"
+                                >
+                                  <MessageSquare className={`w-3.5 h-3.5 text-emerald-600 ${sendingReminderId === fee.id ? 'animate-spin' : ''}`} />
+                                </Button>
+                              </>
+                            )}
+
+                            {/* Adjust Due Date & Amount */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenAdjustFee(fee)}
+                              className="text-xs h-8 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border-slate-200 dark:border-slate-700"
+                              title="Adjust due date or fee amount"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1521,6 +1798,55 @@ export const FeesPage: React.FC = () => {
                 : payForm.provider === 'MANUAL' && payForm.paymentMethod === 'CASH'
                 ? `Receive Cash (₹${payForm.amount || '0'}) & Issue Receipt`
                 : 'Confirm Payment'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Adjust Student Fee (Amount & Due Date) */}
+      <Modal
+        isOpen={isAdjustFeeModalOpen}
+        onClose={() => setIsAdjustFeeModalOpen(false)}
+        title={`Adjust Fee Dues: ${adjustingFee?.studentName || 'Student'}`}
+      >
+        <form onSubmit={handleSaveAdjustFee} className="space-y-4">
+          <Input
+            label="Total Amount Due (₹) *"
+            type="number"
+            min="1"
+            step="1"
+            value={adjustingFee?.amountDue || ''}
+            onChange={(e) => setAdjustingFee((prev) => prev ? { ...prev, amountDue: e.target.value } : null)}
+            required
+            placeholder="e.g. 10000"
+          />
+
+          <Input
+            label="Payment Due Date *"
+            type="date"
+            value={adjustingFee?.dueDate || ''}
+            onChange={(e) => setAdjustingFee((prev) => prev ? { ...prev, dueDate: e.target.value } : null)}
+            required
+          />
+
+          <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-indigo-800 dark:text-indigo-300">
+            💡 Adjusting the due date and fee amount will immediately update the student's receivables ledger and sync with automated WhatsApp fee reminders.
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAdjustFeeModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={adjustingLoading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {adjustingLoading ? 'Saving...' : 'Update Fee Dues'}
             </Button>
           </div>
         </form>

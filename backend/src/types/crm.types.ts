@@ -77,6 +77,8 @@ export const updateStudentSchema = z.object({
   feeDueDay: z.number().int().min(1).max(31).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   batchId: z.string().uuid().optional().or(z.literal('')),
+  batchIds: z.array(z.string().uuid()).optional(),
+  initialBatchIds: z.array(z.string().uuid()).optional(),
   whatsappOptIn: z.boolean().optional(),
 });
 
