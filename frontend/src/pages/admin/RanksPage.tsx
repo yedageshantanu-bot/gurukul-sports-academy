@@ -92,7 +92,7 @@ export const getBeltBadgeClass = (color: string) => {
   if (c.includes('orange')) return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
   if (c.includes('yellow')) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
   if (c.includes('red') || c.includes('rose')) return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-  if (c.includes('white') || c.includes('silver')) return 'bg-slate-200/15 text-slate-100 border-slate-300/40 shadow-sm';
+  if (c.includes('white') || c.includes('silver')) return 'bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600 shadow-sm';
 
   return 'bg-slate-800/60 text-slate-200 border-white/20';
 };

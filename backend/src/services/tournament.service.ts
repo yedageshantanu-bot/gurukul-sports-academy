@@ -30,6 +30,8 @@ export interface NominateStudentsDTO {
   entryFee?: number;
   entry_fee?: number | string;
   notes?: string;
+  sendWhatsApp?: boolean;
+  scheduleTime?: string;
 }
 
 export class TournamentService {
@@ -233,6 +235,9 @@ export class TournamentService {
 
     const rawFee = dto.entryFee !== undefined ? dto.entryFee : dto.entry_fee;
     const fee = rawFee !== undefined ? Number(rawFee) : Number(tournament.entry_fee || 1000);
+    const shouldSendWhatsApp = dto.sendWhatsApp === true;
+    const scheduledTimeMs = dto.scheduleTime ? new Date(dto.scheduleTime).getTime() : Date.now();
+
     const rows = studentIds.map((studentId) => ({
       tournament_id: tournamentId,
       student_id: studentId,
@@ -241,7 +246,7 @@ export class TournamentService {
       amount_paid: 0.00,
       payment_status: 'PENDING',
       selection_status: 'SELECTED',
-      whatsapp_notified: true,
+      whatsapp_notified: shouldSendWhatsApp,
     }));
 
     const { data, error } = await supabaseAdmin
@@ -262,22 +267,25 @@ export class TournamentService {
 
     if (error) throw new AppError(`Failed to nominate students: ${error.message}`, 500);
 
-    // Send WhatsApp notification for each selected student
-    (data || []).forEach((reg: any) => {
-      const s = reg.students;
-      const phone = s?.parent_whatsapp || s?.student_mobile;
-      if (phone) {
-        const msg = `🏆 *Tournament Selection Notice - Gurukul Sports Academy*\n\nCongratulations! *${s.name}* has been officially selected to represent our academy in:\n\n• *Tournament:* ${tournament.name}\n• *Discipline:* ${tournament.discipline}\n• *Date:* ${tournament.tournament_date}\n• *Venue:* ${tournament.venue}\n• *Entry Fee:* ₹${fee.toLocaleString('en-IN')}\n\nKindly confirm your entry with the academy coach.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-        
-        queueService.enqueueMessage({
-          recipientPhone: phone,
-          messageBody: msg,
-          studentId: s.id,
-          eventType: 'TOURNAMENT_SELECTION',
-          idempotencyKey: `TOURNAMENT:${tournamentId}:${s.id}`,
-        }).catch((e) => console.warn('[TournamentService] WhatsApp dispatch error:', e.message));
-      }
-    });
+    // Send WhatsApp notification ONLY if admin chose to dispatch or schedule
+    if (shouldSendWhatsApp) {
+      (data || []).forEach((reg: any) => {
+        const s = reg.students;
+        const phone = s?.parent_whatsapp || s?.student_mobile;
+        if (phone) {
+          const msg = `🏆 *Tournament Selection Notice - Gurukul Sports Academy*\n\nCongratulations! *${s.name}* has been officially selected to represent our academy in:\n\n• *Tournament:* ${tournament.name}\n• *Discipline:* ${tournament.discipline}\n• *Date:* ${tournament.tournament_date}\n• *Venue:* ${tournament.venue}\n• *Entry Fee:* ₹${fee.toLocaleString('en-IN')}\n\nKindly confirm your entry with the academy coach.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
+          
+          queueService.enqueueMessage({
+            recipientPhone: phone,
+            messageBody: msg,
+            studentId: s.id,
+            eventType: 'TOURNAMENT_SELECTION',
+            idempotencyKey: `TOURNAMENT:${tournamentId}:${s.id}`,
+            scheduledAt: dto.scheduleTime ? new Date(dto.scheduleTime).toISOString() : undefined,
+          }).catch((e) => console.warn('[TournamentService] WhatsApp dispatch error:', e.message));
+        }
+      });
+    }
 
     return {
       nominatedCount: data?.length || 0,

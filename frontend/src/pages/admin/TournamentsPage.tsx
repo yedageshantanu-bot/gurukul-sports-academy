@@ -144,6 +144,10 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [nominating, setNominating] = useState(false);
   const [nominateModalTab, setNominateModalTab] = useState<'nominate_new' | 'view_previous'>('nominate_new');
+  const [nominationNotifyOption, setNominationNotifyOption] = useState<'NOW' | 'SCHEDULE' | 'NONE'>('NONE');
+  const [nominationScheduleTime, setNominationScheduleTime] = useState<string>(
+    new Date(Date.now() + 3600000).toISOString().slice(0, 16)
+  );
 
   // Payment settle state
   const [payAmount, setPayAmount] = useState('');
@@ -323,13 +327,21 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         body: JSON.stringify({
           studentIds: selectedStudentIds,
           notes: 'Nominated by Academy Selection Committee',
+          sendWhatsApp: nominationNotifyOption !== 'NONE',
+          scheduleTime: nominationNotifyOption === 'SCHEDULE' ? nominationScheduleTime : undefined,
         }),
       });
 
       setSelectedStudentIds([]);
       await fetchRegistrations(selectedTournament.id);
       await fetchTournaments();
-      toast.success(`Success! ${count} athletes nominated. Selection WhatsApp notices queued!`);
+      if (nominationNotifyOption === 'NONE') {
+        toast.success(`Success! ${count} athletes nominated (No WhatsApp dispatched).`);
+      } else if (nominationNotifyOption === 'SCHEDULE') {
+        toast.success(`Success! ${count} athletes nominated and WhatsApp scheduled for later!`);
+      } else {
+        toast.success(`Success! ${count} athletes nominated and WhatsApp alerts sent!`);
+      }
       // Switch tab so user sees all previously nominated athletes and can add more
       setNominateModalTab('view_previous');
     } catch (err) {
@@ -1335,6 +1347,78 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 )}
               </div>
 
+              {/* WhatsApp Notification Preference */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                    WhatsApp Notification Preference (व्हॉट्सॲप पर्याय)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNominationNotifyOption('NONE')}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      nominationNotifyOption === 'NONE'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-900 dark:text-amber-200 font-bold shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <div className="text-[11px] flex items-center gap-1">
+                      <span>📋 Don't Send Yet</span>
+                    </div>
+                    <div className="text-[10px] opacity-80 mt-0.5">केवळ नोंदणी (No WhatsApp)</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNominationNotifyOption('NOW')}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      nominationNotifyOption === 'NOW'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <div className="text-[11px] flex items-center gap-1">
+                      <span>🚀 Send Now</span>
+                    </div>
+                    <div className="text-[10px] opacity-80 mt-0.5">आत्ताच पाठवा (Direct Alert)</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNominationNotifyOption('SCHEDULE')}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      nominationNotifyOption === 'SCHEDULE'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <div className="text-[11px] flex items-center gap-1">
+                      <span>⏰ Schedule Later</span>
+                    </div>
+                    <div className="text-[10px] opacity-80 mt-0.5">वेळ ठरवून पाठवा (Schedule)</div>
+                  </button>
+                </div>
+
+                {nominationNotifyOption === 'SCHEDULE' && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Schedule Dispatch Time:
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={nominationScheduleTime}
+                      onChange={(e) => setNominationScheduleTime(e.target.value)}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
                   {selectedStudentIds.length} athletes selected
@@ -1356,7 +1440,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     disabled={selectedStudentIds.length === 0 || nominating}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs"
                   >
-                    {nominating ? 'Nominating...' : `Nominate & Send WhatsApp Alerts (${selectedStudentIds.length})`}
+                    {nominating
+                      ? 'Nominating...'
+                      : nominationNotifyOption === 'NONE'
+                      ? `Confirm Nomination (${selectedStudentIds.length})`
+                      : nominationNotifyOption === 'SCHEDULE'
+                      ? `Nominate & Schedule Alerts (${selectedStudentIds.length})`
+                      : `Nominate & Send Alerts (${selectedStudentIds.length})`}
                   </Button>
                 </div>
               </div>

@@ -448,6 +448,7 @@ export const StudentsPage: React.FC = () => {
       ]);
 
       setStudents(Array.isArray(studentsData) ? studentsData : []);
+      window.dispatchEvent(new CustomEvent('academy:sync_counts'));
       setBatches(Array.isArray(batchesData) ? batchesData : []);
       const planList = Array.isArray(plansData) ? plansData : ((plansData as any)?.data || []);
       setFeePlans(planList);

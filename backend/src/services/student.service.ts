@@ -952,9 +952,15 @@ export class StudentService {
 
     if (dto.email !== undefined) updates.email = dto.email || null;
     if (dto.course !== undefined) updates.course = dto.course || null;
-    if (dto.admissionDate) updates.admission_date = dto.admissionDate;
-    if (dto.monthlyFee !== undefined) updates.monthly_fee = dto.monthlyFee;
-    if (dto.feeDueDay !== undefined) updates.fee_due_day = dto.feeDueDay;
+    if (dto.admissionDate && dto.admissionDate.trim()) {
+      updates.admission_date = dto.admissionDate.trim();
+    }
+    if (dto.monthlyFee !== undefined && !isNaN(Number(dto.monthlyFee))) {
+      updates.monthly_fee = Number(dto.monthlyFee);
+    }
+    if (dto.feeDueDay !== undefined && !isNaN(Number(dto.feeDueDay))) {
+      updates.fee_due_day = Number(dto.feeDueDay);
+    }
     if (dto.status) updates.status = dto.status;
     if (dto.whatsappOptIn !== undefined) updates.whatsapp_opt_in = dto.whatsappOptIn;
 
@@ -981,12 +987,24 @@ export class StudentService {
 
     if (dto.batchIds !== undefined || dto.initialBatchIds !== undefined || dto.batchId !== undefined) {
       if (requestedBatchIds.length > 0) {
-        // Deactivate any batches not in requestedBatchIds
-        await supabaseAdmin
+        // Fetch current active enrollments
+        const { data: currentEnrollments } = await supabaseAdmin
           .from('batch_students')
-          .update({ status: STATUS.INACTIVE })
+          .select('id, batch_id')
           .eq('student_id', id)
-          .not('batch_id', 'in', `(${requestedBatchIds.join(',')})`);
+          .eq('status', STATUS.ACTIVE);
+
+        const current = currentEnrollments || [];
+        const toDeactivate = current
+          .filter((row: any) => !requestedBatchIds.includes(row.batch_id))
+          .map((row: any) => row.id);
+
+        if (toDeactivate.length > 0) {
+          await supabaseAdmin
+            .from('batch_students')
+            .update({ status: STATUS.INACTIVE })
+            .in('id', toDeactivate);
+        }
 
         // Upsert requested batches as ACTIVE
         const batchRows = requestedBatchIds.map((bId) => ({

@@ -94,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const [navCounts, setNavCounts] = React.useState<{ students?: string; teachers?: string }>({});
 
-  React.useEffect(() => {
+  const fetchLiveCounts = React.useCallback(() => {
     if (role === 'ADMIN' || role === 'DEMO_ADMIN') {
       apiClient<any>('/dashboard/admin')
         .then((res) => {
@@ -108,6 +108,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         .catch(() => {});
     }
   }, [role]);
+
+  React.useEffect(() => {
+    fetchLiveCounts();
+
+    const handleSync = () => fetchLiveCounts();
+    window.addEventListener('academy:sync_counts', handleSync);
+    window.addEventListener('focus', handleSync);
+
+    return () => {
+      window.removeEventListener('academy:sync_counts', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, [fetchLiveCounts]);
 
   const adminGroups: NavGroup[] = [
     {

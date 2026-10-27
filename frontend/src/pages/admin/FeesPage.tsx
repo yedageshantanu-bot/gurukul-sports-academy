@@ -130,11 +130,70 @@ export const FeesPage: React.FC = () => {
   });
 
   const [isFeeTemplateOpen, setIsFeeTemplateOpen] = useState(false);
-  const [reminderRules, setReminderRules] = useState({
-    twoDaysBefore: true,
-    onDueDate: true,
-    overdueNotice: true,
+  const [reminderRules, setReminderRules] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gurukul_fee_reminder_rules');
+      return saved
+        ? JSON.parse(saved)
+        : {
+            fiveDaysBefore: true,
+            twoDaysBefore: true,
+            onDueDate: true,
+            twoDaysAfter: true,
+            fourDaysAfter: true,
+            graceDays: 2,
+            lateFeeRate: 50,
+          };
+    } catch {
+      return {
+        fiveDaysBefore: true,
+        twoDaysBefore: true,
+        onDueDate: true,
+        twoDaysAfter: true,
+        fourDaysAfter: true,
+        graceDays: 2,
+        lateFeeRate: 50,
+      };
+    }
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('gurukul_fee_reminder_rules', JSON.stringify(reminderRules));
+    } catch {}
+  }, [reminderRules]);
+
+  const [undoingFeeId, setUndoingFeeId] = useState<string | null>(null);
+
+  const handleUndoPayment = async (fee: StudentFee) => {
+    if (!token) return;
+    const confirmUndo = window.confirm(
+      `Undo / Revert payment for ${fee.student?.name || 'student'}? This will restore the balance of ₹${Number(fee.amount_paid || fee.amount_due).toLocaleString('en-IN')} back to Pending/Overdue.`
+    );
+    if (!confirmUndo) return;
+
+    setUndoingFeeId(fee.id);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/payments/revert-fee/${fee.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
+
+      setReminderSuccessMessage(`✓ Payment reverted! Balance for ${fee.student?.name || 'student'} restored to Pending.`);
+      setTimeout(() => setReminderSuccessMessage(null), 4000);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Error reverting payment');
+    } finally {
+      setUndoingFeeId(null);
+    }
+  };
 
   // Adjust Student Fee Modal state
   const [isAdjustFeeModalOpen, setIsAdjustFeeModalOpen] = useState(false);
@@ -964,12 +1023,17 @@ export const FeesPage: React.FC = () => {
             <div className="md:col-span-2 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
               "{feeWhatsappTemplate}"
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-slate-300">
-              <span className="font-semibold text-emerald-300">Active Rules:</span>
-              <div className="flex gap-1.5 text-[10px]">
-                {reminderRules.twoDaysBefore && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">2 Days Before</span>}
-                {reminderRules.onDueDate && <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">On Due Date</span>}
-                {reminderRules.overdueNotice && <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">Overdue Notice</span>}
+            <div className="flex flex-col justify-center p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-slate-300 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-emerald-300 text-[11px]">5-Stage Cadence:</span>
+                <span className="text-[10px] text-amber-300 font-mono">₹{reminderRules.lateFeeRate || 50} Overdue Rate</span>
+              </div>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                {reminderRules.fiveDaysBefore && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">T-5d</span>}
+                {reminderRules.twoDaysBefore && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">T-2d</span>}
+                {reminderRules.onDueDate && <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">Due Date</span>}
+                {reminderRules.twoDaysAfter && <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">+2d Grace</span>}
+                {reminderRules.fourDaysAfter && <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">+4d Flag</span>}
               </div>
             </div>
           </div>
@@ -1060,38 +1124,92 @@ export const FeesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-xs font-bold text-slate-300 block">
-                  ⚙️ Automated WhatsApp Dispatch Rules:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 block">
+                    ⚙️ 5-Stage Automated Reminder Cadence &amp; Overdue Settings:
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">Active Timeline</span>
+                </div>
+
+                {/* 5 Milestone Checkboxes */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reminderRules.fiveDaysBefore}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, fiveDaysBefore: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-300">1. 5 Days Before (T-5d)</span>
+                  </label>
                   <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={reminderRules.twoDaysBefore}
-                      onChange={(e) => setReminderRules((r) => ({ ...r, twoDaysBefore: e.target.checked }))}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, twoDaysBefore: e.target.checked }))}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className="text-[11px] text-slate-300">2 Days Before Due</span>
+                    <span className="text-[11px] text-slate-300">2. 2 Days Before (T-2d)</span>
                   </label>
                   <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={reminderRules.onDueDate}
-                      onChange={(e) => setReminderRules((r) => ({ ...r, onDueDate: e.target.checked }))}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, onDueDate: e.target.checked }))}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className="text-[11px] text-slate-300">On Due Date</span>
+                    <span className="text-[11px] text-slate-300">3. On Due Date (Day 0)</span>
                   </label>
                   <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={reminderRules.overdueNotice}
-                      onChange={(e) => setReminderRules((r) => ({ ...r, overdueNotice: e.target.checked }))}
+                      checked={reminderRules.twoDaysAfter}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, twoDaysAfter: e.target.checked }))}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className="text-[11px] text-slate-300">Overdue Notice</span>
+                    <span className="text-[11px] text-slate-300">4. 2 Days Overdue (T+2d)</span>
                   </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={reminderRules.fourDaysAfter}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, fourDaysAfter: e.target.checked }))}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] text-slate-300">5. 4 Days Overdue (T+4d Flag)</span>
+                  </label>
+                </div>
+
+                {/* Overdue Rate & Grace Days Configuration */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                      Grace Period / देय सवलत दिवस
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={15}
+                      value={reminderRules.graceDays || 2}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, graceDays: Number(e.target.value) }))}
+                      className="w-full px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                      Overdue Penalty Rate / दंड दर (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={reminderRules.lateFeeRate || 50}
+                      onChange={(e) => setReminderRules((r: any) => ({ ...r, lateFeeRate: Number(e.target.value) }))}
+                      className="w-full px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1315,10 +1433,22 @@ export const FeesPage: React.FC = () => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {fee.status === 'PAID' ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                Fully Settled
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  Fully Settled
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUndoPayment(fee)}
+                                  disabled={undoingFeeId === fee.id}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Undo accidental payment and restore balance to Pending/Overdue"
+                                >
+                                  <RotateCcw className={`w-3.5 h-3.5 ${undoingFeeId === fee.id ? 'animate-spin' : ''}`} />
+                                  <span>{undoingFeeId === fee.id ? 'Reverting...' : 'Undo'}</span>
+                                </button>
+                              </div>
                             ) : (
                               <>
                                 {/* 1-Click Instant Mark Paid Checkmark Button */}

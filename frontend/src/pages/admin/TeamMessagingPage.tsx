@@ -38,11 +38,21 @@ interface TeamMember {
   phone: string;
   name?: string; // Optional per user requirement
   position?: string; // Optional per user requirement
+  team: 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE';
+  district?: string;
   notes?: string;
   addedAt: string;
 }
 
-interface DispatchedLog {
+export const TEAM_ROLES = [
+  { id: 'ALL', label: 'All Contacts', marathi: 'सर्व संपर्क' },
+  { id: 'JILAPRAMUKH', label: 'Jilapramukh (District Heads)', marathi: 'जिल्हाप्रमुख' },
+  { id: 'COACH', label: 'Coaches & Instructors', marathi: 'प्रशिक्षक / कोचेस' },
+  { id: 'STAFF', label: 'Dojo Staff & Admin', marathi: 'डोझो स्टाफ' },
+  { id: 'EXECUTIVE', label: 'Executive Committee', marathi: 'कार्यकारी समिती' },
+];
+
+export interface DispatchedLog {
   id: string;
   recipientPhone: string;
   recipientName?: string;
@@ -53,9 +63,28 @@ interface DispatchedLog {
 
 const DEFAULT_TEAM_MEMBERS: TeamMember[] = [
   {
+    id: 'team_jp_1',
+    phone: '+919822112233',
+    name: 'Shri Patil (Jilapramukh)',
+    team: 'JILAPRAMUKH',
+    position: 'District Coordinator - Ahmednagar',
+    district: 'Ahmednagar',
+    addedAt: new Date().toISOString(),
+  },
+  {
+    id: 'team_jp_2',
+    phone: '+919855443322',
+    name: 'Shri Shinde (Jilapramukh)',
+    team: 'JILAPRAMUKH',
+    position: 'District Coordinator - Pune Rural',
+    district: 'Pune',
+    addedAt: new Date().toISOString(),
+  },
+  {
     id: 'team_1',
     phone: '+919876543210',
     name: 'Head Coach Rahul',
+    team: 'COACH',
     position: 'Chief Martial Arts Instructor',
     addedAt: new Date().toISOString(),
   },
@@ -63,12 +92,31 @@ const DEFAULT_TEAM_MEMBERS: TeamMember[] = [
     id: 'team_2',
     phone: '+919822000000',
     name: 'Coach Sneha',
+    team: 'COACH',
     position: 'Kalarippayattu Trainer',
+    addedAt: new Date().toISOString(),
+  },
+  {
+    id: 'team_3',
+    phone: '+919422001122',
+    name: 'Dojo Desk Incharge',
+    team: 'STAFF',
+    position: 'Operations & Attendance Admin',
     addedAt: new Date().toISOString(),
   },
 ];
 
 const PRESET_TEMPLATES = [
+  {
+    label: 'Jilapramukh District Notice',
+    subject: 'जिल्हास्तरीय स्पर्धा व संघ समन्वय (District Meet)',
+    text: 'सादर जय हिंद जिल्हाप्रमुख महोदय, गुरुकुल स्पोर्ट्स अकॅडमी अंतर्गत आगामी जिल्हास्तरीय क्रीडा स्पर्धेचे संघ नामांकन व खेळाडू यादी निश्चिती बैठक आयोजित केली आहे. कृपया आपल्या तालुक्यातील संघ प्रतिनिधींसह उपस्थित राहावे.',
+  },
+  {
+    label: 'Jilapramukh Grading Schedule',
+    subject: 'जिल्हास्तरीय बेल्ट ग्रेडिंग परीक्षा',
+    text: 'सूचना सर्व जिल्हाप्रमुख: आगामी मार्शल आर्ट्स बेल्ट परीक्षा व प्रमाणपत्र पडताळणी तारीख जाहीर झाली आहे. आपल्या कार्यक्षेत्रातील पात्र विद्यार्थ्यांचे अर्ज अंतिम तारखेपूर्वी सादर करावेत.',
+  },
   {
     label: 'Team Meeting',
     subject: 'Emergency Coordination Briefing',
@@ -83,11 +131,6 @@ const PRESET_TEMPLATES = [
     label: 'Roll Call Reminder',
     subject: 'Daily Attendance Compliance',
     text: 'Duty Alert: Coaches & assistants are requested to mark daily student attendance sheets promptly and verify safety gear.',
-  },
-  {
-    label: 'Academy Operations',
-    subject: 'Operational Notice',
-    text: 'Important Update from Gurukul Sports Academy Administration: Please check staff communication channels for tournament preparation updates.',
   },
 ];
 
@@ -111,10 +154,11 @@ export const TeamMessagingPage: React.FC = () => {
   // Selected recipient IDs
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPhone, setManualPhone] = useState('');
+  const [activeCategory, setActiveCategory] = useState<'ALL' | 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE'>('ALL');
 
   // Composer fields (Sender Name optional, Position removed per user requirement)
   const [senderName, setSenderName] = useState('');
-  const [recipientRole, setRecipientRole] = useState('ALL_STAFF');
+  const [recipientRole, setRecipientRole] = useState('JILAPRAMUKH');
   const [priority, setPriority] = useState<'NORMAL' | 'URGENT' | 'ANNOUNCEMENT'>('NORMAL');
   const [subject, setSubject] = useState('');
   const [messageText, setMessageText] = useState('');
@@ -141,10 +185,19 @@ export const TeamMessagingPage: React.FC = () => {
 
   // Modal: Add Team Member
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newMemberForm, setNewMemberForm] = useState({
+  const [newMemberForm, setNewMemberForm] = useState<{
+    phone: string;
+    name: string;
+    position: string;
+    team: 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE';
+    district: string;
+    notes: string;
+  }>({
     phone: '',
-    name: '', // Optional
-    position: '', // Optional
+    name: '',
+    position: '',
+    team: 'JILAPRAMUKH',
+    district: '',
     notes: '',
   });
 
@@ -196,14 +249,20 @@ export const TeamMessagingPage: React.FC = () => {
       id: `team_${Date.now()}`,
       phone: newMemberForm.phone.trim(),
       name: newMemberForm.name.trim() || undefined,
-      position: newMemberForm.position.trim() || undefined,
+      team: newMemberForm.team,
+      district: newMemberForm.district.trim() || undefined,
+      position:
+        newMemberForm.position.trim() ||
+        (newMemberForm.team === 'JILAPRAMUKH'
+          ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
+          : undefined),
       notes: newMemberForm.notes.trim() || undefined,
       addedAt: new Date().toISOString(),
     };
 
     setTeamMembers((prev) => [member, ...prev]);
     setIsAddModalOpen(false);
-    setNewMemberForm({ phone: '', name: '', position: '', notes: '' });
+    setNewMemberForm({ phone: '', name: '', position: '', team: 'JILAPRAMUKH', district: '', notes: '' });
     toast.success('Team contact added successfully!');
   };
 
@@ -219,11 +278,18 @@ export const TeamMessagingPage: React.FC = () => {
     );
   };
 
+  const filteredMembers = teamMembers.filter((m) => {
+    if (activeCategory === 'ALL') return true;
+    return m.team === activeCategory;
+  });
+
   const handleSelectAll = () => {
-    if (selectedIds.length === teamMembers.length) {
-      setSelectedIds([]);
+    const activeIds = filteredMembers.map((m) => m.id);
+    const allSelected = activeIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !activeIds.includes(id)));
     } else {
-      setSelectedIds(teamMembers.map((m) => m.id));
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...activeIds])));
     }
   };
 
@@ -492,12 +558,12 @@ export const TeamMessagingPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Team Contacts */}
         <div className="lg:col-span-5 space-y-4">
-          <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Team Contacts ({teamMembers.length})
+                  Team Contacts ({filteredMembers.length})
                 </h2>
               </div>
               <button
@@ -505,17 +571,54 @@ export const TeamMessagingPage: React.FC = () => {
                 onClick={handleSelectAll}
                 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
               >
-                {selectedIds.length === teamMembers.length ? 'Deselect All' : 'Select All'}
+                {filteredMembers.length > 0 && filteredMembers.every((m) => selectedIds.includes(m.id))
+                  ? 'Deselect In Group'
+                  : 'Select All In Group'}
               </button>
             </div>
 
-            {teamMembers.length === 0 ? (
+            {/* Team Category Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-800">
+              {TEAM_ROLES.map((role) => {
+                const count =
+                  role.id === 'ALL'
+                    ? teamMembers.length
+                    : teamMembers.filter((m) => m.team === role.id).length;
+                const isCurrent = activeCategory === role.id;
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(role.id as any);
+                      if (role.id !== 'ALL') {
+                        setRecipientRole(role.id);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                      isCurrent
+                        ? role.id === 'JILAPRAMUKH'
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{role.marathi || role.label}</span>
+                    <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredMembers.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
-                No team contacts added yet. Click &quot;Add Team Member&quot; above.
+                No contacts in this team category. Click &quot;Add Team Member&quot; to assign contacts.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2 max-h-[420px] overflow-y-auto">
-                {teamMembers.map((member) => {
+                {filteredMembers.map((member) => {
                   const isChecked = selectedIds.includes(member.id);
                   return (
                     <div
@@ -537,7 +640,12 @@ export const TeamMessagingPage: React.FC = () => {
                         <div>
                           <div className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                             {member.name || <span className="text-slate-400 italic">No Name (Optional)</span>}
-                            {member.position && (
+                            {member.team === 'JILAPRAMUKH' && (
+                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                जिल्हाप्रमुख {member.district ? `(${member.district})` : ''}
+                              </span>
+                            )}
+                            {member.position && member.team !== 'JILAPRAMUKH' && (
                               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                                 {member.position}
                               </span>
@@ -625,10 +733,11 @@ export const TeamMessagingPage: React.FC = () => {
                   onChange={(e) => setRecipientRole(e.target.value)}
                   className="h-9 text-xs"
                 >
-                  <option value="ALL_STAFF">All Staff &amp; Coaches</option>
-                  <option value="COACHES">Instructors &amp; Coaches Only</option>
-                  <option value="ASSISTANTS">Assistant Trainers</option>
-                  <option value="MANAGEMENT">Academy Management</option>
+                  <option value="JILAPRAMUKH">जिल्हाप्रमुख (Associated Jilapramukh / District Coordinators)</option>
+                  <option value="COACHES">Instructors &amp; Coaches (प्रशिक्षक)</option>
+                  <option value="ALL_STAFF">All Staff &amp; Team Contacts</option>
+                  <option value="STAFF">Dojo Staff &amp; Desk</option>
+                  <option value="MANAGEMENT">Executive Committee (व्यवस्थापन)</option>
                 </Select>
               </div>
 
@@ -962,11 +1071,27 @@ export const TeamMessagingPage: React.FC = () => {
         )}
       </Card>
 
-      {/* MODAL: Add Team Member (Name and Position Optional) */}
+      {/* MODAL: Add Team Member */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add Team Contact">
         <form onSubmit={handleAddMember} className="space-y-4">
           <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
-            <strong>Note:</strong> Name and Position are completely optional. Only the WhatsApp / Mobile number is required to receive messages.
+            <strong>टीप:</strong> नाव आणि पद ऐच्छिक (Optional) आहे. संदेश मिळवण्यासाठी फक्त मोबाईल / व्हॉट्सॲप नंबर आवश्यक आहे.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Team Classification / वर्गवारी *
+            </label>
+            <Select
+              value={newMemberForm.team}
+              onChange={(e) => setNewMemberForm({ ...newMemberForm, team: e.target.value as any })}
+              className="h-9 text-xs"
+            >
+              <option value="JILAPRAMUKH">जिल्हाप्रमुख (District Coordinator / Jilapramukh)</option>
+              <option value="COACH">प्रशिक्षक / कोचेस (Coach &amp; Trainer)</option>
+              <option value="STAFF">डोझो स्टाफ व व्यवस्थापन (Dojo Staff &amp; Desk)</option>
+              <option value="EXECUTIVE">कार्यकारी समिती (Executive Committee)</option>
+            </Select>
           </div>
 
           <Input
@@ -979,22 +1104,31 @@ export const TeamMessagingPage: React.FC = () => {
           />
 
           <Input
-            label="Member Full Name (Optional)"
-            placeholder="e.g. Coach Anand"
+            label="Member Full Name (नाव - Optional)"
+            placeholder="e.g. Shri Patil (Jilapramukh)"
             value={newMemberForm.name}
             onChange={(e) => setNewMemberForm({ ...newMemberForm, name: e.target.value })}
           />
 
+          {newMemberForm.team === 'JILAPRAMUKH' && (
+            <Input
+              label="District / कार्यक्षेत्र जिल्हा (Optional)"
+              placeholder="e.g. Ahmednagar / Pune / Satara"
+              value={newMemberForm.district}
+              onChange={(e) => setNewMemberForm({ ...newMemberForm, district: e.target.value })}
+            />
+          )}
+
           <Input
-            label="Position / Role (Optional)"
-            placeholder="e.g. Assistant Karate Coach / Physio"
+            label="Position / Role (पद - Optional)"
+            placeholder="e.g. District Chief Coordinator / Head Coach"
             value={newMemberForm.position}
             onChange={(e) => setNewMemberForm({ ...newMemberForm, position: e.target.value })}
           />
 
           <Input
-            label="Internal Notes (Optional)"
-            placeholder="e.g. Available weekdays evening"
+            label="Internal Notes (टीप - Optional)"
+            placeholder="e.g. Available for district meetings"
             value={newMemberForm.notes}
             onChange={(e) => setNewMemberForm({ ...newMemberForm, notes: e.target.value })}
           />

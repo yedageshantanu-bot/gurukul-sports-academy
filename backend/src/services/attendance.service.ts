@@ -102,7 +102,7 @@ export class AttendanceService {
           if (pending > 0 && f.due_date) {
             const dueMs = new Date(f.due_date).getTime();
             const daysOverdue = Math.floor((todayMs - dueMs) / (1000 * 60 * 60 * 24));
-            if (daysOverdue >= 3) {
+            if (daysOverdue >= 2) {
               const existing = feeOverdueMap.get(f.student_id);
               if (!existing || daysOverdue > existing.daysOverdue) {
                 feeOverdueMap.set(f.student_id, {

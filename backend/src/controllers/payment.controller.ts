@@ -80,6 +80,30 @@ export class PaymentController {
     }
   }
 
+  async revertPayment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await paymentService.revertPayment(req.params.id);
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async revertStudentFeePayment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await paymentService.revertStudentFeePayment(req.params.studentFeeId);
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async handleWebhook(req: Request, res: Response, next: NextFunction) {
     try {
       const signature = (req.headers['x-razorpay-signature'] as string) || '';

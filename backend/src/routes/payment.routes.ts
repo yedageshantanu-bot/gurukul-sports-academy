@@ -23,6 +23,10 @@ router.post('/create', paymentController.createPaymentOrder);
 // Server-side payment verification
 router.post('/verify', paymentController.verifyPayment);
 
+// Undo / Revert accidental payment
+router.post('/:id/revert', paymentController.revertPayment);
+router.post('/revert-fee/:studentFeeId', paymentController.revertStudentFeePayment);
+
 // Manual cash/offline payment recording
 router.post('/manual', paymentController.recordManualPayment);
 

@@ -73,7 +73,7 @@ export const updateStudentSchema = z.object({
   parentWhatsapp: z.string().optional().or(z.literal('')),
   email: z.string().email().optional().or(z.literal('')),
   course: z.string().optional().or(z.literal('')),
-  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')).nullable(),
   monthlyFee: z.number().nonnegative().optional(),
   feeDueDay: z.number().int().min(1).max(31).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),

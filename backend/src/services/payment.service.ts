@@ -304,6 +304,121 @@ export class PaymentService {
   }
 
   // ============================================================================
+  // REVERT PAYMENT / UNDO ACCIDENTAL PAYMENT (NEW)
+  // ============================================================================
+  async revertPayment(paymentId: string) {
+    const { data: payment, error } = await this.supabase
+      .from('payments')
+      .select('*')
+      .eq('id', paymentId)
+      .single();
+
+    if (error || !payment) {
+      throw new AppError('Payment not found', 404, 'RESOURCE_NOT_FOUND');
+    }
+
+    if (payment.status === 'REVERTED' || payment.status === 'REFUNDED') {
+      throw new AppError('Payment has already been reverted or refunded', 400);
+    }
+
+    const revertAmount = Number(payment.amount);
+    const studentFeeId = payment.student_fee_id;
+
+    // 1. Mark payment as REVERTED
+    await this.supabase
+      .from('payments')
+      .update({
+        status: 'REVERTED',
+        updated_at: new Date().toISOString(),
+        metadata: {
+          ...(payment.metadata || {}),
+          reverted_at: new Date().toISOString(),
+          revert_reason: 'Admin accidental payment reversal (Undo)',
+        },
+      })
+      .eq('id', paymentId);
+
+    // 2. Adjust linked student_fee
+    if (studentFeeId) {
+      const { data: currentFee } = await this.supabase
+        .from('student_fees')
+        .select('id, amount_due, amount_paid, due_date')
+        .eq('id', studentFeeId)
+        .single();
+
+      if (currentFee) {
+        const newPaid = Math.max(0, Number(currentFee.amount_paid) - revertAmount);
+        const amountDue = Number(currentFee.amount_due);
+        const isOverdue = new Date(currentFee.due_date) < new Date();
+
+        let newStatus: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' = 'PENDING';
+        if (newPaid >= amountDue) {
+          newStatus = 'PAID';
+        } else if (newPaid > 0) {
+          newStatus = 'PARTIAL';
+        } else if (isOverdue) {
+          newStatus = 'OVERDUE';
+        }
+
+        await this.supabase
+          .from('student_fees')
+          .update({
+            amount_paid: newPaid,
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', studentFeeId);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Payment of ₹${revertAmount.toLocaleString('en-IN')} reverted successfully. Status restored to pending/overdue.`,
+      paymentId,
+    };
+  }
+
+  async revertStudentFeePayment(studentFeeId: string) {
+    // Find the latest successful payment for this student fee
+    const { data: payments } = await this.supabase
+      .from('payments')
+      .select('id')
+      .eq('student_fee_id', studentFeeId)
+      .eq('status', 'SUCCESS')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (payments && payments.length > 0) {
+      return this.revertPayment(payments[0].id);
+    }
+
+    // If marked paid manually without payment row, reset student_fee directly
+    const { data: fee } = await this.supabase
+      .from('student_fees')
+      .select('id, amount_due, due_date')
+      .eq('id', studentFeeId)
+      .single();
+
+    if (!fee) throw new AppError('Fee record not found', 404);
+
+    const isOverdue = new Date(fee.due_date) < new Date();
+    await this.supabase
+      .from('student_fees')
+      .update({
+        amount_paid: 0,
+        status: isOverdue ? 'OVERDUE' : 'PENDING',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', studentFeeId);
+
+    return {
+      success: true,
+      message: 'Fee settlement reverted successfully to pending.',
+      studentFeeId,
+    };
+  }
+
+  // ============================================================================
   // WEBHOOK HANDLER (IDEMPOTENT SERVER-TO-SERVER)
   // ============================================================================
   async handleWebhook(rawBody: string | Buffer, signature: string, payload: Record<string, unknown>) {
