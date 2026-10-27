@@ -60,6 +60,11 @@ export interface StudentItem {
   batchName?: string;
   currentMonthFeeStatus?: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' | 'NOT_ASSIGNED';
   currentMonthPendingAmount?: number;
+  feeStatus?: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' | 'NOT_ASSIGNED';
+  totalPendingAmount?: number;
+  totalDueAmount?: number;
+  totalPaidAmount?: number;
+  overdueMonthsCount?: number;
   feeHistory?: Array<{
     id: string;
     billingPeriod: string;

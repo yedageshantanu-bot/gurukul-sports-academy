@@ -130,8 +130,15 @@ export class StudentService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // If Admin, query current month's fee status for all fetched students
-    const studentFeeMap = new Map<string, { status: string; pendingAmount: number }>();
+    // If Admin, query fee status across all billing records for each student
+    const studentFeeMap = new Map<string, {
+      status: string;
+      pendingAmount: number;
+      totalPendingAmount: number;
+      totalDue: number;
+      totalPaid: number;
+      overdueCount: number;
+    }>();
     const studentRanksMap = new Map<string, any[]>();
 
     if (data && data.length > 0) {
@@ -140,28 +147,55 @@ export class StudentService {
       if (requestingUser.role === ROLES.ADMIN) {
         const { data: fees } = await supabaseAdmin
           .from('student_fees')
-          .select('student_id, amount_due, amount_paid, due_date, status')
-          .in('student_id', studentIds)
-          .eq('billing_period', currentBillingPeriod);
+          .select('student_id, amount_due, amount_paid, due_date, status, billing_period')
+          .in('student_id', studentIds);
 
+        // Group fees by student
+        const feesByStudent = new Map<string, any[]>();
         (fees || []).forEach((f: any) => {
-          const amountDue = Number(f.amount_due || 0);
-          const amountPaid = Number(f.amount_paid || 0);
-          const pendingAmount = Math.max(0, amountDue - amountPaid);
-          let currentStatus = f.status || 'PENDING';
-          if (pendingAmount <= 0) {
-            currentStatus = 'PAID';
-          } else if (amountPaid > 0) {
-            currentStatus = 'PARTIAL';
-          } else if (new Date(f.due_date) < today) {
-            currentStatus = 'OVERDUE';
+          const list = feesByStudent.get(f.student_id) || [];
+          list.push(f);
+          feesByStudent.set(f.student_id, list);
+        });
+
+        studentIds.forEach((sId: string) => {
+          const studentFees = feesByStudent.get(sId) || [];
+          if (studentFees.length === 0) return;
+
+          let totalDue = 0;
+          let totalPaid = 0;
+          let overdueCount = 0;
+
+          studentFees.forEach((f: any) => {
+            const due = Number(f.amount_due || 0);
+            const paid = Number(f.amount_paid || 0);
+            const pending = Math.max(0, due - paid);
+            totalDue += due;
+            totalPaid += paid;
+
+            const isOverdue = pending > 0 && new Date(f.due_date) < today;
+            if (isOverdue) overdueCount++;
+          });
+
+          const totalPending = Math.max(0, totalDue - totalPaid);
+          let overallStatus = 'PENDING';
+          if (totalPending <= 0) {
+            overallStatus = 'PAID';
+          } else if (overdueCount > 0) {
+            overallStatus = 'OVERDUE';
+          } else if (totalPaid > 0) {
+            overallStatus = 'PARTIAL';
           } else {
-            currentStatus = 'PENDING';
+            overallStatus = 'PENDING';
           }
 
-          studentFeeMap.set(f.student_id, {
-            status: currentStatus,
-            pendingAmount,
+          studentFeeMap.set(sId, {
+            status: overallStatus,
+            pendingAmount: totalPending,
+            totalPendingAmount: totalPending,
+            totalDue,
+            totalPaid,
+            overdueCount,
           });
         });
       }
@@ -242,6 +276,11 @@ export class StudentService {
         // Fee fields strictly Admin-scoped
         currentMonthFeeStatus: requestingUser.role === ROLES.ADMIN ? (feeInfo?.status || 'NOT_ASSIGNED') : undefined,
         currentMonthPendingAmount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.pendingAmount || 0) : undefined,
+        feeStatus: requestingUser.role === ROLES.ADMIN ? (feeInfo?.status || 'NOT_ASSIGNED') : undefined,
+        totalPendingAmount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.totalPendingAmount ?? 0) : undefined,
+        totalDueAmount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.totalDue || 0) : undefined,
+        totalPaidAmount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.totalPaid || 0) : undefined,
+        overdueMonthsCount: requestingUser.role === ROLES.ADMIN ? (feeInfo?.overdueCount || 0) : undefined,
         createdAt: s.created_at,
         updatedAt: s.updated_at,
       };
@@ -356,7 +395,7 @@ export class StudentService {
 
     let currentMonthFeeStatus: string | undefined = undefined;
     let currentMonthPendingAmount: number | undefined = undefined;
-    let feeHistory: any[] | undefined = undefined;
+    let feeHistory: any[] = [];
 
     if (requestingUser.role === ROLES.ADMIN || requestingUser.role === ROLES.DEMO_ADMIN) {
       const { data: fees } = await supabaseAdmin
@@ -404,6 +443,17 @@ export class StudentService {
         currentMonthPendingAmount = 0;
       }
     }
+
+    const totalDueAmount = feeHistory.reduce((acc: number, f: any) => acc + (f.amountDue || 0), 0);
+    const totalPaidAmount = feeHistory.reduce((acc: number, f: any) => acc + (f.amountPaid || 0), 0);
+    const totalPendingAmount = Math.max(0, totalDueAmount - totalPaidAmount);
+    const overdueMonthsCount = feeHistory.filter((f: any) => f.status === 'OVERDUE').length;
+    let overallFeeStatus = 'PENDING';
+    if (feeHistory.length === 0) overallFeeStatus = 'NOT_ASSIGNED';
+    else if (totalPendingAmount <= 0) overallFeeStatus = 'PAID';
+    else if (overdueMonthsCount > 0) overallFeeStatus = 'OVERDUE';
+    else if (totalPaidAmount > 0) overallFeeStatus = 'PARTIAL';
+    else overallFeeStatus = 'PENDING';
 
     // Query martial arts ranks and promotion history for this student
     let martialArtsRanks: any[] = [];
@@ -536,6 +586,11 @@ export class StudentService {
       batchName: enrolledBatches[0]?.name || '',
       currentMonthFeeStatus,
       currentMonthPendingAmount,
+      feeStatus: overallFeeStatus,
+      totalPendingAmount,
+      totalDueAmount,
+      totalPaidAmount,
+      overdueMonthsCount,
       feeHistory,
       martialArtsRanks,
       rankHistory,
@@ -754,7 +809,7 @@ export class StudentService {
         let startYear = currentYear;
         let startMonth = currentMonth;
 
-        if (dto.admissionDate && dto.backfillPastFees) {
+        if (dto.admissionDate && dto.backfillPastFees !== false) {
           const parts = dto.admissionDate.split('-');
           if (parts.length >= 2) {
             const admY = parseInt(parts[0], 10);
@@ -1022,6 +1077,49 @@ export class StudentService {
           .from('batch_students')
           .update({ status: STATUS.INACTIVE })
           .eq('student_id', id);
+      }
+    }
+
+    // Update Martial Arts / Sports Belt Ranks if provided
+    if (dto.sports && Array.isArray(dto.sports) && dto.sports.length > 0) {
+      for (const sp of dto.sports) {
+        if (sp.disciplineCode && sp.disciplineCode !== 'NONE') {
+          try {
+            await RankService.assignStudentRank({
+              studentId: id,
+              disciplineCode: sp.disciplineCode,
+              rankName: sp.rankName || undefined,
+            });
+          } catch (err: any) {
+            console.warn('[StudentService] Update Martial Arts Belt notice:', err?.message || err);
+          }
+        }
+      }
+    } else if (dto.sportDiscipline && dto.sportDiscipline !== 'NONE') {
+      try {
+        await RankService.assignStudentRank({
+          studentId: id,
+          disciplineCode: dto.sportDiscipline,
+          rankName: dto.initialBeltRank || undefined,
+        });
+      } catch (err: any) {
+        console.warn('[StudentService] Update Martial Arts Belt notice:', err?.message || err);
+      }
+    }
+
+    // If monthly fee updated, adjust current unpaid fee record if pending
+    if (dto.monthlyFee !== undefined && !isNaN(Number(dto.monthlyFee))) {
+      const now = new Date();
+      const curPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      try {
+        await supabaseAdmin
+          .from('student_fees')
+          .update({ amount_due: Number(dto.monthlyFee) })
+          .eq('student_id', id)
+          .eq('billing_period', curPeriod)
+          .eq('amount_paid', 0);
+      } catch (fErr: any) {
+        console.warn('[StudentService] Update fee due notice:', fErr?.message || fErr);
       }
     }
 

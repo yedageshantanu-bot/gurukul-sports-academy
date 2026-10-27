@@ -81,6 +81,12 @@ export const updateStudentSchema = z.object({
   batchIds: z.array(z.string().uuid()).optional(),
   initialBatchIds: z.array(z.string().uuid()).optional(),
   whatsappOptIn: z.boolean().optional(),
+  sportDiscipline: z.string().optional(),
+  initialBeltRank: z.string().optional().or(z.literal('')),
+  sports: z.array(z.object({
+    disciplineCode: z.string(),
+    rankName: z.string().optional(),
+  })).optional(),
 });
 
 export type UpdateStudentDTO = z.infer<typeof updateStudentSchema>;

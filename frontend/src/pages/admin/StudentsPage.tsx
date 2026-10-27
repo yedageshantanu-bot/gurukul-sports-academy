@@ -633,6 +633,19 @@ export const StudentsPage: React.FC = () => {
       setSelectedPlanId('');
     }
 
+    // Pre-populate sports & martial arts ranks from student profile
+    if (s.martialArtsRanks && s.martialArtsRanks.length > 0) {
+      setSelectedSports(
+        s.martialArtsRanks.map((r, i) => ({
+          id: String(i + 1),
+          disciplineCode: r.disciplineCode,
+          rankName: r.rankName,
+        }))
+      );
+    } else {
+      setSelectedSports([{ id: '1', disciplineCode: 'KALARIPPAYATTU', rankName: '' }]);
+    }
+
     setFormError('');
     setIsEditModalOpen(true);
   };
@@ -814,6 +827,13 @@ export const StudentsPage: React.FC = () => {
     }
 
     try {
+      const sportsPayload = selectedSports
+        .filter((s) => s.disciplineCode && s.disciplineCode !== 'NONE')
+        .map((s) => ({
+          disciplineCode: s.disciplineCode,
+          rankName: s.rankName || undefined,
+        }));
+
       await apiClient(`/students/${editingStudent.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -829,6 +849,9 @@ export const StudentsPage: React.FC = () => {
           monthlyFee: Number(monthlyFee),
           feeDueDay: Number(feeDueDay),
           admissionDate: admissionDate || undefined,
+          sports: sportsPayload,
+          sportDiscipline: sportsPayload[0]?.disciplineCode,
+          initialBeltRank: sportsPayload[0]?.rankName,
         }),
       });
       setIsEditModalOpen(false);
@@ -870,7 +893,9 @@ export const StudentsPage: React.FC = () => {
 
   const totalCount = students.length;
   const activeCount = students.filter((s) => s.status === 'ACTIVE').length;
-  const pendingFeeCount = students.filter((s) => s.currentMonthFeeStatus === 'OVERDUE' || s.currentMonthFeeStatus === 'PENDING').length;
+  const pendingFeeCount = students.filter(
+    (s) => (s.totalPendingAmount !== undefined ? s.totalPendingAmount > 0 : (s.currentMonthFeeStatus === 'OVERDUE' || s.currentMonthFeeStatus === 'PENDING'))
+  ).length;
   const feeCompliantCount = totalCount > 0 ? Math.round(((totalCount - pendingFeeCount) / totalCount) * 100) : 100;
 
   return (
@@ -1117,33 +1142,79 @@ export const StudentsPage: React.FC = () => {
                         )}
                       </td>
 
-                      {/* This Month Fee Status */}
+                      {/* Fee Status & Total Pending Amount */}
                       <td className="px-5 py-4 text-xs font-semibold">
-                        {s.currentMonthFeeStatus === 'PAID' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            PAID
-                          </span>
-                        )}
-                        {s.currentMonthFeeStatus === 'PARTIAL' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            PARTIAL (₹{s.currentMonthPendingAmount})
-                          </span>
-                        )}
-                        {s.currentMonthFeeStatus === 'PENDING' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            PENDING
-                          </span>
-                        )}
-                        {s.currentMonthFeeStatus === 'OVERDUE' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                            OVERDUE
-                          </span>
-                        )}
-                        {(!s.currentMonthFeeStatus || s.currentMonthFeeStatus === 'NOT_ASSIGNED') && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                            No Fee
-                          </span>
-                        )}
+                        {(() => {
+                          const status = s.feeStatus || s.currentMonthFeeStatus || 'NOT_ASSIGNED';
+                          const pendingAmt = s.totalPendingAmount !== undefined ? s.totalPendingAmount : (s.currentMonthPendingAmount || 0);
+                          const overdueMonths = s.overdueMonthsCount || 0;
+
+                          if (status === 'PAID' || pendingAmt === 0) {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 w-fit">
+                                  ✓ PAID
+                                </span>
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                  ₹0 Due
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          if (status === 'OVERDUE') {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 w-fit">
+                                  ₹{pendingAmt.toLocaleString('en-IN')} OVERDUE
+                                </span>
+                                {overdueMonths > 1 ? (
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                                    ⚠️ {overdueMonths} months pending
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-rose-500 font-medium">
+                                    Immediate attention
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          if (status === 'PARTIAL') {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 w-fit">
+                                  ₹{pendingAmt.toLocaleString('en-IN')} PARTIAL
+                                </span>
+                                {s.totalPaidAmount && s.totalPaidAmount > 0 ? (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                                    Paid: ₹{s.totalPaidAmount.toLocaleString('en-IN')}
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
+                          }
+
+                          if (status === 'PENDING') {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 w-fit">
+                                  ₹{pendingAmt.toLocaleString('en-IN')} PENDING
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                  Upcoming due
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              No Fee Plan
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}
@@ -2138,6 +2209,56 @@ export const StudentsPage: React.FC = () => {
           )}
 
           <div className="space-y-3.5">
+            {/* PREVIOUS / CURRENT SAVED DETAILS SUMMARY */}
+            {editingStudent && (
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-slate-800/80">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <span>📋 Current Saved Details</span>
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    ID: {editingStudent.id.slice(0, 8)}...
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Course Plan:</span>
+                    <strong className="text-slate-800 dark:text-slate-200">{editingStudent.course || 'Not set'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Assigned Fee:</span>
+                    <strong className="text-slate-800 dark:text-slate-200">₹{(editingStudent.monthlyFee || 0).toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Dues Pending:</span>
+                    <strong className={(editingStudent.totalPendingAmount || 0) > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-emerald-600 dark:text-emerald-400 font-bold'}>
+                      ₹{(editingStudent.totalPendingAmount ?? editingStudent.currentMonthPendingAmount ?? 0).toLocaleString('en-IN')}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Joined On:</span>
+                    <span className="text-slate-700 dark:text-slate-300">{editingStudent.admissionDate ? editingStudent.admissionDate.split('T')[0] : 'Not specified'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Active Batches:</span>
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {editingStudent.enrolledBatches && editingStudent.enrolledBatches.length > 0
+                        ? editingStudent.enrolledBatches.map((b) => b.name).join(', ')
+                        : editingStudent.batchName || 'None'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Current Belt/Rank:</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                      {editingStudent.martialArtsRanks && editingStudent.martialArtsRanks.length > 0
+                        ? editingStudent.martialArtsRanks.map((r) => `${r.disciplineName}: ${r.rankName}`).join(' | ')
+                        : 'Level 0 White Belt'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 1. Student Full Name */}
             <Input
               label="Student Full Name *"
@@ -2181,10 +2302,109 @@ export const StudentsPage: React.FC = () => {
               onChange={(e) => setAdmissionDate(e.target.value)}
             />
 
+            {/* Sport / Martial Arts Disciplines & Starting Belt Ranks (Dynamic Multi-Sport) */}
+            <div className="p-4 bg-slate-900/80 dark:bg-slate-900 border border-slate-700/60 rounded-xl space-y-3.5 shadow-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    Sports &amp; Martial Arts Disciplines *
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-black/40 p-0.5 rounded-lg border border-white/5 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => handleSetSportCount(1)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      selectedSports.length === 1
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    1 Sport
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetSportCount(2)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      selectedSports.length === 2
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    2 Sports
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetSportCount(3)}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                      selectedSports.length >= 3
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    3+ Sports
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Sport Cards List */}
+              <div className="space-y-3">
+                {selectedSports.map((sp, idx) => {
+                  const disciplineRanks = getRanksForDiscipline(sp.disciplineCode);
+                  return (
+                    <div key={sp.id || idx} className="p-3 bg-slate-950/40 rounded-lg border border-white/5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">
+                          Sport #{idx + 1}
+                        </span>
+                        {selectedSports.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSport(idx)}
+                            className="text-rose-400 hover:text-rose-300 text-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Select
+                          label="Martial Arts Discipline *"
+                          value={sp.disciplineCode}
+                          onChange={(e) => handleSportDisciplineChange(idx, e.target.value)}
+                        >
+                          {availableDisciplines.map((d) => (
+                            <option key={d.code} value={d.code}>
+                              🥋 {d.name}
+                            </option>
+                          ))}
+                        </Select>
+
+                        <Select
+                          label="Current Belt / Level *"
+                          value={sp.rankName || disciplineRanks[0]?.rank_name || ''}
+                          onChange={(e) => handleSportRankChange(idx, e.target.value)}
+                        >
+                          {disciplineRanks.map((r) => (
+                            <option key={r.id || r.rank_name} value={r.rank_name}>
+                              {r.rank_name} ({r.belt_color} Belt)
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Course & Fee Plan Selection */}
             <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-1">
                   <Select
                     label="Course / Training Plan *"
                     value={selectedPlanId}
@@ -2235,6 +2455,18 @@ export const StudentsPage: React.FC = () => {
                     onChange={(e) => setMonthlyFee(Number(e.target.value))}
                     placeholder="e.g. 700"
                     required
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    label="Fee Due Day (1-31)"
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={feeDueDay}
+                    onChange={(e) => setFeeDueDay(Number(e.target.value))}
+                    placeholder="5"
                   />
                 </div>
               </div>
