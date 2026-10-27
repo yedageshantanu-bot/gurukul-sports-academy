@@ -164,6 +164,8 @@ export const RanksPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [disciplineFilter, setDisciplineFilter] = useState('ALL');
+  // Card-level active discipline toggle for dual-discipline students (1 card per student)
+  const [cardActiveDisciplines, setCardActiveDisciplines] = useState<Record<string, string>>({});
 
   // Discipline Section Management
   const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
@@ -931,22 +933,58 @@ export const RanksPage: React.FC = () => {
   };
 
   const q = (searchTerm || '').trim().toLowerCase();
-  const filteredStudentRanks = (studentRanks || []).filter((sr) => {
-    const studentName = (sr.student_name || '').toLowerCase();
-    const studentCode = (sr.student_code || '').toLowerCase();
-    const contact = (sr.contact_number || '').toLowerCase();
-    const currentRank = (sr.current_rank_name || '').toLowerCase();
-    const belt = (sr.belt_color || '').toLowerCase();
-    const matchesSearch =
-      !q ||
-      studentName.includes(q) ||
-      studentCode.includes(q) ||
-      contact.includes(q) ||
-      currentRank.includes(q) ||
-      belt.includes(q);
-    const matchesDiscipline = disciplineFilter === 'ALL' || sr.discipline_code === disciplineFilter;
-    return matchesSearch && matchesDiscipline;
-  });
+
+  interface ConsolidatedStudentCard {
+    student_id: string;
+    student_name: string;
+    contact_number: string;
+    student_code?: string;
+    dob?: string;
+    disciplines: StudentRank[];
+  }
+
+  // Strict 1-to-1 Consolidated Representation: Each student appears EXACTLY ONCE on the screen!
+  const consolidatedStudentCards = React.useMemo(() => {
+    const studentMap = new Map<string, ConsolidatedStudentCard>();
+
+    (studentRanks || []).forEach((sr) => {
+      const studentName = (sr.student_name || '').toLowerCase();
+      const studentCode = (sr.student_code || '').toLowerCase();
+      const contact = (sr.contact_number || '').toLowerCase();
+      const currentRank = (sr.current_rank_name || '').toLowerCase();
+      const belt = (sr.belt_color || '').toLowerCase();
+      const matchesSearch =
+        !q ||
+        studentName.includes(q) ||
+        studentCode.includes(q) ||
+        contact.includes(q) ||
+        currentRank.includes(q) ||
+        belt.includes(q);
+      if (!matchesSearch) return;
+
+      const matchesDiscipline = disciplineFilter === 'ALL' || sr.discipline_code === disciplineFilter;
+      if (!matchesDiscipline) return;
+
+      const key = sr.student_id || sr.student_name.trim().toLowerCase();
+      if (!studentMap.has(key)) {
+        studentMap.set(key, {
+          student_id: sr.student_id,
+          student_name: sr.student_name,
+          contact_number: sr.contact_number,
+          student_code: sr.student_code,
+          dob: sr.dob,
+          disciplines: [sr],
+        });
+      } else {
+        const existing = studentMap.get(key)!;
+        if (!existing.disciplines.some((d) => d.discipline_code === sr.discipline_code)) {
+          existing.disciplines.push(sr);
+        }
+      }
+    });
+
+    return Array.from(studentMap.values());
+  }, [studentRanks, q, disciplineFilter]);
 
   const certQ = (certSearchTerm || '').trim().toLowerCase();
   const filteredCertificates = (certificates || []).filter((cert) => {
@@ -1077,7 +1115,7 @@ export const RanksPage: React.FC = () => {
 
           {loading ? (
             <SkeletonLoader rows={5} />
-          ) : filteredStudentRanks.length === 0 ? (
+          ) : consolidatedStudentCards.length === 0 ? (
             <Card className="p-10 text-center bg-white dark:bg-[#0F172A]/70 border-slate-200 dark:border-white/10 shadow-sm">
               <Award className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-300">No students found in martial arts rank registry</p>
@@ -1091,79 +1129,128 @@ export const RanksPage: React.FC = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredStudentRanks.map((student) => {
+              {consolidatedStudentCards.map((athlete) => {
+                const studentKey = athlete.student_id || athlete.student_name;
+                const activeCode =
+                  cardActiveDisciplines[studentKey] ||
+                  (disciplineFilter !== 'ALL'
+                    ? disciplineFilter
+                    : athlete.disciplines[0]?.discipline_code);
+
+                const currentRank =
+                  athlete.disciplines.find((d) => d.discipline_code === activeCode) ||
+                  athlete.disciplines[0];
+
                 const getBeltBadge = (color: string) => getBeltBadgeClass(color);
 
                 return (
                   <Card
-                    key={student.id}
-                    className="p-5 bg-white dark:bg-gradient-to-b dark:from-[#0F172A] dark:to-[#0A1120] border-slate-200 dark:border-white/10 hover:border-amber-500/50 transition-all shadow-sm group relative overflow-hidden"
+                    key={studentKey}
+                    className="p-5 bg-white dark:bg-gradient-to-b dark:from-[#0F172A] dark:to-[#0A1120] border-slate-200 dark:border-white/10 hover:border-amber-500/50 transition-all shadow-sm group relative overflow-hidden flex flex-col justify-between"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1.5">
+                    <div>
+                      {/* Dual Discipline Switcher Pills if student is enrolled in 2+ disciplines */}
+                      {athlete.disciplines.length > 1 ? (
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-lg border border-slate-200 dark:border-white/10 mb-3">
+                          {athlete.disciplines.map((d) => {
+                            const isSel = d.discipline_code === currentRank.discipline_code;
+                            return (
+                              <button
+                                key={d.discipline_code}
+                                type="button"
+                                onClick={() =>
+                                  setCardActiveDisciplines((prev) => ({
+                                    ...prev,
+                                    [studentKey]: d.discipline_code,
+                                  }))
+                                }
+                                className={`flex-1 py-1 px-2.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                  isSel
+                                    ? d.discipline_code === 'KALARIPPAYATTU'
+                                      ? 'bg-emerald-600 text-white shadow-sm'
+                                      : 'bg-amber-600 text-white shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                <span>🥋 {d.discipline_code === 'KALARIPPAYATTU' ? 'Kalari' : d.discipline_code === 'KARATE_WUSHU' ? 'Karate' : d.discipline_code.replace('_', ' ')}</span>
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${isSel ? 'bg-black/25 text-white' : 'bg-slate-200 dark:bg-white/10'}`}>
+                                  {d.belt_color || d.current_rank_name.split(' ')[0]}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 mb-2">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                            student.discipline_code === 'KALARIPPAYATTU'
+                            currentRank.discipline_code === 'KALARIPPAYATTU'
                               ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                              : student.discipline_code === 'KARATE_WUSHU'
+                              : currentRank.discipline_code === 'KARATE_WUSHU'
                               ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
                               : 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30'
                           }`}>
-                            {student.discipline_code === 'BOTH' ? 'Both (Kalari + Karate/Wushu)' : student.discipline_code.replace('_', ' ')}
+                            {currentRank.discipline_code.replace('_', ' ')}
                           </span>
-                          {student.student_code && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">#{student.student_code}</span>
+                          {currentRank.student_code && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">#{currentRank.student_code}</span>
                           )}
                         </div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                          {student.student_name}
-                        </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">{student.contact_number || 'No contact'}</p>
+                      )}
+
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            {athlete.student_name}
+                          </h3>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-medium">{athlete.contact_number || 'No contact'}</p>
+                        </div>
+
+                        <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
+                          <Medal className="w-5 h-5" />
+                        </div>
                       </div>
 
-                      <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
-                        <Medal className="w-5 h-5" />
-                      </div>
-                    </div>
+                      {/* Current Belt Banner for Active Discipline */}
+                      <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                            {currentRank.discipline_code === 'KALARIPPAYATTU' ? 'Current Kalari Rank' : 'Current Karate Belt'}
+                          </span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${getBeltBadge(currentRank.belt_color)}`}>
+                              {currentRank.current_rank_name}
+                            </span>
+                          </div>
+                        </div>
 
-                    {/* Current Belt Banner */}
-                    <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Current Belt</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${getBeltBadge(student.belt_color)}`}>
-                            {student.current_rank_name}
+                        <div className="text-right">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Promoted On</span>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 mt-1 block">
+                            {new Date(currentRank.promoted_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Promoted On</span>
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 mt-1 block">
-                          {new Date(student.promoted_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      </div>
+                      {/* Next Belt Preview if available */}
+                      {currentRank.nextRank && (
+                        <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between px-1">
+                          <span>Next Target:</span>
+                          <span className="font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1">
+                            {currentRank.nextRank.rank_name} <ArrowUpRight className="w-3 h-3" />
+                          </span>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Next Belt Preview if available */}
-                    {student.nextRank && (
-                      <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between px-1">
-                        <span>Next Target:</span>
-                        <span className="font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1">
-                          {student.nextRank.rank_name} <ArrowUpRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                    )}
 
                     {/* Action button */}
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                        {student.certificate_number ? `Cert: ${student.certificate_number}` : 'Awaiting Cert'}
+                        {currentRank.certificate_number ? `Cert: ${currentRank.certificate_number}` : 'Awaiting Cert'}
                       </span>
 
                       <Button
-                        onClick={() => openPromoteModal(student)}
-                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs py-1.5 px-3 shadow-md shadow-orange-500/20"
+                        onClick={() => openPromoteModal(currentRank)}
+                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs py-1.5 px-3 shadow-md shadow-orange-500/20 cursor-pointer"
                       >
                         <Sparkles className="w-3.5 h-3.5 mr-1" />
                         1-Click Rank Up

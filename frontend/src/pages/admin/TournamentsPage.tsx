@@ -227,7 +227,15 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         notified_at: r.notified_at || null,
         created_at: r.created_at || '',
       }));
-      setRegistrations(list);
+      // Guarantee 1-to-1: each student appears at most once in tournament roster
+      const seenStudents = new Set<string>();
+      const uniqueRegistrations = list.filter((r) => {
+        const sid = r.student_id;
+        if (!sid || seenStudents.has(sid)) return false;
+        seenStudents.add(sid);
+        return true;
+      });
+      setRegistrations(uniqueRegistrations);
     } catch (err) {
       console.error('Failed to load registrations:', err);
     } finally {

@@ -121,7 +121,14 @@ export const AttendancePage: React.FC = () => {
         `/attendance/sheet?batchId=${batchId}&date=${date}`
       );
       setSheetData(data);
-      setStudentRows(data.students);
+      // Guarantee 1-to-1: each student appears at most once in batch roll-call sheet
+      const seenIds = new Set<string>();
+      const uniqueStudents = (data.students || []).filter((s) => {
+        if (!s.studentId || seenIds.has(s.studentId)) return false;
+        seenIds.add(s.studentId);
+        return true;
+      });
+      setStudentRows(uniqueStudents);
     } catch (err: any) {
       console.error('Failed to load attendance sheet:', err);
       setSaveErrorMsg(err.message || 'Failed to load attendance sheet');
