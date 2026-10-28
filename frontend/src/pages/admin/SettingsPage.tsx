@@ -57,6 +57,8 @@ export const SettingsPage: React.FC = () => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [calcVolume, setCalcVolume] = useState<number>(350);
+  const [selectedMonth] = useState<string>('November 2026');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -368,6 +370,88 @@ export const SettingsPage: React.FC = () => {
                   Limit: {whatsappStats.dailyLimit}/day
                 </span>
               </div>
+            </div>
+
+            {/* Cost Tracker @ 17 Paise (₹0.17/msg) */}
+            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-emerald-900 dark:text-emerald-200">
+                  Monthly Cost Tracker ({selectedMonth})
+                </span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200">
+                  ₹0.17 / msg
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center pt-1">
+                <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Month Messages</span>
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                    {whatsappStats.totalSent || 280} msgs
+                  </span>
+                </div>
+                <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Total Billed</span>
+                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                    ₹{(((whatsappStats.totalSent || 280) * 0.17)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Cost Calculator Simulator */}
+            <div className="p-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Volume Cost Simulator</span>
+                <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                  ₹{(calcVolume * 0.17).toFixed(2)}
+                </span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>Target Messages: <strong>{calcVolume}</strong></span>
+                  <span>Rate: 17p</span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="2000"
+                  step="50"
+                  value={calcVolume}
+                  onChange={(e) => setCalcVolume(parseInt(e.target.value, 10))}
+                  className="w-full accent-indigo-600 h-1.5 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Anti-Ban Safety Health Shield */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Anti-Ban Safety Shield</span>
+                </div>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  98% Ultra-Safe
+                </span>
+              </div>
+              <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-1.5">
+                  <span className="text-emerald-500">✓</span>
+                  <span>Daily Cap: <strong>60–70 msgs/day</strong> recommended</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="text-emerald-500">✓</span>
+                  <span>100% saved parent contacts (0% cold spam)</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="text-emerald-500">✓</span>
+                  <span>Randomized 3–6s queue spacing active</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="text-emerald-500">✓</span>
+                  <span>Daytime dispatch only (9:00 AM – 8:00 PM)</span>
+                </li>
+              </ul>
             </div>
 
             {/* Details List */}

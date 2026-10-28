@@ -29,12 +29,16 @@ export class TeamMessageController {
         subject,
         message,
         priority,
+        status,
+        isDraft,
       } = req.body;
 
       if (!message || !message.trim()) {
         res.status(400).json({ success: false, message: 'Message content is required.' });
         return;
       }
+
+      const finalStatus = (isDraft === true || status === 'DRAFT') ? 'DRAFT' : 'SENT';
 
       const { data, error } = await supabaseAdmin
         .from('team_messages')
@@ -45,7 +49,7 @@ export class TeamMessageController {
           subject: subject ? subject.trim() : null,
           message: message.trim(),
           priority: priority || 'NORMAL',
-          status: 'SENT',
+          status: finalStatus,
         })
         .select('*')
         .single();

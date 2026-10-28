@@ -14,6 +14,7 @@ import {
   X,
   UserPlus,
   FolderPlus,
+  FileText,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -175,6 +176,10 @@ export const TeamMessagingPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPhone, setManualPhone] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [isManageTeamsModalOpen, setIsManageTeamsModalOpen] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [historyTab, setHistoryTab] = useState<'ALL' | 'SENT' | 'DRAFT'>('ALL');
 
   // Composer fields (Sender Name optional, Position removed per user requirement)
   const [senderName, setSenderName] = useState('');
@@ -306,6 +311,77 @@ export const TeamMessagingPage: React.FC = () => {
   }, [dispatchLogs]);
 
   // Handle Create New Team
+
+  // Delete Team handler
+  const handleDeleteTeam = async (teamToDelete: TeamCategory) => {
+    const confirmDelete = window.confirm(
+      `Delete team "${teamToDelete.marathi_name ? `${teamToDelete.marathi_name} (${teamToDelete.name})` : teamToDelete.name}"?\n\nAny existing contacts assigned to this team will be reassigned to Dojo Staff to keep your roster intact.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      if (teamToDelete.id && !teamToDelete.id.startsWith('t_')) {
+        await apiClient(`/team-messages/teams/${teamToDelete.id}`, { method: 'DELETE' });
+      }
+      setTeams((prev) => prev.filter((t) => t.id !== teamToDelete.id && t.code !== teamToDelete.code));
+      setTeamMembers((prev) =>
+        prev.map((m) => (m.team_code === teamToDelete.code ? { ...m, team_code: 'STAFF' } : m))
+      );
+      if (activeCategory === teamToDelete.code) {
+        setActiveCategory('ALL');
+      }
+      toast.success(`Team "${teamToDelete.name}" deleted successfully.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete team');
+    }
+  };
+
+  // Save Message as Draft
+  const handleSaveDraft = async () => {
+    if (!messageText.trim()) {
+      toast.error('Please enter message text before saving as draft.');
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const res = await apiClient<any>('/team-messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_name: senderName.trim() || null,
+          recipient_role: recipientRole,
+          subject: subject.trim() || null,
+          message: messageText.trim(),
+          priority: priority,
+          status: 'DRAFT',
+          isDraft: true,
+        }),
+      });
+
+      const savedDraft = res?.data;
+      if (savedDraft) {
+        setDbMessages((prev) => [savedDraft, ...prev.filter((m) => m.id !== savedDraft.id)]);
+      } else {
+        await fetchDbMessages();
+      }
+      toast.success('Team message saved as Draft!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save draft');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  // Load Draft into composer
+  const handleLoadDraft = (draft: TeamMessageRecord) => {
+    setMessageText(draft.message || '');
+    setSubject(draft.subject || '');
+    setRecipientRole(draft.recipient_role || 'ALL_STAFF');
+    setPriority((draft.priority as any) || 'NORMAL');
+    if (draft.sender_name) setSenderName(draft.sender_name);
+    toast.info('Draft loaded into composer! You can edit and send.');
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeamForm.name.trim()) {
@@ -345,27 +421,7 @@ export const TeamMessagingPage: React.FC = () => {
     }
   };
 
-  // Handle Delete Custom Team
-  const handleDeleteTeam = async (team: TeamCategory) => {
-    if (['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(team.code)) {
-      toast.warning('Default system teams cannot be deleted.');
-      return;
-    }
 
-    const confirmed = window.confirm(`Delete team "${team.marathi_name || team.name}"?`);
-    if (!confirmed) return;
-
-    try {
-      await apiClient(`/team-messages/teams/${team.id}`, { method: 'DELETE' });
-      setTeams((prev) => prev.filter((t) => t.id !== team.id));
-      if (activeCategory === team.code) {
-        setActiveCategory('ALL');
-      }
-      toast.success(`Team "${team.marathi_name || team.name}" removed.`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete team');
-    }
-  };
 
   // Handle member addition
   const handleAddMember = async (e: React.FormEvent) => {
@@ -454,8 +510,16 @@ export const TeamMessagingPage: React.FC = () => {
   };
 
   const filteredMembers = teamMembers.filter((m) => {
-    if (activeCategory === 'ALL') return true;
-    return m.team_code === activeCategory || (m as any).team === activeCategory;
+    const matchesCat = activeCategory === 'ALL' || m.team_code === activeCategory || (m as any).team === activeCategory;
+    if (!matchesCat) return false;
+    if (!memberSearchQuery.trim()) return true;
+    const q = memberSearchQuery.toLowerCase().trim();
+    return (
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.phone || '').includes(q) ||
+      (m.district || '').toLowerCase().includes(q) ||
+      (m.position || '').toLowerCase().includes(q)
+    );
   });
 
   const handleSelectAll = () => {
@@ -603,6 +667,15 @@ export const TeamMessagingPage: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${dbLoading ? 'animate-spin' : ''}`} />
             <span>Refresh Feed</span>
           </button>
+
+          <Button
+            variant="outline"
+            onClick={() => setIsManageTeamsModalOpen(true)}
+            className="gap-1.5 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer shadow-xs"
+          >
+            <Users className="w-3.5 h-3.5 text-indigo-500" />
+            <span>All Teams ({teams.length})</span>
+          </Button>
 
           <Button
             variant="outline"
@@ -771,6 +844,26 @@ export const TeamMessagingPage: React.FC = () => {
                   ? 'Deselect In Group'
                   : 'Select All In Group'}
               </button>
+            </div>
+
+            {/* Search Input for Team Contacts */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search contacts by name, mobile, district, role..."
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              />
+              {memberSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setMemberSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  ✕ Clear
+                </button>
+              )}
             </div>
 
             {/* Dynamic Team Category Pills */}
@@ -1151,6 +1244,18 @@ export const TeamMessagingPage: React.FC = () => {
 
               <Button
                 type="button"
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={savingDraft || !messageText.trim()}
+                className="gap-1.5 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-xs font-bold cursor-pointer"
+                title="Save this message as a draft to edit or dispatch later"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>{savingDraft ? 'Saving Draft...' : 'Save as Draft'}</span>
+              </Button>
+
+              <Button
+                type="button"
                 onClick={handleDispatchAndSave}
                 disabled={sending || !messageText.trim()}
                 className={`gap-2 text-white font-bold text-xs cursor-pointer shadow-sm ${
@@ -1182,9 +1287,34 @@ export const TeamMessagingPage: React.FC = () => {
               Academy Team Broadcasts History ({dbMessages.length})
             </h2>
           </div>
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            Cloud Synchronized
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setHistoryTab('ALL')}
+                className={`px-2 py-0.5 rounded ${historyTab === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'}`}
+              >
+                All ({dbMessages.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('SENT')}
+                className={`px-2 py-0.5 rounded ${historyTab === 'SENT' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'}`}
+              >
+                Dispatched ({dbMessages.filter((m) => m.status !== 'DRAFT').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('DRAFT')}
+                className={`px-2 py-0.5 rounded ${historyTab === 'DRAFT' ? 'bg-amber-500 text-slate-950 font-extrabold shadow-xs' : 'text-amber-600 dark:text-amber-400'}`}
+              >
+                Drafts ({dbMessages.filter((m) => m.status === 'DRAFT').length})
+              </button>
+            </div>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hidden sm:inline-block">
+              Cloud Synced
+            </span>
+          </div>
         </div>
 
         {dbLoading ? (
@@ -1195,7 +1325,13 @@ export const TeamMessagingPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pt-1">
-            {dbMessages.map((msg) => (
+            {dbMessages
+              .filter((msg) => {
+                if (historyTab === 'SENT') return msg.status !== 'DRAFT';
+                if (historyTab === 'DRAFT') return msg.status === 'DRAFT';
+                return true;
+              })
+              .map((msg) => (
               <div
                 key={msg.id}
                 className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2 relative"
@@ -1213,6 +1349,11 @@ export const TeamMessagingPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {msg.status === 'DRAFT' && (
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        Draft
+                      </span>
+                    )}
                     <span
                       className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
                         msg.priority === 'URGENT'
@@ -1224,6 +1365,16 @@ export const TeamMessagingPage: React.FC = () => {
                     >
                       {msg.priority}
                     </span>
+                    {msg.status === 'DRAFT' && (
+                      <button
+                        type="button"
+                        onClick={() => handleLoadDraft(msg)}
+                        className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 cursor-pointer"
+                        title="Load this draft into the composer to edit or dispatch"
+                      >
+                        Edit Draft
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleDeleteDbMessage(msg.id)}
@@ -1314,6 +1465,95 @@ export const TeamMessagingPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+
+      {/* MODAL: Manage All Teams & Coordination Wings */}
+      <Modal
+        isOpen={isManageTeamsModalOpen}
+        onClose={() => setIsManageTeamsModalOpen(false)}
+        title="Manage All Teams & Coordination Groups"
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Overview of all active wings, district leadership, and assigned members.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                setIsManageTeamsModalOpen(false);
+                setIsNewTeamModalOpen(true);
+              }}
+              className="gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>Add New Team</span>
+            </Button>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl">
+            {teams.map((t) => {
+              const memberCount = teamMembers.filter((m) => m.team_code === t.code || (m as any).team === t.code).length;
+              const isDefault = ['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(t.code);
+
+              return (
+                <div key={t.id || t.code} className="p-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{t.name}</span>
+                      {t.marathi_name && (
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/60 dark:border-indigo-800">
+                          {t.marathi_name}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                        {t.code}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                      <span><strong>{memberCount}</strong> assigned contact(s)</span>
+                      {t.description && <span>• {t.description}</span>}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(t.code);
+                        setRecipientRole(t.code);
+                        setIsManageTeamsModalOpen(false);
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer"
+                    >
+                      View Members
+                    </button>
+                    {!isDefault ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTeam(t)}
+                        className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer"
+                        title="Delete this custom team"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 italic px-2">Core Wing</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setIsManageTeamsModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* MODAL: Create New Team / Group */}
       <Modal isOpen={isNewTeamModalOpen} onClose={() => setIsNewTeamModalOpen(false)} title="Create New Team / Group">

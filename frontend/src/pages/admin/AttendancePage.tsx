@@ -28,6 +28,9 @@ export const AttendancePage: React.FC = () => {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [sendingWaId, setSendingWaId] = useState<string | null>(null);
+  const [sendingFeeWaId, setSendingFeeWaId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [studentFeeMap, setStudentFeeMap] = useState<Record<string, { pendingAmount: number; status: string; feeId?: string; amountDue: number }>>({});
 
   // Admin Configurable WhatsApp Template
   const DEFAULT_ATTENDANCE_MSG =
@@ -96,18 +99,42 @@ export const AttendancePage: React.FC = () => {
 
   // Load batches for dropdown
   useEffect(() => {
-    const fetchBatches = async () => {
+    const fetchBatchesAndFees = async () => {
       try {
-        const data = await apiClient<BatchItem[]>('/batches?status=ACTIVE');
-        setBatches(data);
-        if (data.length > 0 && !selectedBatchId) {
-          setSelectedBatchId(data[0].id);
+        const [batchData, feesRes] = await Promise.all([
+          apiClient<BatchItem[]>('/batches?status=ACTIVE'),
+          apiClient<any>('/fees/students').catch(() => null),
+        ]);
+        setBatches(batchData || []);
+        if (batchData && batchData.length > 0 && !selectedBatchId) {
+          setSelectedBatchId(batchData[0].id);
+        }
+
+        // Build 1-to-1 student fee dues map
+        const rawFees = feesRes?.data || feesRes || [];
+        if (Array.isArray(rawFees)) {
+          const map: Record<string, { pendingAmount: number; status: string; feeId?: string; amountDue: number }> = {};
+          rawFees.forEach((f: any) => {
+            const sid = f.student_id;
+            const due = Number(f.amount_due || 0);
+            const paid = Number(f.amount_paid || 0);
+            const pending = Number(f.pending_amount ?? Math.max(0, due - paid));
+            if (!map[sid] || (f.billing_period || '').includes('_YEARLY') || due > (map[sid].amountDue || 0)) {
+              map[sid] = {
+                pendingAmount: pending,
+                status: f.status || (pending > 0 ? 'PENDING' : 'PAID'),
+                feeId: f.id,
+                amountDue: due,
+              };
+            }
+          });
+          setStudentFeeMap(map);
         }
       } catch (err) {
-        console.error('Failed to load batches:', err);
+        console.error('Failed to load batches or fees in attendance:', err);
       }
     };
-    fetchBatches();
+    fetchBatchesAndFees();
   }, []);
 
   // Fetch sheet when batch or date changes in Sheet view
@@ -165,6 +192,32 @@ export const AttendancePage: React.FC = () => {
       fetchRecords();
     }
   }, [activeTab, recordsBatchFilter, recordsDateFilter]);
+
+
+  const handleSendAttendanceFeeReminder = async (s: AttendanceSheetStudentRow) => {
+    const feeInfo = studentFeeMap[s.studentId];
+    const phone = s.parentWhatsapp || s.studentMobile;
+    if (!phone) {
+      toast.error('No parent WhatsApp contact number available for fee reminder.');
+      return;
+    }
+    setSendingFeeWaId(s.studentId);
+    try {
+      await apiClient('/whatsapp/trigger-fee-reminder', {
+        method: 'POST',
+        body: JSON.stringify({
+          studentFeeId: feeInfo?.feeId,
+          studentId: s.studentId,
+          eventType: feeInfo?.status === 'OVERDUE' ? 'FEE_OVERDUE_ALERT' : 'FEE_DUE_REMINDER',
+        }),
+      });
+      toast.success(`Fee reminder sent to ${s.name}'s parent (${phone})!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch fee reminder');
+    } finally {
+      setSendingFeeWaId(null);
+    }
+  };
 
   // Status toggle handlers
   const handleSetStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT') => {
@@ -245,6 +298,18 @@ export const AttendancePage: React.FC = () => {
   const absentCount = studentRows.filter((s) => s.status === 'ABSENT').length;
   const totalCount = studentRows.length;
   const attendancePercent = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+
+
+  // Filtered student rows based on search input
+  const filteredStudentRows = studentRows.filter((s) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.studentMobile || '').includes(q) ||
+      (s.parentWhatsapp || '').includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -526,6 +591,31 @@ export const AttendancePage: React.FC = () => {
                 </span>
               </div>
 
+              {/* Search Bar & Roster Filtering */}
+              <div className="p-3 bg-slate-100/60 dark:bg-slate-800/40 border-b border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-1 max-w-sm">
+                  <input
+                    type="text"
+                    placeholder="Search athletes in batch..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  <span>Showing <strong>{filteredStudentRows.length}</strong> of {studentRows.length} athletes</span>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
@@ -538,22 +628,36 @@ export const AttendancePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {studentRows.map((s, idx) => (
+                    {filteredStudentRows.map((s, idx) => (
                       <tr key={s.studentId} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4 text-xs text-slate-400 dark:text-slate-500 font-mono">{idx + 1}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-slate-100">{s.name || (s as any).studentName || 'Student'}</span>
-                            {s.feeOverdue?.isOverdue && (
-                              <span
-                                title={`Fees unpaid for ${s.feeOverdue.daysOverdue} days (Pending: ₹${s.feeOverdue.pendingAmount})`}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 shadow-xs"
-                              >
-                                <AlertCircle className="w-3 h-3 text-amber-700 dark:text-amber-400" />
-                                <span>Fees Overdue</span>
-                                <span>({s.feeOverdue.daysOverdue}d: ₹{s.feeOverdue.pendingAmount})</span>
-                              </span>
-                            )}
+                            {(() => {
+                              const feeInfo = studentFeeMap[s.studentId];
+                              const pending = feeInfo ? Number(feeInfo.pendingAmount || 0) : (s.feeOverdue?.pendingAmount || 0);
+                              if (pending > 0) {
+                                return (
+                                  <span
+                                    title={`Pending Tuition Dues: ₹${pending.toLocaleString('en-IN')}`}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800 shadow-xs"
+                                  >
+                                    <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                    <span>Due: ₹{pending.toLocaleString('en-IN')}</span>
+                                  </span>
+                                );
+                              }
+                              if (feeInfo && feeInfo.status === 'PAID') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                    <span>Paid ✓</span>
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         </td>
                         <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
@@ -572,6 +676,19 @@ export const AttendancePage: React.FC = () => {
                                 <MessageSquare className="w-3 h-3" />
                                 <span>{sendingWaId === s.studentId ? 'Sending...' : 'WA Direct'}</span>
                               </button>
+
+                              {Number(studentFeeMap[s.studentId]?.pendingAmount || 0) > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendAttendanceFeeReminder(s)}
+                                  disabled={sendingFeeWaId === s.studentId}
+                                  title={`Send automated fee reminder for ₹${Number(studentFeeMap[s.studentId]?.pendingAmount || 0).toLocaleString('en-IN')}`}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60 transition-colors text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                                >
+                                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                                  <span>{sendingFeeWaId === s.studentId ? 'Sending...' : 'Remind Fee'}</span>
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <span className="text-slate-400 dark:text-slate-500 italic">No contact</span>

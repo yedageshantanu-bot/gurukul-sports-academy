@@ -22,8 +22,12 @@ import {
   Smartphone,
   QrCode,
   MessageSquare,
+  Send,
+  ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Modal } from '../../components/ui/Modal';
+import { Button } from '../../components/ui/Button';
 
 export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -53,6 +57,13 @@ export const AdminDashboard: React.FC = () => {
 
   // Sending reminder state
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchDispatching, setBatchDispatching] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; currentStudent: string }>({
+    current: 0,
+    total: 0,
+    currentStudent: '',
+  });
   const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
   const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number } | null>(null);
@@ -166,6 +177,51 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setSendingReminderId(null);
     }
+  };
+
+  const handleDispatchAllFeeReminders = async () => {
+    if (displayFollowups.length === 0) return;
+    setBatchDispatching(true);
+    let successCount = 0;
+    const total = displayFollowups.length;
+
+    for (let i = 0; i < total; i++) {
+      const item = displayFollowups[i];
+      setBatchProgress({
+        current: i + 1,
+        total,
+        currentStudent: item.studentName,
+      });
+
+      try {
+        if (item.parentWhatsapp) {
+          await apiClient('/whatsapp/trigger-fee-reminder', {
+            method: 'POST',
+            body: JSON.stringify({
+              studentFeeId: item.feeId,
+              studentId: item.studentId,
+              eventType: item.status === 'OVERDUE' ? 'FEE_OVERDUE_ALERT' : 'FEE_DUE_REMINDER',
+            }),
+          });
+          successCount++;
+        }
+      } catch (err) {
+        console.warn(`Failed to send fee reminder to ${item.studentName}:`, err);
+      }
+
+      if (i < total - 1) {
+        await new Promise((r) => setTimeout(r, 1800 + Math.random() * 700));
+      }
+    }
+
+    setBatchDispatching(false);
+    setIsBatchModalOpen(false);
+    setReminderToast({
+      message: `✓ 1-Click Fee Broadcast Complete! Successfully notified ${successCount} athlete families via WhatsApp.`,
+      type: 'success',
+    });
+    setTimeout(() => setReminderToast(null), 6000);
+    fetchDashboard(true);
   };
 
   if (loading) {
@@ -621,9 +677,23 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Overdue Fee Follow-ups</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Immediate action required for students with pending payments</p>
             </div>
-            <Link to="/admin/fees" className="text-xs font-semibold text-[#F97316] hover:text-[#EA580C]">
-              View All ({displayFollowups.length})
-            </Link>
+            <div className="flex items-center gap-2">
+              {displayFollowups.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsBatchModalOpen(true)}
+                  disabled={batchDispatching}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  title="Dispatch WhatsApp Fee Reminders to all pending students in 1-Click"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>{batchDispatching ? `Sending (${batchProgress.current}/${batchProgress.total})...` : `1-Click Remind All (${displayFollowups.length})`}</span>
+                </button>
+              )}
+              <Link to="/admin/fees" className="text-xs font-semibold text-[#F97316] hover:text-[#EA580C] px-2 py-1 rounded hover:bg-orange-500/10">
+                View All ({displayFollowups.length})
+              </Link>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-white/10">
@@ -753,6 +823,108 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL: 1-Click WhatsApp Fee Reminders Broadcast */}
+      <Modal
+        isOpen={isBatchModalOpen}
+        onClose={() => !batchDispatching && setIsBatchModalOpen(false)}
+        title="1-Click WhatsApp Fee Reminder Broadcast"
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Broadcast Fee Reminders to {displayFollowups.length} Athlete Families
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Each parent will receive an automated, personalized WhatsApp message with their athlete's exact outstanding dues, monthly breakdown, and academy payment links.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500 dark:text-slate-400 block font-medium">Target Recipients</span>
+              <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">{displayFollowups.length} Students</span>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500 dark:text-slate-400 block font-medium">Total Pending Dues</span>
+              <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
+                ₹{displayFollowups.reduce((sum, f) => sum + Math.max(0, Number(f.amountDue || 0) - Number(f.paidAmount || 0)), 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          {/* Anti-ban Safe Dispatch Notice */}
+          <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700/80 flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+            <span>Anti-ban protection: Reminders are queued sequentially with 2-3s jitter intervals directly to saved parent contacts.</span>
+          </div>
+
+          {/* Progress Indicator */}
+          {batchDispatching && (
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-2">
+              <div className="flex justify-between text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                <span>Dispatching WhatsApp Messages...</span>
+                <span>{batchProgress.current} / {batchProgress.total}</span>
+              </div>
+              <div className="w-full bg-indigo-200 dark:bg-indigo-900/60 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-indigo-600 h-2 transition-all duration-300"
+                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-indigo-700 dark:text-indigo-300 italic truncate">
+                Current: {batchProgress.currentStudent || 'Preparing message...'}
+              </p>
+            </div>
+          )}
+
+          {/* Recipient Roster Preview */}
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            {displayFollowups.map((item, idx) => (
+              <div key={item.feeId || idx} className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100">{item.studentName}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{item.parentWhatsapp || 'No WhatsApp'} • {item.batchName}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-rose-600 dark:text-rose-400">₹{Math.max(0, Number(item.amountDue || 0) - Number(item.paidAmount || 0)).toLocaleString('en-IN')}</div>
+                  <div className="text-[10px] text-slate-400">{item.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBatchModalOpen(false)}
+              disabled={batchDispatching}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDispatchAllFeeReminders}
+              disabled={batchDispatching || displayFollowups.length === 0}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2"
+            >
+              <Send className="w-4 h-4" />
+              <span>{batchDispatching ? `Dispatching (${batchProgress.current}/${batchProgress.total})...` : `Confirm & Send ${displayFollowups.length} Reminders`}</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };
