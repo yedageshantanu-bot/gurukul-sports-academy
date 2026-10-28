@@ -449,7 +449,7 @@ export const SettingsPage: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-1.5">
                   <span className="text-emerald-500">✓</span>
-                  <span>Daytime dispatch only (9:00 AM – 8:00 PM)</span>
+                  <span>24/7 On-Demand Instant Dispatch (No time locks)</span>
                 </li>
               </ul>
             </div>

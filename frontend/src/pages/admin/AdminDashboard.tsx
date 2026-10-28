@@ -59,14 +59,9 @@ export const AdminDashboard: React.FC = () => {
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchDispatching, setBatchDispatching] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; currentStudent: string }>({
-    current: 0,
-    total: 0,
-    currentStudent: '',
-  });
-  const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
-  const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number } | null>(null);
+  const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number; pending?: number; queued?: number } | null>(null);
 
   const fetchDashboard = async (silent = false) => {
     try {
@@ -154,7 +149,11 @@ export const AdminDashboard: React.FC = () => {
     setReminderToast(null);
 
     try {
-      await apiClient('/whatsapp/trigger-fee-reminder', {
+      if (whatsappStatus && whatsappStatus.status !== 'CONNECTED') {
+        throw new Error('WhatsApp Gateway is currently disconnected. Please scan QR code in WhatsApp settings first.');
+      }
+
+      const res = await apiClient<any>('/whatsapp/trigger-fee-reminder', {
         method: 'POST',
         body: JSON.stringify({
           studentFeeId: item.feeId,
@@ -163,11 +162,16 @@ export const AdminDashboard: React.FC = () => {
         }),
       });
 
+      if (res?.data?.status === 'FAILED') {
+        throw new Error(res.data.error_message || 'WhatsApp message could not be delivered.');
+      }
+
       setReminderToast({
-        message: `WhatsApp reminder dispatched for ${item.studentName} (${item.parentWhatsapp}).`,
+        message: `✓ WhatsApp reminder dispatched for ${item.studentName} (${item.parentWhatsapp}).`,
         type: 'success',
       });
       setTimeout(() => setReminderToast(null), 5000);
+      fetchDashboard(true);
     } catch (err: any) {
       setReminderToast({
         message: err.message || 'Failed to dispatch WhatsApp reminder.',
@@ -179,49 +183,67 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Instant 1-Click Fee Reminder Broadcast (Updates frontend in < 1 second, backend queues & dispatches)
   const handleDispatchAllFeeReminders = async () => {
     if (displayFollowups.length === 0) return;
     setBatchDispatching(true);
-    let successCount = 0;
-    const total = displayFollowups.length;
+    setReminderToast(null);
 
-    for (let i = 0; i < total; i++) {
-      const item = displayFollowups[i];
-      setBatchProgress({
-        current: i + 1,
-        total,
-        currentStudent: item.studentName,
+    try {
+      if (whatsappStatus && whatsappStatus.status !== 'CONNECTED') {
+        throw new Error('WhatsApp Gateway is currently disconnected. Please scan QR code in WhatsApp settings first.');
+      }
+
+      const res = await apiClient<any>('/whatsapp/remind/fee-cadence', {
+        method: 'POST',
+        body: JSON.stringify({ forceAllUnpaid: true }),
       });
 
-      try {
-        if (item.parentWhatsapp) {
-          await apiClient('/whatsapp/trigger-fee-reminder', {
-            method: 'POST',
-            body: JSON.stringify({
-              studentFeeId: item.feeId,
-              studentId: item.studentId,
-              eventType: item.status === 'OVERDUE' ? 'FEE_OVERDUE_ALERT' : 'FEE_DUE_REMINDER',
-            }),
-          });
-          successCount++;
-        }
-      } catch (err) {
-        console.warn(`Failed to send fee reminder to ${item.studentName}:`, err);
-      }
-
-      if (i < total - 1) {
-        await new Promise((r) => setTimeout(r, 1800 + Math.random() * 700));
-      }
+      const queuedCount = res.data?.queuedCount ?? displayFollowups.length;
+      setIsBatchModalOpen(false);
+      setReminderToast({
+        message: `✓ 1-Click Broadcast Dispatched! ${queuedCount} fee reminders queued in background engine. Messages are being sent automatically.`,
+        type: 'success',
+      });
+      setTimeout(() => setReminderToast(null), 6000);
+      fetchDashboard(true);
+    } catch (err: any) {
+      setReminderToast({
+        message: err.message || 'Failed to dispatch fee reminders. Please check WhatsApp connection.',
+        type: 'error',
+      });
+      setTimeout(() => setReminderToast(null), 6000);
+    } finally {
+      setBatchDispatching(false);
     }
+  };
 
-    setBatchDispatching(false);
-    setIsBatchModalOpen(false);
-    setReminderToast({
-      message: `✓ 1-Click Fee Broadcast Complete! Successfully notified ${successCount} athlete families via WhatsApp.`,
-      type: 'success',
-    });
-    setTimeout(() => setReminderToast(null), 6000);
-    fetchDashboard(true);
+  // 1-Click Instant Dispatch for Pending/Scheduled Messages when Disconnected/Reconnected
+  const handleDispatchPendingScheduled = async () => {
+    try {
+      if (whatsappStatus && whatsappStatus.status !== 'CONNECTED') {
+        throw new Error('Sir, WhatsApp is still offline. Please scan QR code in WhatsApp settings first, then click Dispatch Now.');
+      }
+      setBatchDispatching(true);
+      const res = await apiClient<any>('/whatsapp/queue/process', {
+        method: 'POST',
+        body: JSON.stringify({ forceNow: true, batchSize: 50 }),
+      });
+      setReminderToast({
+        message: `✓ Dispatch initiated! Processing ${res.data?.processed ?? 0} waiting messages in background.`,
+        type: 'success',
+      });
+      setTimeout(() => setReminderToast(null), 5000);
+      fetchDashboard(true);
+    } catch (err: any) {
+      setReminderToast({
+        message: err.message || 'Failed to dispatch pending messages. Ensure WhatsApp is connected.',
+        type: 'error',
+      });
+      setTimeout(() => setReminderToast(null), 6000);
+    } finally {
+      setBatchDispatching(false);
+    }
   };
 
   if (loading) {
@@ -348,7 +370,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* WhatsApp Disconnected Action Banner */}
+      {/* WhatsApp Disconnected / Pending Scheduled Messages Action Banner */}
       {whatsappStatus && whatsappStatus.status !== 'CONNECTED' && (
         <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-amber-50/60 dark:from-amber-950/70 dark:via-slate-900 dark:to-slate-900 border-2 border-amber-300 dark:border-amber-500/60 shadow-md dark:shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-start sm:items-center gap-3.5">
@@ -356,32 +378,48 @@ export const AdminDashboard: React.FC = () => {
               <Smartphone className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-500/30">
                   Critical Action Required
                 </span>
                 <span className="text-xs text-amber-700 dark:text-amber-400 font-mono">
                   {whatsappStatus.status === 'QR_READY' ? '• QR Ready to Scan' : '• Device Offline'}
                 </span>
+                {((whatsappStats as any)?.pending ?? (whatsappStats as any)?.queued ?? 0) > 0 && (
+                  <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 px-2.5 py-0.5 rounded-full border border-rose-300 dark:border-rose-500/30">
+                    {((whatsappStats as any)?.pending ?? (whatsappStats as any)?.queued ?? 0)} Messages Waiting
+                  </span>
+                )}
               </div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white mt-1">
                 WhatsApp Linked Device Disconnected — Automated Notifications Paused!
               </h2>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed max-w-3xl">
-                Daily attendance absent alerts, fee reminders, and announcements are safely paused and <b>will not be delivered</b> to parents until a phone is linked. Scan the QR code to re-link your academy WhatsApp session.
+                Sir, WhatsApp disconnect hone ki wajah se automated fee reminders aur alerts hold par hain. {((whatsappStats as any)?.pending ?? (whatsappStats as any)?.queued ?? 0) > 0 ? <b>{((whatsappStats as any)?.pending ?? (whatsappStats as any)?.queued ?? 0)} scheduled / reminder messages line me ruke hue hain.</b> : ''} Phone link karke aap abhi dispatch karna chahte hain ya wait karna chahte hain?
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto flex-wrap">
             <Link
               to="/admin/whatsapp"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-orange-500/25 transition-all cursor-pointer"
             >
               <QrCode className="w-4 h-4" />
-              <span>Scan QR Code to Connect</span>
+              <span>Scan QR / Link Device</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
+            {((whatsappStats as any)?.pending ?? (whatsappStats as any)?.queued ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={handleDispatchPendingScheduled}
+                disabled={batchDispatching}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-amber-900 dark:text-amber-100 bg-amber-200 hover:bg-amber-300 dark:bg-amber-600/40 dark:hover:bg-amber-600/60 border border-amber-300 dark:border-amber-500/50 shadow transition-all cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Bhejo Abhi (Dispatch Now)</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -687,7 +725,7 @@ export const AdminDashboard: React.FC = () => {
                   title="Dispatch WhatsApp Fee Reminders to all pending students in 1-Click"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>{batchDispatching ? `Sending (${batchProgress.current}/${batchProgress.total})...` : `1-Click Remind All (${displayFollowups.length})`}</span>
+                  <span>{batchDispatching ? 'Queuing Reminders...' : `1-Click Remind All (${displayFollowups.length})`}</span>
                 </button>
               )}
               <Link to="/admin/fees" className="text-xs font-semibold text-[#F97316] hover:text-[#EA580C] px-2 py-1 rounded hover:bg-orange-500/10">
@@ -872,16 +910,13 @@ export const AdminDashboard: React.FC = () => {
             <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-2">
               <div className="flex justify-between text-xs font-bold text-indigo-900 dark:text-indigo-200">
                 <span>Dispatching WhatsApp Messages...</span>
-                <span>{batchProgress.current} / {batchProgress.total}</span>
+                <span>Background Queue</span>
               </div>
               <div className="w-full bg-indigo-200 dark:bg-indigo-900/60 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-indigo-600 h-2 transition-all duration-300"
-                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
-                />
+                <div className="bg-indigo-600 h-2 w-full animate-pulse" />
               </div>
               <p className="text-[11px] text-indigo-700 dark:text-indigo-300 italic truncate">
-                Current: {batchProgress.currentStudent || 'Preparing message...'}
+                Submitting all reminders to background queue engine...
               </p>
             </div>
           )}
@@ -919,7 +954,7 @@ export const AdminDashboard: React.FC = () => {
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-2"
             >
               <Send className="w-4 h-4" />
-              <span>{batchDispatching ? `Dispatching (${batchProgress.current}/${batchProgress.total})...` : `Confirm & Send ${displayFollowups.length} Reminders`}</span>
+              <span>{batchDispatching ? "Queueing Reminders in Background..." : `Confirm & Send ${displayFollowups.length} Reminders`}</span>
             </Button>
           </div>
         </div>

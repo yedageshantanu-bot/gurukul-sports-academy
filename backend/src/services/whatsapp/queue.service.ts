@@ -246,7 +246,7 @@ export class WhatsAppQueueService {
 
     // --- SAFETY CHECK 9: Is the WhatsApp Sender Connected? ---
     const deviceStatus = await provider.getStatus();
-    if ((provider.name === 'PROTOTYPE_LINKED_DEVICE' || provider.name === 'OPENWA') && deviceStatus.status !== 'CONNECTED') {
+    if (deviceStatus.status !== 'CONNECTED') {
       const reason = `WhatsApp sender is not connected (Status: ${deviceStatus.status})`;
       await this.markItemFailed(item.id, reason, false);
       return { success: false, reason, status: 'PENDING' };
@@ -306,7 +306,7 @@ export class WhatsAppQueueService {
   // ============================================================================
   // 3. PROCESS QUEUE BATCH
   // ============================================================================
-  async processQueue(batchSize = 5): Promise<{
+  async processQueue(batchSize = 50, forceNow: boolean = false): Promise<{
     processed: number;
     successful: number;
     failed: number;
@@ -317,9 +317,15 @@ export class WhatsAppQueueService {
       return { processed: 0, successful: 0, failed: 0, pending: this.getPendingCount() };
     }
 
+    const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+    const deviceStatus = await provider.getStatus();
+    if (deviceStatus.status !== 'CONNECTED') {
+      return { processed: 0, successful: 0, failed: 0, pending: this.getPendingCount() };
+    }
+
     const now = new Date().toISOString();
     const pendingItems = Array.from(this.inMemoryQueue.values())
-      .filter((i) => i.status === 'PENDING' && i.scheduled_at <= now)
+      .filter((i) => i.status === 'PENDING' && (forceNow || i.scheduled_at <= now))
       .slice(0, batchSize);
 
     let successful = 0;
@@ -329,6 +335,9 @@ export class WhatsAppQueueService {
       const res = await this.processItem(item);
       if (res.success) successful++;
       else if (res.status === 'FAILED') failed++;
+      if (!res.success && res.reason?.includes('not connected')) {
+        break;
+      }
     }
 
     return {
@@ -337,6 +346,57 @@ export class WhatsAppQueueService {
       failed,
       pending: this.getPendingCount(),
     };
+  }
+
+  private isProcessingBackground = false;
+
+  triggerBackgroundProcessing(): void {
+    if (this.isProcessingBackground) return;
+    this.isProcessingBackground = true;
+
+    (async () => {
+      try {
+        const settings = await whatsappSettingsService.getSettings();
+        if (!settings.global_automation_enabled || settings.emergency_stop) {
+          return;
+        }
+
+        const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+        const deviceStatus = await provider.getStatus();
+        if (deviceStatus.status !== 'CONNECTED') {
+          console.log(`[QueueService] Background worker idle: WhatsApp is ${deviceStatus.status}.`);
+          return;
+        }
+
+        while (true) {
+          const currentSettings = await whatsappSettingsService.getSettings();
+          if (!currentSettings.global_automation_enabled || currentSettings.emergency_stop) break;
+
+          const now = new Date().toISOString();
+          const nextItem = Array.from(this.inMemoryQueue.values())
+            .find((i) => i.status === 'PENDING' && i.scheduled_at <= now);
+
+          if (!nextItem) {
+            const hasFuture = Array.from(this.inMemoryQueue.values()).some((i) => i.status === 'PENDING');
+            if (hasFuture) {
+              await new Promise((r) => setTimeout(r, 2000));
+              continue;
+            }
+            break;
+          }
+
+          const res = await this.processItem(nextItem);
+          if (!res.success && res.reason?.includes('not connected')) {
+            console.log('[QueueService] WhatsApp disconnected mid-dispatch. Halting background worker.');
+            break;
+          }
+        }
+      } catch (err: any) {
+        console.error('[QueueService] Background worker error:', err.message);
+      } finally {
+        this.isProcessingBackground = false;
+      }
+    })();
   }
 
   // ============================================================================

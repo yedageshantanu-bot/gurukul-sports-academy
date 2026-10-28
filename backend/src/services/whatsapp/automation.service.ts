@@ -677,8 +677,8 @@ export class WhatsAppAutomationService {
         };
       }
 
-      // Enqueue batch with 15-21s anti-ban throttle
-      const queuedItems = await queueService.enqueueBatchStaggered(eligibleItems, 15000);
+      // Enqueue batch with 3.0s - 4.2s anti-ban throttle
+      const queuedItems = await queueService.enqueueBatchStaggered(eligibleItems, 3000);
 
       return {
         queuedCount: queuedItems.length,

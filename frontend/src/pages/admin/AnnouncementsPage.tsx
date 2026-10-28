@@ -1270,7 +1270,7 @@ export const AnnouncementsPage: React.FC = () => {
                       ⏰ Schedule for Later
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                      Set a specific date & time (e.g. tomorrow at 9:00 AM) to avoid night alerts.
+                      Set a specific date & time for scheduled delivery, or leave blank for instant 24/7 on-demand dispatch.
                     </div>
                   </div>
                 </button>
