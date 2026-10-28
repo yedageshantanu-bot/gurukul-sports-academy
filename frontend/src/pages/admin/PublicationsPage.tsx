@@ -18,6 +18,8 @@ import {
   Edit2,
   Calendar,
   CalendarDays,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -391,6 +393,21 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     } catch (err: any) {
       toast.error(err.message || 'Status update failed');
       fetchPublications();
+    }
+  };
+
+  const handleDeleteStudent = async (student: PublicationStudent) => {
+    const confirmDelete = window.confirm(
+      `Delete publication record for "${student.student_name}"? This will permanently remove the record from the database.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await apiClient(`/publications/${student.id}`, { method: 'DELETE' });
+      toast.success(`Publication record for "${student.student_name}" deleted.`);
+      fetchPublications();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete publication record');
     }
   };
 
@@ -769,7 +786,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                       <td className="px-5 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 dark:text-white text-base">{s.student_name}</span>
+                            {s.student_id ? (
+                              <Link
+                                to={`/admin/students/${s.student_id}`}
+                                className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline text-base inline-flex items-center gap-1.5"
+                                title="View Academy Student Profile"
+                              >
+                                <span>{s.student_name}</span>
+                                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                              </Link>
+                            ) : (
+                              <span className="font-bold text-slate-900 dark:text-white text-base">{s.student_name}</span>
+                            )}
                             {s.is_external ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
                                 Outside Customer
@@ -920,6 +948,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                               <PackageCheck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                             </button>
                           )}
+
+                          {/* Delete Publication Customer */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            title="Delete Publication Record"
+                            onClick={() => handleDeleteStudent(s)}
+                            className="text-xs h-8 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-2 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

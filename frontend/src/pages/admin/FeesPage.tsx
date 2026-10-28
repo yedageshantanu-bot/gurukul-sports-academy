@@ -767,32 +767,62 @@ export const FeesPage: React.FC = () => {
     }
   };
 
-  // Master fee items for financial totals (prevents double-counting sub-installments)
-  const masterFees = useMemo(() => {
-    const hasMasterYearly = new Set(
-      (studentFees || [])
-        .filter((f) => (f.billing_period || '').includes('_YEARLY'))
-        .map((f) => f.student_id)
-    );
+  // Pure 1-to-1 Academy Tuition student accounts (excludes tournament/publication fees and historical duplicates)
+  const allTuitionAccounts = useMemo(() => {
+    const studentMap = new Map<string, any>();
 
-    return (studentFees || []).filter((f) => {
-      if ((f.billing_period || '').includes('_INST_') && hasMasterYearly.has(f.student_id)) {
-        return false;
-      }
-      return true;
+    // 1. Only consider regular academy tuition fees (filter out tournament and publication fees)
+    const tuitionFees = (studentFees || []).filter((fee) => {
+      const bp = (fee.billing_period || '').toUpperCase();
+      const planName = (fee.fee_plan?.name || '').toUpperCase();
+      const isTournament = bp.includes('TOURNAMENT') || bp.includes('TOURN_') || planName.includes('TOURNAMENT');
+      const isPublication = bp.includes('PUBLICATION') || bp.includes('PUB_') || planName.includes('PUBLICATION') || planName.includes('DOCUMENT');
+      return !isTournament && !isPublication;
     });
+
+    // 2. Map 1-to-1 per student, prioritizing master yearly or higher package
+    tuitionFees.forEach((fee) => {
+      const studentId = fee.student_id;
+      if (!studentMap.has(studentId)) {
+        studentMap.set(studentId, { ...fee, scheduledInstallments: [] });
+      } else {
+        const existing = studentMap.get(studentId);
+        if ((fee.billing_period || '').includes('_YEARLY') || Number(fee.amount_due || 0) > Number(existing.amount_due || 0)) {
+          studentMap.set(studentId, {
+            ...fee,
+            scheduledInstallments: existing.scheduledInstallments || [],
+          });
+        }
+      }
+    });
+
+    return Array.from(studentMap.values());
   }, [studentFees]);
 
-  // Metrics calculation based on genuine accounts
-  const totalBilled = masterFees.reduce((acc, f) => acc + Number(f?.amount_due || 0), 0);
-  const totalCollected = masterFees.reduce((acc, f) => acc + Number(f?.amount_paid || 0), 0);
-  const totalPending = masterFees.reduce((acc, f) => acc + Number(f?.pending_amount || 0), 0);
-  const overdueCount = masterFees.filter((f) => f?.status === 'OVERDUE').length;
+  // Genuine financial totals across enrolled students (aligned with Payments ledger)
+  const totalBilled = useMemo(() => {
+    return allTuitionAccounts.reduce((acc, f) => acc + Number(f?.amount_due || 0), 0);
+  }, [allTuitionAccounts]);
 
-  // Filtered student fees
+  const totalCollected = useMemo(() => {
+    return allTuitionAccounts.reduce((acc, f) => acc + Number(f?.amount_paid || 0), 0);
+  }, [allTuitionAccounts]);
+
+  const totalPending = useMemo(() => {
+    return allTuitionAccounts.reduce(
+      (acc, f) => acc + Number(f?.pending_amount ?? Math.max(0, Number(f?.amount_due || 0) - Number(f?.amount_paid || 0))),
+      0
+    );
+  }, [allTuitionAccounts]);
+
+  const overdueCount = useMemo(() => {
+    return allTuitionAccounts.filter((f) => f?.status === 'OVERDUE').length;
+  }, [allTuitionAccounts]);
+
+  // Filtered student fees for search & status filter
   const q = (searchQuery || '').trim().toLowerCase();
-  const filteredFees = useMemo(() => {
-    return (studentFees || []).filter((fee) => {
+  const displayFees = useMemo(() => {
+    return allTuitionAccounts.filter((fee) => {
       const studentName = (fee.student?.name || '').toLowerCase();
       const billingPeriod = (fee.billing_period || '').toLowerCase();
       const planName = (fee.fee_plan?.name || '').toLowerCase();
@@ -806,30 +836,7 @@ export const FeesPage: React.FC = () => {
       const matchesStatus = statusFilter === 'ALL' || fee.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [studentFees, q, statusFilter]);
-
-  // Strict 1-to-1 student representation: Each student appears EXACTLY ONCE in ledger
-  const displayFees = useMemo(() => {
-    const studentMap = new Map<string, any>();
-
-    filteredFees.forEach((fee) => {
-      const studentId = fee.student_id;
-      if (!studentMap.has(studentId)) {
-        studentMap.set(studentId, { ...fee, scheduledInstallments: [] });
-      } else {
-        const existing = studentMap.get(studentId);
-        // If this record is the master yearly account, prioritize it
-        if ((fee.billing_period || '').includes('_YEARLY')) {
-          studentMap.set(studentId, {
-            ...fee,
-            scheduledInstallments: existing.scheduledInstallments || [],
-          });
-        }
-      }
-    });
-
-    return Array.from(studentMap.values());
-  }, [filteredFees]);
+  }, [allTuitionAccounts, q, statusFilter]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -1347,7 +1354,7 @@ export const FeesPage: React.FC = () => {
 
           {loading ? (
             <SkeletonLoader variant="table" rows={6} />
-          ) : filteredFees.length === 0 ? (
+          ) : displayFees.length === 0 ? (
             <EmptyState
               icon={CreditCard}
               title={
@@ -1491,6 +1498,19 @@ export const FeesPage: React.FC = () => {
                                   <Banknote className="w-3.5 h-3.5 text-amber-500" />
                                   <span>Installment</span>
                                 </Button>
+
+                                {Number(fee.amount_paid || 0) > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUndoPayment(fee)}
+                                    disabled={undoingFeeId === fee.id}
+                                    className="px-2 py-1 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Undo partial payment and restore balance to Pending/Overdue"
+                                  >
+                                    <RotateCcw className={`w-3.5 h-3.5 ${undoingFeeId === fee.id ? 'animate-spin' : ''}`} />
+                                    <span>{undoingFeeId === fee.id ? '...' : 'Undo'}</span>
+                                  </button>
+                                )}
 
                                 <Button
                                   variant="outline"

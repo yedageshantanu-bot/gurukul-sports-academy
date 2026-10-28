@@ -14,6 +14,7 @@ import {
   MessageSquare,
   DollarSign,
   Calendar,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -108,6 +109,10 @@ export const PaymentsPage: React.FC = () => {
   const handleManualPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (!manualForm.studentId) {
+      setError('Please select a student from the dropdown list.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -147,6 +152,88 @@ export const PaymentsPage: React.FC = () => {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const [undoingPaymentId, setUndoingPaymentId] = useState<string | null>(null);
+
+  const handleUndoPaymentRecord = async (paymentId: string, studentName: string, amount: number) => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      `Undo / Revert payment of ₹${Number(amount).toLocaleString('en-IN')} for ${studentName}? This will void the official receipt and restore the balance back to student dues.`
+    );
+    if (!confirmed) return;
+
+    setUndoingPaymentId(paymentId);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/payments/${paymentId}/revert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
+
+      setSuccessToast(`✓ Payment of ₹${Number(amount).toLocaleString('en-IN')} reverted! Balance restored for ${studentName}.`);
+      setTimeout(() => setSuccessToast(null), 6000);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Error reverting payment');
+    } finally {
+      setUndoingPaymentId(null);
+    }
+  };
+
+  const handleUndoAccountPayment = async (account: any) => {
+    if (!token) return;
+    const targetFeeId = account.feeId || account.rawFee?.id;
+    const studentPayments = (payments || []).filter(
+      (p) => (p.student_id === account.studentId || p.student?.id === account.studentId) && p.status === 'SUCCESS'
+    );
+    const latestPayment = studentPayments[0];
+
+    const confirmed = window.confirm(
+      `Undo / Revert payment for ${account.studentName}? This will restore the account balance back to Pending/Overdue.`
+    );
+    if (!confirmed) return;
+
+    setUndoingPaymentId(account.studentId);
+    setError(null);
+    try {
+      let res;
+      if (latestPayment) {
+        res = await fetch(`${API_BASE}/payments/${latestPayment.id}/revert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } else if (targetFeeId) {
+        res = await fetch(`${API_BASE}/payments/revert-fee/${targetFeeId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } else {
+        throw new Error('No confirmed payment found to revert for this student.');
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
+
+      setSuccessToast(`✓ Payment reverted! Balance for ${account.studentName} restored to Pending.`);
+      setTimeout(() => setSuccessToast(null), 6000);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Error reverting payment');
+    } finally {
+      setUndoingPaymentId(null);
     }
   };
 
@@ -380,9 +467,19 @@ export const PaymentsPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-sm flex items-center gap-2.5 shadow-sm">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
-          <span className="font-medium">{error}</span>
+        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-sm flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
+            <span className="font-medium">{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-rose-400 hover:text-rose-600 p-1 cursor-pointer"
+            title="Dismiss error"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -669,7 +766,7 @@ export const PaymentsPage: React.FC = () => {
 
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2 flex-wrap">
                             {account.pendingBalance > 0 ? (
                               <>
                                 <Button
@@ -703,6 +800,20 @@ export const PaymentsPage: React.FC = () => {
                                 className="text-xs h-8 gap-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                               >
                                 <span>+ Record Advance</span>
+                              </Button>
+                            )}
+
+                            {account.amountPaid > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoAccountPayment(account)}
+                                disabled={undoingPaymentId === account.studentId}
+                                className="text-xs h-8 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                title="Undo / Revert recent payment for this student"
+                              >
+                                <RotateCcw className={`w-3.5 h-3.5 ${undoingPaymentId === account.studentId ? 'animate-spin' : ''}`} />
+                                <span>Undo</span>
                               </Button>
                             )}
                           </div>
@@ -775,19 +886,35 @@ export const PaymentsPage: React.FC = () => {
                           <StatusBadge status={p.status} />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {p.receipt ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedReceipt(p.receipt)}
-                              className="text-xs h-7 gap-1 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer"
-                            >
-                              <FileCheck className="w-3.5 h-3.5" />
-                              {p.receipt.receipt_number}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-slate-400 dark:text-slate-500 italic">Settled Direct</span>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {p.receipt ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedReceipt(p.receipt)}
+                                className="text-xs h-7 gap-1 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer"
+                              >
+                                <FileCheck className="w-3.5 h-3.5" />
+                                {p.receipt.receipt_number}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-slate-400 dark:text-slate-500 italic">Settled Direct</span>
+                            )}
+
+                            {p.status === 'SUCCESS' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoPaymentRecord(p.id, p.student?.name || 'student', Number(p.amount))}
+                                disabled={undoingPaymentId === p.id}
+                                className="text-xs h-7 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                title="Undo / Void this payment record and restore dues"
+                              >
+                                <RotateCcw className={`w-3 h-3 ${undoingPaymentId === p.id ? 'animate-spin' : ''}`} />
+                                <span>Undo</span>
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

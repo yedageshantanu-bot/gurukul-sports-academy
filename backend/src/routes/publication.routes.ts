@@ -14,5 +14,6 @@ router.post('/', PublicationController.create);
 router.patch('/:id', PublicationController.update);
 router.post('/:id/fee', PublicationController.recordFee);
 router.post('/:id/whatsapp-reminder', PublicationController.sendReminder);
+router.delete('/:id', PublicationController.delete);
 
 export default router;

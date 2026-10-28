@@ -281,4 +281,22 @@ export class PublicationService {
       return { success: true, message: 'Message logged (gateway pending).' };
     }
   }
+
+  /**
+   * Delete publication customer / record
+   */
+  static async deletePublicationStudent(id: string) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const { error } = await supabaseAdmin
+      .from('publication_students')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new AppError(`Failed to delete publication customer: ${error.message}`, 500);
+    }
+
+    return { success: true, message: 'Publication student removed successfully' };
+  }
 }
