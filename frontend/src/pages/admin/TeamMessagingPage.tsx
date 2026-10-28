@@ -58,12 +58,7 @@ export interface TeamMember {
   created_at?: string;
 }
 
-export const DEFAULT_TEAMS: TeamCategory[] = [
-  { id: 't_jp', code: 'JILAPRAMUKH', name: 'Jilapramukh (District Heads)', marathi_name: 'जिल्हाप्रमुख' },
-  { id: 't_coach', code: 'COACH', name: 'Coaches & Instructors', marathi_name: 'प्रशिक्षक / कोचेस' },
-  { id: 't_staff', code: 'STAFF', name: 'Dojo Staff & Admin', marathi_name: 'डोझो स्टाफ' },
-  { id: 't_exec', code: 'EXECUTIVE', name: 'Executive Committee', marathi_name: 'कार्यकारी समिती' },
-];
+export const DEFAULT_TEAMS: TeamCategory[] = [];
 
 export interface DispatchedLog {
   id: string;
@@ -74,48 +69,7 @@ export interface DispatchedLog {
   timestamp: string;
 }
 
-const DEFAULT_MEMBERS: TeamMember[] = [
-  {
-    id: 'af4d17ed-6ee8-45c0-beec-e9fbdc516c88',
-    phone: '+919822112233',
-    name: 'Shri Patil (Jilapramukh)',
-    team_code: 'JILAPRAMUKH',
-    position: 'District Coordinator - Ahmednagar',
-    district: 'Ahmednagar',
-  },
-  {
-    id: 'abc473fa-18f9-43df-a8f0-69528745704f',
-    phone: '+919855443322',
-    name: 'Shri Shinde (Jilapramukh)',
-    team_code: 'JILAPRAMUKH',
-    position: 'District Coordinator - Pune Rural',
-    district: 'Pune',
-  },
-  {
-    id: '0e194377-383a-4528-8a18-fd042098f1a2',
-    phone: '+919876543210',
-    name: 'Head Coach Rahul',
-    team_code: 'COACH',
-    position: 'Chief Martial Arts Instructor',
-    district: 'Pune',
-  },
-  {
-    id: '08f90555-6fa6-4ff3-b2fd-9596f3cd07b3',
-    phone: '+919822000000',
-    name: 'Coach Sneha',
-    team_code: 'COACH',
-    position: 'Kalarippayattu Trainer',
-    district: 'Pune',
-  },
-  {
-    id: 'c0079404-f117-4aaf-b78b-6a9620cd285c',
-    phone: '+919422001122',
-    name: 'Dojo Desk Incharge',
-    team_code: 'STAFF',
-    position: 'Operations & Attendance Admin',
-    district: 'Pune',
-  },
-];
+const DEFAULT_MEMBERS: TeamMember[] = [];
 
 const PRESET_TEMPLATES = [
   {
@@ -222,6 +176,83 @@ export const TeamMessagingPage: React.FC = () => {
 
   // Modal: Create New Team / Group
   const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
+
+  // Edit Team state
+  const [editingTeam, setEditingTeam] = useState<TeamCategory | null>(null);
+  const [isEditTeamModalOpen, setIsEditTeamModalOpen] = useState(false);
+  const [savingEditTeam, setSavingEditTeam] = useState(false);
+  const [editTeamForm, setEditTeamForm] = useState({
+    name: '',
+    marathiName: '',
+    code: '',
+    description: '',
+    color: 'indigo',
+  });
+
+  const handleOpenEditTeam = (team: TeamCategory) => {
+    setEditingTeam(team);
+    setEditTeamForm({
+      name: team.name,
+      marathiName: team.marathi_name || '',
+      code: team.code,
+      description: team.description || '',
+      color: team.color || 'indigo',
+    });
+    setIsEditTeamModalOpen(true);
+  };
+
+  const handleUpdateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam) return;
+    if (!editTeamForm.name.trim()) {
+      toast.error('Team name is required');
+      return;
+    }
+    setSavingEditTeam(true);
+    try {
+      const updatedCode = editTeamForm.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_') || editingTeam.code;
+      if (editingTeam.id && !editingTeam.id.startsWith('t_')) {
+        await apiClient(`/team-messages/teams/${editingTeam.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: editTeamForm.name.trim(),
+            code: updatedCode,
+            marathiName: editTeamForm.marathiName.trim() || null,
+            description: editTeamForm.description.trim() || null,
+            color: editTeamForm.color,
+          }),
+        });
+      }
+
+      const updatedCategory: TeamCategory = {
+        ...editingTeam,
+        name: editTeamForm.name.trim(),
+        code: updatedCode,
+        marathi_name: editTeamForm.marathiName.trim() || null,
+        description: editTeamForm.description.trim() || null,
+        color: editTeamForm.color,
+      };
+
+      setTeams((prev) => prev.map((t) => (t.id === editingTeam.id || t.code === editingTeam.code ? updatedCategory : t)));
+
+      if (editingTeam.code !== updatedCode) {
+        setTeamMembers((prev) =>
+          prev.map((m) => (m.team_code === editingTeam.code ? { ...m, team_code: updatedCode } : m))
+        );
+        if (activeCategory === editingTeam.code) {
+          setActiveCategory(updatedCode);
+        }
+      }
+
+      setIsEditTeamModalOpen(false);
+      setEditingTeam(null);
+      toast.success(`Team "${updatedCategory.name}" updated successfully!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update team');
+    } finally {
+      setSavingEditTeam(false);
+    }
+  };
   const [savingTeam, setSavingTeam] = useState(false);
   const [newTeamForm, setNewTeamForm] = useState({
     name: '',
@@ -259,7 +290,7 @@ export const TeamMessagingPage: React.FC = () => {
     try {
       const res = await apiClient<any>('/team-messages/teams');
       const list = Array.isArray(res) ? res : res?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         setTeams(list);
         try {
           localStorage.setItem('gurukul_teams_list', JSON.stringify(list));
@@ -275,7 +306,7 @@ export const TeamMessagingPage: React.FC = () => {
     try {
       const res = await apiClient<any>('/team-messages/members');
       const list = Array.isArray(res) ? res : res?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         setTeamMembers(list);
         try {
           localStorage.setItem('gurukul_personal_team_members', JSON.stringify(list));
@@ -315,17 +346,19 @@ export const TeamMessagingPage: React.FC = () => {
   // Delete Team handler
   const handleDeleteTeam = async (teamToDelete: TeamCategory) => {
     const confirmDelete = window.confirm(
-      `Delete team "${teamToDelete.marathi_name ? `${teamToDelete.marathi_name} (${teamToDelete.name})` : teamToDelete.name}"?\n\nAny existing contacts assigned to this team will be reassigned to Dojo Staff to keep your roster intact.`
+      `Delete team "${teamToDelete.marathi_name ? `${teamToDelete.marathi_name} (${teamToDelete.name})` : teamToDelete.name}"?\n\nAny existing contacts assigned to this team will remain in your contacts roster.`
     );
     if (!confirmDelete) return;
 
     try {
-      if (teamToDelete.id && !teamToDelete.id.startsWith('t_')) {
-        await apiClient(`/team-messages/teams/${teamToDelete.id}`, { method: 'DELETE' });
+      if (teamToDelete.id) {
+        await apiClient(`/team-messages/teams/${teamToDelete.id}`, { method: 'DELETE' }).catch((e) => {
+          console.warn('Backend team delete notice:', e.message);
+        });
       }
       setTeams((prev) => prev.filter((t) => t.id !== teamToDelete.id && t.code !== teamToDelete.code));
       setTeamMembers((prev) =>
-        prev.map((m) => (m.team_code === teamToDelete.code ? { ...m, team_code: 'STAFF' } : m))
+        prev.map((m) => (m.team_code === teamToDelete.code ? { ...m, team_code: 'UNASSIGNED' } : m))
       );
       if (activeCategory === teamToDelete.code) {
         setActiveCategory('ALL');
@@ -866,77 +899,127 @@ export const TeamMessagingPage: React.FC = () => {
               )}
             </div>
 
-            {/* Dynamic Team Category Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-800 scrollbar-thin">
-              <button
-                type="button"
-                onClick={() => setActiveCategory('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                  activeCategory === 'ALL'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                <span>सर्व संपर्क (All)</span>
-                <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
-                  {teamMembers.length}
+            {/* Team Category Switcher (No Horizontal Sliding / Multi-Row Wrap + Quick Dropdown) */}
+            <div className="space-y-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              {/* Top Quick Dropdown & Count Row */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Team Filter:</span>
                 </span>
-              </button>
+                <select
+                  value={activeCategory}
+                  onChange={(e) => {
+                    setActiveCategory(e.target.value);
+                    if (e.target.value !== 'ALL') setRecipientRole(e.target.value);
+                  }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
+                >
+                  <option value="ALL">All Contacts ({teamMembers.length})</option>
+                  {teams.map((t) => (
+                    <option key={t.id || t.code} value={t.code}>
+                      {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name} ({teamMembers.filter((m) => m.team_code === t.code || (m as any).team === t.code).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              {teams.map((t) => {
-                const count = teamMembers.filter(
-                  (m) => m.team_code === t.code || (m as any).team === t.code
-                ).length;
-                const isCurrent = activeCategory === t.code;
-                const isDefault = ['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(t.code);
+              {/* Multi-Row Wrap Team Pills (Visible at a glance, NO sliding!) */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('ALL')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                    activeCategory === 'ALL'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>सर्व संपर्क (All)</span>
+                  <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
+                    {teamMembers.length}
+                  </span>
+                </button>
 
-                return (
-                  <div key={t.id || t.code} className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveCategory(t.code);
-                        setRecipientRole(t.code);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                        isCurrent
-                          ? t.code === 'JILAPRAMUKH'
-                            ? 'bg-amber-500 text-white shadow-xs'
-                            : 'bg-indigo-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span>{t.marathi_name || t.name}</span>
-                      <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
-                        {count}
-                      </span>
-                    </button>
-                    {!isDefault && (
+                {teams.map((t) => {
+                  const count = teamMembers.filter(
+                    (m) => m.team_code === t.code || (m as any).team === t.code
+                  ).length;
+                  const isCurrent = activeCategory === t.code;
+
+                  return (
+                    <div key={t.id || t.code} className="inline-flex items-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white dark:bg-slate-800 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCategory(t.code);
+                          setRecipientRole(t.code);
+                        }}
+                        className={`px-2 py-1 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          isCurrent
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                        title={t.description || t.name}
+                      >
+                        <span>{t.marathi_name || t.name}</span>
+                        <span className="text-[10px] opacity-85 px-1 py-0.2 rounded-full bg-black/15">
+                          {count}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditTeam(t);
+                        }}
+                        className="px-1.5 py-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-l border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                        title={`Edit team "${t.name}"`}
+                      >
+                        <Edit2 className="w-2.5 h-2.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteTeam(t);
                         }}
-                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors ml-0.5"
-                        title="Delete custom team"
+                        className="px-1.5 py-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-l border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                        title={`Delete team "${t.name}"`}
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-2.5 h-2.5" />
                       </button>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
 
-              <button
-                type="button"
-                onClick={() => setIsNewTeamModalOpen(true)}
-                className="px-2 py-1 rounded-lg text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 whitespace-nowrap cursor-pointer flex items-center gap-1"
-                title="Create a new team category"
-              >
-                <Plus className="w-3 h-3" />
-                <span>New Team</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setIsNewTeamModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 whitespace-nowrap cursor-pointer flex items-center gap-1"
+                  title="Create a new team category"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>+ New Team</span>
+                </button>
+              </div>
+
+              {/* Zero Teams Empty State */}
+              {teams.length === 0 && (
+                <div className="p-3 rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/40 dark:bg-indigo-950/20 text-center space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    No custom teams yet. You can create teams (e.g. Pune Jilapramukh, Coaches, Staff) anytime!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewTeamModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Create First Team</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {filteredMembers.length === 0 ? (
@@ -1495,7 +1578,6 @@ export const TeamMessagingPage: React.FC = () => {
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl">
             {teams.map((t) => {
               const memberCount = teamMembers.filter((m) => m.team_code === t.code || (m as any).team === t.code).length;
-              const isDefault = ['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(t.code);
 
               return (
                 <div key={t.id || t.code} className="p-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -1529,18 +1611,25 @@ export const TeamMessagingPage: React.FC = () => {
                     >
                       View Members
                     </button>
-                    {!isDefault ? (
+                    <button
+                        type="button"
+                        onClick={() => {
+                          setIsManageTeamsModalOpen(false);
+                          handleOpenEditTeam(t);
+                        }}
+                        className="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60 transition-colors cursor-pointer"
+                        title="Edit this team"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteTeam(t)}
                         className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer"
-                        title="Delete this custom team"
+                        title="Delete this team"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    ) : (
-                      <span className="text-[10px] text-slate-400 italic px-2">Core Wing</span>
-                    )}
                   </div>
                 </div>
               );
@@ -1553,6 +1642,59 @@ export const TeamMessagingPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+
+      {/* MODAL: Edit Team / Group */}
+      <Modal isOpen={isEditTeamModalOpen} onClose={() => setIsEditTeamModalOpen(false)} title="Edit Team / Group">
+        <form onSubmit={handleUpdateTeam} className="space-y-4">
+          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
+            Edit details for team <strong>{editingTeam?.name}</strong>. Assigned contacts will automatically retain their membership.
+          </div>
+
+          <Input
+            label="Team Name (English) *"
+            required
+            placeholder="e.g. Pune District Heads"
+            value={editTeamForm.name}
+            onChange={(e) => setEditTeamForm({ ...editTeamForm, name: e.target.value })}
+          />
+
+          <Input
+            label="Regional / Marathi Name (Optional)"
+            placeholder="उदा. पुणे जिल्हाप्रमुख"
+            value={editTeamForm.marathiName}
+            onChange={(e) => setEditTeamForm({ ...editTeamForm, marathiName: e.target.value })}
+          />
+
+          <Input
+            label="Team Code / Short Tag *"
+            required
+            placeholder="e.g. PUNE_JP"
+            value={editTeamForm.code}
+            onChange={(e) => setEditTeamForm({ ...editTeamForm, code: e.target.value.toUpperCase() })}
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description</label>
+            <textarea
+              rows={2}
+              value={editTeamForm.description}
+              onChange={(e) => setEditTeamForm({ ...editTeamForm, description: e.target.value })}
+              placeholder="What this team represents..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="outline" onClick={() => setIsEditTeamModalOpen(false)} disabled={savingEditTeam}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={savingEditTeam} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold">
+              {savingEditTeam ? 'Saving Changes...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       {/* MODAL: Create New Team / Group */}

@@ -150,6 +150,52 @@ export class TeamMessageController {
     }
   }
 
+  async updateTeam(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { name, code, marathiName, description, color } = req.body;
+
+      if (!name || !name.trim()) {
+        res.status(400).json({ success: false, message: 'Team name is required.' });
+        return;
+      }
+
+      const updates: any = {
+        name: name.trim(),
+        updated_at: new Date().toISOString(),
+      };
+      if (code && code.trim()) {
+        updates.code = code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+      }
+      if (marathiName !== undefined) updates.marathi_name = marathiName ? marathiName.trim() : null;
+      if (description !== undefined) updates.description = description ? description.trim() : null;
+      if (color !== undefined) updates.color = color;
+
+      const { data, error } = await supabaseAdmin
+        .from('teams')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          res.status(400).json({ success: false, message: 'Team with code already exists.' });
+          return;
+        }
+        throw error;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Team updated successfully',
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async deleteTeam(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

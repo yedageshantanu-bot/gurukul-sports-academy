@@ -10,6 +10,8 @@ router.use(verifyAuth);
 // Team categories / groups
 router.get('/teams', (req, res, next) => teamMessageController.listTeams(req, res, next));
 router.post('/teams', (req, res, next) => teamMessageController.createTeam(req, res, next));
+router.patch('/teams/:id', (req, res, next) => teamMessageController.updateTeam(req, res, next));
+router.put('/teams/:id', (req, res, next) => teamMessageController.updateTeam(req, res, next));
 router.delete('/teams/:id', (req, res, next) => teamMessageController.deleteTeam(req, res, next));
 
 // Team members roster

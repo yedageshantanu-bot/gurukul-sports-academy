@@ -107,8 +107,9 @@ export class WhatsAppAutomationService {
 
   /**
    * Checks whether this phone number has ever received a message from our academy before.
+   * Returns how many prior WhatsApp messages have been sent to this recipient phone.
    */
-  async hasReceivedPriorMessages(phone: string): Promise<boolean> {
+  async getPriorMessageCount(phone: string): Promise<number> {
     try {
       const normalized = phone.replace(/[^\d+]/g, '');
       const { count, error } = await this.supabase
@@ -116,24 +117,29 @@ export class WhatsAppAutomationService {
         .select('id', { count: 'exact', head: true })
         .eq('recipient_phone', normalized);
 
-      if (!error && count && count > 0) {
-        return true;
+      if (!error && typeof count === 'number') {
+        return count;
       }
-      return false;
+      return 0;
     } catch {
-      return false;
+      return 0;
     }
+  }
+
+  async hasReceivedPriorMessages(phone: string): Promise<boolean> {
+    const count = await this.getPriorMessageCount(phone);
+    return count >= 2;
   }
 
   /**
    * Intelligently formats message:
-   * - If FIRST EVER message to this parent: appends one-time contact save guidance.
-   * - If RETURNING parent: keeps message 100% clean and concise without repetitive notes!
+   * - 1st & 2nd message to parent: Appends contact save guidance so parent saves academy number and links become clickable.
+   * - 3rd message onwards: Keeps message 100% clean and concise without repetitive notes ("badd badd mai nahi jayega").
    */
   async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
-    const isReturning = await this.hasReceivedPriorMessages(phone);
-    if (!isReturning) {
-      return `${baseBody}\n\n📌 _Note: Krupaya pudhil sarva updates sathi ha official ${academyName} contact number save karun theva._`;
+    const priorCount = await this.getPriorMessageCount(phone);
+    if (priorCount < 2) {
+      return `${baseBody}\n\n📌 *महत्वपूर्ण सूचना:* भविष्य के सभी अपडेट्स, अटेंडेंस और फ़ीस लिंक्स प्राप्त करने के लिए कृपया यह आधिकारिक ${academyName} नंबर अपने फ़ोन में *'Save'* कर लें।\n_(Please save this official contact number in your phone contacts.)_`;
     }
     return baseBody;
   }
@@ -767,9 +773,12 @@ export class WhatsAppAutomationService {
   // MANUAL CUSTOM DISPATCH
   // ============================================================================
   async sendCustomMessage(dto: SendCustomMessageDTO) {
+    const academyName = await this.getAcademyName();
+    const formattedBody = await this.formatMessageWithOnboardingNote(dto.messageBody, dto.recipientPhone, academyName);
+
     const queued = await queueService.enqueueMessage({
       recipientPhone: dto.recipientPhone,
-      messageBody: dto.messageBody,
+      messageBody: formattedBody,
       studentId: dto.studentId,
       templateId: dto.templateId,
       eventType: dto.eventType || 'CUSTOM_NOTIFICATION',
