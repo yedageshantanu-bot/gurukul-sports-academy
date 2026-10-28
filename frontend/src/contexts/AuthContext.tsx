@@ -6,17 +6,7 @@ import { AuthContextType, Role, UserProfile } from '../types/auth';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isExpiredParam = typeof window !== 'undefined' && window.location.search.includes('expired=1');
-
   const [token, setToken] = useState<string | null>(() => {
-    if (isExpiredParam) {
-      try {
-        localStorage.removeItem('gurukul_access_token');
-        localStorage.removeItem('gurukul_refresh_token');
-        localStorage.removeItem('gurukul_user_profile');
-      } catch {}
-      return null;
-    }
     try {
       return localStorage.getItem('gurukul_access_token');
     } catch {
@@ -25,7 +15,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [profile, setProfile] = useState<UserProfile | null>(() => {
-    if (isExpiredParam) return null;
     try {
       const cached = localStorage.getItem('gurukul_user_profile');
       return cached ? JSON.parse(cached) : null;
@@ -35,7 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [user, setUser] = useState<any | null>(() => {
-    if (isExpiredParam) return null;
     try {
       const cached = localStorage.getItem('gurukul_user_profile');
       if (cached) {
@@ -49,9 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [loading, setLoading] = useState<boolean>(() => {
-    if (isExpiredParam) return false;
     try {
-      return !localStorage.getItem('gurukul_access_token');
+      return !localStorage.getItem('gurukul_user_profile');
     } catch {
       return false;
     }
@@ -86,12 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (refreshData?.session?.access_token) {
           return fetchBackendProfile(refreshData.session.access_token, refreshData.session.user);
         } else {
+          // Do NOT wipe tokens on refresh failure; check cached profile
           try {
-            localStorage.removeItem('gurukul_access_token');
-            localStorage.removeItem('gurukul_refresh_token');
-            localStorage.removeItem('gurukul_user_profile');
+            const cached = localStorage.getItem('gurukul_user_profile');
+            if (cached) return JSON.parse(cached) as UserProfile;
           } catch {}
-          await supabase.auth.signOut().catch(() => {});
           return null;
         }
       } else if (response.status === 403) {
@@ -151,21 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initializeAuth = async () => {
       try {
-        if (isExpiredParam) {
-          try {
-            localStorage.removeItem('gurukul_access_token');
-            localStorage.removeItem('gurukul_refresh_token');
-            localStorage.removeItem('gurukul_user_profile');
-          } catch {}
-          if (isMounted) {
-            setUser(null);
-            setProfile(null);
-            setToken(null);
-            setLoading(false);
-          }
-          return;
-        }
-
         const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
 
         let tokenToVerify = session?.access_token;
@@ -194,6 +165,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (!tokenToVerify) {
+          // If we still have cached profile, keep user logged in!
+          try {
+            const cached = localStorage.getItem('gurukul_user_profile');
+            if (cached && isMounted) {
+              const parsed = JSON.parse(cached);
+              setProfile(parsed);
+              setUser({ id: parsed.userId, email: parsed.email });
+              setLoading(false);
+              return;
+            }
+          } catch {}
+
           if (isMounted) {
             setUser(null);
             setProfile(null);
@@ -218,17 +201,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.setItem('gurukul_user_profile', JSON.stringify(backendProfile));
             } catch {}
           } else {
-            // Only wipe tokens if no cached profile exists
+            // Keep cached profile if available; never wipe on background check
             const cachedProfileStr = localStorage.getItem('gurukul_user_profile');
-            if (!cachedProfileStr) {
+            if (cachedProfileStr) {
               try {
-                localStorage.removeItem('gurukul_access_token');
-                localStorage.removeItem('gurukul_refresh_token');
-                localStorage.removeItem('gurukul_user_profile');
+                const parsed = JSON.parse(cachedProfileStr);
+                setProfile(parsed);
+                setUser({ id: parsed.userId, email: parsed.email });
               } catch {}
-              setUser(null);
-              setProfile(null);
-              setToken(null);
             }
           }
           setLoading(false);
@@ -258,16 +238,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch {}
           }
         } else {
-          // If session is null, do NOT wipe user if we have a valid cached token or refresh token in localStorage!
-          const cachedToken = localStorage.getItem('gurukul_access_token');
-          const cachedRefresh = localStorage.getItem('gurukul_refresh_token');
-          if (!cachedToken && !cachedRefresh) {
+          // If session is null, do NOT wipe user if we have a valid cached profile in localStorage!
+          const cachedProfile = localStorage.getItem('gurukul_user_profile');
+          if (!cachedProfile) {
             setUser(null);
             setProfile(null);
             setToken(null);
-            try {
-              localStorage.removeItem('gurukul_user_profile');
-            } catch {}
           }
         }
         setLoading(false);

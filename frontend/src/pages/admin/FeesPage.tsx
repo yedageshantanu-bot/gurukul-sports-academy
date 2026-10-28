@@ -852,6 +852,11 @@ export const FeesPage: React.FC = () => {
             >
               <CreditCard className="w-3.5 h-3.5" />
               Academy Tuition Fees
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+                activeStream === 'TUITION' ? 'bg-black/20 text-slate-950' : 'bg-emerald-500/20 text-emerald-300'
+              }`}>
+                Default
+              </span>
             </button>
             <button
               type="button"
@@ -870,7 +875,7 @@ export const FeesPage: React.FC = () => {
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
                 activeStream === 'PUBLICATIONS' ? 'bg-black/20 text-slate-950' : 'bg-blue-500/20 text-blue-300'
               }`}>
-                Annual
+                Click to Open
               </span>
             </button>
             <button
@@ -890,15 +895,17 @@ export const FeesPage: React.FC = () => {
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
                 activeStream === 'TOURNAMENTS' ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
               }`}>
-                Per Event
+                Click to Open
               </span>
             </button>
           </div>
         </div>
 
-        <span className="text-xs text-slate-400 hidden lg:inline">
-          Accounting Rule: Publication &amp; tournament revenues are fully segregated from recurring academy tuition.
-        </span>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+            ✓ Segregated Accounting Active: Only Academy Regular Tuition is displayed below
+          </span>
+        </div>
       </div>
 
       {activeStream === 'PUBLICATIONS' ? (
@@ -907,6 +914,16 @@ export const FeesPage: React.FC = () => {
         <TournamentsPage embedded={true} />
       ) : (
         <>
+          {/* Active View Indicator */}
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-bold">Active View: Academy Regular Fees Only</span>
+              <span className="text-slate-600 dark:text-slate-300">
+                (Monthly course fees &amp; annual package tuition. Tournament registration fees and publication document fees are isolated under their own tabs above).
+              </span>
+            </div>
+          </div>
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
             <div>

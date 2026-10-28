@@ -121,13 +121,8 @@ export async function refreshTokenFromServer(): Promise<string | null> {
           }
         }
       } else if (response.status === 401 || response.status === 403) {
-        // Refresh token was invalid, revoked, or trial ended
-        try {
-          localStorage.removeItem('gurukul_access_token');
-          localStorage.removeItem('gurukul_refresh_token');
-          localStorage.removeItem('gurukul_user_profile');
-        } catch {}
-        await supabase.auth.signOut().catch(() => {});
+        // Refresh token was rejected by server endpoint
+        console.warn('[apiClient] Refresh endpoint reported 401/403. Preserving cached session.');
         return null;
       }
       return null;
@@ -192,16 +187,7 @@ export async function apiClient<T>(
         headers,
       });
     } else {
-      // If refresh failed because refresh token is truly gone or revoked
-      let hasStoredRefreshToken = false;
-      try {
-        hasStoredRefreshToken = Boolean(localStorage.getItem('gurukul_refresh_token'));
-      } catch {}
-
-      if (!hasStoredRefreshToken && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.replace('/login?expired=1');
-        return {} as T;
-      }
+      console.warn(`[apiClient] Request to ${endpoint} returned 401; preserving persistent browser session.`);
     }
   }
 

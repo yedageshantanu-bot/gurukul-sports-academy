@@ -12,6 +12,8 @@ import {
   Check,
   MessageSquare,
   X,
+  UserPlus,
+  FolderPlus,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -33,23 +35,33 @@ export interface TeamMessageRecord {
   created_at: string;
 }
 
-interface TeamMember {
+export interface TeamCategory {
   id: string;
-  phone: string;
-  name?: string; // Optional per user requirement
-  position?: string; // Optional per user requirement
-  team: 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE';
-  district?: string;
-  notes?: string;
-  addedAt: string;
+  code: string;
+  name: string;
+  marathi_name?: string | null;
+  description?: string | null;
+  color?: string | null;
+  created_at?: string;
 }
 
-export const TEAM_ROLES = [
-  { id: 'ALL', label: 'All Contacts', marathi: 'सर्व संपर्क' },
-  { id: 'JILAPRAMUKH', label: 'Jilapramukh (District Heads)', marathi: 'जिल्हाप्रमुख' },
-  { id: 'COACH', label: 'Coaches & Instructors', marathi: 'प्रशिक्षक / कोचेस' },
-  { id: 'STAFF', label: 'Dojo Staff & Admin', marathi: 'डोझो स्टाफ' },
-  { id: 'EXECUTIVE', label: 'Executive Committee', marathi: 'कार्यकारी समिती' },
+export interface TeamMember {
+  id: string;
+  phone: string;
+  name?: string | null;
+  position?: string | null;
+  team_code: string;
+  district?: string | null;
+  notes?: string | null;
+  status?: string;
+  created_at?: string;
+}
+
+export const DEFAULT_TEAMS: TeamCategory[] = [
+  { id: 't_jp', code: 'JILAPRAMUKH', name: 'Jilapramukh (District Heads)', marathi_name: 'जिल्हाप्रमुख' },
+  { id: 't_coach', code: 'COACH', name: 'Coaches & Instructors', marathi_name: 'प्रशिक्षक / कोचेस' },
+  { id: 't_staff', code: 'STAFF', name: 'Dojo Staff & Admin', marathi_name: 'डोझो स्टाफ' },
+  { id: 't_exec', code: 'EXECUTIVE', name: 'Executive Committee', marathi_name: 'कार्यकारी समिती' },
 ];
 
 export interface DispatchedLog {
@@ -61,48 +73,46 @@ export interface DispatchedLog {
   timestamp: string;
 }
 
-const DEFAULT_TEAM_MEMBERS: TeamMember[] = [
+const DEFAULT_MEMBERS: TeamMember[] = [
   {
-    id: 'team_jp_1',
+    id: 'af4d17ed-6ee8-45c0-beec-e9fbdc516c88',
     phone: '+919822112233',
     name: 'Shri Patil (Jilapramukh)',
-    team: 'JILAPRAMUKH',
+    team_code: 'JILAPRAMUKH',
     position: 'District Coordinator - Ahmednagar',
     district: 'Ahmednagar',
-    addedAt: new Date().toISOString(),
   },
   {
-    id: 'team_jp_2',
+    id: 'abc473fa-18f9-43df-a8f0-69528745704f',
     phone: '+919855443322',
     name: 'Shri Shinde (Jilapramukh)',
-    team: 'JILAPRAMUKH',
+    team_code: 'JILAPRAMUKH',
     position: 'District Coordinator - Pune Rural',
     district: 'Pune',
-    addedAt: new Date().toISOString(),
   },
   {
-    id: 'team_1',
+    id: '0e194377-383a-4528-8a18-fd042098f1a2',
     phone: '+919876543210',
     name: 'Head Coach Rahul',
-    team: 'COACH',
+    team_code: 'COACH',
     position: 'Chief Martial Arts Instructor',
-    addedAt: new Date().toISOString(),
+    district: 'Pune',
   },
   {
-    id: 'team_2',
+    id: '08f90555-6fa6-4ff3-b2fd-9596f3cd07b3',
     phone: '+919822000000',
     name: 'Coach Sneha',
-    team: 'COACH',
+    team_code: 'COACH',
     position: 'Kalarippayattu Trainer',
-    addedAt: new Date().toISOString(),
+    district: 'Pune',
   },
   {
-    id: 'team_3',
+    id: 'c0079404-f117-4aaf-b78b-6a9620cd285c',
     phone: '+919422001122',
     name: 'Dojo Desk Incharge',
-    team: 'STAFF',
+    team_code: 'STAFF',
     position: 'Operations & Attendance Admin',
-    addedAt: new Date().toISOString(),
+    district: 'Pune',
   },
 ];
 
@@ -137,24 +147,34 @@ const PRESET_TEMPLATES = [
 export const TeamMessagingPage: React.FC = () => {
   const { toast } = useToast();
 
-  // Supabase Database Messages state
+  // Database Team Messages state
   const [dbMessages, setDbMessages] = useState<TeamMessageRecord[]>([]);
   const [dbLoading, setDbLoading] = useState(false);
 
-  // Team roster persistent in localStorage
+  // Teams Categories list (Syncs with Cloud DB + Local Storage cache)
+  const [teams, setTeams] = useState<TeamCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem('gurukul_teams_list');
+      return saved ? JSON.parse(saved) : DEFAULT_TEAMS;
+    } catch {
+      return DEFAULT_TEAMS;
+    }
+  });
+
+  // Team roster (Syncs with Cloud DB + Local Storage cache)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
     try {
       const saved = localStorage.getItem('gurukul_personal_team_members');
-      return saved ? JSON.parse(saved) : DEFAULT_TEAM_MEMBERS;
+      return saved ? JSON.parse(saved) : DEFAULT_MEMBERS;
     } catch {
-      return DEFAULT_TEAM_MEMBERS;
+      return DEFAULT_MEMBERS;
     }
   });
 
   // Selected recipient IDs
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manualPhone, setManualPhone] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'ALL' | 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE'>('ALL');
+  const [activeCategory, setActiveCategory] = useState<string>('ALL');
 
   // Composer fields (Sender Name optional, Position removed per user requirement)
   const [senderName, setSenderName] = useState('');
@@ -185,20 +205,24 @@ export const TeamMessagingPage: React.FC = () => {
 
   // Modal: Add Team Member
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newMemberForm, setNewMemberForm] = useState<{
-    phone: string;
-    name: string;
-    position: string;
-    team: 'JILAPRAMUKH' | 'COACH' | 'STAFF' | 'EXECUTIVE';
-    district: string;
-    notes: string;
-  }>({
+  const [savingMember, setSavingMember] = useState(false);
+  const [newMemberForm, setNewMemberForm] = useState({
     phone: '',
     name: '',
     position: '',
-    team: 'JILAPRAMUKH',
+    team_code: 'JILAPRAMUKH',
     district: '',
     notes: '',
+  });
+
+  // Modal: Create New Team / Group
+  const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
+  const [savingTeam, setSavingTeam] = useState(false);
+  const [newTeamForm, setNewTeamForm] = useState({
+    name: '',
+    code: '',
+    marathiName: '',
+    description: '',
   });
 
   // Dispatched Logs (Local tracking)
@@ -225,51 +249,202 @@ export const TeamMessagingPage: React.FC = () => {
     }
   };
 
+  // Fetch Teams Categories from DB
+  const fetchTeams = async () => {
+    try {
+      const res = await apiClient<any>('/team-messages/teams');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      if (Array.isArray(list) && list.length > 0) {
+        setTeams(list);
+        try {
+          localStorage.setItem('gurukul_teams_list', JSON.stringify(list));
+        } catch {}
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch teams from database:', err?.message);
+    }
+  };
+
+  // Fetch Team Members from DB
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await apiClient<any>('/team-messages/members');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      if (Array.isArray(list) && list.length > 0) {
+        setTeamMembers(list);
+        try {
+          localStorage.setItem('gurukul_personal_team_members', JSON.stringify(list));
+        } catch {}
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch team members from database:', err?.message);
+    }
+  };
+
   useEffect(() => {
     fetchDbMessages();
+    fetchTeams();
+    fetchTeamMembers();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('gurukul_personal_team_members', JSON.stringify(teamMembers));
+    try {
+      localStorage.setItem('gurukul_personal_team_members', JSON.stringify(teamMembers));
+    } catch {}
   }, [teamMembers]);
 
   useEffect(() => {
-    localStorage.setItem('gurukul_team_dispatch_logs', JSON.stringify(dispatchLogs));
+    try {
+      localStorage.setItem('gurukul_teams_list', JSON.stringify(teams));
+    } catch {}
+  }, [teams]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('gurukul_team_dispatch_logs', JSON.stringify(dispatchLogs));
+    } catch {}
   }, [dispatchLogs]);
 
+  // Handle Create New Team
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamForm.name.trim()) {
+      toast.error('Team name is required.');
+      return;
+    }
+
+    setSavingTeam(true);
+    try {
+      const res = await apiClient<any>('/team-messages/teams', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newTeamForm.name.trim(),
+          code: newTeamForm.code.trim() || undefined,
+          marathiName: newTeamForm.marathiName.trim() || undefined,
+          description: newTeamForm.description.trim() || undefined,
+          color: 'indigo',
+        }),
+      });
+
+      const created = res?.data;
+      if (created) {
+        setTeams((prev) => [...prev.filter((t) => t.code !== created.code), created]);
+        setActiveCategory(created.code);
+        setRecipientRole(created.code);
+      } else {
+        await fetchTeams();
+      }
+
+      setIsNewTeamModalOpen(false);
+      setNewTeamForm({ name: '', code: '', marathiName: '', description: '' });
+      toast.success('New team created and saved to academy database!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create team');
+    } finally {
+      setSavingTeam(false);
+    }
+  };
+
+  // Handle Delete Custom Team
+  const handleDeleteTeam = async (team: TeamCategory) => {
+    if (['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(team.code)) {
+      toast.warning('Default system teams cannot be deleted.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete team "${team.marathi_name || team.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await apiClient(`/team-messages/teams/${team.id}`, { method: 'DELETE' });
+      setTeams((prev) => prev.filter((t) => t.id !== team.id));
+      if (activeCategory === team.code) {
+        setActiveCategory('ALL');
+      }
+      toast.success(`Team "${team.marathi_name || team.name}" removed.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete team');
+    }
+  };
+
   // Handle member addition
-  const handleAddMember = (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemberForm.phone.trim()) {
       toast.error('Mobile/WhatsApp number is required.');
       return;
     }
 
-    const member: TeamMember = {
-      id: `team_${Date.now()}`,
-      phone: newMemberForm.phone.trim(),
-      name: newMemberForm.name.trim() || undefined,
-      team: newMemberForm.team,
-      district: newMemberForm.district.trim() || undefined,
-      position:
-        newMemberForm.position.trim() ||
-        (newMemberForm.team === 'JILAPRAMUKH'
-          ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
-          : undefined),
-      notes: newMemberForm.notes.trim() || undefined,
-      addedAt: new Date().toISOString(),
-    };
+    setSavingMember(true);
+    try {
+      const res = await apiClient<any>('/team-messages/members', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone: newMemberForm.phone.trim(),
+          name: newMemberForm.name.trim() || undefined,
+          teamCode: newMemberForm.team_code,
+          district: newMemberForm.district.trim() || undefined,
+          position:
+            newMemberForm.position.trim() ||
+            (newMemberForm.team_code === 'JILAPRAMUKH'
+              ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
+              : undefined),
+          notes: newMemberForm.notes.trim() || undefined,
+        }),
+      });
 
-    setTeamMembers((prev) => [member, ...prev]);
-    setIsAddModalOpen(false);
-    setNewMemberForm({ phone: '', name: '', position: '', team: 'JILAPRAMUKH', district: '', notes: '' });
-    toast.success('Team contact added successfully!');
+      const created = res?.data;
+      if (created) {
+        setTeamMembers((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+      } else {
+        await fetchTeamMembers();
+      }
+
+      setIsAddModalOpen(false);
+      setNewMemberForm({
+        phone: '',
+        name: '',
+        position: '',
+        team_code: teams[0]?.code || 'JILAPRAMUKH',
+        district: '',
+        notes: '',
+      });
+      toast.success('Team contact added and saved to database!');
+    } catch (err: any) {
+      // Offline fallback
+      const fallbackMember: TeamMember = {
+        id: `team_${Date.now()}`,
+        phone: newMemberForm.phone.trim(),
+        name: newMemberForm.name.trim() || undefined,
+        team_code: newMemberForm.team_code,
+        district: newMemberForm.district.trim() || undefined,
+        position:
+          newMemberForm.position.trim() ||
+          (newMemberForm.team_code === 'JILAPRAMUKH'
+            ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
+            : undefined),
+        notes: newMemberForm.notes.trim() || undefined,
+        created_at: new Date().toISOString(),
+      };
+      setTeamMembers((prev) => [fallbackMember, ...prev]);
+      setIsAddModalOpen(false);
+      toast.success('Team contact saved locally!');
+    } finally {
+      setSavingMember(false);
+    }
   };
 
-  const handleDeleteMember = (id: string) => {
-    setTeamMembers((prev) => prev.filter((m) => m.id !== id));
-    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
-    toast.info('Team contact removed.');
+  const handleDeleteMember = async (id: string) => {
+    try {
+      await apiClient(`/team-messages/members/${id}`, { method: 'DELETE' });
+      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
+      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+      toast.info('Team contact removed from database.');
+    } catch {
+      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
+      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+      toast.info('Team contact removed.');
+    }
   };
 
   const handleToggleSelect = (id: string) => {
@@ -280,12 +455,12 @@ export const TeamMessagingPage: React.FC = () => {
 
   const filteredMembers = teamMembers.filter((m) => {
     if (activeCategory === 'ALL') return true;
-    return m.team === activeCategory;
+    return m.team_code === activeCategory || (m as any).team === activeCategory;
   });
 
   const handleSelectAll = () => {
     const activeIds = filteredMembers.map((m) => m.id);
-    const allSelected = activeIds.every((id) => selectedIds.includes(id));
+    const allSelected = activeIds.length > 0 && activeIds.every((id) => selectedIds.includes(id));
     if (allSelected) {
       setSelectedIds((prev) => prev.filter((id) => !activeIds.includes(id)));
     } else {
@@ -313,7 +488,7 @@ export const TeamMessagingPage: React.FC = () => {
 
     setSending(true);
 
-    // 1. Save to Supabase Database
+    // 1. Save to Database
     try {
       const savedRecord = await apiClient<any>('/team-messages', {
         method: 'POST',
@@ -346,13 +521,13 @@ export const TeamMessagingPage: React.FC = () => {
 
     // 2. Dispatch WhatsApp immediately if Mode is NOW and contacts selected
     if (broadcastMode === 'NOW') {
-      const recipients: Array<{ phone: string; name?: string }> = [];
+      const recipients: Array<{ phone: string; name?: string | null }> = [];
       teamMembers
         .filter((m) => selectedIds.includes(m.id))
         .forEach((m) => recipients.push({ phone: m.phone, name: m.name }));
 
       if (manualPhone.trim()) {
-        recipients.push({ phone: manualPhone.trim(), name: 'Ad-hoc Contact' });
+        recipients.push({ phone: manualPhone.trim(), name: 'Direct Contact' });
       }
 
       if (recipients.length > 0) {
@@ -372,7 +547,7 @@ export const TeamMessagingPage: React.FC = () => {
             newLogs.unshift({
               id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
               recipientPhone: r.phone,
-              recipientName: r.name,
+              recipientName: r.name || undefined,
               message: messageText.trim(),
               status: 'SENT',
               timestamp: new Date().toISOString(),
@@ -381,7 +556,7 @@ export const TeamMessagingPage: React.FC = () => {
             newLogs.unshift({
               id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
               recipientPhone: r.phone,
-              recipientName: r.name,
+              recipientName: r.name || undefined,
               message: messageText.trim(),
               status: 'FAILED',
               timestamp: new Date().toISOString(),
@@ -410,14 +585,18 @@ export const TeamMessagingPage: React.FC = () => {
             Message Your Personal Team
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Publish operational broadcasts, coordination notices, and duty assignments to academy coaches, trainers, and staff.
+            Publish operational broadcasts, coordination notices, and duty assignments to district coordinators, coaches, and staff.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
-            onClick={fetchDbMessages}
+            onClick={() => {
+              fetchDbMessages();
+              fetchTeams();
+              fetchTeamMembers();
+            }}
             disabled={dbLoading}
             className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
           >
@@ -426,11 +605,28 @@ export const TeamMessagingPage: React.FC = () => {
           </button>
 
           <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold cursor-pointer shadow-xs"
+            variant="outline"
+            onClick={() => setIsNewTeamModalOpen(true)}
+            className="gap-1.5 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-xs font-semibold cursor-pointer shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Team Member</span>
+            <FolderPlus className="w-3.5 h-3.5" />
+            <span>+ Add New Team</span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              if (teams.length > 0) {
+                setNewMemberForm((prev) => ({
+                  ...prev,
+                  team_code: activeCategory !== 'ALL' ? activeCategory : teams[0].code,
+                }));
+              }
+              setIsAddModalOpen(true);
+            }}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold cursor-pointer shadow-xs text-xs"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>+ Add Team Member</span>
           </Button>
         </div>
       </div>
@@ -450,7 +646,7 @@ export const TeamMessagingPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Staff notices, duty rosters, and meeting reminders sent directly to instructors and coaches via WhatsApp.
+                Staff notices, duty rosters, and meeting reminders sent directly to instructors and coordinators via WhatsApp.
               </p>
             </div>
           </div>
@@ -537,8 +733,8 @@ export const TeamMessagingPage: React.FC = () => {
                 <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
                   <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
                     {teamWhatsappTemplate
-                      .replace('{recipient_name}', 'Head Coach Rahul')
-                      .replace('{message}', messageText.trim() || 'Notice to Academy Staff: A short coordination briefing will take place today.')
+                      .replace('{recipient_name}', 'Shri Patil (Jilapramukh)')
+                      .replace('{message}', messageText.trim() || 'Notice to Team: A short coordination briefing will take place today.')
                       .replace('{priority}', priority)
                       .replace('{sender_name}', senderName.trim() || 'Academy Admin')
                       .replace('{date}', new Date().toLocaleDateString('en-IN'))}
@@ -577,39 +773,77 @@ export const TeamMessagingPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Team Category Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-800">
-              {TEAM_ROLES.map((role) => {
-                const count =
-                  role.id === 'ALL'
-                    ? teamMembers.length
-                    : teamMembers.filter((m) => m.team === role.id).length;
-                const isCurrent = activeCategory === role.id;
+            {/* Dynamic Team Category Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-800 scrollbar-thin">
+              <button
+                type="button"
+                onClick={() => setActiveCategory('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                  activeCategory === 'ALL'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span>सर्व संपर्क (All)</span>
+                <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
+                  {teamMembers.length}
+                </span>
+              </button>
+
+              {teams.map((t) => {
+                const count = teamMembers.filter(
+                  (m) => m.team_code === t.code || (m as any).team === t.code
+                ).length;
+                const isCurrent = activeCategory === t.code;
+                const isDefault = ['JILAPRAMUKH', 'COACH', 'STAFF', 'EXECUTIVE'].includes(t.code);
+
                 return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(role.id as any);
-                      if (role.id !== 'ALL') {
-                        setRecipientRole(role.id);
-                      }
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                      isCurrent
-                        ? role.id === 'JILAPRAMUKH'
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>{role.marathi || role.label}</span>
-                    <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
-                      {count}
-                    </span>
-                  </button>
+                  <div key={t.id || t.code} className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(t.code);
+                        setRecipientRole(t.code);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                        isCurrent
+                          ? t.code === 'JILAPRAMUKH'
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>{t.marathi_name || t.name}</span>
+                      <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
+                        {count}
+                      </span>
+                    </button>
+                    {!isDefault && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTeam(t);
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors ml-0.5"
+                        title="Delete custom team"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => setIsNewTeamModalOpen(true)}
+                className="px-2 py-1 rounded-lg text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 whitespace-nowrap cursor-pointer flex items-center gap-1"
+                title="Create a new team category"
+              >
+                <Plus className="w-3 h-3" />
+                <span>New Team</span>
+              </button>
             </div>
 
             {filteredMembers.length === 0 ? (
@@ -620,6 +854,10 @@ export const TeamMessagingPage: React.FC = () => {
               <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2 max-h-[420px] overflow-y-auto">
                 {filteredMembers.map((member) => {
                   const isChecked = selectedIds.includes(member.id);
+                  const memberTeam = teams.find(
+                    (t) => t.code === member.team_code || t.code === (member as any).team
+                  );
+
                   return (
                     <div
                       key={member.id}
@@ -640,14 +878,19 @@ export const TeamMessagingPage: React.FC = () => {
                         <div>
                           <div className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                             {member.name || <span className="text-slate-400 italic">No Name (Optional)</span>}
-                            {member.team === 'JILAPRAMUKH' && (
+                            {member.team_code === 'JILAPRAMUKH' && (
                               <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                                 जिल्हाप्रमुख {member.district ? `(${member.district})` : ''}
                               </span>
                             )}
-                            {member.position && member.team !== 'JILAPRAMUKH' && (
+                            {member.position && member.team_code !== 'JILAPRAMUKH' && (
                               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                                 {member.position}
+                              </span>
+                            )}
+                            {memberTeam && member.team_code !== 'JILAPRAMUKH' && (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800/40">
+                                {memberTeam.marathi_name || memberTeam.name}
                               </span>
                             )}
                           </div>
@@ -708,7 +951,7 @@ export const TeamMessagingPage: React.FC = () => {
               </span>
             </div>
 
-            {/* Sender Name (Optional) - Position removed per user instructions */}
+            {/* Sender Name (Optional) */}
             <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Sender Name <span className="text-slate-400 font-normal">(Optional)</span>
@@ -733,11 +976,12 @@ export const TeamMessagingPage: React.FC = () => {
                   onChange={(e) => setRecipientRole(e.target.value)}
                   className="h-9 text-xs"
                 >
-                  <option value="JILAPRAMUKH">जिल्हाप्रमुख (Associated Jilapramukh / District Coordinators)</option>
-                  <option value="COACHES">Instructors &amp; Coaches (प्रशिक्षक)</option>
-                  <option value="ALL_STAFF">All Staff &amp; Team Contacts</option>
-                  <option value="STAFF">Dojo Staff &amp; Desk</option>
-                  <option value="MANAGEMENT">Executive Committee (व्यवस्थापन)</option>
+                  <option value="ALL_STAFF">सर्व संपर्क / All Team Contacts</option>
+                  {teams.map((t) => (
+                    <option key={t.id || t.code} value={t.code}>
+                      {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name}
+                    </option>
+                  ))}
                 </Select>
               </div>
 
@@ -1071,6 +1315,53 @@ export const TeamMessagingPage: React.FC = () => {
         )}
       </Card>
 
+      {/* MODAL: Create New Team / Group */}
+      <Modal isOpen={isNewTeamModalOpen} onClose={() => setIsNewTeamModalOpen(false)} title="Create New Team / Group">
+        <form onSubmit={handleCreateTeam} className="space-y-4">
+          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
+            Create a custom team or coordination wing (e.g. <strong>तालुकाप्रमुख</strong>, <strong>समिती</strong>, <strong>वैद्यकीय पथक</strong>, etc.) to organize team broadcasts.
+          </div>
+
+          <Input
+            label="Team Name (English) *"
+            required
+            placeholder="e.g. Taluka Pramukh / Committee"
+            value={newTeamForm.name}
+            onChange={(e) => setNewTeamForm({ ...newTeamForm, name: e.target.value })}
+          />
+
+          <Input
+            label="Marathi Name / Label (मराठी नाव - Optional)"
+            placeholder="e.g. तालुकाप्रमुख / क्रीडा समिती"
+            value={newTeamForm.marathiName}
+            onChange={(e) => setNewTeamForm({ ...newTeamForm, marathiName: e.target.value })}
+          />
+
+          <Input
+            label="Team Code / Identifier (Optional, e.g. TALUKA_PRAMUKH)"
+            placeholder="Auto-generated if left blank"
+            value={newTeamForm.code}
+            onChange={(e) => setNewTeamForm({ ...newTeamForm, code: e.target.value.toUpperCase() })}
+          />
+
+          <Input
+            label="Description / Purpose (Optional)"
+            placeholder="e.g. Block coordinators for local dojo branches"
+            value={newTeamForm.description}
+            onChange={(e) => setNewTeamForm({ ...newTeamForm, description: e.target.value })}
+          />
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="outline" onClick={() => setIsNewTeamModalOpen(false)} className="cursor-pointer">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={savingTeam} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer">
+              {savingTeam ? 'Saving Team...' : 'Create Team'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* MODAL: Add Team Member */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add Team Contact">
         <form onSubmit={handleAddMember} className="space-y-4">
@@ -1083,14 +1374,15 @@ export const TeamMessagingPage: React.FC = () => {
               Team Classification / वर्गवारी *
             </label>
             <Select
-              value={newMemberForm.team}
-              onChange={(e) => setNewMemberForm({ ...newMemberForm, team: e.target.value as any })}
+              value={newMemberForm.team_code}
+              onChange={(e) => setNewMemberForm({ ...newMemberForm, team_code: e.target.value })}
               className="h-9 text-xs"
             >
-              <option value="JILAPRAMUKH">जिल्हाप्रमुख (District Coordinator / Jilapramukh)</option>
-              <option value="COACH">प्रशिक्षक / कोचेस (Coach &amp; Trainer)</option>
-              <option value="STAFF">डोझो स्टाफ व व्यवस्थापन (Dojo Staff &amp; Desk)</option>
-              <option value="EXECUTIVE">कार्यकारी समिती (Executive Committee)</option>
+              {teams.map((t) => (
+                <option key={t.id || t.code} value={t.code}>
+                  {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -1110,7 +1402,7 @@ export const TeamMessagingPage: React.FC = () => {
             onChange={(e) => setNewMemberForm({ ...newMemberForm, name: e.target.value })}
           />
 
-          {newMemberForm.team === 'JILAPRAMUKH' && (
+          {newMemberForm.team_code === 'JILAPRAMUKH' && (
             <Input
               label="District / कार्यक्षेत्र जिल्हा (Optional)"
               placeholder="e.g. Ahmednagar / Pune / Satara"
@@ -1137,8 +1429,8 @@ export const TeamMessagingPage: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer">
-              Save Contact
+            <Button type="submit" disabled={savingMember} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer">
+              {savingMember ? 'Saving Contact...' : 'Save Contact'}
             </Button>
           </div>
         </form>
