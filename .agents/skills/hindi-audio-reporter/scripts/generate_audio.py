@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--file", type=str, help="Path to text file to speak")
     parser.add_argument("--output", type=str, default="report_audio.mp3", help="Output MP3 path")
     parser.add_argument("--lang", type=str, default="hi", help="Language: 'hi' (Hindi) or 'en' (English)")
-    parser.add_argument("--rate", type=str, default="+0%", help="Speaking rate offset, e.g. +5% or -5%")
+    parser.add_argument("--rate", type=str, default="+0%", help="Speaking rate offset, e.g. +5%% or -5%%")
 
     args = parser.parse_args()
 

@@ -12,7 +12,7 @@ https://gurukul-sports-academy.pages.dev
              │
              ▼  (HTTPS / JWT Bearer)
 [ Account 1: gurukul-sports-backend ]
-https://gurukul-sports-backend.onrender.com
+https://gurukul-sports-backend-ll86.onrender.com
              │
              ▼  (Private HTTPS / Master Key Auth)
 [ Account 2: gurukul-openwa-bridge ]
@@ -23,23 +23,18 @@ https://gurukul-openwa-bridge-a0m4.onrender.com
 
 ## 🏛️ Account & Service Matrix
 
-### 🟢 ACCOUNT 1 (Main Academy Backend API)
-- **Account Email**: `mindpuzzeler.business@gmail.com`
-- **Render Owner ID**: `tea-dar4l7h42hec73cvnjig`
-- **Render API Key**: `rnd_QeMl6gY1sdSjEzNJMX3qNGlkolVH`
+### 🟢 ACCOUNT 1 (Main Academy Backend API — Fresh Dedicated Account)
+- **Account Email**: `shardulyedage0927@gmail.com`
+- **Render Owner ID**: `tea-dbi6sgajnfac73d04vv0`
+- **Render API Key**: `rnd_WFRpERNFuBl9a9ZZWrNVMbHSJpjQ`
 - **Service Name**: `gurukul-sports-backend`
-- **Service ID**: `srv-daravid9fdbs73foear0`
+- **Service ID**: `srv-dbi6ujei0phs73d1k14g`
 - **Repository**: `https://github.com/yedageshantanu-bot/gurukul-sports-academy` (Branch: `main`, Root: `backend`)
 - **Runtime**: Node.js 20+ (TypeScript / Express)
 - **Internal Port**: `10000`
-- **Public URL**: `https://gurukul-sports-backend.onrender.com`
+- **Public URL**: `https://gurukul-sports-backend-ll86.onrender.com`
 - **Database**: Supabase PostgreSQL (`litnduotmypvhnorjnwa.supabase.co`)
-- **Primary Duties**:
-  - Handles all Admin and Teacher logins (RBAC, JWT)
-  - Students, Courses, Batches, Attendance, Fees, Payments, Ranks, Tournaments
-  - Direct Vector PDF Certificate Generation
-  - Talks to Account 2 for WhatsApp dispatch
-- **Monthly Free Hours**: **750 hours reserved 100% for Backend**
+- **Isolation Guarantee**: Exactly 1 service only in this account, 100% of 750 free hours reserved exclusively for Gurukul backend
 
 ---
 

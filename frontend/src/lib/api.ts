@@ -13,7 +13,7 @@ export function getApiBaseUrl(): string {
   }
   // If running in production browser on Cloudflare Pages or custom domain, route directly to Render backend
   if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-    return 'https://gurukul-sports-backend.onrender.com/api';
+    return 'https://gurukul-sports-backend-ll86.onrender.com/api';
   }
   // Default to relative /api for local dev proxy
   return '/api';

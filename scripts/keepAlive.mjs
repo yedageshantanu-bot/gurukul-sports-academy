@@ -6,7 +6,7 @@
 const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const TARGETS = [
-  { name: 'Account 1 Backend', url: 'https://gurukul-sports-backend.onrender.com/api/health' },
+  { name: 'Dedicated Gurukul Backend', url: 'https://gurukul-sports-backend-ll86.onrender.com/api/health' },
   { name: 'Account 2 WhatsApp Bridge', url: 'https://gurukul-openwa-bridge-a0m4.onrender.com/health' }
 ];
 
