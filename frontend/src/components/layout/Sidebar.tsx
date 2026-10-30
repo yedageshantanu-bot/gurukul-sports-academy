@@ -142,7 +142,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { name: 'Belt & Ranks', to: '/admin/ranks', icon: Award },
         { name: 'Tournaments', to: '/admin/tournaments', icon: Trophy },
-        { name: 'Publications', to: '/admin/publications', icon: BookMarked },
       ],
     },
     {

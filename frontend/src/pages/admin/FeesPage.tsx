@@ -19,6 +19,7 @@ import {
   Check,
   QrCode,
   Send,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FeePlan, StudentFee } from '../../types/fee';
@@ -782,57 +783,78 @@ export const FeesPage: React.FC = () => {
     const studentMap = new Map<string, any>();
 
     // 1. Initialize from full students roster so every student is accounted for
-    students.forEach((s) => {
-      const studentPayments = paymentsList.filter((p) => p.student_id === s.id);
-      const totalPaid = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-      const pkg = Number(s.monthlyFee || s.monthly_fee || 10000);
-      const pending = Math.max(0, pkg - totalPaid);
-
-      let status = 'PENDING';
-      if (totalPaid >= pkg && pkg > 0) status = 'PAID';
-      else if (totalPaid > 0) status = 'PARTIAL';
-
+    (students || []).forEach((s) => {
+      const defaultPkg = Number(s.monthly_fee ?? s.monthlyFee ?? 0);
       studentMap.set(s.id, {
         id: s.id,
         student_id: s.id,
         student: s,
-        amount_due: pkg,
-        amount_paid: totalPaid,
-        pending_amount: pending,
-        status: status,
+        amount_due: defaultPkg,
+        amount_paid: 0,
+        pending_amount: defaultPkg,
+        status: 'PENDING',
         due_date: null,
-        billing_period: 'Monthly Tuition',
-        fee_plan: { name: s.course || 'Athletics & Dojo' },
+        billing_period: 'Current Enrollment',
+        fee_plan: { name: s.course || 'Athletics & Martial Arts' },
+        feeRecords: [] as any[],
         scheduledInstallments: [],
       });
     });
 
-    // 2. Overlay with backend studentFees records if available
+    // 2. Aggregate all student_fees records per student
     (studentFees || []).forEach((fee) => {
       const studentId = fee.student_id;
       const existing = studentMap.get(studentId);
-      const studentPayments = paymentsList.filter((p) => p.student_id === studentId);
-      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-      const paid = Math.max(Number(fee.amount_paid || 0), totalPaidLogs, Number(existing?.amount_paid || 0));
-      const due = Number(fee.amount_due || 0) || Number(existing?.amount_due || 0) || 10000;
-      const pending = Math.max(0, due - paid);
+      if (!existing) {
+        studentMap.set(studentId, {
+          id: fee.id,
+          student_id: studentId,
+          student: fee.student,
+          amount_due: Number(fee.amount_due || 0),
+          amount_paid: Number(fee.amount_paid || 0),
+          pending_amount: Math.max(0, Number(fee.amount_due || 0) - Number(fee.amount_paid || 0)),
+          status: fee.status || 'PENDING',
+          due_date: fee.due_date,
+          billing_period: fee.billing_period,
+          fee_plan: fee.fee_plan || { name: fee.student?.course || 'Athletics & Martial Arts' },
+          feeRecords: [fee],
+          scheduledInstallments: [],
+        });
+      } else {
+        if (existing.feeRecords.length === 0) {
+          existing.amount_due = Number(fee.amount_due || 0);
+          existing.amount_paid = Number(fee.amount_paid || 0);
+          existing.billing_period = fee.billing_period;
+          existing.due_date = fee.due_date;
+          existing.status = fee.status || 'PENDING';
+          existing.id = fee.id;
+        } else {
+          existing.amount_due += Number(fee.amount_due || 0);
+          existing.amount_paid += Number(fee.amount_paid || 0);
+          if (fee.status === 'OVERDUE' || existing.status === 'OVERDUE') existing.status = 'OVERDUE';
+          if (fee.due_date && (!existing.due_date || new Date(fee.due_date) > new Date(existing.due_date))) {
+            existing.due_date = fee.due_date;
+            existing.billing_period = fee.billing_period;
+          }
+        }
+        existing.feeRecords.push(fee);
+      }
+    });
 
-      let status = fee.status || 'PENDING';
-      if (paid >= due && due > 0) status = 'PAID';
-      else if (paid > 0 && pending > 0) status = 'PARTIAL';
+    // 3. Reconcile with verified payments from paymentsList
+    studentMap.forEach((acc, sId) => {
+      const confirmedPays = (paymentsList || []).filter(
+        (p) => (p.student_id === sId || p.student?.id === sId) && p.status === 'SUCCESS'
+      );
+      const paidSum = confirmedPays.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      acc.amount_paid = Math.max(acc.amount_paid, paidSum);
+      acc.pending_amount = Math.max(0, acc.amount_due - acc.amount_paid);
 
-      studentMap.set(studentId, {
-        ...existing,
-        ...fee,
-        id: fee.id || existing?.id,
-        student_id: studentId,
-        student: fee.student || existing?.student,
-        amount_due: due,
-        amount_paid: paid,
-        pending_amount: pending,
-        status: status,
-        scheduledInstallments: existing?.scheduledInstallments || [],
-      });
+      if (acc.amount_paid >= acc.amount_due && acc.amount_due > 0) {
+        acc.status = 'PAID';
+      } else if (acc.amount_paid > 0 && acc.pending_amount > 0) {
+        acc.status = 'PARTIAL';
+      }
     });
 
     return Array.from(studentMap.values());
@@ -864,7 +886,7 @@ export const FeesPage: React.FC = () => {
     return allTuitionAccounts.filter((fee) => {
       const studentName = (fee.student?.name || '').toLowerCase();
       const billingPeriod = (fee.billing_period || '').toLowerCase();
-      const planName = (fee.fee_plan?.name || '').toLowerCase();
+      const planName = (fee.fee_plan?.name || fee.student?.course || '').toLowerCase();
 
       const matchesSearch =
         !q ||
@@ -872,14 +894,18 @@ export const FeesPage: React.FC = () => {
         billingPeriod.includes(q) ||
         planName.includes(q);
 
-      const matchesStatus = statusFilter === 'ALL' || fee.status === statusFilter;
+      const matchesStatus =
+        statusFilter === 'ALL' ||
+        fee.status === statusFilter ||
+        (statusFilter === 'PENDING' && (fee.status === 'PENDING' || fee.status === 'PARTIAL' || fee.status === 'OVERDUE'));
+
       return matchesSearch && matchesStatus;
     });
   }, [allTuitionAccounts, q, statusFilter]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* 3-Stream Segregated Fee Navigation */}
+      {/* 2-Stream Segregated Fee Navigation */}
       <div className="p-3 bg-gradient-to-r from-slate-900 to-[#0F172A] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fee Stream:</span>
@@ -907,26 +933,6 @@ export const FeesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                setActiveStream('PUBLICATIONS');
-                setSearchParams({ stream: 'publications' });
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeStream === 'PUBLICATIONS'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <BookMarked className={`w-3.5 h-3.5 ${activeStream === 'PUBLICATIONS' ? 'text-slate-950' : 'text-blue-400'}`} />
-              Published Document Fees
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
-                activeStream === 'PUBLICATIONS' ? 'bg-black/20 text-slate-950' : 'bg-blue-500/20 text-blue-300'
-              }`}>
-                Click to Open
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setActiveStream('TOURNAMENTS');
                 setSearchParams({ stream: 'tournaments' });
               }}
@@ -949,14 +955,12 @@ export const FeesPage: React.FC = () => {
 
         <div className="flex items-center gap-2 text-xs">
           <span className="text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-            ✓ Segregated Accounting Active: Only Academy Regular Tuition is displayed below
+            ✓ Segregated Accounting: Regular Academy Tuition (Tournament Entry Fees Segregated)
           </span>
         </div>
       </div>
 
-      {activeStream === 'PUBLICATIONS' ? (
-        <PublicationsPage embedded={true} />
-      ) : activeStream === 'TOURNAMENTS' ? (
+      {activeStream === 'TOURNAMENTS' ? (
         <TournamentsPage embedded={true} />
       ) : (
         <>
@@ -966,7 +970,7 @@ export const FeesPage: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="font-bold">Active View: Academy Regular Fees Only</span>
               <span className="text-slate-600 dark:text-slate-300">
-                (Monthly course fees &amp; annual package tuition. Tournament registration fees and publication document fees are isolated under their own tabs above).
+                (Monthly course fees &amp; annual package tuition. Tournament registration fees are isolated under the Tournament tab).
               </span>
             </div>
           </div>
@@ -1002,6 +1006,16 @@ export const FeesPage: React.FC = () => {
               >
                 <MessageSquare className={`w-4 h-4 text-emerald-600 ${triggeringMonthly ? 'animate-spin' : ''}`} />
                 <span>{triggeringMonthly ? 'Queuing Reminders...' : 'Send Fee Reminders'}</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => window.print()}
+                className="gap-2 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs sm:text-sm"
+                title="Download or Print full Academy Fee Ledger as PDF"
+              >
+                <Printer className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                <span>Print / PDF Ledger</span>
               </Button>
 
               {activeTab === 'student_fees' ? (

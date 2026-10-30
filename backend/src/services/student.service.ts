@@ -1151,7 +1151,8 @@ export class StudentService {
   }
 
   /**
-   * Permanently delete a student and cleanup relationships safely
+   * Permanently delete a student and cascade cleanup all child records:
+   * fees, payments, receipts, attendance, tournament registrations, ranks, and enrollments
    */
   static async deleteStudent(id: string) {
     if (!supabaseAdmin) {
@@ -1164,21 +1165,36 @@ export class StudentService {
     // 2. Delete attendance records
     await supabaseAdmin.from('attendance').delete().eq('student_id', id);
 
-    // 3. Delete payments & student fees
+    // 3. Delete receipts (references payment and student)
+    await supabaseAdmin.from('receipts').delete().eq('student_id', id);
+
+    // 4. Delete payments & student fee accounts (no orphan fees!)
     await supabaseAdmin.from('payments').delete().eq('student_id', id);
     await supabaseAdmin.from('student_fees').delete().eq('student_id', id);
 
-    // 4. Delete messages & queue
+    // 5. Delete tournament registrations
+    await supabaseAdmin.from('tournament_registrations').delete().eq('student_id', id);
+
+    // 6. Delete publication enrollments if any
+    await supabaseAdmin.from('publication_students').delete().eq('student_id', id);
+
+    // 7. Delete student ranks and promotion history
+    await supabaseAdmin.from('student_ranks').delete().eq('student_id', id);
+
+    // 8. Delete messages & queue
     await supabaseAdmin.from('whatsapp_messages').delete().eq('student_id', id);
     await supabaseAdmin.from('whatsapp_queue').delete().eq('student_id', id);
 
-    // 5. Delete student record
+    // 9. Delete student record
     const { error } = await supabaseAdmin.from('students').delete().eq('id', id);
     if (error) {
       throw new AppError(`Failed to delete student: ${error.message}`, 500);
     }
 
     memoryCache.invalidateTag('dashboard');
+    memoryCache.invalidateTag('students');
+    memoryCache.invalidateTag('fees');
+    memoryCache.invalidateTag('payments');
     return { id, success: true };
   }
 }

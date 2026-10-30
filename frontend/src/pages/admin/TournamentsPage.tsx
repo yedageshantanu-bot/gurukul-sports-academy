@@ -247,12 +247,23 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     setDeletingTournamentId(tournamentId);
     try {
       await apiClient(`/tournaments/${tournamentId}`, { method: 'DELETE' });
-      setTournaments((prev) => prev.filter((t) => t.id !== tournamentId));
+      setTournaments((prev) => {
+        const next = prev.filter((t) => t.id !== tournamentId);
+        setSummary({
+          totalTournaments: next.length,
+          upcomingCount: next.filter((t) => t.status === 'UPCOMING').length,
+          totalAthletesNominated: next.reduce((sum, t) => sum + (t.registrationCount || 0), 0),
+          totalRevenueCollected: next.reduce((sum, t) => sum + (t.totalCollected || 0), 0),
+          totalDuesPending: next.reduce((sum, t: any) => sum + (t.totalPending || 0), 0),
+        });
+        return next;
+      });
       if (selectedTournament?.id === tournamentId) {
         setSelectedTournament(null);
         setRegistrations([]);
       }
       toast.success('टूर्नामेंट यशस्वीरित्या डिलीट झाली!');
+      await fetchTournaments();
     } catch (err: any) {
       toast.error(err.message || 'टूर्नामेंट डिलीट करताना त्रुटी आली');
     } finally {

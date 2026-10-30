@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../middlewares/errorHandler.js';
 import { queueService } from './whatsapp/queue.service.js';
+import { memoryCache } from '../utils/cache.js';
 
 export interface CreateTournamentDTO {
   name?: string;
@@ -531,6 +532,7 @@ export class TournamentService {
 
     if (error) throw new AppError(`Failed to remove registration: ${error.message}`, 500);
 
+    memoryCache.invalidateTag('dashboard');
     return { success: true };
   }
 
@@ -589,6 +591,7 @@ export class TournamentService {
 
     if (error) throw new AppError(`Failed to delete tournament: ${error.message}`, 500);
 
+    memoryCache.invalidateTag('dashboard');
     return { success: true };
   }
 }

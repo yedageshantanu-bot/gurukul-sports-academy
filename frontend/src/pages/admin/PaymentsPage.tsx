@@ -282,95 +282,104 @@ export const PaymentsPage: React.FC = () => {
   const allStudentAccounts = useMemo(() => {
     const studentMap = new Map<string, any>();
 
-    // 1. Process all active students first
+    // 1. Process all students first
     (students || []).forEach((s) => {
-      // Reconcile all confirmed payments for this student
-      const studentPayments = (payments || []).filter(
-        (p) => (p.student_id === s.id || p.student?.id === s.id) && p.status === 'SUCCESS'
-      );
-      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-      const pkg = Number(s.monthlyFee || 0);
-      const pending = Math.max(0, pkg - totalPaidLogs);
-
-      let st = 'PENDING';
-      if (totalPaidLogs >= pkg && pkg > 0) st = 'PAID';
-      else if (totalPaidLogs > 0) st = 'PARTIAL';
-      else if (pkg === 0) st = 'PAID';
-
+      const defaultPkg = Number(s.monthly_fee ?? s.monthlyFee ?? 0);
       studentMap.set(s.id, {
         id: s.id,
         studentId: s.id,
         studentName: s.name,
-        parentName: s.parentName,
-        parentWhatsapp: s.parentWhatsapp,
-        studentMobile: s.studentMobile,
+        parentName: s.parent_name ?? s.parentName,
+        parentWhatsapp: s.parent_whatsapp ?? s.parentWhatsapp,
+        studentMobile: s.student_mobile ?? s.studentMobile,
         course: s.course || 'Martial Arts Training',
-        totalPackage: pkg,
-        amountPaid: totalPaidLogs,
-        pendingBalance: pending,
+        totalPackage: defaultPkg,
+        amountPaid: 0,
+        pendingBalance: defaultPkg,
         dueDate: null,
-        admissionDate: s.admissionDate || s.admission_date || s.createdAt || s.created_at,
+        admissionDate: s.admission_date ?? s.admissionDate ?? s.created_at,
         billingPeriod: 'Current Enrollment',
-        status: st,
+        status: 'PENDING',
         rawFee: null,
+        feeRecords: [] as any[],
       });
     });
 
-    // 2. Attach actual fee records
+    // 2. Aggregate actual fee records per student
     (studentFees || []).forEach((f) => {
       const studentId = f.student_id;
       const existing = studentMap.get(studentId);
-      const totalAmount = Number(f.amount_due || 0) || Number(existing?.totalPackage || 0);
-
-      // Reconcile payments matching this student or fee
-      const studentPayments = (payments || []).filter(
-        (p) => (p.student_id === studentId || p.student?.id === studentId || p.student_fee_id === f.id) && p.status === 'SUCCESS'
-      );
-      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
-      const paid = Math.max(Number(f.amount_paid || 0), totalPaidLogs);
-      const pending = Math.max(0, totalAmount - paid);
-
-      let calculatedStatus = f.status || 'PENDING';
-      if (paid >= totalAmount && totalAmount > 0) {
-        calculatedStatus = 'PAID';
-      } else if (paid > 0 && pending > 0) {
-        calculatedStatus = 'PARTIAL';
+      if (!existing) {
+        studentMap.set(studentId, {
+          id: f.id,
+          feeId: f.id,
+          studentId: studentId,
+          studentName: f.student?.name || 'Student',
+          parentName: f.student?.parent_name,
+          parentWhatsapp: f.student?.parent_whatsapp,
+          studentMobile: f.student?.student_mobile,
+          course: f.student?.course || 'Martial Arts Training',
+          totalPackage: Number(f.amount_due || 0),
+          amountPaid: Number(f.amount_paid || 0),
+          pendingBalance: Math.max(0, Number(f.amount_due || 0) - Number(f.amount_paid || 0)),
+          dueDate: f.due_date,
+          admissionDate: f.student?.admission_date,
+          billingPeriod: f.billing_period,
+          planName: f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan'),
+          status: f.status || 'PENDING',
+          rawFee: f,
+          feeRecords: [f],
+        });
+      } else {
+        if (existing.feeRecords.length === 0) {
+          existing.totalPackage = Number(f.amount_due || 0);
+          existing.amountPaid = Number(f.amount_paid || 0);
+          existing.billingPeriod = f.billing_period;
+          existing.dueDate = f.due_date;
+          existing.status = f.status || 'PENDING';
+          existing.feeId = f.id;
+          existing.rawFee = f;
+          existing.planName = f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan');
+        } else {
+          existing.totalPackage += Number(f.amount_due || 0);
+          existing.amountPaid += Number(f.amount_paid || 0);
+          if (f.status === 'OVERDUE' || existing.status === 'OVERDUE') existing.status = 'OVERDUE';
+          if (f.due_date && (!existing.dueDate || new Date(f.due_date) > new Date(existing.dueDate))) {
+            existing.dueDate = f.due_date;
+            existing.billingPeriod = f.billing_period;
+          }
+        }
+        existing.feeRecords.push(f);
       }
+    });
 
-      const accountData = {
-        id: f.id,
-        feeId: f.id,
-        studentId: studentId,
-        studentName: f.student?.name || existing?.studentName || 'Student',
-        parentName: existing?.parentName,
-        parentWhatsapp: f.student?.parent_whatsapp || existing?.parentWhatsapp,
-        studentMobile: f.student?.student_mobile || existing?.studentMobile,
-        course: f.student?.course || existing?.course || 'Martial Arts Training',
-        totalPackage: totalAmount,
-        amountPaid: paid,
-        pendingBalance: pending,
-        dueDate: f.due_date,
-        admissionDate: existing?.admissionDate,
-        billingPeriod: f.billing_period,
-        planName: f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan'),
-        status: calculatedStatus,
-        rawFee: f,
-      };
+    // 3. Reconcile with verified SUCCESS payments from payments table
+    studentMap.forEach((acc, sId) => {
+      const studentPayments = (payments || []).filter(
+        (p) => (p.student_id === sId || p.student?.id === sId) && p.status === 'SUCCESS'
+      );
+      const totalPaidLogs = studentPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      acc.amountPaid = Math.max(acc.amountPaid, totalPaidLogs);
+      acc.pendingBalance = Math.max(0, acc.totalPackage - acc.amountPaid);
 
-      studentMap.set(studentId, accountData);
+      if (acc.amountPaid >= acc.totalPackage && acc.totalPackage > 0) {
+        acc.status = 'PAID';
+      } else if (acc.amountPaid > 0 && acc.pendingBalance > 0) {
+        acc.status = 'PARTIAL';
+      }
     });
 
     return Array.from(studentMap.values());
   }, [students, studentFees, payments]);
 
-  // Overall Financial Metrics
+  // Overall Financial Metrics (Identical to Fees Ledger)
   const totalBilledReceivables = useMemo(() => {
     return allStudentAccounts.reduce((acc, a) => acc + Number(a.totalPackage || 0), 0);
   }, [allStudentAccounts]);
 
-  const totalSettledRevenue = (payments || [])
-    .filter((p) => p.status === 'SUCCESS')
-    .reduce((acc, p) => acc + Number(p.amount || 0), 0);
+  const totalSettledRevenue = useMemo(() => {
+    return allStudentAccounts.reduce((acc, a) => acc + Number(a.amountPaid || 0), 0);
+  }, [allStudentAccounts]);
 
   const totalPendingDues = useMemo(() => {
     return allStudentAccounts.reduce((acc, a) => acc + Number(a.pendingBalance || 0), 0);

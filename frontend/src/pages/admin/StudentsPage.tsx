@@ -34,6 +34,8 @@ import {
   QrCode,
   Calendar,
   Smartphone,
+  Printer,
+  FileText,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -360,6 +362,26 @@ export const StudentsPage: React.FC = () => {
       toast.error(err.message || 'Failed to send PDF statement.');
     } finally {
       setSendingPdfStudentId(null);
+    }
+  };
+
+  const [sendingAllPdfs, setSendingAllPdfs] = useState(false);
+
+  const handleSendAllMonthlyPdfs = async () => {
+    if (!window.confirm('सर्व विद्यार्थ्यांच्या पालकांना मासिक प्रगती व फी रिपोर्ट PDF व्हॉट्सॲपवर पाठवायचा आहे का?')) {
+      return;
+    }
+    setSendingAllPdfs(true);
+    try {
+      const res = await apiClient<any>('/whatsapp/reports/send-all', {
+        method: 'POST',
+      });
+      const count = res?.data?.successful ?? res?.data?.processed ?? 'सर्व';
+      toast.success(`✓ ${count} विद्यार्थ्यांच्या पालकांना मासिक PDF रिपोर्ट यशस्वीरित्या पाठवला गेला!`);
+    } catch (err: any) {
+      toast.error(err.message || 'मासिक रिपोर्ट पाठवण्यात त्रुटी आली. कृपया व्हॉट्सॲप कनेक्शन तपासा.');
+    } finally {
+      setSendingAllPdfs(false);
     }
   };
 
@@ -910,7 +932,28 @@ export const StudentsPage: React.FC = () => {
             Manage active enrollments, batch rosters, parent WhatsApp contacts, and fee profiles.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSendAllMonthlyPdfs}
+            disabled={sendingAllPdfs}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Dispatch Official Monthly Progress & Fee PDF statements to All Parent WhatsApp numbers"
+          >
+            <Send className={`w-3.5 h-3.5 ${sendingAllPdfs ? 'animate-spin' : ''}`} />
+            <span>{sendingAllPdfs ? 'Dispatching All PDFs...' : 'Send All PDFs on WhatsApp'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
+            title="Download or Print All Students Roster PDF"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print / PDF Roster</span>
+          </button>
+
           {ENABLE_STUDENT_APP_INVITES && (
             <button
               onClick={handleRunChaserBot}
