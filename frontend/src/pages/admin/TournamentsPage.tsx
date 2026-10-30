@@ -159,6 +159,28 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   // WhatsApp notification loading state
   const [notifyingRegId, setNotifyingRegId] = useState<string | null>(null);
 
+  const [deletingTournamentId, setDeletingTournamentId] = useState<string | null>(null);
+
+  const handleDeleteTournament = async (tournamentId: string, tournamentTitle?: string) => {
+    if (!window.confirm(`खरोखर "${tournamentTitle || 'ही टूर्नामेंट'}" डिलीट करायची आहे का? त्यातील सर्व खेळाडूंची यादीही डिलीट होईल.`)) {
+      return;
+    }
+    setDeletingTournamentId(tournamentId);
+    try {
+      await apiClient(`/tournaments/${tournamentId}`, { method: 'DELETE' });
+      setTournaments((prev) => prev.filter((t) => t.id !== tournamentId));
+      if (selectedTournament?.id === tournamentId) {
+        setSelectedTournament(null);
+        setRegistrations([]);
+      }
+      toast.success('टूर्नामेंट यशस्वीरित्या डिलीट झाली!');
+    } catch (err: any) {
+      toast.error(err.message || 'टूर्नामेंट डिलीट करताना त्रुटी आली');
+    } finally {
+      setDeletingTournamentId(null);
+    }
+  };
+
   const fetchTournaments = async () => {
     try {
       setLoading(true);
@@ -830,7 +852,20 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                           </span>
                         </div>
                       </div>
-                      <ChevronRight className={`w-5 h-5 transition-transform ${isSelected ? 'text-amber-500 dark:text-amber-400 translate-x-1' : 'text-slate-400 dark:text-slate-600'}`} />
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTournament(tour.id, tour.title || tour.name);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors"
+                          title="Delete tournament"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <ChevronRight className={`w-5 h-5 transition-transform ${isSelected ? 'text-amber-500 dark:text-amber-400 translate-x-1' : 'text-slate-400 dark:text-slate-600'}`} />
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-white/5 text-xs">
@@ -901,6 +936,17 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                   >
                     <Plus className="w-3.5 h-3.5 mr-1.5" />
                     Nominate Athletes
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDeleteTournament(selectedTournament.id, selectedTournament.title || selectedTournament.name)}
+                    disabled={deletingTournamentId === selectedTournament.id}
+                    className="border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs py-2 px-3 cursor-pointer"
+                    title="Delete tournament / टूर्नामेंट डिलीट करा"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-500" />
+                    <span>{deletingTournamentId === selectedTournament.id ? 'Deleting...' : 'Delete'}</span>
                   </Button>
                 </div>
               </div>

@@ -91,4 +91,13 @@ export class TournamentController {
       next(err);
     }
   }
+
+  static async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      await TournamentService.deleteTournament(req.params.id);
+      res.status(200).json({ success: true, message: 'Tournament deleted successfully' });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

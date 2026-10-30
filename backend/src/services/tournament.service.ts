@@ -533,4 +533,25 @@ export class TournamentService {
 
     return { success: true };
   }
+
+  /**
+   * Delete a tournament and its registrations
+   */
+  static async deleteTournament(tournamentId: string) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    await supabaseAdmin
+      .from('tournament_registrations')
+      .delete()
+      .eq('tournament_id', tournamentId);
+
+    const { error } = await supabaseAdmin
+      .from('tournaments')
+      .delete()
+      .eq('id', tournamentId);
+
+    if (error) throw new AppError(`Failed to delete tournament: ${error.message}`, 500);
+
+    return { success: true };
+  }
 }

@@ -20,5 +20,6 @@ router.patch('/registrations/:id/payment', TournamentController.settle);
 router.post('/registrations/:id/notify', TournamentController.notify);
 router.post('/:id/broadcast', TournamentController.broadcast);
 router.delete('/registrations/:id', TournamentController.remove);
+router.delete('/:id', TournamentController.delete);
 
 export default router;
