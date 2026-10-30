@@ -537,6 +537,43 @@ export class TournamentService {
   /**
    * Delete a tournament and its registrations
    */
+  /**
+   * Update tournament details
+   */
+  static async updateTournament(tournamentId: string, updates: any) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const payload: any = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.title || updates.name) payload.name = updates.title || updates.name;
+    if (updates.discipline || updates.discipline_code) payload.discipline = updates.discipline || updates.discipline_code;
+    if (updates.venue !== undefined) payload.venue = updates.venue;
+    if (updates.organizer !== undefined) payload.organizer = updates.organizer;
+    if (updates.start_date || updates.tournament_date) payload.tournament_date = updates.start_date || updates.tournament_date;
+    if (updates.registration_deadline !== undefined) payload.registration_deadline = updates.registration_deadline;
+    if (updates.entry_fee !== undefined) payload.entry_fee = Number(updates.entry_fee);
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.description !== undefined) payload.description = updates.description;
+
+    const { data, error } = await supabaseAdmin
+      .from('tournaments')
+      .update(payload)
+      .eq('id', tournamentId)
+      .select()
+      .single();
+
+    if (error) throw new AppError(`Failed to update tournament: ${error.message}`, 500);
+
+    return {
+      ...data,
+      title: data.name,
+      discipline_code: data.discipline,
+      start_date: data.tournament_date,
+      end_date: data.tournament_date,
+    };
+  }
+
   static async deleteTournament(tournamentId: string) {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
 

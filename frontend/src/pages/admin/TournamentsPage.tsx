@@ -161,6 +161,85 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
   const [deletingTournamentId, setDeletingTournamentId] = useState<string | null>(null);
 
+  // Edit Tournament Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    discipline_code: 'KALARIPPAYATTU',
+    venue: '',
+    start_date: '',
+    end_date: '',
+    registration_deadline: '',
+    entry_fee: '1500',
+    status: 'UPCOMING' as 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED',
+    description: '',
+  });
+
+  const handleOpenEditTournament = (tour: Tournament) => {
+    setEditingTournament(tour);
+    setEditFormData({
+      title: tour.title || tour.name || '',
+      discipline_code: tour.discipline_code || tour.discipline || 'KALARIPPAYATTU',
+      venue: tour.venue || '',
+      start_date: tour.start_date ? tour.start_date.split('T')[0] : '',
+      end_date: tour.end_date ? tour.end_date.split('T')[0] : '',
+      registration_deadline: tour.registration_deadline ? tour.registration_deadline.split('T')[0] : '',
+      entry_fee: String(tour.entry_fee || 0),
+      status: tour.status || 'UPCOMING',
+      description: tour.description || '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditTournament = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTournament) return;
+    if (!editFormData.title.trim()) {
+      toast.error('टूर्नामेंटचे नाव आवश्यक आहे.');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res: any = await apiClient(`/tournaments/${editingTournament.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editFormData.title.trim(),
+          name: editFormData.title.trim(),
+          discipline: editFormData.discipline_code,
+          venue: editFormData.venue.trim(),
+          start_date: editFormData.start_date || null,
+          end_date: editFormData.end_date || null,
+          registration_deadline: editFormData.registration_deadline || null,
+          entry_fee: Number(editFormData.entry_fee || 0),
+          status: editFormData.status,
+          description: editFormData.description.trim() || null,
+        }),
+      });
+
+      const updated = res?.data || {
+        ...editingTournament,
+        ...editFormData,
+        title: editFormData.title,
+        name: editFormData.title,
+        entry_fee: Number(editFormData.entry_fee),
+      };
+
+      setTournaments((prev) => prev.map((t) => (t.id === editingTournament.id ? { ...t, ...updated } : t)));
+      if (selectedTournament?.id === editingTournament.id) {
+        setSelectedTournament((prev) => (prev ? { ...prev, ...updated } : prev));
+      }
+      setIsEditModalOpen(false);
+      setEditingTournament(null);
+      toast.success('टूर्नामेंट तपशील यशस्वीरित्या अपडेट झाले!');
+    } catch (err: any) {
+      toast.error(err.message || 'टूर्नामेंट अपडेट करताना अडचण आली.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleDeleteTournament = async (tournamentId: string, tournamentTitle?: string) => {
     if (!window.confirm(`खरोखर "${tournamentTitle || 'ही टूर्नामेंट'}" डिलीट करायची आहे का? त्यातील सर्व खेळाडूंची यादीही डिलीट होईल.`)) {
       return;
@@ -868,7 +947,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-white/5 text-xs">
+                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 dark:border-white/5 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500 dark:text-slate-400 font-medium">Entry Fee:</span>
                         <span className="text-amber-600 dark:text-amber-400 font-bold">₹{Number(tour.entry_fee || 0).toLocaleString('en-IN')}</span>
@@ -878,6 +957,35 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                         <span className="font-bold">{tour.registrationCount || 0}</span>
                         <span className="text-slate-500">athletes</span>
                       </div>
+                    </div>
+
+                    {/* Prominent Edit & Delete Buttons on Card */}
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditTournament(tour);
+                        }}
+                        className="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center justify-center gap-1 transition-all"
+                        title="Edit tournament / माहिती बदला"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit (बदला)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTournament(tour.id, tour.title || tour.name);
+                        }}
+                        disabled={deletingTournamentId === tour.id}
+                        className="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 flex items-center justify-center gap-1 transition-all"
+                        title="Delete tournament / हटवा"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{deletingTournamentId === tour.id ? 'Deleting...' : 'Delete (हटवा)'}</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -940,13 +1048,23 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
                   <Button
                     variant="outline"
+                    onClick={() => handleOpenEditTournament(selectedTournament)}
+                    className="border-amber-400 dark:border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-bold py-2 px-3 cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Edit tournament / टूर्नामेंट संपादित करा"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Edit Tournament</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
                     onClick={() => handleDeleteTournament(selectedTournament.id, selectedTournament.title || selectedTournament.name)}
                     disabled={deletingTournamentId === selectedTournament.id}
-                    className="border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs py-2 px-3 cursor-pointer"
+                    className="border-rose-400 dark:border-rose-600/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-xs font-bold py-2 px-3 cursor-pointer flex items-center gap-1.5 shadow-xs"
                     title="Delete tournament / टूर्नामेंट डिलीट करा"
                   >
-                    <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-500" />
-                    <span>{deletingTournamentId === selectedTournament.id ? 'Deleting...' : 'Delete'}</span>
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    <span>{deletingTournamentId === selectedTournament.id ? 'Deleting...' : 'Delete Tournament'}</span>
                   </Button>
                 </div>
               </div>
@@ -1146,6 +1264,142 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           )}
         </div>
       </div>
+
+            {/* MODAL 0: Edit Tournament */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Tournament Details (टूर्नामेंट माहिती बदला)">
+        <form onSubmit={handleSaveEditTournament} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Tournament Title / Championship Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={editFormData.title}
+              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-semibold"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Discipline / खेळ *
+              </label>
+              <select
+                value={editFormData.discipline_code}
+                onChange={(e) => setEditFormData({ ...editFormData, discipline_code: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
+              >
+                <option value="KALARIPPAYATTU">Kalarippayattu (कलारीपयट्टू)</option>
+                <option value="KARATE_WUSHU">Karate & Wushu (कराटे / वुशू)</option>
+                <option value="BOTH">Multi-Discipline Championship</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Status / सद्यस्थिती *
+              </label>
+              <select
+                value={editFormData.status}
+                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as any })}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
+              >
+                <option value="UPCOMING">Upcoming (आगामी)</option>
+                <option value="ONGOING">Ongoing (चालू)</option>
+                <option value="COMPLETED">Completed (पूर्ण)</option>
+                <option value="CANCELLED">Cancelled (रद्द)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Venue / स्पर्धा ठिकाण *
+            </label>
+            <input
+              type="text"
+              required
+              value={editFormData.venue}
+              onChange={(e) => setEditFormData({ ...editFormData, venue: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Start Date (सुरुवात)
+              </label>
+              <input
+                type="date"
+                value={editFormData.start_date}
+                onChange={(e) => setEditFormData({ ...editFormData, start_date: e.target.value })}
+                className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                End Date (समाप्ती)
+              </label>
+              <input
+                type="date"
+                value={editFormData.end_date}
+                onChange={(e) => setEditFormData({ ...editFormData, end_date: e.target.value })}
+                className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Deadline (नोंदणी मुदत)
+              </label>
+              <input
+                type="date"
+                value={editFormData.registration_deadline}
+                onChange={(e) => setEditFormData({ ...editFormData, registration_deadline: e.target.value })}
+                className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Entry Fee (नोंदणी शुल्क ₹)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={editFormData.entry_fee}
+              onChange={(e) => setEditFormData({ ...editFormData, entry_fee: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Event Overview & Notes (पालकांसाठी सूचना / तपशील)
+            </label>
+            <textarea
+              rows={3}
+              value={editFormData.description}
+              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 leading-relaxed font-sans"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              रद्द करा (Cancel)
+            </Button>
+            <Button type="submit" disabled={savingEdit} className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs">
+              {savingEdit ? 'अपडेट होत आहे...' : 'बदल सेव्ह करा (Save Changes)'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* MODAL 1: Create Tournament */}
       <Modal

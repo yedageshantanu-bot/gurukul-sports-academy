@@ -92,6 +92,15 @@ export class TournamentController {
     }
   }
 
+  static async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const updated = await TournamentService.updateTournament(req.params.id, req.body);
+      res.status(200).json({ success: true, message: 'Tournament updated successfully', data: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async delete(req: Request, res: Response, next: NextFunction) {
     try {
       await TournamentService.deleteTournament(req.params.id);
