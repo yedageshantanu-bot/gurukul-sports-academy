@@ -66,6 +66,38 @@ export class TeamMessageController {
     }
   }
 
+  async updateTeamMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { message, subject, priority, status, recipient_role, sender_name } = req.body;
+
+      const updateData: any = {};
+      if (message !== undefined) updateData.message = message.trim();
+      if (subject !== undefined) updateData.subject = subject ? subject.trim() : null;
+      if (priority !== undefined) updateData.priority = priority;
+      if (status !== undefined) updateData.status = status;
+      if (recipient_role !== undefined) updateData.recipient_role = recipient_role;
+      if (sender_name !== undefined) updateData.sender_name = sender_name ? sender_name.trim() : null;
+
+      const { data, error } = await supabaseAdmin
+        .from('team_messages')
+        .update(updateData)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      res.status(200).json({
+        success: true,
+        message: 'Team message updated successfully',
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async deleteTeamMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

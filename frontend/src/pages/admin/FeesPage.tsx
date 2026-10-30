@@ -91,6 +91,7 @@ export const FeesPage: React.FC = () => {
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [feePlans, setFeePlans] = useState<FeePlan[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [paymentsList, setPaymentsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,10 +239,11 @@ export const FeesPage: React.FC = () => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [feesRes, plansRes, studentsRes] = await Promise.all([
+      const [feesRes, plansRes, studentsRes, paymentsRes] = await Promise.all([
         fetch(`${API_BASE}/fees/students`, { headers }),
         fetch(`${API_BASE}/fees/plans`, { headers }),
         fetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
+        fetch(`${API_BASE}/payments`, { headers }).catch(() => null),
       ]);
 
       const feesData = await feesRes.json();
@@ -251,6 +253,14 @@ export const FeesPage: React.FC = () => {
       if (feesData.success && Array.isArray(feesData.data)) setStudentFees(feesData.data);
       if (plansData.success && Array.isArray(plansData.data)) setFeePlans(plansData.data);
       if (studentsData.success && Array.isArray(studentsData.data)) setStudents(studentsData.data);
+      if (paymentsRes && paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json().catch(() => null);
+        if (paymentsData?.success && Array.isArray(paymentsData.data)) {
+          setPaymentsList(paymentsData.data);
+        } else if (Array.isArray(paymentsData)) {
+          setPaymentsList(paymentsData);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load fee information');
     } finally {
@@ -767,37 +777,66 @@ export const FeesPage: React.FC = () => {
     }
   };
 
-  // Pure 1-to-1 Academy Tuition student accounts (excludes tournament/publication fees and historical duplicates)
+  // 1-to-1 Reconciled Tuition accounts perfectly synchronized with Payments Ledger
   const allTuitionAccounts = useMemo(() => {
     const studentMap = new Map<string, any>();
 
-    // 1. Only consider regular academy tuition fees (filter out tournament and publication fees)
-    const tuitionFees = (studentFees || []).filter((fee) => {
-      const bp = (fee.billing_period || '').toUpperCase();
-      const planName = (fee.fee_plan?.name || '').toUpperCase();
-      const isTournament = bp.includes('TOURNAMENT') || bp.includes('TOURN_') || planName.includes('TOURNAMENT');
-      const isPublication = bp.includes('PUBLICATION') || bp.includes('PUB_') || planName.includes('PUBLICATION') || planName.includes('DOCUMENT');
-      return !isTournament && !isPublication;
+    // 1. Initialize from full students roster so every student is accounted for
+    students.forEach((s) => {
+      const studentPayments = paymentsList.filter((p) => p.student_id === s.id);
+      const totalPaid = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+      const pkg = Number(s.monthlyFee || s.monthly_fee || 10000);
+      const pending = Math.max(0, pkg - totalPaid);
+
+      let status = 'PENDING';
+      if (totalPaid >= pkg && pkg > 0) status = 'PAID';
+      else if (totalPaid > 0) status = 'PARTIAL';
+
+      studentMap.set(s.id, {
+        id: s.id,
+        student_id: s.id,
+        student: s,
+        amount_due: pkg,
+        amount_paid: totalPaid,
+        pending_amount: pending,
+        status: status,
+        due_date: null,
+        billing_period: 'Monthly Tuition',
+        fee_plan: { name: s.course || 'Athletics & Dojo' },
+        scheduledInstallments: [],
+      });
     });
 
-    // 2. Map 1-to-1 per student, prioritizing master yearly or higher package
-    tuitionFees.forEach((fee) => {
+    // 2. Overlay with backend studentFees records if available
+    (studentFees || []).forEach((fee) => {
       const studentId = fee.student_id;
-      if (!studentMap.has(studentId)) {
-        studentMap.set(studentId, { ...fee, scheduledInstallments: [] });
-      } else {
-        const existing = studentMap.get(studentId);
-        if ((fee.billing_period || '').includes('_YEARLY') || Number(fee.amount_due || 0) > Number(existing.amount_due || 0)) {
-          studentMap.set(studentId, {
-            ...fee,
-            scheduledInstallments: existing.scheduledInstallments || [],
-          });
-        }
-      }
+      const existing = studentMap.get(studentId);
+      const studentPayments = paymentsList.filter((p) => p.student_id === studentId);
+      const totalPaidLogs = studentPayments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+      const paid = Math.max(Number(fee.amount_paid || 0), totalPaidLogs, Number(existing?.amount_paid || 0));
+      const due = Number(fee.amount_due || 0) || Number(existing?.amount_due || 0) || 10000;
+      const pending = Math.max(0, due - paid);
+
+      let status = fee.status || 'PENDING';
+      if (paid >= due && due > 0) status = 'PAID';
+      else if (paid > 0 && pending > 0) status = 'PARTIAL';
+
+      studentMap.set(studentId, {
+        ...existing,
+        ...fee,
+        id: fee.id || existing?.id,
+        student_id: studentId,
+        student: fee.student || existing?.student,
+        amount_due: due,
+        amount_paid: paid,
+        pending_amount: pending,
+        status: status,
+        scheduledInstallments: existing?.scheduledInstallments || [],
+      });
     });
 
     return Array.from(studentMap.values());
-  }, [studentFees]);
+  }, [students, studentFees, paymentsList]);
 
   // Genuine financial totals across enrolled students (aligned with Payments ledger)
   const totalBilled = useMemo(() => {

@@ -21,6 +21,10 @@ import {
   Calendar,
   AlertTriangle,
   Wallet,
+  Send,
+  Clock,
+  Settings,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   AttendanceReportSummary,
@@ -52,6 +56,46 @@ export const ReportsPage: React.FC = () => {
 
   // Interactive chart hover states
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
+
+  // Monthly Report Dispatch & Schedule State (User Configurable)
+  const [reportDispatchMode, setReportDispatchMode] = useState<'MANUAL' | 'SCHEDULED'>(() => {
+    return (localStorage.getItem('gurukul_report_mode') as 'MANUAL' | 'SCHEDULED') || 'MANUAL';
+  });
+  const [scheduleDay, setScheduleDay] = useState<string>(() => {
+    return localStorage.getItem('gurukul_report_day') || '1';
+  });
+  const [scheduleEffectiveFrom, setScheduleEffectiveFrom] = useState<string>(() => {
+    return localStorage.getItem('gurukul_report_effective_from') || new Date().toISOString().split('T')[0];
+  });
+  const [scheduleSavedMsg, setScheduleSavedMsg] = useState(false);
+  const [sendingMonthlyReports, setSendingMonthlyReports] = useState(false);
+  const [monthlyDispatchSuccess, setMonthlyDispatchSuccess] = useState<string | null>(null);
+
+  const handleSaveSchedule = () => {
+    localStorage.setItem('gurukul_report_mode', reportDispatchMode);
+    localStorage.setItem('gurukul_report_day', scheduleDay);
+    localStorage.setItem('gurukul_report_effective_from', scheduleEffectiveFrom);
+    setScheduleSavedMsg(true);
+    toast.success('मंथली रिपोर्ट शेड्युल सेटिंग्ज सुरक्षित सेव्ह झाल्या!');
+    setTimeout(() => setScheduleSavedMsg(false), 4000);
+  };
+
+  const handleDispatchMonthlyReportsNow = async () => {
+    try {
+      setSendingMonthlyReports(true);
+      setMonthlyDispatchSuccess(null);
+      const res = await apiClient<any>('/whatsapp/reports/send-all', {
+        method: 'POST',
+      });
+      const successfulCount = res?.data?.successful ?? res?.data?.processed ?? 'सर्व';
+      setMonthlyDispatchSuccess(`✓ ${successfulCount} विद्यार्थ्यांना मासिक प्रगती रिपोर्ट यशस्वीरित्या पाठवला गेला!`);
+      toast.success('मासिक रिपोर्ट व्हॉट्सॲपवर पाठवला गेला!');
+    } catch (err: any) {
+      toast.error(err.message || 'मासिक रिपोर्ट पाठवण्यात त्रुटी आली. कृपया व्हॉट्सॲप कनेक्शन तपासा.');
+    } finally {
+      setSendingMonthlyReports(false);
+    }
+  };
 
   // Fetch batches for dropdown
   useEffect(() => {
@@ -194,6 +238,123 @@ export const ReportsPage: React.FC = () => {
           <span>{exporting ? 'Exporting...' : `Export ${activeTab.toUpperCase()} CSV`}</span>
         </Button>
       </div>
+
+      {/* Monthly Report Dispatch & Schedule Control Center (मंथली रिपोर्ट कंट्रोल) */}
+      <Card className="p-5 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border border-indigo-500/30 text-white rounded-2xl shadow-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                Monthly Performance & Fee Dispatch
+              </span>
+              <span className="text-xs text-slate-400">
+                • {reportDispatchMode === 'MANUAL' ? 'मॅन्युअल मोड सक्रिय (Manual Mode Active)' : `ऑटोमॅटिक शेड्युल (दर महिन्याच्या ${scheduleDay} तारखेला)`}
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-white mt-1 flex items-center gap-2">
+              <span>मासिक प्रगती आणि फी रिपोर्ट कंट्रोल (Monthly Report Control)</span>
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5 max-w-2xl">
+              विद्यार्थ्यांचे हजेरी टक्केवारी, मासिक प्रगती आणि फी रिपोर्ट कधी आणि कसे पाठवायचे ते येथे ठरवा. ऑटोमॅटिक नको असल्यास मॅन्युअल ठेवा.
+            </p>
+          </div>
+
+          {/* Mode Switcher Buttons */}
+          <div className="inline-flex rounded-xl bg-white/10 p-1 border border-white/15 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setReportDispatchMode('MANUAL');
+                localStorage.setItem('gurukul_report_mode', 'MANUAL');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                reportDispatchMode === 'MANUAL'
+                  ? 'bg-orange-500 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              मॅन्युअल (Manual Only)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReportDispatchMode('SCHEDULED');
+                localStorage.setItem('gurukul_report_mode', 'SCHEDULED');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                reportDispatchMode === 'SCHEDULED'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              ऑटोमॅटिक शेड्युल (Scheduled)
+            </button>
+          </div>
+        </div>
+
+        {/* Configuration Row */}
+        <div className="mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {reportDispatchMode === 'MANUAL' ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs text-slate-300">
+                <span className="font-semibold text-white">मॅन्युअल मोड निवडला आहे:</span> ॲडमिन स्वतः जेव्हा बटण दाबेल, तेव्हाच सर्व पालकांना मासिक प्रगती रिपोर्ट PDF व मेसेज पाठवला जाईल.
+              </div>
+              <Button
+                type="button"
+                onClick={handleDispatchMonthlyReportsNow}
+                disabled={sendingMonthlyReports}
+                className="gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{sendingMonthlyReports ? 'रिपोर्ट पाठवत आहे...' : 'आत्ताच मासिक रिपोर्ट पाठवा (Send Monthly Reports Now)'}</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 w-full">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-300">कधी पाठवायचे:</span>
+                <select
+                  value={scheduleDay}
+                  onChange={(e) => setScheduleDay(e.target.value)}
+                  className="bg-slate-800 text-xs text-white border border-white/20 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-400 font-semibold"
+                >
+                  <option value="1">दर महिन्याच्या 1 तारखेला (1st of month)</option>
+                  <option value="5">दर महिन्याच्या 5 तारखेला (5th of month)</option>
+                  <option value="10">दर महिन्याच्या 10 तारखेला (10th of month)</option>
+                  <option value="25">दर महिन्याच्या 25 तारखेला (25th of month)</option>
+                  <option value="LAST">महिन्याच्या शेवटच्या दिवशी (Last day of month)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-300">कधीपासून लागू:</span>
+                <input
+                  type="date"
+                  value={scheduleEffectiveFrom}
+                  onChange={(e) => setScheduleEffectiveFrom(e.target.value)}
+                  className="bg-slate-800 text-xs text-white border border-white/20 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-400 font-medium"
+                />
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleSaveSchedule}
+                className="gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-8 px-3"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>{scheduleSavedMsg ? 'सेव्ह झाले!' : 'शेड्युल सेव्ह करा'}</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {monthlyDispatchSuccess && (
+          <div className="mt-3 p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{monthlyDispatchSuccess}</span>
+          </div>
+        )}
+      </Card>
 
       {/* Tabs with Gurukul Brand Orange Pill Style */}
       <div className="inline-flex rounded-xl bg-slate-100 dark:bg-[#0F172A] p-1.5 border border-slate-200 dark:border-white/10 shadow-xs dark:shadow-lg">

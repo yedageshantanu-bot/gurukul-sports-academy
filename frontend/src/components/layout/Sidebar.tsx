@@ -67,7 +67,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       label: 'Core Academics',
       items: [
-        { name: 'Teachers', to: '/admin/teachers', icon: GraduationCap },
         { name: 'Students', to: '/admin/students', icon: Users },
         { name: 'Courses', to: '/admin/courses', icon: BookOpen },
         { name: 'Batches', to: '/admin/batches', icon: Layers },
@@ -128,7 +127,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { name: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Students', to: '/admin/students', icon: Users, badge: navCounts.students },
-        { name: 'Teachers', to: '/admin/teachers', icon: GraduationCap, badge: navCounts.teachers },
       ],
     },
     {

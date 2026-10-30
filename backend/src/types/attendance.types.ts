@@ -14,6 +14,7 @@ export const bulkAttendanceSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD'),
   records: z.array(attendanceRecordItemSchema).min(1, 'At least one student attendance record is required'),
   teacherId: z.string().uuid('Valid teacher ID is required').optional(),
+  sendWhatsApp: z.boolean().optional(),
 });
 
 export type BulkAttendanceDTO = z.infer<typeof bulkAttendanceSchema>;

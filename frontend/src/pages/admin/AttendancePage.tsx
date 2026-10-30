@@ -30,6 +30,7 @@ export const AttendancePage: React.FC = () => {
   const [sendingWaId, setSendingWaId] = useState<string | null>(null);
   const [sendingFeeWaId, setSendingFeeWaId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sendAbsentAlerts, setSendAbsentAlerts] = useState(true);
   const [studentFeeMap, setStudentFeeMap] = useState<Record<string, { pendingAmount: number; status: string; feeId?: string; amountDue: number }>>({});
 
   // Admin Configurable WhatsApp Template
@@ -230,13 +231,20 @@ export const AttendancePage: React.FC = () => {
     setStudentRows((prev) => prev.map((s) => ({ ...s, status })));
   };
 
-  // Save bulk attendance
+  // Save bulk attendance - only submit explicitly marked students (Never auto-convert unmarked to absent!)
   const handleSaveAttendance = async () => {
     if (!selectedBatchId || studentRows.length === 0) return;
 
-    const unMarkedCount = studentRows.filter((s) => s.status === 'UNMARKED').length;
-    if (unMarkedCount > 0) {
-      toast.info(`Marking ${unMarkedCount} unselected students as Absent automatically.`);
+    const recordsToSubmit = studentRows
+      .filter((s) => s.status === 'PRESENT' || s.status === 'ABSENT')
+      .map((s) => ({
+        studentId: s.studentId,
+        status: s.status as 'PRESENT' | 'ABSENT',
+      }));
+
+    if (recordsToSubmit.length === 0) {
+      toast.info('कृपया किमान एका विद्यार्थ्याची हजेरी (Present किंवा Absent) मार्क करा.');
+      return;
     }
 
     setSavingAttendance(true);
@@ -244,31 +252,28 @@ export const AttendancePage: React.FC = () => {
     setSaveErrorMsg('');
 
     try {
-      const recordsToSubmit = studentRows.map((s) => ({
-        studentId: s.studentId,
-        status: s.status === 'PRESENT' ? 'PRESENT' : 'ABSENT',
-      }));
-
       await apiClient('/attendance/bulk', {
         method: 'POST',
         body: JSON.stringify({
           batchId: selectedBatchId,
           date: selectedDate,
           records: recordsToSubmit,
+          sendWhatsApp: sendAbsentAlerts,
         }),
       });
 
       const absentCount = recordsToSubmit.filter((r) => r.status === 'ABSENT').length;
+      const presentCount = recordsToSubmit.filter((r) => r.status === 'PRESENT').length;
       setSaveSuccessMsg(
-        `Attendance recorded successfully for ${recordsToSubmit.length} students! ${
-          absentCount > 0
-            ? `⚡ Automatic WhatsApp absent alert sent to ${absentCount} parent(s).`
-            : 'All students marked present.'
+        `हजेरी सेव्ह झाली! (${presentCount} उपस्थित, ${absentCount} अनुपस्थित). ${
+          absentCount > 0 && sendAbsentAlerts
+            ? `⚡ ${absentCount} ॲब्सेंट विद्यार्थ्यांच्या पालकांना WhatsApp अलर्ट पाठवला.`
+            : ''
         }`
       );
       fetchSheet(selectedBatchId, selectedDate);
     } catch (err: any) {
-      setSaveErrorMsg(err.message || 'Failed to save attendance.');
+      setSaveErrorMsg(err.message || 'हजेरी सेव्ह करण्यात अडचण आली.');
     } finally {
       setSavingAttendance(false);
     }
@@ -510,8 +515,8 @@ export const AttendancePage: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Submit Save Button */}
-              <div>
+              {/* Submit Save Button & WhatsApp Alert Toggle */}
+              <div className="space-y-2">
                 <Button
                   type="button"
                   onClick={handleSaveAttendance}
@@ -521,6 +526,15 @@ export const AttendancePage: React.FC = () => {
                   <Save className="w-4 h-4" />
                   {savingAttendance ? 'Submitting...' : 'Save Attendance'}
                 </Button>
+                <label className="flex items-center gap-2 cursor-pointer text-[11px] font-semibold text-slate-600 dark:text-slate-300 select-none">
+                  <input
+                    type="checkbox"
+                    checked={sendAbsentAlerts}
+                    onChange={(e) => setSendAbsentAlerts(e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
+                  />
+                  <span>फक्त ॲब्सेंट विद्यार्थ्यांना WhatsApp मेसेज पाठवा</span>
+                </label>
               </div>
             </div>
 

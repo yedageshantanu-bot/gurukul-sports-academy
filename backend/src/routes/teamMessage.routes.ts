@@ -22,6 +22,8 @@ router.delete('/members/:id', (req, res, next) => teamMessageController.deleteTe
 // Team messages
 router.get('/', (req, res, next) => teamMessageController.listTeamMessages(req, res, next));
 router.post('/', (req, res, next) => teamMessageController.createTeamMessage(req, res, next));
+router.patch('/:id', (req, res, next) => teamMessageController.updateTeamMessage(req, res, next));
+router.put('/:id', (req, res, next) => teamMessageController.updateTeamMessage(req, res, next));
 router.delete('/:id', (req, res, next) => teamMessageController.deleteTeamMessage(req, res, next));
 
 export default router;

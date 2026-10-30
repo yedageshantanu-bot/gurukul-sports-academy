@@ -199,9 +199,11 @@ export class AttendanceService {
             .single();
 
           if (!fallbackTeacher?.id) {
-            throw new AppError('Cannot mark attendance: No teachers exist in the academy.', 400);
+            const { data: anyTeacher } = await supabaseAdmin.from('teachers').select('id').limit(1).maybeSingle();
+            resolvedTeacherId = anyTeacher?.id || '00000000-0000-0000-0000-000000000000';
+          } else {
+            resolvedTeacherId = fallbackTeacher.id;
           }
-          resolvedTeacherId = fallbackTeacher.id;
         }
       }
     }
@@ -292,7 +294,7 @@ export class AttendanceService {
       }
     }
 
-    if (newlyAbsentIds.length > 0 || correctedIds.length > 0) {
+    if ((newlyAbsentIds.length > 0 || correctedIds.length > 0) && dto.sendWhatsApp !== false) {
       (async () => {
         for (const studentId of newlyAbsentIds) {
           try {

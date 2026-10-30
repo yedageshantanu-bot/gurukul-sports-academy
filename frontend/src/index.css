@@ -448,13 +448,31 @@ select option:checked {
    Enforces zero white-on-white text, clean subtle borders, and readable inputs
    ============================================================================== */
 
+/* Root Background & Layout in Faint Mode */
+html.faint,
+html.faint body,
+html.faint main {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+html.faint header {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+html.faint aside {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
 /* Card and Container Backgrounds in Faint Mode */
 html:not(.dark) .stitch-card,
 html.faint .stitch-card {
-  background-color: #FFFFFF;
-  border-color: #E2E8F0;
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  color: #0F172A;
+  color: #0F172A !important;
 }
 
 html:not(.dark) .kpi-card,

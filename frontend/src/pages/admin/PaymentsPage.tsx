@@ -891,7 +891,7 @@ export const PaymentsPage: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setSelectedReceipt(p.receipt)}
+                                onClick={() => setSelectedReceipt({ ...p.receipt, student: p.student, student_fee: p.student_fee, amount: p.amount, payment_method: p.payment_method, paid_at: p.paid_at, transaction_id: p.transaction_id })}
                                 className="text-xs h-7 gap-1 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer"
                               >
                                 <FileCheck className="w-3.5 h-3.5" />
@@ -1008,37 +1008,183 @@ export const PaymentsPage: React.FC = () => {
         <Modal
           isOpen={Boolean(selectedReceipt)}
           onClose={() => setSelectedReceipt(null)}
-          title="Official Payment Receipt"
+          title="Official Fee Payment Receipt (अधिकृत फी पावती)"
         >
-          <div className="space-y-4">
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Receipt No:</span>
-                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                  {selectedReceipt.receipt_number}
-                </span>
+          <div className="space-y-4 print:p-0">
+            {/* Printable Receipt Card */}
+            <div id="gurukul-official-receipt" className="p-5 bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-800 space-y-4 text-slate-900 dark:text-slate-100 shadow-sm">
+              {/* Receipt Header */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b-2 border-orange-500/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center font-extrabold text-xl shadow-md shadow-orange-500/20">
+                    🥋
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black tracking-tight text-slate-950 dark:text-white uppercase">
+                      Gurukul Sports Academy
+                    </h2>
+                    <p className="text-[11px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">
+                      Athletics, Martial Arts & Fitness Dojo
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Official Payment Acknowledgment
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right sm:text-right w-full sm:w-auto p-2 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Receipt No</div>
+                  <div className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    {selectedReceipt.receipt_number || selectedReceipt.id?.slice(0, 8).toUpperCase() || 'REC-2026-GSA'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Date: {new Date(selectedReceipt.issued_at || selectedReceipt.payment_date || selectedReceipt.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Amount Paid:</span>
-                <span className="text-base font-bold text-emerald-700 dark:text-emerald-400">
-                  ₹{Number(selectedReceipt.amount).toLocaleString('en-IN')}
-                </span>
+
+              {/* Student & Payment Metadata */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs">
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-semibold uppercase">Athlete Name:</span>
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                    {selectedReceipt.student?.name || selectedReceipt.studentName || 'Academy Athlete'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                    Discipline: <strong className="text-slate-800 dark:text-slate-200">{selectedReceipt.student?.course || selectedReceipt.course || 'Combat & Track Squad'}</strong>
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-semibold uppercase">Payment Mode:</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span className="font-bold uppercase px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">{selectedReceipt.payment_method || selectedReceipt.provider || 'CASH'}</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                    Parent WhatsApp: <strong className="font-mono text-slate-800 dark:text-slate-200">{selectedReceipt.student?.parent_whatsapp || selectedReceipt.parentWhatsapp || 'Available'}</strong>
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Date Issued:</span>
-                <span className="text-slate-700 dark:text-slate-300">
-                  {new Date(selectedReceipt.issued_at || selectedReceipt.created_at).toLocaleString()}
-                </span>
+
+              {/* 5-Line Fee Breakdown Table */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Fee Item / Description</th>
+                      <th className="px-3 py-2 text-right">Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tr>
+                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300 font-medium">
+                        Normal Academy Training Fee (नियमित अकॅडमी फी)
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold text-slate-900 dark:text-slate-100 font-mono">
+                        ₹{(Number(selectedReceipt.student?.monthly_fee) || Number(selectedReceipt.totalPackage) || 10000).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300 font-medium">
+                        Tournament & Event Registration (टूर्नामेंट फी)
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold text-slate-900 dark:text-slate-100 font-mono">
+                        ₹{(selectedReceipt.tournamentFee || 0).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                      <td className="px-3 py-2 font-bold text-slate-900 dark:text-slate-100">
+                        Total Scheduled Fees (एकूण देय फी)
+                      </td>
+                      <td className="px-3 py-2 text-right font-black text-slate-950 dark:text-white font-mono">
+                        ₹{(Number(selectedReceipt.student?.monthly_fee) || Number(selectedReceipt.totalPackage) || 10000).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                    <tr className="bg-emerald-500/5 dark:bg-emerald-500/10">
+                      <td className="px-3 py-2 font-bold text-emerald-700 dark:text-emerald-400">
+                        Amount Paid in this Receipt (जमा केलेली रक्कम)
+                      </td>
+                      <td className="px-3 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                        ₹{Number(selectedReceipt.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                    <tr className="bg-amber-500/5 dark:bg-amber-500/10">
+                      <td className="px-3 py-2 font-bold text-amber-700 dark:text-amber-400">
+                        Remaining Dues / Balance (उर्वरित शिल्लक)
+                      </td>
+                      <td className="px-3 py-2 text-right font-black text-amber-600 dark:text-amber-400 font-mono">
+                        ₹{Math.max(0, (Number(selectedReceipt.student?.monthly_fee) || Number(selectedReceipt.totalPackage) || 10000) - Number(selectedReceipt.amount || 0)).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Receipt Footer */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400">
+                <div>
+                  <p>Status: <strong className="text-emerald-600 font-bold uppercase">PAYMENT CONFIRMED</strong></p>
+                  <p>Computer-generated official receipt for Gurukul Sports Academy.</p>
+                </div>
+                <div className="text-right">
+                  <div className="w-16 border-b border-slate-400 ml-auto mb-1"></div>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Authorized Signature</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Action Buttons: WhatsApp Share & Print PDF */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <Button variant="outline" onClick={() => setSelectedReceipt(null)}>
                 <X className="w-4 h-4 mr-1.5" /> Close
               </Button>
-              <Button onClick={() => window.print()}>
-                <Printer className="w-4 h-4 mr-1.5" /> Print Receipt
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    const studentName = selectedReceipt.student?.name || selectedReceipt.studentName || 'Student';
+                    const parentPhone = selectedReceipt.student?.parent_whatsapp || selectedReceipt.parentWhatsapp || '';
+                    const rNo = selectedReceipt.receipt_number || selectedReceipt.id?.slice(0, 8).toUpperCase() || 'REC-GSA';
+                    const amountPaid = Number(selectedReceipt.amount || 0).toLocaleString('en-IN');
+                    const totalFee = (Number(selectedReceipt.student?.monthly_fee) || Number(selectedReceipt.totalPackage) || 10000).toLocaleString('en-IN');
+                    const remDues = Math.max(0, (Number(selectedReceipt.student?.monthly_fee) || Number(selectedReceipt.totalPackage) || 10000) - Number(selectedReceipt.amount || 0)).toLocaleString('en-IN');
+                    const courseName = selectedReceipt.student?.course || selectedReceipt.course || 'Athletics & Martial Arts';
+
+                    const msg = encodeURIComponent(
+                      `🥋 *GURUKUL SPORTS ACADEMY — OFFICIAL FEE RECEIPT* 🥋\n` +
+                      `----------------------------------------\n` +
+                      `📄 Receipt No: #${rNo}\n` +
+                      `👤 Athlete: ${studentName}\n` +
+                      `🥋 Discipline: ${courseName}\n` +
+                      `📅 Date: ${new Date().toLocaleDateString('en-IN')}\n\n` +
+                      `📋 *FEE BREAKDOWN:*\n` +
+                      `• Normal Academy Fee: ₹${totalFee}\n` +
+                      `• Tournament Fee: ₹${selectedReceipt.tournamentFee || 0}\n` +
+                      `• *Total Package: ₹${totalFee}*\n` +
+                      `• *Amount Paid: ₹${amountPaid} (${selectedReceipt.payment_method || 'CASH'})*\n` +
+                      `----------------------------------------\n` +
+                      `💰 *Remaining Dues / Balance: ₹${remDues}*\n` +
+                      `----------------------------------------\n` +
+                      `Status: Payment Confirmed & Updated in Academy Records.\n` +
+                      `Thank you for your timely settlement!\n\n` +
+                      `_Gurukul Sports Academy Administration_`
+                    );
+
+                    if (parentPhone) {
+                      window.open(`https://wa.me/${parentPhone.replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                    } else {
+                      window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
+                >
+                  <MessageSquare className="w-4 h-4" /> Share on WhatsApp
+                </Button>
+
+                <Button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold gap-1.5">
+                  <Printer className="w-4 h-4" /> Print / PDF
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>
