@@ -141,30 +141,73 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptId, onClose }
               </div>
             </div>
 
-            {/* Line Items Table */}
+            {/* Official 5-Line Financial Breakdown */}
             <div className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-              <div className="py-2.5 flex justify-between">
+              <div className="py-2 flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Student Name</span>
                 <span className="font-bold text-slate-900 dark:text-white">{student?.name || 'N/A'}</span>
               </div>
-              <div className="py-2.5 flex justify-between">
+              <div className="py-2 flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Course / Batch</span>
-                <span className="font-medium text-slate-900 dark:text-slate-200">{student?.course || 'General'}</span>
+                <span className="font-medium text-slate-900 dark:text-slate-200">{student?.course || 'Combat & Track Squad'}</span>
               </div>
-              <div className="py-2.5 flex justify-between">
+              <div className="py-2 flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Payment Mode</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-200">{payment?.provider || 'MANUAL'}</span>
+                <span className="font-semibold uppercase text-slate-900 dark:text-slate-200">{payment?.provider || 'CASH'}</span>
               </div>
-              <div className="py-2.5 flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Transaction Ref</span>
-                <span className="font-mono text-xs text-slate-600 dark:text-slate-300">
-                  {payment?.provider_payment_id || payment?.id || '—'}
+
+              {/* 1. Normal Academy Fee */}
+              <div className="py-2.5 flex justify-between items-center bg-slate-50/70 dark:bg-slate-800/40 px-3 rounded-lg mt-2">
+                <div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">1. Normal Academy Training Fee (नियमित फी)</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Monthly martial arts & sports coaching</p>
+                </div>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  ₹{(Number(receipt.amount) > 0 ? Number(receipt.amount) : 3000).toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="py-3.5 flex justify-between items-center text-base font-extrabold border-t border-slate-200 dark:border-slate-800">
-                <span className="text-slate-900 dark:text-white">Total Amount Settled</span>
-                <span className="text-emerald-700 dark:text-emerald-400 text-lg">
-                  ₹{Number(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+
+              {/* 2. Tournament Fee */}
+              <div className="py-2.5 flex justify-between items-center bg-slate-50/70 dark:bg-slate-800/40 px-3 rounded-lg">
+                <div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">2. Tournament & Event Fee (टूर्नामेंट फी)</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">State / national championship registration</p>
+                </div>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  ₹{Number(receipt?.metadata?.tournamentFee || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* 3. Total Scheduled Fees */}
+              <div className="py-2.5 flex justify-between items-center bg-indigo-50/60 dark:bg-indigo-950/30 px-3 rounded-lg border border-indigo-200/50 dark:border-indigo-800/50">
+                <div>
+                  <span className="font-bold text-indigo-950 dark:text-indigo-200">3. Total Scheduled Fees (एकूण फी)</span>
+                  <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">Normal academy + tournament charges</p>
+                </div>
+                <span className="font-mono font-extrabold text-indigo-700 dark:text-indigo-300">
+                  ₹{(Number(receipt.amount) + Number(receipt?.metadata?.tournamentFee || 0)).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* 4. Amount Paid */}
+              <div className="py-2.5 flex justify-between items-center bg-emerald-50/60 dark:bg-emerald-950/30 px-3 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50">
+                <div>
+                  <span className="font-bold text-emerald-950 dark:text-emerald-200">4. Amount Paid (जमा रक्कम)</span>
+                  <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">Confirmed paid via {payment?.provider || 'CASH'}</p>
+                </div>
+                <span className="font-mono font-extrabold text-emerald-700 dark:text-emerald-300 text-base">
+                  ₹{Number(receipt.amount).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* 5. Remaining Balance */}
+              <div className="py-2.5 flex justify-between items-center bg-rose-50/60 dark:bg-rose-950/30 px-3 rounded-lg border border-rose-200/50 dark:border-rose-800/50">
+                <div>
+                  <span className="font-bold text-rose-950 dark:text-rose-200">5. Remaining Balance (उर्वरित शिल्लक)</span>
+                  <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">Dues pending for this billing period</p>
+                </div>
+                <span className="font-mono font-extrabold text-rose-700 dark:text-rose-300">
+                  ₹{Number(receipt?.metadata?.remainingDues || 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
