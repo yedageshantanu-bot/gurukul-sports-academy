@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   BookOpen,
-  GraduationCap,
   Users,
   Layers,
   CheckSquare,
@@ -17,7 +16,6 @@ import {
   CalendarDays,
   User,
   X,
-  BookMarked,
   Trophy,
   Award,
   Send,

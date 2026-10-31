@@ -112,6 +112,10 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [broadcastFilter, setBroadcastFilter] = useState<'ALL' | 'PENDING_FEE' | 'PENDING_DOCS' | 'SELECTED'>('PENDING_FEE');
   const [broadcastCustomMessage, setBroadcastCustomMessage] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastNotifyOption, setBroadcastNotifyOption] = useState<'NOW' | 'SCHEDULE'>('NOW');
+  const [broadcastScheduleTime, setBroadcastScheduleTime] = useState<string>(
+    new Date(Date.now() + 3600000).toISOString().slice(0, 16)
+  );
 
   // Top WhatsApp Template Configurator
   const DEFAULT_TOURNAMENT_TEMPLATE =
@@ -148,6 +152,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [nominationScheduleTime, setNominationScheduleTime] = useState<string>(
     new Date(Date.now() + 3600000).toISOString().slice(0, 16)
   );
+  const [nominationCustomMessage, setNominationCustomMessage] = useState<string>(() => {
+    try {
+      return localStorage.getItem('gurukul_tournament_whatsapp_template') || DEFAULT_TOURNAMENT_TEMPLATE;
+    } catch {
+      return DEFAULT_TOURNAMENT_TEMPLATE;
+    }
+  });
 
   // Payment settle state
   const [payAmount, setPayAmount] = useState('');
@@ -434,6 +445,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     const count = selectedStudentIds.length;
     try {
       setNominating(true);
+      const messageToSend = nominationCustomMessage.trim() || tournamentWhatsappTemplate || DEFAULT_TOURNAMENT_TEMPLATE;
       await apiClient(`/tournaments/${selectedTournament.id}/nominate`, {
         method: 'POST',
         body: JSON.stringify({
@@ -441,6 +453,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           notes: 'Nominated by Academy Selection Committee',
           sendWhatsApp: nominationNotifyOption !== 'NONE',
           scheduleTime: nominationNotifyOption === 'SCHEDULE' ? nominationScheduleTime : undefined,
+          customMessage: nominationNotifyOption !== 'NONE' ? messageToSend : undefined,
         }),
       });
 
@@ -452,7 +465,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       } else if (nominationNotifyOption === 'SCHEDULE') {
         toast.success(`Success! ${count} athletes nominated and WhatsApp scheduled for later!`);
       } else {
-        toast.success(`Success! ${count} athletes nominated and WhatsApp alerts sent!`);
+        toast.success(`Success! ${count} athletes nominated and WhatsApp alerts dispatched!`);
       }
       // Switch tab so user sees all previously nominated athletes and can add more
       setNominateModalTab('view_previous');
@@ -564,6 +577,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         body: JSON.stringify({
           recipientFilter: broadcastFilter,
           customMessage: broadcastCustomMessage.trim() || undefined,
+          scheduleTime: broadcastNotifyOption === 'SCHEDULE' ? broadcastScheduleTime : undefined,
         }),
       });
       toast.success(res?.message || 'Tournament WhatsApp alert successfully broadcasted!');
@@ -752,6 +766,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                   size="sm"
                   onClick={() => {
                     localStorage.setItem('gurukul_tournament_whatsapp_template', tournamentWhatsappTemplate);
+                    setNominationCustomMessage(tournamentWhatsappTemplate);
                     toast.success('Tournament WhatsApp template saved!');
                   }}
                   className="text-xs bg-amber-600 hover:bg-amber-700 text-white"
@@ -1728,6 +1743,41 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     />
                   </div>
                 )}
+
+                {nominationNotifyOption !== 'NONE' && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                        Message to Athletes / पालकांसाठी अचूक मेसेज:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setNominationCustomMessage(tournamentWhatsappTemplate || DEFAULT_TOURNAMENT_TEMPLATE)}
+                        className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline font-semibold"
+                      >
+                        Reset to Saved Template
+                      </button>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={nominationCustomMessage}
+                      onChange={(e) => setNominationCustomMessage(e.target.value)}
+                      placeholder="Enter exact message to send to nominated athlete parents..."
+                      className="w-full text-xs font-mono p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner"
+                    />
+                    <div className="text-[10px] text-slate-500 flex flex-wrap gap-1">
+                      <span>Available Tokens:</span>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{student_name}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{tournament_name}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{discipline}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{venue}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{event_date}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{entry_fee}'}</code>
+                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{deadline}'}</code>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
@@ -2102,6 +2152,61 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             />
           </div>
 
+          {/* Dispatch Timing Preference: Send Now vs Schedule Later */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-2.5">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-indigo-500" />
+              Broadcast Timing (प्रक्षेपण वेळ निवडा)
+            </span>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setBroadcastNotifyOption('NOW')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  broadcastNotifyOption === 'NOW'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
+                }`}
+              >
+                <div className="text-[11px] flex items-center gap-1">
+                  <span>🚀 Send Now</span>
+                </div>
+                <div className="text-[10px] opacity-80 mt-0.5">आत्ताच पाठवा (Direct Alert)</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBroadcastNotifyOption('SCHEDULE')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  broadcastNotifyOption === 'SCHEDULE'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
+                }`}
+              >
+                <div className="text-[11px] flex items-center gap-1">
+                  <span>⏰ Schedule Later</span>
+                </div>
+                <div className="text-[10px] opacity-80 mt-0.5">वेळ ठरवून पाठवा (Schedule)</div>
+              </button>
+            </div>
+
+            {broadcastNotifyOption === 'SCHEDULE' && (
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  Scheduled Time:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={broadcastScheduleTime}
+                  onChange={(e) => setBroadcastScheduleTime(e.target.value)}
+                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="p-2.5 bg-slate-100 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between">
             <span>
               Payment Deadline: <strong className="text-amber-600 dark:text-amber-400">{selectedTournament?.registration_deadline ? new Date(selectedTournament.registration_deadline).toLocaleDateString('en-IN') : 'TBA'}</strong>
@@ -2132,7 +2237,11 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               disabled={broadcasting}
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
             >
-              {broadcasting ? 'Enqueuing Alerts...' : 'Dispatch WhatsApp Broadcast'}
+              {broadcasting
+                ? 'Processing...'
+                : broadcastNotifyOption === 'SCHEDULE'
+                ? 'Schedule WhatsApp Broadcast'
+                : 'Dispatch WhatsApp Broadcast Now'}
             </Button>
           </div>
         </form>

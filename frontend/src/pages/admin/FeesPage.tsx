@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PublicationsPage } from './PublicationsPage';
 import { TournamentsPage } from './TournamentsPage';
 import {
   CreditCard,
@@ -13,7 +12,6 @@ import {
   Banknote,
   MessageSquare,
   Edit2,
-  BookMarked,
   Trophy,
   RotateCcw,
   Check,

@@ -173,11 +173,20 @@ export class WhatsAppQueueService {
 
         if (!error && data) {
           this.inMemoryQueue.set(queueId, { ...newItem, ...data });
+          // If scheduled for now, trigger worker immediately
+          if (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000) {
+            this.triggerBackgroundProcessing();
+          }
           return data as WhatsAppQueueItem;
         }
       } catch {
         // Ignored if table not in schema
       }
+    }
+
+    // If scheduled for now, trigger worker immediately
+    if (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000) {
+      this.triggerBackgroundProcessing();
     }
 
     return newItem;
@@ -304,6 +313,53 @@ export class WhatsAppQueueService {
   }
 
   // ============================================================================
+  // 2.5 FETCH DUE QUEUE ITEMS (From Supabase & In-Memory with Stale Recovery)
+  // ============================================================================
+  async fetchDueQueueItems(batchSize = 25, forceNow: boolean = false): Promise<WhatsAppQueueItem[]> {
+    const now = new Date().toISOString();
+
+    if (this.supabase) {
+      try {
+        // 1. Recover stale PROCESSING items older than 3 minutes back to PENDING
+        const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        await this.supabase
+          .from('whatsapp_queue')
+          .update({ status: 'PENDING', updated_at: now })
+          .eq('status', 'PROCESSING')
+          .lt('updated_at', threeMinutesAgo);
+
+        // 2. Query due items
+        let query = this.supabase
+          .from('whatsapp_queue')
+          .select('*')
+          .eq('status', 'PENDING');
+
+        if (!forceNow) {
+          query = query.lte('scheduled_at', now);
+        }
+
+        const { data, error } = await query
+          .order('scheduled_at', { ascending: true })
+          .limit(batchSize);
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          for (const row of data) {
+            this.inMemoryQueue.set(row.id, row as WhatsAppQueueItem);
+          }
+          return data as WhatsAppQueueItem[];
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] DB queue fetch notice:', err.message);
+      }
+    }
+
+    // Fallback to in-memory queue
+    return Array.from(this.inMemoryQueue.values())
+      .filter((i) => i.status === 'PENDING' && (forceNow || i.scheduled_at <= now))
+      .slice(0, batchSize);
+  }
+
+  // ============================================================================
   // 3. PROCESS QUEUE BATCH
   // ============================================================================
   async processQueue(batchSize = 50, forceNow: boolean = false): Promise<{
@@ -323,10 +379,7 @@ export class WhatsAppQueueService {
       return { processed: 0, successful: 0, failed: 0, pending: this.getPendingCount() };
     }
 
-    const now = new Date().toISOString();
-    const pendingItems = Array.from(this.inMemoryQueue.values())
-      .filter((i) => i.status === 'PENDING' && (forceNow || i.scheduled_at <= now))
-      .slice(0, batchSize);
+    const pendingItems = await this.fetchDueQueueItems(batchSize, forceNow);
 
     let successful = 0;
     let failed = 0;
@@ -349,6 +402,36 @@ export class WhatsAppQueueService {
   }
 
   private isProcessingBackground = false;
+  private schedulerInterval: NodeJS.Timeout | null = null;
+
+  /**
+   * Continuous WhatsApp Queue & Schedule Runner.
+   * Regularly polls Supabase and dispatches messages whose scheduled_at timestamp has arrived.
+   */
+  startQueueScheduler(intervalMs = 5000): void {
+    if (this.schedulerInterval) return;
+    console.log(`[QueueService] 🚀 Active WhatsApp Queue Scheduler started (checking every ${intervalMs / 1000}s)`);
+
+    // Run first check after 2 seconds
+    setTimeout(() => {
+      this.triggerBackgroundProcessing();
+    }, 2000);
+
+    this.schedulerInterval = setInterval(() => {
+      this.triggerBackgroundProcessing();
+    }, intervalMs);
+
+    if (this.schedulerInterval.unref) {
+      this.schedulerInterval.unref();
+    }
+  }
+
+  stopQueueScheduler(): void {
+    if (this.schedulerInterval) {
+      clearInterval(this.schedulerInterval);
+      this.schedulerInterval = null;
+    }
+  }
 
   triggerBackgroundProcessing(): void {
     if (this.isProcessingBackground) return;
@@ -364,7 +447,6 @@ export class WhatsAppQueueService {
         const provider = whatsappProviderFactory.getProvider(settings.provider_type);
         const deviceStatus = await provider.getStatus();
         if (deviceStatus.status !== 'CONNECTED') {
-          console.log(`[QueueService] Background worker idle: WhatsApp is ${deviceStatus.status}.`);
           return;
         }
 
@@ -372,23 +454,15 @@ export class WhatsAppQueueService {
           const currentSettings = await whatsappSettingsService.getSettings();
           if (!currentSettings.global_automation_enabled || currentSettings.emergency_stop) break;
 
-          const now = new Date().toISOString();
-          const nextItem = Array.from(this.inMemoryQueue.values())
-            .find((i) => i.status === 'PENDING' && i.scheduled_at <= now);
+          const dueItems = await this.fetchDueQueueItems(10, false);
+          if (dueItems.length === 0) break;
 
-          if (!nextItem) {
-            const hasFuture = Array.from(this.inMemoryQueue.values()).some((i) => i.status === 'PENDING');
-            if (hasFuture) {
-              await new Promise((r) => setTimeout(r, 2000));
-              continue;
+          for (const item of dueItems) {
+            const res = await this.processItem(item);
+            if (!res.success && res.reason?.includes('not connected')) {
+              console.log('[QueueService] WhatsApp disconnected mid-dispatch. Halting background worker.');
+              return;
             }
-            break;
-          }
-
-          const res = await this.processItem(nextItem);
-          if (!res.success && res.reason?.includes('not connected')) {
-            console.log('[QueueService] WhatsApp disconnected mid-dispatch. Halting background worker.');
-            break;
           }
         }
       } catch (err: any) {
@@ -535,6 +609,43 @@ export class WhatsAppQueueService {
   // 6. QUERY & STATS
   // ============================================================================
   async listQueue(filters: QueueFilterQuery = {}): Promise<WhatsAppQueueItem[]> {
+    if (this.supabase) {
+      try {
+        let query = this.supabase
+          .from('whatsapp_queue')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (filters.status) {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.recipientPhone) {
+          query = query.ilike('recipient_phone', `%${filters.recipientPhone}%`);
+        }
+        if (filters.studentId) {
+          query = query.eq('student_id', filters.studentId);
+        }
+        if (filters.eventType) {
+          query = query.eq('event_type', filters.eventType);
+        }
+        if (filters.limit) {
+          query = query.limit(filters.limit);
+        } else {
+          query = query.limit(100);
+        }
+
+        const { data, error } = await query;
+        if (!error && Array.isArray(data)) {
+          for (const item of data) {
+            this.inMemoryQueue.set(item.id, item as WhatsAppQueueItem);
+          }
+          return data as WhatsAppQueueItem[];
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] DB listQueue notice:', err.message);
+      }
+    }
+
     let items = Array.from(this.inMemoryQueue.values());
 
     if (filters.status) {

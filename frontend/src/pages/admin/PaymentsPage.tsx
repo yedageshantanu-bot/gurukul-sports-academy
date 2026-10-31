@@ -323,7 +323,7 @@ export const PaymentsPage: React.FC = () => {
           amountPaid: Number(f.amount_paid || 0),
           pendingBalance: Math.max(0, Number(f.amount_due || 0) - Number(f.amount_paid || 0)),
           dueDate: f.due_date,
-          admissionDate: f.student?.admission_date,
+          admissionDate: (f.student as any)?.admission_date,
           billingPeriod: f.billing_period,
           planName: f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan'),
           status: f.status || 'PENDING',
@@ -900,7 +900,7 @@ export const PaymentsPage: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setSelectedReceipt({ ...p.receipt, student: p.student, student_fee: p.student_fee, amount: p.amount, payment_method: p.payment_method, paid_at: p.paid_at, transaction_id: p.transaction_id })}
+                                onClick={() => setSelectedReceipt({ ...p.receipt, student: p.student, student_fee: p.student_fee, amount: p.amount, payment_method: (p as any).payment_method, paid_at: p.paid_at, transaction_id: (p as any).transaction_id })}
                                 className="text-xs h-7 gap-1 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 cursor-pointer"
                               >
                                 <FileCheck className="w-3.5 h-3.5" />

@@ -35,7 +35,6 @@ import {
   Calendar,
   Smartphone,
   Printer,
-  FileText,
 } from 'lucide-react';
 
 const avatarColors = [

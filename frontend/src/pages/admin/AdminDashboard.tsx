@@ -17,7 +17,6 @@ import {
   CheckSquare,
   CheckCircle2,
   AlertCircle,
-  GraduationCap,
   BookOpen,
   Megaphone,
   Smartphone,
@@ -126,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
           const totalToday = (todayAttendance || []).length || (studentCount || 0);
           const attRate = totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 0;
 
-          setKpis({
+          (setKpis as any)({
             totalStudents: studentCount ?? 20,
             activeTeachers: 0,
             totalTeachers: 0,
@@ -141,7 +140,7 @@ export const AdminDashboard: React.FC = () => {
             todayRate: attRate,
           });
 
-          setMonthlyFeeSummary({
+          (setMonthlyFeeSummary as any)({
             billingPeriod: new Date().toLocaleString('default', { month: 'short', year: 'numeric' }),
             expected: totalCollected + totalPending,
             collected: totalCollected,
@@ -184,7 +183,7 @@ export const AdminDashboard: React.FC = () => {
           totalPending += Math.max(0, due - paid);
         });
 
-        setKpis({
+        (setKpis as any)({
           totalStudents: studentCount ?? 20,
           activeTeachers: 0,
           totalTeachers: 0,
@@ -199,7 +198,7 @@ export const AdminDashboard: React.FC = () => {
           todayRate: 0,
         });
 
-        setMonthlyFeeSummary({
+        (setMonthlyFeeSummary as any)({
           billingPeriod: new Date().toLocaleString('default', { month: 'short', year: 'numeric' }),
           expected: totalCollected + totalPending,
           collected: totalCollected,
@@ -366,7 +365,6 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const totalStudents = kpis?.totalStudents ?? 0;
-  const activeTeachers = kpis?.activeTeachers ?? kpis?.totalTeachers ?? 0;
   const activeBatches = kpis?.activeBatches ?? 0;
   const expectedFees = monthlyFeeSummary?.expected ?? (kpis?.feesExpectedThisMonth ?? 0);
   const collectedFees = monthlyFeeSummary?.collected ?? (kpis?.feesCollectedThisMonth ?? 0);

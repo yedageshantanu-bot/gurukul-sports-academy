@@ -504,7 +504,7 @@ export const TeamMessagingPage: React.FC = () => {
 
   const [selectedExistingMemberIds, setSelectedExistingMemberIds] = useState<string[]>([]);
 
-  const [existingMemberSearch, setExistingMemberSearch] = useState('');
+  const [_existingMemberSearch, _setExistingMemberSearch] = useState('');
 
 
 
@@ -939,24 +939,7 @@ export const TeamMessagingPage: React.FC = () => {
 
 
   // Load Draft into composer
-
-  const handleLoadDraft = (draft: TeamMessageRecord) => {
-
-    setMessageText(draft.message || '');
-
-    setSubject(draft.subject || '');
-
-    setRecipientRole(draft.recipient_role || 'ALL_STAFF');
-
-    setPriority((draft.priority as any) || 'NORMAL');
-
-    if (draft.sender_name) setSenderName(draft.sender_name);
-
-    toast.info('Draft loaded into composer! You can edit and send.');
-
-    window.scrollTo({ top: 300, behavior: 'smooth' });
-
-  };
+  // (Available for future draft preview actions)
 
 
 

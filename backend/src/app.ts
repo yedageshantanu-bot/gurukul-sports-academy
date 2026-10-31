@@ -26,8 +26,12 @@ import { verifyAuth } from './middlewares/auth.middleware.js';
 import { requireRole } from './middlewares/rbac.middleware.js';
 import { ROLES } from './constants/index.js';
 import { requestContext } from './config/requestContext.js';
+import { queueService } from './services/whatsapp/queue.service.js';
 
 const app = express();
+
+// Ensure WhatsApp queue and schedule runner is active
+queueService.startQueueScheduler(5000);
 
 // AsyncLocalStorage request context wrapper for schema isolation
 app.use((_req, _res, next) => {
