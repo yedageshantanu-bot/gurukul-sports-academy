@@ -10,6 +10,7 @@ router.use(verifyAuth);
 router.use(requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN));
 
 router.get('/', TournamentController.list);
+router.get('/registrations/all', TournamentController.getAllRegistrations);
 router.post('/', TournamentController.create);
 router.get('/:id', TournamentController.getDetails);
 router.get('/:id/registrations', TournamentController.getDetails);

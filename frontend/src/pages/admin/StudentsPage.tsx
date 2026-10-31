@@ -35,6 +35,8 @@ import {
   Calendar,
   Smartphone,
   Printer,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 const avatarColors = [
@@ -53,6 +55,7 @@ export const StudentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'gallery'>('table');
 
   // Add/Edit Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1046,7 +1049,41 @@ export const StudentsPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Students Table */}
+      {/* View Toggle Toolbar */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Showing <strong className="text-slate-800 dark:text-slate-200">{filteredStudents.length}</strong> registered athletes
+        </div>
+
+        <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'table'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            <span>Table Roster</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('gallery')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'gallery'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Athlete Gallery (ID Cards)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Students Table or Athlete Gallery */}
       {loading ? (
         <SkeletonLoader variant="table" rows={5} />
       ) : filteredStudents.length === 0 ? (
@@ -1058,6 +1095,133 @@ export const StudentsPage: React.FC = () => {
           onAction={search ? () => setSearch('') : handleOpenAdd}
           accentColor="indigo"
         />
+      ) : viewMode === 'gallery' ? (
+        /* Athlete Gallery (ID Cards Grid) */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredStudents.map((s, idx) => {
+            const initials = s.name
+              ? s.name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .filter(Boolean)
+                  .join('')
+                  .toUpperCase()
+                  .substring(0, 2)
+              : 'ST';
+            const gradient = avatarColors[idx % avatarColors.length];
+
+            return (
+              <div
+                key={s.id}
+                className="group relative bg-white dark:bg-[#1E293B] rounded-2xl border border-slate-200/90 dark:border-white/10 p-5 shadow-card hover:shadow-lg transition-all flex flex-col justify-between overflow-hidden"
+              >
+                <div>
+                  {/* Top Badge Row */}
+                  <div className="flex items-center justify-between gap-2 mb-3.5">
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-extrabold border border-indigo-500/20 shadow-2xs">
+                      <ShieldCheck className="w-3 h-3 text-indigo-500" />
+                      <span>ID #{s.id.substring(0, 8).toUpperCase()}</span>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </div>
+
+                  {/* Athlete Avatar & Name */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${gradient} text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform`}
+                    >
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to={`/admin/students/${s.id}`}
+                        className="font-bold text-slate-900 dark:text-white text-sm hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block truncate"
+                      >
+                        {s.name}
+                      </Link>
+                      <div className="text-xs text-slate-400 dark:text-slate-400 truncate">
+                        {s.course || 'Martial Arts Training'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ranks & Disciplines */}
+                  <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-white/5 space-y-2">
+                    {s.martialArtsRanks && s.martialArtsRanks.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {s.martialArtsRanks.map((r: any, rIdx: number) => (
+                          <span
+                            key={rIdx}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                          >
+                            🥋 {r.rankName || r.rank_name} ({r.beltColor || r.belt_color || 'Rank'})
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 italic">No belt rank assigned</span>
+                    )}
+
+                    {/* Parent & Contact */}
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                      {s.parentName && (
+                        <div className="truncate">
+                          Parent: <strong className="text-slate-800 dark:text-slate-200">{s.parentName}</strong>
+                        </div>
+                      )}
+                      {s.parentWhatsapp && (
+                        <div className="flex items-center gap-1 font-mono text-emerald-600 dark:text-emerald-400 text-xs">
+                          <Phone className="w-3 h-3" />
+                          <span>{s.parentWhatsapp}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer: Action Buttons */}
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-1.5">
+                  <Link
+                    to={`/admin/students/${s.id}`}
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60"
+                  >
+                    Profile →
+                  </Link>
+
+                  <div className="flex items-center gap-1">
+                    {s.parentWhatsapp && (
+                      <a
+                        href={`https://wa.me/${s.parentWhatsapp.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                        title="Chat on WhatsApp"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(s)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                      title="Edit Athlete Details"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClick(s)}
+                      className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                      title="Delete Athlete Record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm dark:shadow-lg">
           <div className="overflow-x-auto">
@@ -1104,11 +1268,16 @@ export const StudentsPage: React.FC = () => {
                               {s.name}
                               <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 text-indigo-500 transition-opacity" />
                             </div>
-                            {s.course && (
-                              <div className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">
-                                {s.course}
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                ID #{s.id.substring(0, 8).toUpperCase()}
+                              </span>
+                              {s.course && (
+                                <span className="text-xs text-slate-400 dark:text-slate-400">
+                                  {s.course}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </Link>
                       </td>

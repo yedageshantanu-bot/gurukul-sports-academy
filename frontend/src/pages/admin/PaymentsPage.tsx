@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { PaymentRecord, StudentFee } from '../../types/fee';
@@ -16,6 +17,10 @@ import {
   DollarSign,
   Calendar,
   RotateCcw,
+  Trophy,
+  BookOpen,
+  GraduationCap,
+  Layers,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -28,14 +33,41 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { API_BASE } from '../../lib/api';
 import { formatBillingPeriod } from './FeesPage';
 
+export type PaymentStreamType = 'ALL' | 'ACADEMIC' | 'TOURNAMENTS' | 'PUBLICATIONS';
+
+export interface UnifiedAccountItem {
+  id: string;
+  stream: 'ACADEMIC' | 'TOURNAMENTS' | 'PUBLICATIONS';
+  studentId: string;
+  studentName: string;
+  parentName?: string;
+  parentWhatsapp?: string;
+  studentMobile?: string;
+  course: string;
+  billingPeriod: string;
+  totalPackage: number;
+  amountPaid: number;
+  pendingBalance: number;
+  dueDate: string | null;
+  status: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE';
+  feeId?: string;
+  registrationId?: string;
+  publicationId?: string;
+  rawItem?: any;
+}
+
 export const PaymentsPage: React.FC = () => {
   const { token } = useAuth();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'accounts' | 'receipts'>('accounts');
+  const [streamFilter, setStreamFilter] = useState<PaymentStreamType>('ALL');
+
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [tournamentRegistrations, setTournamentRegistrations] = useState<any[]>([]);
+  const [publications, setPublications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +86,9 @@ export const PaymentsPage: React.FC = () => {
 
   // Manual payment form
   const [manualForm, setManualForm] = useState({
+    stream: 'ACADEMIC' as 'ACADEMIC' | 'TOURNAMENTS' | 'PUBLICATIONS',
     studentId: '',
+    targetId: '',
     studentFeeId: '',
     amount: '',
     paymentMethod: 'CASH',
@@ -69,10 +103,12 @@ export const PaymentsPage: React.FC = () => {
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [paymentsRes, feesRes, studentsRes] = await Promise.all([
+      const [paymentsRes, feesRes, studentsRes, tournRes, pubsRes] = await Promise.all([
         fetch(`${API_BASE}/payments`, { headers }),
         fetch(`${API_BASE}/fees/students`, { headers }),
         fetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
+        fetch(`${API_BASE}/tournaments/registrations/all`, { headers }).catch(() => null),
+        fetch(`${API_BASE}/publications`, { headers }).catch(() => null),
       ]);
 
       const paymentsData = await paymentsRes.json();
@@ -82,6 +118,16 @@ export const PaymentsPage: React.FC = () => {
       if (paymentsData.success && Array.isArray(paymentsData.data)) setPayments(paymentsData.data);
       if (feesData.success && Array.isArray(feesData.data)) setStudentFees(feesData.data);
       if (studentsData.success && Array.isArray(studentsData.data)) setStudents(studentsData.data);
+
+      if (tournRes && tournRes.ok) {
+        const tData = await tournRes.json();
+        if (tData.success && Array.isArray(tData.data)) setTournamentRegistrations(tData.data);
+      }
+
+      if (pubsRes && pubsRes.ok) {
+        const pData = await pubsRes.json();
+        if (pData.success && Array.isArray(pData.data)) setPublications(pData.data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load payments history');
     } finally {
@@ -94,64 +140,108 @@ export const PaymentsPage: React.FC = () => {
   }, [token]);
 
   // Open modal prefilled for collecting pending fee
-  const handleOpenCollectPayment = (item: any) => {
-    const pending = Number(item.pendingBalance || item.pending_amount || 0);
+  const handleOpenCollectPayment = (item: UnifiedAccountItem) => {
+    const pending = Number(item.pendingBalance || 0);
     setManualForm({
-      studentId: item.studentId || item.student_id,
-      studentFeeId: item.feeId || item.rawFee?.id || '',
-      amount: String(pending > 0 ? pending : item.totalPackage || item.amount_due || 700),
+      stream: item.stream,
+      studentId: item.studentId,
+      targetId: item.registrationId || item.publicationId || item.feeId || '',
+      studentFeeId: item.feeId || '',
+      amount: String(pending > 0 ? pending : item.totalPackage || 700),
       paymentMethod: 'CASH',
       paymentDate: new Date().toISOString().split('T')[0],
-      notes: `Settlement for ${item.billingPeriod || item.course || 'Tuition Fee'}`,
+      notes: `Settlement for ${item.stream}: ${item.course} (${item.billingPeriod})`,
     });
     setIsManualModalOpen(true);
   };
 
-  // Handle manual payment submission
+  // Handle manual payment submission across all 3 streams
   const handleManualPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-    if (!manualForm.studentId) {
-      setError('Please select a student from the dropdown list.');
-      return;
-    }
     setSubmitting(true);
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/payments/manual`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentId: manualForm.studentId,
-          studentFeeId: manualForm.studentFeeId || undefined,
-          amount: parseFloat(manualForm.amount),
-          paymentMethod: manualForm.paymentMethod,
-          paidAt: manualForm.paymentDate,
-          notes: manualForm.notes,
-        }),
-      });
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Manual payment recording failed');
+      if (manualForm.stream === 'TOURNAMENTS' && manualForm.targetId) {
+        // Tournament registration settlement
+        const res = await fetch(`${API_BASE}/tournaments/registrations/${manualForm.targetId}/payment`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({
+            amountPaid: parseFloat(manualForm.amount),
+            paymentMethod: manualForm.paymentMethod,
+            notes: manualForm.notes,
+            paymentDate: manualForm.paymentDate,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Tournament fee settlement failed');
+        setSuccessToast(`Tournament entry payment of ₹${manualForm.amount} recorded!`);
+        toast.success(`Tournament fee recorded successfully!`);
+      } else if (manualForm.stream === 'PUBLICATIONS' && manualForm.targetId) {
+        // Publication fee settlement
+        const res = await fetch(`${API_BASE}/publications/${manualForm.targetId}/fee`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            amount: parseFloat(manualForm.amount),
+            paymentMethod: manualForm.paymentMethod,
+            notes: manualForm.notes,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Publication fee recording failed');
+        setSuccessToast(`Publication fee payment of ₹${manualForm.amount} recorded!`);
+        toast.success(`Publication subscription fee recorded successfully!`);
+      } else {
+        // Academic monthly tuition payment
+        if (!manualForm.studentId) {
+          setError('Please select a student from the dropdown list.');
+          setSubmitting(false);
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/payments/manual`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            studentId: manualForm.studentId,
+            studentFeeId: manualForm.studentFeeId || undefined,
+            amount: parseFloat(manualForm.amount),
+            paymentMethod: manualForm.paymentMethod,
+            paidAt: manualForm.paymentDate,
+            notes: manualForm.notes,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Manual payment recording failed');
+        setSuccessToast(`Academic payment of ₹${data.data?.payment?.amount || manualForm.amount} recorded! Receipt issued.`);
+        toast.success(`Academic fee recorded & receipt generated.`);
+      }
 
       setIsManualModalOpen(false);
       setManualForm({
+        stream: 'ACADEMIC',
         studentId: '',
+        targetId: '',
         studentFeeId: '',
         amount: '',
         paymentMethod: 'CASH',
         paymentDate: new Date().toISOString().slice(0, 10),
         notes: '',
       });
-      setSuccessToast(`Payment of ₹${data.data?.payment?.amount || manualForm.amount} successfully recorded! Receipt issued.`);
       setTimeout(() => setSuccessToast(null), 6000);
       await fetchData();
     } catch (err: any) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -180,18 +270,20 @@ export const PaymentsPage: React.FC = () => {
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
 
       setSuccessToast(`✓ Payment of ₹${Number(amount).toLocaleString('en-IN')} reverted! Balance restored for ${studentName}.`);
+      toast.success(`Payment reverted! Balance restored for ${studentName}.`);
       setTimeout(() => setSuccessToast(null), 6000);
       await fetchData();
     } catch (err: any) {
       setError(err.message || 'Error reverting payment');
+      toast.error(err.message || 'Error reverting payment');
     } finally {
       setUndoingPaymentId(null);
     }
   };
 
-  const handleUndoAccountPayment = async (account: any) => {
+  const handleUndoAccountPayment = async (account: UnifiedAccountItem) => {
     if (!token) return;
-    const targetFeeId = account.feeId || account.rawFee?.id;
+    const targetFeeId = account.feeId;
     const studentPayments = (payments || []).filter(
       (p) => (p.student_id === account.studentId || p.student?.id === account.studentId) && p.status === 'SUCCESS'
     );
@@ -230,45 +322,110 @@ export const PaymentsPage: React.FC = () => {
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
 
       setSuccessToast(`✓ Payment reverted! Balance for ${account.studentName} restored to Pending.`);
+      toast.success(`Payment reverted! Balance restored to Pending.`);
       setTimeout(() => setSuccessToast(null), 6000);
       await fetchData();
     } catch (err: any) {
       setError(err.message || 'Error reverting payment');
+      toast.error(err.message || 'Error reverting payment');
     } finally {
       setUndoingPaymentId(null);
     }
   };
 
-  // Handle WhatsApp payment reminder
-  const handleSendReminder = async (item: any) => {
+  // Handle WhatsApp payment reminder across all 3 streams with direct wa.me fallback
+  const handleSendReminder = async (item: UnifiedAccountItem) => {
     if (!token) return;
-    const targetFeeId = item.feeId || item.id;
-    if (!targetFeeId) return;
+    const itemKey = item.id || item.feeId || item.registrationId || item.publicationId || item.studentId;
+    setSendingReminderFeeId(itemKey);
 
-    setSendingReminderFeeId(targetFeeId);
     try {
-      const savedFeeTemplate = localStorage.getItem('gurukul_whatsapp_fee_template') || undefined;
-      const res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentFeeId: targetFeeId,
-          customTemplate: savedFeeTemplate,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.disconnected) {
-        throw new Error(data.error?.message || data.message || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
+      if (item.stream === 'TOURNAMENTS' && item.registrationId) {
+        const res = await fetch(`${API_BASE}/tournaments/registrations/${item.registrationId}/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          // Fallback to wa.me
+          const phone = item.parentWhatsapp || item.studentMobile;
+          if (phone) {
+            const clean = phone.replace(/[^0-9]/g, '');
+            const msg = encodeURIComponent(
+              `🏆 *Gurukul Sports Academy - Tournament Entry Fee Notice*\n\nHello, this is a reminder for *${item.studentName}* regarding entry fee of ₹${Number(item.pendingBalance).toLocaleString('en-IN')} for *${item.course}*.\n\nKindly confirm and clear at the academy.\n\nWarm regards,\n*Gurukul Sports Academy*`
+            );
+            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
+            toast.success(`Opened WhatsApp reminder for ${item.studentName}!`);
+            return;
+          }
+          throw new Error(data.message || 'Failed to dispatch tournament reminder');
+        }
+        setSuccessToast(`WhatsApp reminder dispatched to ${item.studentName} for tournament entry!`);
+        toast.success(`WhatsApp reminder dispatched for ${item.studentName}!`);
+      } else if (item.stream === 'PUBLICATIONS' && item.publicationId) {
+        const res = await fetch(`${API_BASE}/publications/${item.publicationId}/whatsapp-reminder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          // Fallback to wa.me
+          const phone = item.parentWhatsapp || item.studentMobile;
+          if (phone) {
+            const clean = phone.replace(/[^0-9]/g, '');
+            const msg = encodeURIComponent(
+              `📚 *Gurukul Sports Academy - Publication Renewal Notice*\n\nHello, this is a reminder regarding publication subscription *${item.course}* for *${item.studentName}*. Pending annual fee: ₹${Number(item.pendingBalance).toLocaleString('en-IN')}.\n\nKindly complete renewal at the academy.\n\nWarm regards,\n*Gurukul Sports Academy*`
+            );
+            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
+            toast.success(`Opened WhatsApp reminder for ${item.studentName}!`);
+            return;
+          }
+          throw new Error(data.message || 'Failed to dispatch publication reminder');
+        }
+        setSuccessToast(`WhatsApp reminder dispatched to ${item.studentName} for publication renewal!`);
+        toast.success(`WhatsApp reminder dispatched for ${item.studentName}!`);
+      } else {
+        // Academic Tuition
+        const targetFeeId = item.feeId;
+        const savedFeeTemplate = localStorage.getItem('gurukul_whatsapp_fee_template') || undefined;
+        let res;
+        if (targetFeeId) {
+          res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              studentFeeId: targetFeeId,
+              customTemplate: savedFeeTemplate,
+            }),
+          });
+        }
+
+        const data = res ? await res.json() : { disconnected: true };
+        if (!res || !res.ok || data.disconnected) {
+          // Seamless fallback to wa.me
+          const phone = item.parentWhatsapp || item.studentMobile;
+          if (phone) {
+            const clean = phone.replace(/[^0-9]/g, '');
+            const msg = encodeURIComponent(
+              `🥋 *Gurukul Sports Academy - Academic Tuition Fee Reminder*\n\nHello, this is a friendly reminder that monthly academic tuition fee of ₹${Number(item.pendingBalance).toLocaleString('en-IN')} for *${item.studentName}* (${item.course}) is pending.\n\nKindly complete the settlement at the academy desk or via UPI.\n\nThank you,\n*Gurukul Sports Academy*`
+            );
+            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
+            toast.success(`Opened direct WhatsApp reminder for ${item.studentName}!`);
+            return;
+          }
+          throw new Error(data.error?.message || data.message || 'WhatsApp Gateway disconnected.');
+        }
+
+        setSuccessToast(`WhatsApp payment reminder dispatched for ${item.studentName}!`);
+        toast.success(`WhatsApp payment reminder dispatched for ${item.studentName}!`);
       }
-      setSuccessToast(`WhatsApp payment reminder dispatched for ${item.studentName || item.student?.name || 'student'}!`);
-      toast.success(`WhatsApp payment reminder dispatched for ${item.studentName || item.student?.name || 'student'}!`);
       setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Error sending reminder');
-      toast.error(err.message || 'WhatsApp Gateway disconnected. Please connect in WhatsApp Settings.');
+      toast.error(err.message || 'Error sending reminder');
     } finally {
       setSendingReminderFeeId(null);
     }
@@ -288,15 +445,15 @@ export const PaymentsPage: React.FC = () => {
     return true;
   };
 
-  // 1-to-1 Mapping: ALL students (both pending and non-pending)
-  const allStudentAccounts = useMemo(() => {
-    const studentMap = new Map<string, any>();
+  // 1. Academic Student Accounts
+  const academicAccounts = useMemo<UnifiedAccountItem[]>(() => {
+    const studentMap = new Map<string, UnifiedAccountItem>();
 
-    // 1. Process all students first
     (students || []).forEach((s) => {
       const defaultPkg = Number(s.monthly_fee ?? s.monthlyFee ?? 0);
       studentMap.set(s.id, {
-        id: s.id,
+        id: `academic-${s.id}`,
+        stream: 'ACADEMIC',
         studentId: s.id,
         studentName: s.name,
         parentName: s.parent_name ?? s.parentName,
@@ -307,21 +464,20 @@ export const PaymentsPage: React.FC = () => {
         amountPaid: 0,
         pendingBalance: defaultPkg,
         dueDate: null,
-        admissionDate: s.admission_date ?? s.admissionDate ?? s.created_at,
         billingPeriod: 'Current Enrollment',
         status: 'PENDING',
-        rawFee: null,
-        feeRecords: [] as any[],
+        feeId: undefined,
+        rawItem: null,
       });
     });
 
-    // 2. Aggregate actual fee records per student
     (studentFees || []).forEach((f) => {
       const studentId = f.student_id;
       const existing = studentMap.get(studentId);
       if (!existing) {
         studentMap.set(studentId, {
-          id: f.id,
+          id: `academic-${f.id}`,
+          stream: 'ACADEMIC',
           feeId: f.id,
           studentId: studentId,
           studentName: f.student?.name || 'Student',
@@ -333,23 +489,19 @@ export const PaymentsPage: React.FC = () => {
           amountPaid: Number(f.amount_paid || 0),
           pendingBalance: Math.max(0, Number(f.amount_due || 0) - Number(f.amount_paid || 0)),
           dueDate: f.due_date,
-          admissionDate: (f.student as any)?.admission_date,
           billingPeriod: f.billing_period,
-          planName: f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan'),
           status: f.status || 'PENDING',
-          rawFee: f,
-          feeRecords: [f],
+          rawItem: f,
         });
       } else {
-        if (existing.feeRecords.length === 0) {
+        if (!existing.feeId) {
+          existing.feeId = f.id;
           existing.totalPackage = Number(f.amount_due || 0);
           existing.amountPaid = Number(f.amount_paid || 0);
           existing.billingPeriod = f.billing_period;
           existing.dueDate = f.due_date;
           existing.status = f.status || 'PENDING';
-          existing.feeId = f.id;
-          existing.rawFee = f;
-          existing.planName = f.fee_plan?.name || (f.billing_period?.includes('YEARLY') ? 'Annual Package' : 'Regular Plan');
+          existing.rawItem = f;
         } else {
           existing.totalPackage += Number(f.amount_due || 0);
           existing.amountPaid += Number(f.amount_paid || 0);
@@ -359,11 +511,9 @@ export const PaymentsPage: React.FC = () => {
             existing.billingPeriod = f.billing_period;
           }
         }
-        existing.feeRecords.push(f);
       }
     });
 
-    // 3. Reconcile with verified SUCCESS payments from payments table
     studentMap.forEach((acc, sId) => {
       const studentPayments = (payments || []).filter(
         (p) => (p.student_id === sId || p.student?.id === sId) && p.status === 'SUCCESS'
@@ -382,30 +532,101 @@ export const PaymentsPage: React.FC = () => {
     return Array.from(studentMap.values());
   }, [students, studentFees, payments]);
 
-  // Overall Financial Metrics (Identical to Fees Ledger)
+  // 2. Tournament Accounts
+  const tournamentAccounts = useMemo<UnifiedAccountItem[]>(() => {
+    return (tournamentRegistrations || []).map((r: any) => {
+      const feeAmount = Number(r.fee_amount || 0);
+      const paidAmount = Number(r.amount_paid || 0);
+      const balance = Math.max(0, feeAmount - paidAmount);
+      let status: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' = 'PENDING';
+      if (paidAmount >= feeAmount && feeAmount > 0) status = 'PAID';
+      else if (paidAmount > 0) status = 'PARTIAL';
+
+      return {
+        id: `tournament-${r.id}`,
+        stream: 'TOURNAMENTS',
+        studentId: r.student_id,
+        studentName: r.students?.name || 'Tournament Athlete',
+        parentName: r.students?.parent_name,
+        parentWhatsapp: r.students?.parent_whatsapp,
+        studentMobile: r.students?.student_mobile,
+        course: r.tournaments?.name || 'Championship Tournament',
+        billingPeriod: r.category || 'Event Entry',
+        totalPackage: feeAmount,
+        amountPaid: paidAmount,
+        pendingBalance: balance,
+        dueDate: r.tournaments?.tournament_date || r.created_at,
+        status,
+        registrationId: r.id,
+        rawItem: r,
+      };
+    });
+  }, [tournamentRegistrations]);
+
+  // 3. Publication Accounts
+  const publicationAccounts = useMemo<UnifiedAccountItem[]>(() => {
+    return (publications || []).map((pub: any) => {
+      const feeAmount = Number(pub.annual_fee || 0);
+      const paidAmount = Number(pub.amount_paid || 0);
+      const balance = Math.max(0, feeAmount - paidAmount);
+      let status: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' = 'PENDING';
+      if (pub.fee_status === 'PAID' || (paidAmount >= feeAmount && feeAmount > 0)) status = 'PAID';
+      else if (pub.fee_status === 'OVERDUE') status = 'OVERDUE';
+      else if (paidAmount > 0) status = 'PARTIAL';
+
+      return {
+        id: `publication-${pub.id}`,
+        stream: 'PUBLICATIONS',
+        studentId: pub.student_id || pub.id,
+        studentName: pub.student_name || 'Publication Subscriber',
+        parentName: pub.parent_name,
+        parentWhatsapp: pub.contact_number,
+        studentMobile: pub.contact_number,
+        course: pub.publication_title || 'Academy Annual Edition',
+        billingPeriod: pub.academic_year || 'Annual Subscription',
+        totalPackage: feeAmount,
+        amountPaid: paidAmount,
+        pendingBalance: balance,
+        dueDate: pub.renewal_due_date || pub.created_at,
+        status,
+        publicationId: pub.id,
+        rawItem: pub,
+      };
+    });
+  }, [publications]);
+
+  // Unified Accounts based on stream selection
+  const allUnifiedAccounts = useMemo<UnifiedAccountItem[]>(() => {
+    if (streamFilter === 'ACADEMIC') return academicAccounts;
+    if (streamFilter === 'TOURNAMENTS') return tournamentAccounts;
+    if (streamFilter === 'PUBLICATIONS') return publicationAccounts;
+    return [...academicAccounts, ...tournamentAccounts, ...publicationAccounts];
+  }, [streamFilter, academicAccounts, tournamentAccounts, publicationAccounts]);
+
+  // Dynamic Financial KPI Calculations across selected stream
   const totalBilledReceivables = useMemo(() => {
-    return allStudentAccounts.reduce((acc, a) => acc + Number(a.totalPackage || 0), 0);
-  }, [allStudentAccounts]);
+    return allUnifiedAccounts.reduce((acc, a) => acc + Number(a.totalPackage || 0), 0);
+  }, [allUnifiedAccounts]);
 
   const totalSettledRevenue = useMemo(() => {
-    return allStudentAccounts.reduce((acc, a) => acc + Number(a.amountPaid || 0), 0);
-  }, [allStudentAccounts]);
+    return allUnifiedAccounts.reduce((acc, a) => acc + Number(a.amountPaid || 0), 0);
+  }, [allUnifiedAccounts]);
 
   const totalPendingDues = useMemo(() => {
-    return allStudentAccounts.reduce((acc, a) => acc + Number(a.pendingBalance || 0), 0);
-  }, [allStudentAccounts]);
+    return allUnifiedAccounts.reduce((acc, a) => acc + Number(a.pendingBalance || 0), 0);
+  }, [allUnifiedAccounts]);
 
   const pendingAccountsCount = useMemo(() => {
-    return allStudentAccounts.filter((a) => a.pendingBalance > 0).length;
-  }, [allStudentAccounts]);
+    return allUnifiedAccounts.filter((a) => a.pendingBalance > 0).length;
+  }, [allUnifiedAccounts]);
 
   const successCount = (payments || []).filter((p) => p.status === 'SUCCESS').length;
 
-  // Search & Filtered Student Accounts
+  // Search & Filtered Unified Accounts
   const q = (searchQuery || '').trim().toLowerCase();
 
-  const filteredStudentAccounts = useMemo(() => {
-    return allStudentAccounts.filter((account) => {
+  const filteredUnifiedAccounts = useMemo(() => {
+    return allUnifiedAccounts.filter((account) => {
       const matchSearch =
         !q ||
         account.studentName.toLowerCase().includes(q) ||
@@ -420,11 +641,11 @@ export const PaymentsPage: React.FC = () => {
 
       const matchDate =
         dateRangeFilter === 'ALL' ||
-        isWithinDateRange(account.dueDate || account.rawFee?.due_date || account.rawFee?.created_at || account.admissionDate, dateRangeFilter);
+        isWithinDateRange(account.dueDate, dateRangeFilter);
 
       return matchSearch && matchStatus && matchDate;
     });
-  }, [allStudentAccounts, q, statusFilter, dateRangeFilter]);
+  }, [allUnifiedAccounts, q, statusFilter, dateRangeFilter]);
 
   // Filtered Receipts / Transactions
   const filteredPayments = useMemo(() => {
@@ -457,10 +678,10 @@ export const PaymentsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            Payment Transactions &amp; Student Ledger
+            Payment Transactions &amp; Central Ledger
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track all student fee accounts, uncollected dues, confirmed payments, and issued receipts.
+            Complete financial hub for all 3 income streams: Academic Tuition, Tournament Entries, and Publications.
           </p>
         </div>
 
@@ -468,7 +689,9 @@ export const PaymentsPage: React.FC = () => {
           <Button
             onClick={() => {
               setManualForm({
+                stream: streamFilter === 'ALL' ? 'ACADEMIC' : streamFilter,
                 studentId: '',
+                targetId: '',
                 studentFeeId: '',
                 amount: '',
                 paymentMethod: 'CASH',
@@ -509,7 +732,79 @@ export const PaymentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 4 Financial KPI Cards */}
+      {/* 3-Stream Filter Toolbar requested by user */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 uppercase tracking-wider flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-indigo-500" /> Stream:
+          </span>
+          <button
+            type="button"
+            onClick={() => setStreamFilter('ALL')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              streamFilter === 'ALL'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            All Streams ({academicAccounts.length + tournamentAccounts.length + publicationAccounts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStreamFilter('ACADEMIC')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              streamFilter === 'ACADEMIC'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>Academic Tuition ({academicAccounts.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStreamFilter('TOURNAMENTS')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              streamFilter === 'TOURNAMENTS'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>Tournaments ({tournamentAccounts.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStreamFilter('PUBLICATIONS')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              streamFilter === 'PUBLICATIONS'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Publications ({publicationAccounts.length})</span>
+          </button>
+        </div>
+
+        {/* Clean Shortcuts */}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/admin/fees"
+            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60"
+          >
+            → Fees Page (Academic Only)
+          </Link>
+          <Link
+            to="/admin/publications"
+            className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60"
+          >
+            → Publications
+          </Link>
+        </div>
+      </div>
+
+      {/* 4 Financial KPI Cards (Dynamically Scaled to Selected Stream) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card hoverEffect accent="indigo" className="p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -520,7 +815,9 @@ export const PaymentsPage: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">₹{totalBilledReceivables.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Across all {allStudentAccounts.length} enrolled students</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {streamFilter === 'ALL' ? 'Combined across all 3 streams' : `Stream: ${streamFilter}`}
+            </p>
           </div>
         </Card>
 
@@ -534,7 +831,7 @@ export const PaymentsPage: React.FC = () => {
           <div className="mt-3">
             <div className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-400 tracking-tight">₹{totalSettledRevenue.toLocaleString('en-IN')}</div>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
-              {totalBilledReceivables > 0 ? `${Math.round((totalSettledRevenue / totalBilledReceivables) * 100)}% recovery rate` : 'Confirmed payments'}
+              {totalBilledReceivables > 0 ? `${Math.round((totalSettledRevenue / totalBilledReceivables) * 100)}% recovery rate` : 'Settled revenue'}
             </p>
           </div>
         </Card>
@@ -548,7 +845,7 @@ export const PaymentsPage: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">₹{totalPendingDues.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-amber-600/90 dark:text-amber-400/90 font-semibold mt-1">{pendingAccountsCount} student accounts with balance</p>
+            <p className="text-xs text-amber-600/90 dark:text-amber-400/90 font-semibold mt-1">{pendingAccountsCount} accounts with balance</p>
           </div>
         </Card>
 
@@ -578,7 +875,7 @@ export const PaymentsPage: React.FC = () => {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Student Payment Accounts ({filteredStudentAccounts.length})</span>
+          <span>Payment Accounts Ledger ({filteredUnifiedAccounts.length})</span>
         </button>
 
         <button
@@ -598,21 +895,48 @@ export const PaymentsPage: React.FC = () => {
       {/* Search & Date Filter Bar */}
       <Card className="p-4 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex flex-col lg:flex-row gap-3 items-center justify-between">
-          {/* Search box */}
-          <div className="relative w-full lg:w-80">
-            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              placeholder="Search student, course, phone, or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3.5 py-2 text-sm border border-slate-200/90 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-400 transition-all"
-            />
+          {/* Search box & Status Filter */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                placeholder="Search athlete, course, event, phone, or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-3.5 py-2 text-sm border border-slate-200/90 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-400 transition-all"
+              />
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending Dues Only</option>
+              <option value="PAID">Fully Cleared (Paid)</option>
+              <option value="PARTIAL">Partial Payments</option>
+              <option value="OVERDUE">Overdue Accounts</option>
+            </select>
+
+            {activeTab === 'receipts' && (
+              <select
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+                className="text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="ALL">All Modes</option>
+                <option value="CASH">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="BANK_TRANSFER">Bank Wire</option>
+              </select>
+            )}
           </div>
 
-          {/* Quick Date Range Buttons requested by user */}
+          {/* Quick Date Range Buttons */}
           <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start lg:self-auto flex-wrap">
             <span className="text-[11px] font-bold text-slate-400 px-2 flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> Filter:
+              <Calendar className="w-3 h-3" /> Period:
             </span>
             <button
               type="button"
@@ -634,7 +958,7 @@ export const PaymentsPage: React.FC = () => {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Today (1 Day)
+              Today
             </button>
             <button
               type="button"
@@ -645,7 +969,7 @@ export const PaymentsPage: React.FC = () => {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Last 7 Days
+              7 Days
             </button>
             <button
               type="button"
@@ -656,49 +980,21 @@ export const PaymentsPage: React.FC = () => {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Last 30 Days
+              30 Days
             </button>
-          </div>
-
-          {/* Status & Provider Dropdowns */}
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-xs h-9 w-36"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="PENDING">Pending Only</option>
-              <option value="PARTIAL">Partial Only</option>
-              <option value="PAID">Paid / Cleared</option>
-              <option value="OVERDUE">Overdue Only</option>
-            </Select>
-
-            {activeTab === 'receipts' && (
-              <Select
-                value={providerFilter}
-                onChange={(e) => setProviderFilter(e.target.value)}
-                className="text-xs h-9 w-36"
-              >
-                <option value="ALL">All Methods</option>
-                <option value="MANUAL">Manual Cash/UPI</option>
-                <option value="RAZORPAY">Razorpay</option>
-              </Select>
-            )}
           </div>
         </div>
       </Card>
 
-      {/* TAB 1: ALL STUDENT PAYMENT ACCOUNTS (Both pending & paid) */}
+      {/* TAB 1: ACCOUNTS LEDGER */}
       {activeTab === 'accounts' && (
         <div>
           {loading ? (
             <SkeletonLoader variant="table" rows={6} />
-          ) : filteredStudentAccounts.length === 0 ? (
+          ) : filteredUnifiedAccounts.length === 0 ? (
             <EmptyState
-              icon={CheckCircle2}
-              title="No student accounts found"
-              description="No student accounts match the selected search or date range filters."
+              title="No payment accounts found"
+              description="No records match the selected stream, search or date range filters."
               accentColor="indigo"
             />
           ) : (
@@ -707,138 +1003,163 @@ export const PaymentsPage: React.FC = () => {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                     <tr>
-                      <th className="px-6 py-3.5">Athlete / Student</th>
-                      <th className="px-5 py-3.5">Enrolled Course</th>
-                      <th className="px-5 py-3.5">Total Package</th>
-                      <th className="px-5 py-3.5">Paid So Far</th>
-                      <th className="px-5 py-3.5">Remaining Balance</th>
-                      <th className="px-5 py-3.5">Due Date</th>
-                      <th className="px-5 py-3.5 text-center">Status</th>
-                      <th className="px-6 py-3.5 text-right">Settlement Action</th>
+                      <th className="px-5 py-3.5">Stream</th>
+                      <th className="px-5 py-3.5">Athlete / Student</th>
+                      <th className="px-5 py-3.5">Program / Event</th>
+                      <th className="px-4 py-3.5">Total Package</th>
+                      <th className="px-4 py-3.5">Paid So Far</th>
+                      <th className="px-4 py-3.5">Remaining Balance</th>
+                      <th className="px-4 py-3.5">Due Date</th>
+                      <th className="px-4 py-3.5 text-center">Status</th>
+                      <th className="px-6 py-3.5 text-right">Settlement &amp; Reminder</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {filteredStudentAccounts.map((account) => (
-                      <tr key={account.studentId} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
-                        {/* Student Name */}
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                            {account.studentName}
-                          </div>
-                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-2">
-                            <span>ID: {account.studentId.substring(0, 8)}</span>
-                            {account.parentWhatsapp && (
-                              <span className="text-emerald-500 font-mono text-[11px]">
-                                WA: {account.parentWhatsapp}
+                    {filteredUnifiedAccounts.map((account) => {
+                      const itemKey = account.id || account.studentId;
+                      return (
+                        <tr key={itemKey} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                          {/* Stream Badge */}
+                          <td className="px-5 py-4">
+                            {account.stream === 'ACADEMIC' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                <GraduationCap className="w-3 h-3" /> Academic
                               </span>
                             )}
-                          </div>
-                        </td>
+                            {account.stream === 'TOURNAMENTS' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <Trophy className="w-3 h-3" /> Tournament
+                              </span>
+                            )}
+                            {account.stream === 'PUBLICATIONS' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                <BookOpen className="w-3 h-3" /> Publication
+                              </span>
+                            )}
+                          </td>
 
-                        {/* Enrolled Course */}
-                        <td className="px-5 py-4 text-xs">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">
-                            {account.course}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-400">
-                            {formatBillingPeriod(account.billingPeriod)}
-                          </div>
-                        </td>
-
-                        {/* Total Package */}
-                        <td className="px-5 py-4 font-bold text-slate-900 dark:text-slate-100">
-                          ₹{Number(account.totalPackage).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Paid So Far */}
-                        <td className="px-5 py-4 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{Number(account.amountPaid).toLocaleString('en-IN')}
-                        </td>
-
-                        {/* Remaining Balance */}
-                        <td className="px-5 py-4">
-                          {account.pendingBalance > 0 ? (
-                            <div>
-                              <div className="font-black text-amber-600 dark:text-amber-400 text-sm">
-                                ₹{Number(account.pendingBalance).toLocaleString('en-IN')}
-                              </div>
-                              <div className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-400/70 tracking-wider">
-                                Balance Remaining
-                              </div>
+                          {/* Student Name & ID */}
+                          <td className="px-5 py-4">
+                            <div className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                              {account.studentName}
                             </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> ₹0 (Fully Cleared)
-                            </span>
-                          )}
-                        </td>
+                            <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                ID #{account.studentId?.substring(0, 8)}
+                              </span>
+                              {account.parentWhatsapp && (
+                                <span className="text-emerald-500 font-mono text-[11px]">
+                                  WA: {account.parentWhatsapp}
+                                </span>
+                              )}
+                            </div>
+                          </td>
 
-                        {/* Due Date */}
-                        <td className="px-5 py-4 text-xs text-slate-600 dark:text-slate-400">
-                          {account.dueDate ? new Date(account.dueDate).toLocaleDateString() : 'Annual / Cycle'}
-                        </td>
+                          {/* Program / Event */}
+                          <td className="px-5 py-4 text-xs">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              {account.course}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-400">
+                              {formatBillingPeriod(account.billingPeriod)}
+                            </div>
+                          </td>
 
-                        {/* Status */}
-                        <td className="px-5 py-4 text-center">
-                          <StatusBadge status={account.status} />
-                        </td>
+                          {/* Total Package */}
+                          <td className="px-4 py-4 font-bold text-slate-900 dark:text-slate-100">
+                            ₹{Number(account.totalPackage).toLocaleString('en-IN')}
+                          </td>
 
-                        {/* Actions */}
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 flex-wrap">
+                          {/* Paid So Far */}
+                          <td className="px-4 py-4 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            ₹{Number(account.amountPaid).toLocaleString('en-IN')}
+                          </td>
+
+                          {/* Remaining Balance */}
+                          <td className="px-4 py-4">
                             {account.pendingBalance > 0 ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleOpenCollectPayment(account)}
-                                  className="text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer shadow-xs"
-                                >
-                                  <Banknote className="w-3.5 h-3.5" />
-                                  <span>Collect Fee</span>
-                                </Button>
+                              <div>
+                                <div className="font-black text-amber-600 dark:text-amber-400 text-sm">
+                                  ₹{Number(account.pendingBalance).toLocaleString('en-IN')}
+                                </div>
+                                <div className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-400/70 tracking-wider">
+                                  Pending
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> ₹0 (Cleared)
+                              </span>
+                            )}
+                          </td>
 
-                                {account.feeId && (
+                          {/* Due Date */}
+                          <td className="px-4 py-4 text-xs text-slate-600 dark:text-slate-400">
+                            {account.dueDate ? new Date(account.dueDate).toLocaleDateString() : 'Annual / Cycle'}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-4 py-4 text-center">
+                            <StatusBadge status={account.status} />
+                          </td>
+
+                          {/* Actions: Settle Fee & WhatsApp inline button */}
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {account.pendingBalance > 0 ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleOpenCollectPayment(account)}
+                                    className="text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer shadow-xs"
+                                  >
+                                    <Banknote className="w-3.5 h-3.5" />
+                                    <span>Collect</span>
+                                  </Button>
+
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleSendReminder(account)}
-                                    disabled={sendingReminderFeeId === account.feeId}
+                                    disabled={sendingReminderFeeId === (account.id || account.feeId || account.registrationId || account.publicationId)}
                                     className="text-xs h-8 gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
-                                    title="Send WhatsApp payment reminder alert to parent"
+                                    title="Send WhatsApp payment reminder to parent"
                                   >
                                     <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>{sendingReminderFeeId === account.feeId ? 'Sending...' : 'Remind'}</span>
+                                    <span>
+                                      {sendingReminderFeeId === (account.id || account.feeId || account.registrationId || account.publicationId) ? 'Sending...' : 'Remind'}
+                                    </span>
                                   </Button>
-                                )}
-                              </>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenCollectPayment(account)}
-                                className="text-xs h-8 gap-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                              >
-                                <span>+ Record Advance</span>
-                              </Button>
-                            )}
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenCollectPayment(account)}
+                                  className="text-xs h-8 gap-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                >
+                                  <span>+ Advance</span>
+                                </Button>
+                              )}
 
-                            {account.amountPaid > 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUndoAccountPayment(account)}
-                                disabled={undoingPaymentId === account.studentId}
-                                className="text-xs h-8 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-                                title="Undo / Revert recent payment for this student"
-                              >
-                                <RotateCcw className={`w-3.5 h-3.5 ${undoingPaymentId === account.studentId ? 'animate-spin' : ''}`} />
-                                <span>Undo</span>
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {account.amountPaid > 0 && account.stream === 'ACADEMIC' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUndoAccountPayment(account)}
+                                  disabled={undoingPaymentId === account.studentId}
+                                  className="text-xs h-8 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                  title="Undo recent payment for this student"
+                                >
+                                  <RotateCcw className={`w-3 h-3 ${undoingPaymentId === account.studentId ? 'animate-spin' : ''}`} />
+                                  <span>Undo</span>
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -865,7 +1186,7 @@ export const PaymentsPage: React.FC = () => {
                   <thead className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                     <tr>
                       <th className="px-6 py-3.5">Date &amp; Time</th>
-                      <th className="px-5 py-3.5">Student</th>
+                      <th className="px-5 py-3.5">Athlete / Student</th>
                       <th className="px-5 py-3.5 text-right">Amount Paid</th>
                       <th className="px-5 py-3.5 text-center">Method / Mode</th>
                       <th className="px-5 py-3.5">Reference / Notes</th>
@@ -949,30 +1270,90 @@ export const PaymentsPage: React.FC = () => {
       <Modal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        title="Record Student Fee Payment"
+        title={`Record ${manualForm.stream} Payment`}
       >
         <form onSubmit={handleManualPayment} className="space-y-4">
           <Select
-            label="Select Student *"
-            required
-            value={manualForm.studentId}
-            onChange={(e) => {
-              const sid = e.target.value;
-              const account = allStudentAccounts.find((a) => a.studentId === sid);
-              setManualForm({
-                ...manualForm,
-                studentId: sid,
-                amount: account && account.pendingBalance > 0 ? String(account.pendingBalance) : manualForm.amount,
-              });
-            }}
+            label="Income Stream *"
+            value={manualForm.stream}
+            onChange={(e) => setManualForm({ ...manualForm, stream: e.target.value as any })}
           >
-            <option value="">Select a student...</option>
-            {allStudentAccounts.map((s) => (
-              <option key={s.studentId} value={s.studentId}>
-                {s.studentName} — Pending: ₹{s.pendingBalance} ({s.course})
-              </option>
-            ))}
+            <option value="ACADEMIC">Academic Tuition Fee</option>
+            <option value="TOURNAMENTS">Tournament Entry Fee</option>
+            <option value="PUBLICATIONS">Publication Subscription Fee</option>
           </Select>
+
+          {manualForm.stream === 'ACADEMIC' && (
+            <Select
+              label="Select Student *"
+              required
+              value={manualForm.studentId}
+              onChange={(e) => {
+                const sid = e.target.value;
+                const account = academicAccounts.find((a) => a.studentId === sid);
+                setManualForm({
+                  ...manualForm,
+                  studentId: sid,
+                  amount: account && account.pendingBalance > 0 ? String(account.pendingBalance) : manualForm.amount,
+                });
+              }}
+            >
+              <option value="">Select an enrolled student...</option>
+              {academicAccounts.map((s) => (
+                <option key={s.studentId} value={s.studentId}>
+                  {s.studentName} — Pending: ₹{s.pendingBalance} ({s.course})
+                </option>
+              ))}
+            </Select>
+          )}
+
+          {manualForm.stream === 'TOURNAMENTS' && (
+            <Select
+              label="Select Tournament Entry *"
+              required
+              value={manualForm.targetId}
+              onChange={(e) => {
+                const regId = e.target.value;
+                const entry = tournamentAccounts.find((t) => t.registrationId === regId);
+                setManualForm({
+                  ...manualForm,
+                  targetId: regId,
+                  amount: entry && entry.pendingBalance > 0 ? String(entry.pendingBalance) : manualForm.amount,
+                });
+              }}
+            >
+              <option value="">Select tournament registration...</option>
+              {tournamentAccounts.map((t) => (
+                <option key={t.registrationId} value={t.registrationId}>
+                  {t.studentName} — {t.course} (Pending: ₹{t.pendingBalance})
+                </option>
+              ))}
+            </Select>
+          )}
+
+          {manualForm.stream === 'PUBLICATIONS' && (
+            <Select
+              label="Select Publication Subscriber *"
+              required
+              value={manualForm.targetId}
+              onChange={(e) => {
+                const pubId = e.target.value;
+                const pub = publicationAccounts.find((p) => p.publicationId === pubId);
+                setManualForm({
+                  ...manualForm,
+                  targetId: pubId,
+                  amount: pub && pub.pendingBalance > 0 ? String(pub.pendingBalance) : manualForm.amount,
+                });
+              }}
+            >
+              <option value="">Select publication student...</option>
+              {publicationAccounts.map((p) => (
+                <option key={p.publicationId} value={p.publicationId}>
+                  {p.studentName} — {p.course} (Pending: ₹{p.pendingBalance})
+                </option>
+              ))}
+            </Select>
+          )}
 
           <Input
             label="Payment Amount (₹) *"
@@ -1006,7 +1387,7 @@ export const PaymentsPage: React.FC = () => {
 
           <Input
             label="Reference / Transaction Notes"
-            placeholder="e.g. Cash collected by Coach at evening session"
+            placeholder="e.g. Cash collected by Coach at desk"
             value={manualForm.notes}
             onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
           />
@@ -1016,7 +1397,7 @@ export const PaymentsPage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Recording...' : 'Record Payment & Issue Receipt'}
+              {submitting ? 'Recording...' : 'Record Payment & Settle'}
             </Button>
           </div>
         </form>

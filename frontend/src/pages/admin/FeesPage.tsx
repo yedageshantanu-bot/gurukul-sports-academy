@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { TournamentsPage } from './TournamentsPage';
+import { Link } from 'react-router-dom';
 import {
   CreditCard,
   Plus,
@@ -12,12 +11,14 @@ import {
   Banknote,
   MessageSquare,
   Edit2,
-  Trophy,
+  Trash2,
+  BookOpen,
   RotateCcw,
   Check,
   QrCode,
   Send,
   Printer,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -76,18 +77,6 @@ const monthlyPeriodOptions = generateMonthlyPeriodOptions();
 export const FeesPage: React.FC = () => {
   const { token } = useAuth();
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const streamParam = searchParams.get('stream');
-  const [activeStream, setActiveStream] = useState<'TUITION' | 'PUBLICATIONS' | 'TOURNAMENTS'>(
-    streamParam === 'publications' ? 'PUBLICATIONS' : streamParam === 'tournaments' ? 'TOURNAMENTS' : 'TUITION'
-  );
-
-  useEffect(() => {
-    if (streamParam === 'publications') setActiveStream('PUBLICATIONS');
-    else if (streamParam === 'tournaments') setActiveStream('TOURNAMENTS');
-    else if (!streamParam) setActiveStream('TUITION');
-  }, [streamParam]);
-
   const [activeTab, setActiveTab] = useState<'student_fees' | 'fee_plans'>('student_fees');
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [feePlans, setFeePlans] = useState<FeePlan[]>([]);
@@ -95,6 +84,10 @@ export const FeesPage: React.FC = () => {
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Student Delete from Fees state
+  const [studentToDeleteFromFees, setStudentToDeleteFromFees] = useState<{ id: string; name: string } | null>(null);
+  const [deletingStudentFromFees, setDeletingStudentFromFees] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -667,6 +660,43 @@ export const FeesPage: React.FC = () => {
     }
   };
 
+  // Delete student and all associated fee records permanently
+  const handleDeleteStudentRecord = (fee: StudentFee) => {
+    setStudentToDeleteFromFees({
+      id: fee.student_id,
+      name: fee.student?.name || 'Student',
+    });
+  };
+
+  const handleConfirmDeleteStudentFromFees = async () => {
+    if (!studentToDeleteFromFees || !token) return;
+    const targetStudentId = studentToDeleteFromFees.id;
+    const studentName = studentToDeleteFromFees.name;
+    setDeletingStudentFromFees(true);
+
+    // Optimistic UI update: immediately remove all fee rows and student from local state
+    setStudentFees((prev) => prev.filter((f) => f.student_id !== targetStudentId));
+    setStudents((prev) => prev.filter((s) => s.id !== targetStudentId));
+    setStudentToDeleteFromFees(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/students/${targetStudentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete student');
+
+      toast.success(`Student "${studentName}" and all associated records permanently deleted.`);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Failed to delete student: ${err.message || 'Unknown error'}`);
+      await fetchData();
+    } finally {
+      setDeletingStudentFromFees(false);
+    }
+  };
+
   const handleSaveFeeTemplate = () => {
     try {
       localStorage.setItem('gurukul_whatsapp_fee_template', feeWhatsappTemplate);
@@ -910,75 +940,37 @@ export const FeesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* 2-Stream Segregated Fee Navigation */}
+      {/* Primary Academic Fee Header & Shortcuts */}
       <div className="p-3 bg-gradient-to-r from-slate-900 to-[#0F172A] border border-white/10 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fee Stream:</span>
-          <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveStream('TUITION');
-                setSearchParams({});
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeStream === 'TUITION'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Academy Tuition Fees
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
-                activeStream === 'TUITION' ? 'bg-black/20 text-slate-950' : 'bg-emerald-500/20 text-emerald-300'
-              }`}>
-                Default
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveStream('TOURNAMENTS');
-                setSearchParams({ stream: 'tournaments' });
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeStream === 'TOURNAMENTS'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Trophy className={`w-3.5 h-3.5 ${activeStream === 'TOURNAMENTS' ? 'text-slate-950' : 'text-amber-400'}`} />
-              Tournament Entry Fees
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
-                activeStream === 'TOURNAMENTS' ? 'bg-black/20 text-slate-950' : 'bg-amber-500/20 text-amber-300'
-              }`}>
-                Click to Open
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-            ✓ Segregated Accounting: Regular Academy Tuition (Tournament Entry Fees Segregated)
+          <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+            <CreditCard className="w-4 h-4 text-amber-500" />
+            Academic Fees Only
+          </span>
+          <span className="text-xs text-slate-400 hidden sm:inline">
+            (Monthly course subscriptions &amp; annual tuition fees)
           </span>
         </div>
-      </div>
 
-      {activeStream === 'TOURNAMENTS' ? (
-        <TournamentsPage embedded={true} />
-      ) : (
-        <>
-          {/* Active View Indicator */}
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="font-bold">Active View: Academy Regular Fees Only</span>
-              <span className="text-slate-600 dark:text-slate-300">
-                (Monthly course fees &amp; annual package tuition. Tournament registration fees are isolated under the Tournament tab).
-              </span>
-            </div>
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to="/admin/publications"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 flex items-center gap-1.5 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Publications &amp; Uniforms</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+          <Link
+            to="/admin/payments"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 flex items-center gap-1.5 transition-colors"
+          >
+            <Banknote className="w-3.5 h-3.5" />
+            <span>Payments Ledger (All Streams)</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+      </div>
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
             <div>
@@ -1452,8 +1444,10 @@ export const FeesPage: React.FC = () => {
                           <div className="font-bold text-slate-900 dark:text-slate-100 leading-tight">
                             {fee.student?.name || 'Unknown Student'}
                           </div>
-                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                            ID: {fee.student_id.substring(0, 8)}
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shadow-2xs">
+                              ID #{fee.student_id.substring(0, 8)}
+                            </span>
                           </div>
                         </td>
                         <td className="px-5 py-4">
@@ -1593,6 +1587,16 @@ export const FeesPage: React.FC = () => {
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </Button>
+
+                            {/* Delete Student & Fee Record Permanently */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStudentRecord(fee)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-300 dark:hover:border-rose-800"
+                              title="Delete student and all records permanently from academy"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2076,8 +2080,39 @@ export const FeesPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-        </>
-      )}
+
+      {/* MODAL 6: Delete Student & Erase Records Confirmation */}
+      <Modal
+        isOpen={Boolean(studentToDeleteFromFees)}
+        onClose={() => setStudentToDeleteFromFees(null)}
+        title="Delete Student & Erase Records"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200">
+            ⚠️ <strong>Permanent Action:</strong> You are about to permanently delete <strong>{studentToDeleteFromFees?.name}</strong> from Gurukul Sports Academy.
+            This will permanently remove the student, their fee bills, payments, and attendance. Total expected fee, pending dues, and revenue totals will immediately recalculate.
+          </div>
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200 dark:border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStudentToDeleteFromFees(null)}
+              disabled={deletingStudentFromFees}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmDeleteStudentFromFees}
+              disabled={deletingStudentFromFees}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+            >
+              {deletingStudentFromFees ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

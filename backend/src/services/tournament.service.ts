@@ -267,6 +267,48 @@ Warm regards,
   }
 
   /**
+   * List all tournament registrations across all tournaments for central ledger
+   */
+  static async listAllTournamentRegistrations() {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const { data: registrations, error } = await supabaseAdmin
+      .from('tournament_registrations')
+      .select(`
+        id,
+        tournament_id,
+        student_id,
+        category,
+        fee_amount,
+        amount_paid,
+        payment_status,
+        payment_method,
+        payment_date,
+        settlement_notes,
+        selection_status,
+        whatsapp_notified,
+        created_at,
+        tournaments (
+          id,
+          name,
+          venue,
+          tournament_date
+        ),
+        students (
+          id,
+          name,
+          parent_name,
+          parent_whatsapp,
+          student_mobile
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new AppError(`Failed to fetch all tournament registrations: ${error.message}`, 500);
+    return registrations || [];
+  }
+
+  /**
    * Nominate / Select multiple students for a tournament (WhatsApp messaging disabled per client instructions)
    */
   static async nominateStudents(tournamentId: string, dto: NominateStudentsDTO) {

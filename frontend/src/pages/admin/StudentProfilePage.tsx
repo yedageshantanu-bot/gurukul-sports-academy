@@ -32,6 +32,7 @@ import {
   Send,
   Plus,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const StudentProfilePage: React.FC = () => {
@@ -384,6 +385,10 @@ export const StudentProfilePage: React.FC = () => {
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                   {student.name}
                 </h1>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 dark:bg-indigo-400/10 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 font-mono text-xs font-bold tracking-wider shadow-2xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>ID #{student.id.substring(0, 8).toUpperCase()}</span>
+                </div>
                 <StatusBadge status={student.status} />
                 {student.whatsappOptIn !== false ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800">

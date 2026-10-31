@@ -22,6 +22,15 @@ export class TournamentController {
     }
   }
 
+  static async getAllRegistrations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await TournamentService.listAllTournamentRegistrations();
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async getDetails(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await TournamentService.getTournamentDetails(req.params.id);
