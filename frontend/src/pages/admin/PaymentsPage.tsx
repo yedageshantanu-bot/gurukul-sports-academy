@@ -333,7 +333,7 @@ export const PaymentsPage: React.FC = () => {
     }
   };
 
-  // Handle WhatsApp payment reminder across all 3 streams with direct wa.me fallback
+  // Handle WhatsApp payment reminder across all 3 streams via backend gateway
   const handleSendReminder = async (item: UnifiedAccountItem) => {
     if (!token) return;
     const itemKey = item.id || item.feeId || item.registrationId || item.publicationId || item.studentId;
@@ -347,18 +347,7 @@ export const PaymentsPage: React.FC = () => {
         });
         const data = await res.json();
         if (!res.ok) {
-          // Fallback to wa.me
-          const phone = item.parentWhatsapp || item.studentMobile;
-          if (phone) {
-            const clean = phone.replace(/[^0-9]/g, '');
-            const msg = encodeURIComponent(
-              `🏆 *Gurukul Sports Academy - Tournament Entry Fee Notice*\n\nHello, this is a reminder for *${item.studentName}* regarding entry fee of ₹${Number(item.pendingBalance).toLocaleString('en-IN')} for *${item.course}*.\n\nKindly confirm and clear at the academy.\n\nWarm regards,\n*Gurukul Sports Academy*`
-            );
-            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
-            toast.success(`Opened WhatsApp reminder for ${item.studentName}!`);
-            return;
-          }
-          throw new Error(data.message || 'Failed to dispatch tournament reminder');
+          throw new Error(data.message || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
         }
         setSuccessToast(`WhatsApp reminder dispatched to ${item.studentName} for tournament entry!`);
         toast.success(`WhatsApp reminder dispatched for ${item.studentName}!`);
@@ -369,18 +358,7 @@ export const PaymentsPage: React.FC = () => {
         });
         const data = await res.json();
         if (!res.ok) {
-          // Fallback to wa.me
-          const phone = item.parentWhatsapp || item.studentMobile;
-          if (phone) {
-            const clean = phone.replace(/[^0-9]/g, '');
-            const msg = encodeURIComponent(
-              `📚 *Gurukul Sports Academy - Publication Renewal Notice*\n\nHello, this is a reminder regarding publication subscription *${item.course}* for *${item.studentName}*. Pending annual fee: ₹${Number(item.pendingBalance).toLocaleString('en-IN')}.\n\nKindly complete renewal at the academy.\n\nWarm regards,\n*Gurukul Sports Academy*`
-            );
-            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
-            toast.success(`Opened WhatsApp reminder for ${item.studentName}!`);
-            return;
-          }
-          throw new Error(data.message || 'Failed to dispatch publication reminder');
+          throw new Error(data.message || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
         }
         setSuccessToast(`WhatsApp reminder dispatched to ${item.studentName} for publication renewal!`);
         toast.success(`WhatsApp reminder dispatched for ${item.studentName}!`);
@@ -405,18 +383,7 @@ export const PaymentsPage: React.FC = () => {
 
         const data = res ? await res.json() : { disconnected: true };
         if (!res || !res.ok || data.disconnected) {
-          // Seamless fallback to wa.me
-          const phone = item.parentWhatsapp || item.studentMobile;
-          if (phone) {
-            const clean = phone.replace(/[^0-9]/g, '');
-            const msg = encodeURIComponent(
-              `🥋 *Gurukul Sports Academy - Academic Tuition Fee Reminder*\n\nHello, this is a friendly reminder that monthly academic tuition fee of ₹${Number(item.pendingBalance).toLocaleString('en-IN')} for *${item.studentName}* (${item.course}) is pending.\n\nKindly complete the settlement at the academy desk or via UPI.\n\nThank you,\n*Gurukul Sports Academy*`
-            );
-            window.open(`https://wa.me/${clean}?text=${msg}`, '_blank');
-            toast.success(`Opened direct WhatsApp reminder for ${item.studentName}!`);
-            return;
-          }
-          throw new Error(data.error?.message || data.message || 'WhatsApp Gateway disconnected.');
+          throw new Error(data.error?.message || data.message || 'WhatsApp Gateway is currently disconnected. Please connect device in WhatsApp Settings.');
         }
 
         setSuccessToast(`WhatsApp payment reminder dispatched for ${item.studentName}!`);
@@ -425,7 +392,7 @@ export const PaymentsPage: React.FC = () => {
       setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Error sending reminder');
-      toast.error(err.message || 'Error sending reminder');
+      toast.error(err.message || 'WhatsApp Gateway disconnected. Please connect in WhatsApp Settings.');
     } finally {
       setSendingReminderFeeId(null);
     }

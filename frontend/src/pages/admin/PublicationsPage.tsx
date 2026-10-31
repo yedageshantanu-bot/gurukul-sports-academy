@@ -131,8 +131,8 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [payNotes, setPayNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // New Customer Form state
-  const [isExternal, setIsExternal] = useState(false);
+  // New Customer Form state (Defaults to Outside / External student per client instructions)
+  const [isExternal, setIsExternal] = useState(true);
   const [selectedAcademyStudentId, setSelectedAcademyStudentId] = useState('');
   const [formName, setFormName] = useState('');
   const [formParent, setFormParent] = useState('');
@@ -402,17 +402,21 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     );
     if (!confirmDelete) return;
 
+    // Optimistic removal
+    setStudents((prev) => prev.filter((p) => p.id !== student.id));
+
     try {
       await apiClient(`/publications/${student.id}`, { method: 'DELETE' });
       toast.success(`Publication record for "${student.student_name}" deleted.`);
       fetchPublications();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete publication record');
+      fetchPublications();
     }
   };
 
   const resetForm = () => {
-    setIsExternal(false);
+    setIsExternal(true);
     setSelectedAcademyStudentId('');
     setFormName('');
     setFormParent('');

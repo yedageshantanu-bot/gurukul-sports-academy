@@ -78,7 +78,7 @@ export const TeamMessagingPage: React.FC = () => {
     }
     return [
       { id: 'c1', name: 'Sensei Vikram Salunkhe (Admin)', phone: '9881888061', position: 'Chief Director' },
-      { id: 'c2', name: 'Shantanu', phone: '9881888061', position: 'Core Member' },
+      { id: 'c2', name: 'Shantanu', phone: '9822001122', position: 'Core Member' },
       { id: 'c3', name: 'Laj', phone: '9404849500', position: 'Core Member' },
       { id: 'c4', name: 'Kaustubh Team', phone: '+917350260261', position: 'Coordinator' },
     ];
@@ -95,6 +95,7 @@ export const TeamMessagingPage: React.FC = () => {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamCategory | null>(null);
+  const [selectedInitialContactPhones, setSelectedInitialContactPhones] = useState<string[]>([]);
 
   // Modal Contact Picker Search
   const [contactSearchQuery, setContactSearchQuery] = useState('');
@@ -124,9 +125,9 @@ export const TeamMessagingPage: React.FC = () => {
   // Save contacts to localStorage whenever updated
   const persistContact = (contact: TeamContact) => {
     setSavedContacts((prev) => {
-      const cleanPhone = contact.phone.replace(/[^0-9+]/g, '');
+      const clean10 = contact.phone.replace(/[^0-9]/g, '').slice(-10);
       const existingIdx = prev.findIndex(
-        (c) => c.phone.replace(/[^0-9+]/g, '') === cleanPhone || (c.name.trim().toLowerCase() === contact.name.trim().toLowerCase() && c.name.trim())
+        (c) => c.phone.replace(/[^0-9]/g, '').slice(-10) === clean10 || (c.name.trim().toLowerCase() === contact.name.trim().toLowerCase() && c.name.trim())
       );
       let updated: TeamContact[];
       if (existingIdx >= 0) {
@@ -192,25 +193,38 @@ export const TeamMessagingPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Map each contact to all teams they belong to
+  // Map each contact (normalized by last 10 digits) to all teams they belong to
   const contactTeamsMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const m of teamMembers) {
-      const cleanPhone = m.phone.replace(/[^0-9+]/g, '');
-      const existing = map.get(cleanPhone) || [];
+      const clean10 = m.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (!clean10) continue;
+      const existing = map.get(clean10) || [];
       if (!existing.includes(m.team_code)) {
         existing.push(m.team_code);
       }
-      map.set(cleanPhone, existing);
+      map.set(clean10, existing);
     }
     return map;
   }, [teamMembers]);
 
-  // Unified contacts directory with team memberships
+  // Unified contacts directory strictly deduplicated by 10-digit phone
   const allDirectoryContacts = useMemo(() => {
-    return savedContacts.map((c) => {
-      const cleanPhone = c.phone.replace(/[^0-9+]/g, '');
-      const memberTeams = contactTeamsMap.get(cleanPhone) || [];
+    const seenPhones = new Map<string, TeamContact>();
+    for (const c of savedContacts) {
+      const clean10 = c.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (!clean10) continue;
+      if (!seenPhones.has(clean10)) {
+        seenPhones.set(clean10, c);
+      } else {
+        const existing = seenPhones.get(clean10)!;
+        if (!existing.position && c.position) existing.position = c.position;
+      }
+    }
+
+    return Array.from(seenPhones.values()).map((c) => {
+      const clean10 = c.phone.replace(/[^0-9]/g, '').slice(-10);
+      const memberTeams = contactTeamsMap.get(clean10) || [];
       return {
         ...c,
         memberTeams,
@@ -305,6 +319,10 @@ export const TeamMessagingPage: React.FC = () => {
   // Save Member
   const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!memberForm.name.trim()) {
+      toast.error('Full Name is required.');
+      return;
+    }
     if (!memberForm.phone.trim()) {
       toast.error('WhatsApp / Phone number is required.');
       return;
@@ -319,7 +337,7 @@ export const TeamMessagingPage: React.FC = () => {
       const res: any = await apiClient('/team-messages/members', {
         method: 'POST',
         body: JSON.stringify({
-          name: memberForm.name.trim() || 'Member',
+          name: memberForm.name.trim(),
           phone: memberForm.phone.trim(),
           teamCode: memberForm.teamCode,
           position: memberForm.position.trim() || null,
@@ -330,7 +348,7 @@ export const TeamMessagingPage: React.FC = () => {
 
       const newMember: TeamMember = res?.data || {
         id: `mem-${Date.now()}`,
-        name: memberForm.name.trim() || 'Member',
+        name: memberForm.name.trim(),
         phone: memberForm.phone.trim(),
         team_code: memberForm.teamCode,
         position: memberForm.position.trim() || null,
@@ -345,7 +363,7 @@ export const TeamMessagingPage: React.FC = () => {
       // Save to directory
       persistContact({
         id: `c-${Date.now()}`,
-        name: memberForm.name.trim() || 'Member',
+        name: memberForm.name.trim(),
         phone: memberForm.phone.trim(),
         position: memberForm.position.trim() || null,
         district: memberForm.district.trim() || null,
@@ -353,7 +371,7 @@ export const TeamMessagingPage: React.FC = () => {
       });
 
       setIsAddMemberModalOpen(false);
-      toast.success(`"${memberForm.name || 'Member'}" added to team!`);
+      toast.success(`"${memberForm.name}" added to team!`);
     } catch (err: any) {
       console.error('Failed to add member:', err);
       toast.error(err.message || 'Could not add member to team.');
@@ -383,6 +401,7 @@ export const TeamMessagingPage: React.FC = () => {
 
   // Open Create/Edit Team Modal
   const handleOpenTeamModal = (team?: TeamCategory) => {
+    setSelectedInitialContactPhones([]);
     if (team) {
       setEditingTeam(team);
       setTeamForm({
@@ -457,7 +476,44 @@ export const TeamMessagingPage: React.FC = () => {
           created_at: new Date().toISOString(),
         };
         setTeams((prev) => [...prev, created]);
-        toast.success(`Team "${teamForm.name}" created!`);
+
+        // Automatically assign any initially selected contacts to the new team immediately
+        if (selectedInitialContactPhones.length > 0) {
+          for (const phone10 of selectedInitialContactPhones) {
+            const contact = allDirectoryContacts.find(
+              (c) => c.phone.replace(/[^0-9]/g, '').slice(-10) === phone10
+            );
+            if (contact) {
+              try {
+                const memRes: any = await apiClient('/team-messages/members', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    name: contact.name,
+                    phone: contact.phone,
+                    teamCode: created.code,
+                    position: contact.position || null,
+                    district: contact.district || null,
+                    notes: contact.notes || null,
+                  }),
+                });
+                const newMem = memRes?.data || {
+                  id: `mem-${Date.now()}-${Math.random()}`,
+                  name: contact.name,
+                  phone: contact.phone,
+                  team_code: created.code,
+                  position: contact.position,
+                  status: 'ACTIVE',
+                  created_at: new Date().toISOString(),
+                };
+                setTeamMembers((prev) => [...prev, newMem]);
+              } catch (e) {
+                console.error('Error assigning member during team creation:', e);
+              }
+            }
+          }
+        }
+
+        toast.success(`Team "${teamForm.name}" created with ${selectedInitialContactPhones.length} member(s)!`);
       }
       setIsTeamModalOpen(false);
     } catch (err: any) {
@@ -865,32 +921,70 @@ export const TeamMessagingPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="pt-3 mt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-amber-500" />
-                      {membersCount} {membersCount === 1 ? 'Member' : 'Members'}
-                    </span>
+                  <div className="pt-3 mt-3 border-t border-slate-100 dark:border-white/5 space-y-2.5">
+                    {/* Enrolled Members Quick Chips */}
+                    {(() => {
+                      const enrolled = teamMembers.filter((m) => m.team_code === team.code);
+                      if (enrolled.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {enrolled.map((m) => (
+                            <span
+                              key={m.id}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10"
+                            >
+                              <span>{m.name || 'Member'}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMember(m)}
+                                className="text-slate-400 hover:text-rose-500 ml-0.5 cursor-pointer"
+                                title="Remove member"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTeamFilter(team.code);
-                          setActiveTab('members');
-                        }}
-                        className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        View Members <ArrowRight className="w-3 h-3" />
-                      </button>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-amber-500" />
+                        {membersCount} {membersCount === 1 ? 'Member' : 'Members'}
+                      </span>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTeam(team)}
-                        className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
-                        title="Delete team"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddMemberModal(team.code)}
+                          className="px-2 py-1 rounded-md text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Add member directly to this team"
+                        >
+                          <UserPlus className="w-3 h-3" />
+                          <span>+ Add Member</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTeamFilter(team.code);
+                            setActiveTab('members');
+                          }}
+                          className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          View <ArrowRight className="w-3 h-3" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTeam(team)}
+                          className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                          title="Delete team"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -1199,6 +1293,46 @@ export const TeamMessagingPage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {!editingTeam && allDirectoryContacts.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-white/10">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                Assign Existing Contacts Immediately (Optional)
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Check who to enroll in this team right now (e.g. Shantanu, Laj):
+              </p>
+              <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-50 dark:bg-black/30 p-2 rounded-lg border border-slate-200 dark:border-white/5">
+                {allDirectoryContacts.map((c) => {
+                  const clean10 = c.phone.replace(/[^0-9]/g, '').slice(-10);
+                  const isChecked = selectedInitialContactPhones.includes(clean10);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center justify-between p-1.5 rounded hover:bg-slate-200/50 dark:hover:bg-white/5 cursor-pointer text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedInitialContactPhones((prev) => [...prev, clean10]);
+                            } else {
+                              setSelectedInitialContactPhones((prev) => prev.filter((p) => p !== clean10));
+                            }
+                          }}
+                          className="rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+                        />
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{c.name}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-mono">{c.phone}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
             <Button type="button" variant="outline" onClick={() => setIsTeamModalOpen(false)} className="text-xs">

@@ -104,12 +104,14 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedRegForPay, setSelectedRegForPay] = useState<TournamentRegistration | null>(null);
 
-  // Form states - Create Tournament (Strictly: Name, Start Date, End Date, Venue)
+  // Form states - Create Tournament (Strictly: Name, Start Date, End Date, Venue, Entry Fee / No Fee)
   const [formData, setFormData] = useState({
     title: '',
     venue: '',
     start_date: new Date().toISOString().split('T')[0],
     end_date: new Date().toISOString().split('T')[0],
+    entry_fee: '0',
+    isNoFee: true,
   });
 
   const handleOpenCreateModal = () => {
@@ -119,6 +121,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       venue: '',
       start_date: today,
       end_date: today,
+      entry_fee: '0',
+      isNoFee: true,
     });
     setIsCreateModalOpen(true);
   };
@@ -150,7 +154,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
   const [deletingTournamentId, setDeletingTournamentId] = useState<string | null>(null);
 
-  // Edit Tournament Modal State (Strictly: Name, Start Date, End Date, Venue, Status)
+  // Edit Tournament Modal State (Strictly: Name, Start Date, End Date, Venue, Status, Entry Fee / No Fee)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -160,16 +164,21 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     start_date: '',
     end_date: '',
     status: 'UPCOMING' as 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED',
+    entry_fee: '0',
+    isNoFee: true,
   });
 
   const handleOpenEditTournament = (tour: Tournament) => {
     setEditingTournament(tour);
+    const fee = Number(tour.entry_fee || 0);
     setEditFormData({
       title: tour.title || tour.name || '',
       venue: tour.venue || '',
       start_date: tour.start_date ? tour.start_date.split('T')[0] : '',
       end_date: tour.end_date ? tour.end_date.split('T')[0] : '',
       status: tour.status || 'UPCOMING',
+      entry_fee: String(fee),
+      isNoFee: fee === 0,
     });
     setIsEditModalOpen(true);
   };
@@ -183,6 +192,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     }
     setSavingEdit(true);
     try {
+      const resolvedFee = editFormData.isNoFee ? 0 : (Number(editFormData.entry_fee) || 0);
       const res: any = await apiClient(`/tournaments/${editingTournament.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -192,6 +202,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           start_date: editFormData.start_date || null,
           end_date: editFormData.end_date || null,
           status: editFormData.status,
+          entry_fee: resolvedFee,
         }),
       });
 
@@ -200,6 +211,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         ...editFormData,
         title: editFormData.title,
         name: editFormData.title,
+        entry_fee: resolvedFee,
       };
 
       setTournaments((prev) => prev.map((t) => (t.id === editingTournament.id ? { ...t, ...updated } : t)));
@@ -369,6 +381,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       return;
     }
     try {
+      const resolvedFee = formData.isNoFee ? 0 : (Number(formData.entry_fee) || 0);
       const payload = {
         name: formData.title.trim(),
         title: formData.title.trim(),
@@ -378,6 +391,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         start_date: formData.start_date,
         end_date: formData.end_date || formData.start_date,
         registration_deadline: formData.end_date || formData.start_date,
+        entry_fee: resolvedFee,
+        entryFee: resolvedFee,
       };
 
       await apiClient('/tournaments', {
@@ -392,6 +407,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         venue: '',
         start_date: today,
         end_date: today,
+        entry_fee: '0',
+        isNoFee: true,
       });
       fetchTournaments();
       toast.success(`Championship "${formData.title}" registered successfully!`);
@@ -825,7 +842,15 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 dark:border-white/5 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500 dark:text-slate-400 font-medium">Entry Fee:</span>
-                        <span className="text-amber-600 dark:text-amber-400 font-bold">₹{Number(tour.entry_fee || 0).toLocaleString('en-IN')}</span>
+                        {Number(tour.entry_fee || 0) === 0 ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                            No Fee (Free Entry)
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-bold">
+                            ₹{Number(tour.entry_fee || 0).toLocaleString('en-IN')}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
                         <Users className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
@@ -880,6 +905,15 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                       {(selectedTournament.discipline_code || 'GENERAL').replace('_', ' ')}
                     </span>
+                    {Number(selectedTournament.entry_fee || 0) === 0 ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        No Fee (Free Entry)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                        Entry Fee: ₹{Number(selectedTournament.entry_fee || 0).toLocaleString('en-IN')}
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">{selectedTournament.title || selectedTournament.name || 'Untitled Tournament'}</h2>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-2 font-medium">
@@ -1151,6 +1185,44 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             </div>
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Entry Fee (प्रवेश शुल्क)
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                <input
+                  type="checkbox"
+                  checked={editFormData.isNoFee}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      isNoFee: checked,
+                      entry_fee: checked ? '0' : (prev.entry_fee === '0' ? '500' : prev.entry_fee),
+                    }));
+                  }}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">No Fee / मोफत (Free Entry)</span>
+              </label>
+            </div>
+            {!editFormData.isNoFee && (
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="500"
+                  value={editFormData.entry_fee}
+                  onChange={(e) => setEditFormData({ ...editFormData, entry_fee: e.target.value })}
+                  className="w-full pl-7 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Status / सद्यस्थिती *
@@ -1229,6 +1301,44 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Entry Fee (प्रवेश शुल्क)
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                <input
+                  type="checkbox"
+                  checked={formData.isNoFee}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData((prev) => ({
+                      ...prev,
+                      isNoFee: checked,
+                      entry_fee: checked ? '0' : (prev.entry_fee === '0' ? '500' : prev.entry_fee),
+                    }));
+                  }}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">No Fee / मोफत (Free Entry)</span>
+              </label>
+            </div>
+            {!formData.isNoFee && (
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="500"
+                  value={formData.entry_fee}
+                  onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
+                  className="w-full pl-7 pr-3 py-1.5 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold shadow-xs"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">

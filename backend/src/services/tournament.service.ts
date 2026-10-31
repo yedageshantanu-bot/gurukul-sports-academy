@@ -469,6 +469,9 @@ Warm regards,
       payload.description = `END_DATE:${endDate}`;
     }
     if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.entry_fee !== undefined || updates.entryFee !== undefined) {
+      payload.entry_fee = Number(updates.entry_fee ?? updates.entryFee ?? 0);
+    }
 
     const { data, error } = await supabaseAdmin
       .from('tournaments')
