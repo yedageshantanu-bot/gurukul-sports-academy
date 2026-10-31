@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -370,24 +371,21 @@ export const TeacherBatchesPage: React.FC = () => {
               placeholder="e.g. Rajesh Sharma"
             />
 
-            <div>
-              <Input
-                label="Parent WhatsApp Number * (Primary contact)"
-                value={parentWhatsapp}
-                onChange={(e) => setParentWhatsapp(e.target.value)}
-                required
-                placeholder="e.g. 9404849500"
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Dispatches attendance notifications and fee updates to this WhatsApp number.
-              </p>
-            </div>
+            <PhoneInput
+              label="Parent WhatsApp Number (Primary contact)"
+              required
+              value={parentWhatsapp}
+              onChange={setParentWhatsapp}
+              placeholder="94048 49500"
+              helperText="Dispatches attendance notifications and fee updates to this WhatsApp number."
+            />
 
-            <Input
+            <PhoneInput
               label="Student Mobile Number (Optional)"
               value={studentMobile}
-              onChange={(e) => setStudentMobile(e.target.value)}
-              placeholder="e.g. 9876543211 (Only if athlete has personal phone)"
+              onChange={setStudentMobile}
+              placeholder="98765 43211"
+              helperText="Only if athlete carries a personal phone."
             />
 
             {/* Admission / Joining Date */}

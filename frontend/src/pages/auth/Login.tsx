@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, AlertCircle, MessageSquare, Phone, Smartphone, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, AlertCircle, MessageSquare, Smartphone, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { Button } from '../../components/ui/Button';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -283,30 +284,19 @@ export const Login: React.FC = () => {
           ) : (
             <form className="space-y-4" onSubmit={handleSubmit}>
               {loginType === 'STUDENT' ? (
-              /* Student Mobile Number */
-              <div>
-                <label htmlFor="studentMobile" className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                  Registered Mobile Number
-                </label>
-                <div className="relative rounded-xl shadow-xs">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Phone className="h-4 w-4" />
-                  </div>
-                  <input
-                    id="studentMobile"
-                    name="studentMobile"
-                    type="tel"
-                    autoComplete="tel"
+                /* Student Mobile Number with +91 Country Badge */
+                <div>
+                  <PhoneInput
+                    label="Registered Mobile Number"
+                    required
                     disabled={isLoading}
                     value={studentMobile}
-                    onChange={(e) => setStudentMobile(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30 focus:border-blue-600 dark:focus:border-blue-500 transition-colors disabled:bg-slate-50 dark:disabled:bg-slate-900/50"
-                    placeholder="Enter 10-digit mobile number"
-                    maxLength={13}
+                    onChange={setStudentMobile}
+                    placeholder="98765 43210"
+                    helperText="Fixed +91 prefix. Enter your 10-digit mobile number."
                   />
                 </div>
-              </div>
-            ) : (
+              ) : (
               /* Staff Email Field */
               <div>
                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">

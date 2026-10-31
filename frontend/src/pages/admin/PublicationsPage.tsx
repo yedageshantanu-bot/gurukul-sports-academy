@@ -22,10 +22,12 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
+import { normalizePhoneNumber } from '../../lib/utils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
@@ -247,6 +249,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
     try {
       setActionLoading(true);
+      const cleanPhone = normalizePhoneNumber(formContact.trim());
       await apiClient('/publications', {
         method: 'POST',
         body: JSON.stringify({
@@ -254,7 +257,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
           isExternal,
           studentName: formName.trim(),
           parentName: formParent.trim() || undefined,
-          contactNumber: formContact.trim(),
+          contactNumber: cleanPhone,
           publicationTitle: formTitle.trim(),
           academicYear: `${formStartDate} to ${formEndDate}`,
           renewalDueDate: formEndDate,
@@ -314,12 +317,13 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
 
     try {
       setActionLoading(true);
+      const cleanPhone = normalizePhoneNumber(editContact.trim());
       await apiClient(`/publications/${editingCustomer.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           studentName: editName.trim(),
           parentName: editParent.trim() || undefined,
-          contactNumber: editContact.trim(),
+          contactNumber: cleanPhone,
           publicationTitle: editTitle.trim(),
           annualFee: Number(editFee) || 200,
           academicYear: `${editStartDate} to ${editEndDate}`,
@@ -1072,19 +1076,16 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
           </div>
 
-          {/* WhatsApp Contact Only (NO EMAIL) & Annual Fee */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Contact Number *</label>
-              <Input
-                type="text"
-                required
-                value={formContact}
-                onChange={(e) => setFormContact(e.target.value)}
-                placeholder="+919876543210"
-                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
+          {/* WhatsApp Contact with Fixed +91 and 10 Digits & Annual Fee */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <PhoneInput
+              label="WhatsApp Contact Number"
+              required
+              value={formContact}
+              onChange={setFormContact}
+              placeholder="98765 43210"
+              helperText="Fixed +91 prefix. Enter 10-digit mobile number."
+            />
 
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -1241,17 +1242,15 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Contact *</label>
-              <Input
-                type="text"
-                required
-                value={editContact}
-                onChange={(e) => setEditContact(e.target.value)}
-                className="bg-slate-50 dark:bg-[#0F172A] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <PhoneInput
+              label="WhatsApp Contact Number"
+              required
+              value={editContact}
+              onChange={setEditContact}
+              placeholder="98765 43210"
+              helperText="Fixed +91 prefix. Enter 10-digit mobile number."
+            />
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Annual Fee (₹) *</label>

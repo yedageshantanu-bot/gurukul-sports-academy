@@ -20,7 +20,9 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { apiClient } from '../../lib/api';
+import { normalizePhoneNumber } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
+import { PhoneInput } from '../../components/ui/PhoneInput';
 
 export interface TeamCategory {
   id: string;
@@ -334,11 +336,12 @@ export const TeamMessagingPage: React.FC = () => {
 
     try {
       setSavingMember(true);
+      const cleanPhone = normalizePhoneNumber(memberForm.phone.trim());
       const res: any = await apiClient('/team-messages/members', {
         method: 'POST',
         body: JSON.stringify({
           name: memberForm.name.trim(),
-          phone: memberForm.phone.trim(),
+          phone: cleanPhone,
           teamCode: memberForm.teamCode,
           position: memberForm.position.trim() || null,
           district: memberForm.district.trim() || null,
@@ -349,7 +352,7 @@ export const TeamMessagingPage: React.FC = () => {
       const newMember: TeamMember = res?.data || {
         id: `mem-${Date.now()}`,
         name: memberForm.name.trim(),
-        phone: memberForm.phone.trim(),
+        phone: cleanPhone,
         team_code: memberForm.teamCode,
         position: memberForm.position.trim() || null,
         district: memberForm.district.trim() || null,
@@ -364,7 +367,7 @@ export const TeamMessagingPage: React.FC = () => {
       persistContact({
         id: `c-${Date.now()}`,
         name: memberForm.name.trim(),
-        phone: memberForm.phone.trim(),
+        phone: cleanPhone,
         position: memberForm.position.trim() || null,
         district: memberForm.district.trim() || null,
         notes: memberForm.notes.trim() || null,
@@ -1147,16 +1150,13 @@ export const TeamMessagingPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  WhatsApp / Phone Number *
-                </label>
-                <input
-                  type="tel"
+                <PhoneInput
+                  label="WhatsApp / Phone Number"
                   required
-                  placeholder="e.g. 9881888061"
                   value={memberForm.phone}
-                  onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
-                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-amber-500 shadow-xs"
+                  onChange={(val) => setMemberForm({ ...memberForm, phone: val })}
+                  placeholder="98818 88061"
+                  helperText="Fixed +91 prefix. Enter 10-digit mobile."
                 />
               </div>
             </div>
