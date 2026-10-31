@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Sparkles,
   Building,
-  UserCheck,
   Megaphone,
   Tag,
   Share2,
@@ -102,6 +101,7 @@ export const TeamMessagingPage: React.FC = () => {
   // Modal Contact Picker Search
   const [contactSearchQuery, setContactSearchQuery] = useState('');
   const [showNewContactForm, setShowNewContactForm] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   // Form states - Member
   const [memberForm, setMemberForm] = useState({
@@ -286,13 +286,30 @@ export const TeamMessagingPage: React.FC = () => {
         notes: '',
       });
       setShowNewContactForm(false);
+      setSelectedContactId(null);
     }
     setContactSearchQuery('');
     setIsAddMemberModalOpen(true);
   };
 
-  // Select contact from directory into modal
+  // Select or toggle contact from directory into modal
   const handleSelectDirectoryContact = (contact: TeamContact) => {
+    if (selectedContactId === contact.id) {
+      // Toggle off / deselect
+      setSelectedContactId(null);
+      setMemberForm((prev) => ({
+        ...prev,
+        name: '',
+        phone: '',
+        position: '',
+        district: '',
+        notes: '',
+      }));
+      toast.info(`Deselected "${contact.name}".`);
+      return;
+    }
+
+    setSelectedContactId(contact.id);
     setMemberForm((prev) => ({
       ...prev,
       name: contact.name,
@@ -302,20 +319,7 @@ export const TeamMessagingPage: React.FC = () => {
       notes: contact.notes || prev.notes || '',
     }));
     setShowNewContactForm(true);
-    toast.success(`Selected "${contact.name}"! Confirm team below and save.`);
-  };
-
-  // Quick 1-click Add Self (Sensei Vikram Salunkhe)
-  const handleAddSelfToForm = () => {
-    const adminContact: TeamContact = {
-      id: 'admin-self',
-      name: 'Sensei Vikram Salunkhe (Admin)',
-      phone: '9881888061',
-      position: 'Chief Director & Head Coach',
-      district: 'Satara / Pune',
-      notes: 'Central Dojo Admin',
-    };
-    handleSelectDirectoryContact(adminContact);
+    toast.success(`Selected "${contact.name}"!`);
   };
 
   // Save Member
@@ -1000,31 +1004,54 @@ export const TeamMessagingPage: React.FC = () => {
       {/* MODAL 1: Add Member to Team */}
       <Modal
         isOpen={isAddMemberModalOpen}
-        onClose={() => setIsAddMemberModalOpen(false)}
+        onClose={() => {
+          setIsAddMemberModalOpen(false);
+          setSelectedContactId(null);
+        }}
         title="Add Member to Team"
         maxWidth="md"
       >
         <div className="space-y-4">
-          {/* Quick "Add Self / Admin" Banner */}
-          <div className="p-3 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 rounded-xl flex items-center justify-between gap-2">
-            <div>
-              <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-amber-500" />
-                Add Sensei Vikram Salunkhe (Self/Admin)?
-              </span>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                1-click populate with Phone: 9881888061.
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleAddSelfToForm}
-              className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 py-1 px-3 shadow-xs"
-            >
-              Select Self
-            </Button>
-          </div>
+          {/* Selected Member Preview Banner (if picked from directory) */}
+          {(() => {
+            const selectedContact = savedContacts.find(
+              (c) => c.id === selectedContactId || (memberForm.phone && c.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)))
+            );
+            if (!selectedContact && !memberForm.name.trim()) return null;
+
+            return (
+              <div className="p-3 bg-amber-500/10 border-2 border-amber-500/40 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5 truncate">
+                  <div className="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
+                    ✓
+                  </div>
+                  <div className="truncate">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{selectedContact?.name || memberForm.name}</span>
+                      <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                        ({selectedContact?.phone || memberForm.phone || 'No phone'})
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {selectedContact?.position || memberForm.position || 'Team Member'} {selectedContact?.district || memberForm.district ? `• ${selectedContact?.district || memberForm.district}` : ''}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedContactId(null);
+                    setMemberForm((prev) => ({ ...prev, name: '', phone: '', position: '', district: '', notes: '' }));
+                    toast.info('Removed contact selection.');
+                  }}
+                  className="px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                  title="Remove selection"
+                >
+                  Clear / Remove ✕
+                </button>
+              </div>
+            );
+          })()}
 
           {/* STEP 1: Pick from Existing Contacts (Shantanu, Laj, etc.) */}
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
@@ -1059,27 +1086,36 @@ export const TeamMessagingPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      setSelectedContactId(null);
                       setMemberForm((prev) => ({ ...prev, name: contactSearchQuery }));
                       setShowNewContactForm(true);
                     }}
-                    className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                    className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer"
                   >
                     + Add &quot;{contactSearchQuery}&quot; as New Contact
                   </button>
                 </div>
               ) : (
                 filteredDirectoryContacts.map((contact) => {
-                  const targetTeamCode = memberForm.teamCode;
-                  const isAlreadyInTarget = contact.memberTeams.includes(targetTeamCode);
+                  const isSelected = selectedContactId === contact.id || (memberForm.phone && contact.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)));
 
                   return (
                     <div
                       key={contact.id}
-                      className="p-2 rounded-lg bg-white dark:bg-[#0A1120] border border-slate-200 dark:border-white/5 hover:border-amber-500/40 flex items-center justify-between text-xs transition-all shadow-2xs"
+                      className={`p-2 rounded-lg border flex items-center justify-between text-xs transition-all shadow-2xs ${
+                        isSelected
+                          ? 'bg-amber-500/15 dark:bg-amber-500/20 border-amber-500 ring-1 ring-amber-500/50'
+                          : 'bg-white dark:bg-[#0A1120] border-slate-200 dark:border-white/5 hover:border-amber-500/40'
+                      }`}
                     >
                       <div className="truncate mr-2">
                         <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                           <span>{contact.name}</span>
+                          {isSelected && (
+                            <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded shadow-2xs">
+                              Selected ✓
+                            </span>
+                          )}
                           <span className="text-[11px] text-slate-500 font-mono font-normal">
                             ({contact.phone})
                           </span>
@@ -1098,13 +1134,13 @@ export const TeamMessagingPage: React.FC = () => {
                         type="button"
                         size="sm"
                         onClick={() => handleSelectDirectoryContact(contact)}
-                        className={`text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 ${
-                          isAlreadyInTarget
-                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+                        className={`text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 cursor-pointer ${
+                          isSelected
+                            ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-xs'
                             : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
                         }`}
                       >
-                        {isAlreadyInTarget ? 'Select Again' : 'Pick +'}
+                        {isSelected ? 'Remove ✕' : 'Pick +'}
                       </Button>
                     </div>
                   );

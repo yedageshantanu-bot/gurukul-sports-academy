@@ -29,16 +29,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptId, onClose }
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(getApiUrl(`/receipts/${receiptId}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json.error?.message || 'Failed to load receipt');
-        }
-        setReceiptData(json.data);
+        const data = await apiClient<any>(`/receipts/${receiptId}`);
+        setReceiptData(data);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -55,7 +47,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptId, onClose }
   const [sentSuccess, setSentSuccess] = useState(false);
 
   const handlePrint = () => {
-    const url = getApiUrl(`/receipts/${receiptId}/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`);
+    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('gurukul_access_token') : null);
+    const url = getApiUrl(`/receipts/${receiptId}/pdf${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`);
     const printWindow = window.open(url, '_blank');
     if (printWindow) {
       printWindow.focus();

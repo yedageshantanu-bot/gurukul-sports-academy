@@ -269,7 +269,8 @@ export class ReportService {
         payment_date,
         status,
         created_at,
-        student:students(id, name, student_mobile)
+        student:students(id, name, student_mobile),
+        receipts:receipts(id, receipt_number)
       `)
       .order('created_at', { ascending: false });
 
@@ -291,19 +292,33 @@ export class ReportService {
       throw new AppError(`Failed to fetch payments report: ${error.message}`, 500);
     }
 
-    const rawRecords = (records || []).map((r: any) => {
-      const receiptNo = `REC-${r.id.slice(0, 8).toUpperCase()}`;
-      return {
+    const seenTxnKeys = new Set<string>();
+    const rawRecords: any[] = [];
+
+    for (const raw of (records || [])) {
+      const r = raw as any;
+      const studentObj = Array.isArray(r.student) ? r.student[0] : r.student;
+      const studentId = studentObj?.id || '';
+      // Deduplicate repeated test seed transactions for clean audit ledger
+      const datePart = (r.payment_date || r.created_at || '').slice(0, 10);
+      const dedupeKey = `${studentId}_${r.amount}_${datePart}`;
+      if (seenTxnKeys.has(dedupeKey) && !r.transaction_id) {
+        continue;
+      }
+      seenTxnKeys.add(dedupeKey);
+
+      const realReceipt = Array.isArray(r.receipts) && r.receipts.length > 0 ? r.receipts[0] : r.receipts;
+      rawRecords.push({
         ...r,
-        provider: r.payment_method || 'UPI',
-        provider_payment_id: r.transaction_id || `TXN-${r.id.slice(0, 6)}`,
+        provider: r.payment_method || 'CASH',
+        provider_payment_id: r.transaction_id || null,
         paid_at: r.payment_date || r.created_at,
-        receipt: {
-          id: r.id,
-          receipt_number: receiptNo,
-        },
-      };
-    });
+        receipt: realReceipt ? {
+          id: realReceipt.id,
+          receipt_number: realReceipt.receipt_number,
+        } : null,
+      });
+    }
 
     let totalVolume = 0;
     let successfulCount = 0;

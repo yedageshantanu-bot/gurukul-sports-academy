@@ -502,12 +502,17 @@ export const PaymentsPage: React.FC = () => {
   // 2. Tournament Accounts
   const tournamentAccounts = useMemo<UnifiedAccountItem[]>(() => {
     return (tournamentRegistrations || []).map((r: any) => {
-      const feeAmount = Number(r.fee_amount || 0);
+      const tournamentEntryFee = Number(r.tournaments?.entry_fee ?? r.fee_amount ?? 0);
+      const isTournamentFree = tournamentEntryFee === 0;
+      const feeAmount = isTournamentFree ? 0 : Number(r.fee_amount || 0);
       const paidAmount = Number(r.amount_paid || 0);
-      const balance = Math.max(0, feeAmount - paidAmount);
+      const balance = isTournamentFree ? 0 : Math.max(0, feeAmount - paidAmount);
       let status: 'PAID' | 'PARTIAL' | 'PENDING' | 'OVERDUE' = 'PENDING';
-      if (paidAmount >= feeAmount && feeAmount > 0) status = 'PAID';
-      else if (paidAmount > 0) status = 'PARTIAL';
+      if (isTournamentFree || feeAmount === 0 || (paidAmount >= feeAmount && feeAmount > 0) || r.payment_status === 'PAID') {
+        status = 'PAID';
+      } else if (paidAmount > 0) {
+        status = 'PARTIAL';
+      }
 
       return {
         id: `tournament-${r.id}`,

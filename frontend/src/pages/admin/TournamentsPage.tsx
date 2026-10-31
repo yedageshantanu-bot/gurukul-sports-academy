@@ -280,7 +280,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         created_at: t.created_at || '',
         registrationCount: Number(t.registrationCount ?? t.stats?.participants ?? 0),
         totalCollected: Number(t.totalCollected ?? t.stats?.collected ?? 0),
-        totalPending: Number(t.totalPending ?? t.stats?.pending ?? 0),
+        totalPending: Number(t.entry_fee || t.entryFee || 0) === 0 ? 0 : Number(t.totalPending ?? t.stats?.pending ?? 0),
       }));
       setTournaments(list);
 
@@ -288,14 +288,14 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       const upcomingCount = list.filter((t) => t.status === 'UPCOMING').length;
       const totalAthletesNominated = list.reduce((acc, t) => acc + (t.registrationCount || 0), 0);
       const totalRevenueCollected = list.reduce((acc, t) => acc + (t.totalCollected || 0), 0);
-      const computedDuesPending = list.reduce((acc, t: any) => acc + (t.totalPending ?? t.stats?.pending ?? 0), 0);
+      const computedDuesPending = list.reduce((acc, t: any) => acc + (Number(t.entry_fee || 0) === 0 ? 0 : Number(t.totalPending ?? t.stats?.pending ?? 0)), 0);
 
       setSummary({
         totalTournaments: res?.summary?.totalTournaments ?? totalTournaments,
         upcomingCount: res?.summary?.upcomingCount ?? upcomingCount,
         totalAthletesNominated: res?.summary?.totalAthletesNominated ?? totalAthletesNominated,
         totalRevenueCollected: res?.summary?.totalRevenueCollected ?? totalRevenueCollected,
-        totalDuesPending: res?.summary?.totalDuesPending !== undefined ? Number(res.summary.totalDuesPending) : computedDuesPending,
+        totalDuesPending: computedDuesPending,
       });
     } catch (err) {
       console.error('Failed to load tournaments:', err);

@@ -16,7 +16,8 @@ export class ReceiptService {
   // 1. GET RECEIPT BY ID
   // ============================================================================
   async getReceiptById(id: string) {
-    const { data: receipt, error } = await this.supabase
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    let query = this.supabase
       .from('receipts')
       .select(`
         id,
@@ -43,9 +44,15 @@ export class ReceiptService {
           paid_at,
           created_at
         )
-      `)
-      .or(`id.eq.${id},receipt_number.eq.${id}`)
-      .single();
+      `);
+
+    if (isUuid) {
+      query = query.or(`id.eq.${id},receipt_number.eq.${id}`);
+    } else {
+      query = query.eq('receipt_number', id);
+    }
+
+    const { data: receipt, error } = await query.maybeSingle();
 
     if (error || !receipt) {
       throw new AppError('Receipt not found', 404, 'RESOURCE_NOT_FOUND');

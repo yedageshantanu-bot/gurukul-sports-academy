@@ -1177,9 +1177,23 @@ export const RanksPage: React.FC = () => {
                                 }`}
                               >
                                 <span>🥋 {d.discipline_code === 'KALARIPPAYATTU' ? 'Kalari' : d.discipline_code === 'KARATE_WUSHU' ? 'Karate' : d.discipline_code.replace('_', ' ')}</span>
-                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${isSel ? 'bg-black/25 text-white' : 'bg-slate-200 dark:bg-white/10'}`}>
-                                  {d.belt_color || d.current_rank_name.split(' ')[0]}
-                                </span>
+                                {(() => {
+                                  const beltText = d.belt_color || d.current_rank_name.split(' ')[0] || 'White';
+                                  const isWhite = beltText.toLowerCase().includes('white');
+                                  return (
+                                    <span
+                                      className={`text-[9px] px-2 py-0.5 rounded font-black transition-colors ${
+                                        isWhite
+                                          ? 'bg-white text-slate-950 border border-slate-300 shadow-xs ring-1 ring-slate-200'
+                                          : isSel
+                                          ? 'bg-black/35 text-white border border-white/20'
+                                          : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      {beltText}
+                                    </span>
+                                  );
+                                })()}
                               </button>
                             );
                           })}

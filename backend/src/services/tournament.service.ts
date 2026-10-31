@@ -118,7 +118,12 @@ Warm regards,
     });
 
     const enriched = (tournaments || []).map((t: any) => {
+      const isFree = Number(t.entry_fee || 0) === 0;
       const stats = statsMap.get(t.id) || { participants: 0, expected: 0, collected: 0, pending: 0 };
+      if (isFree) {
+        stats.expected = 0;
+        stats.pending = 0;
+      }
       const endDate = t.description?.match(/END_DATE:([^\s]+)/)?.[1] || t.registration_deadline || t.tournament_date || '';
       return {
         ...t,
@@ -132,7 +137,7 @@ Warm regards,
         entry_fee: Number(t.entry_fee || 0),
         registrationCount: stats.participants,
         totalCollected: stats.collected,
-        totalPending: stats.pending,
+        totalPending: isFree ? 0 : stats.pending,
         stats,
       };
     });
@@ -142,7 +147,7 @@ Warm regards,
       upcomingCount: enriched.filter((t: any) => t.status === 'UPCOMING').length,
       totalAthletesNominated: enriched.reduce((sum: number, t: any) => sum + (t.registrationCount || 0), 0),
       totalRevenueCollected: enriched.reduce((sum: number, t: any) => sum + (t.totalCollected || 0), 0),
-      totalDuesPending: enriched.reduce((sum: number, t: any) => sum + (t.stats?.pending || 0), 0),
+      totalDuesPending: enriched.reduce((sum: number, t: any) => sum + (Number(t.entry_fee || 0) === 0 ? 0 : (t.stats?.pending || 0)), 0),
     };
 
     return { tournaments: enriched, summary };
@@ -292,7 +297,8 @@ Warm regards,
           id,
           name,
           venue,
-          tournament_date
+          tournament_date,
+          entry_fee
         ),
         students (
           id,
@@ -305,7 +311,16 @@ Warm regards,
       .order('created_at', { ascending: false });
 
     if (error) throw new AppError(`Failed to fetch all tournament registrations: ${error.message}`, 500);
-    return registrations || [];
+
+    const mapped = (registrations || []).map((r: any) => {
+      const isTournamentFree = Number(r.tournaments?.entry_fee || 0) === 0;
+      return {
+        ...r,
+        fee_amount: isTournamentFree ? 0 : Number(r.fee_amount || 0),
+        payment_status: isTournamentFree ? 'PAID' : r.payment_status,
+      };
+    });
+    return mapped;
   }
 
   /**
@@ -481,6 +496,19 @@ Warm regards,
       .single();
 
     if (error) throw new AppError(`Failed to update tournament: ${error.message}`, 500);
+
+    // Keep tournament registrations synchronized with new entry fee
+    if (payload.entry_fee !== undefined) {
+      const isFree = payload.entry_fee === 0;
+      await supabaseAdmin
+        .from('tournament_registrations')
+        .update({
+          fee_amount: payload.entry_fee,
+          payment_status: isFree ? 'PAID' : 'PENDING',
+        })
+        .eq('tournament_id', tournamentId)
+        .eq('amount_paid', 0);
+    }
 
     const resolvedEndDate = data.description?.match(/END_DATE:([^\s]+)/)?.[1] || data.registration_deadline || data.tournament_date;
 
