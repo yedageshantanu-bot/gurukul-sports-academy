@@ -169,7 +169,7 @@ export const StudentProfilePage: React.FC = () => {
     }
     setPromotionDate(new Date().toISOString().split('T')[0]);
     setPromotedBy('Sensei Vikram Salunkhe (Chief Master)');
-    setCertificateNumber(`GSA-CERT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
+    setCertificateNumber(`CERT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
     setIsPromoteModalOpen(true);
   };
 
@@ -771,7 +771,7 @@ export const StudentProfilePage: React.FC = () => {
                     const previousRank = lastPromo ? (lastPromo.previousRankName || (lastPromo as any).previous_rank_name || 'White Belt') : 'White Belt (Initial Entry)';
                     const updateDate = r.promotedAt || r.last_promoted_date || lastPromo?.promotionDate || student.admissionDate;
                     const examinerName = r.promotedBy || (lastPromo as any)?.promotedBy || 'Sensei Vikram Salunkhe (Chief Master)';
-                    const certNumber = (lastPromo as any)?.certificateNumber || r.regNumber || `GSA-CERT-${new Date().getFullYear()}`;
+                    const certNumber = (lastPromo as any)?.certificateNumber || r.regNumber || `CERT-${new Date().getFullYear()}`;
 
                     return (
                       <div
@@ -1059,7 +1059,7 @@ export const StudentProfilePage: React.FC = () => {
                         <div>
                           <span className="text-slate-400 block text-[10px] uppercase font-bold">Certificate Number</span>
                           <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
-                            {certNum || 'GSA-VERIFIED'}
+                            {certNum || 'CERTIFIED'}
                           </span>
                         </div>
 
@@ -1442,7 +1442,7 @@ export const StudentProfilePage: React.FC = () => {
               type="text"
               value={certificateNumber}
               onChange={(e) => setCertificateNumber(e.target.value)}
-              placeholder="e.g. GSA-CERT-2026-384"
+              placeholder="e.g. CERT-2026-384"
               className="w-full text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white"
             />
           </div>

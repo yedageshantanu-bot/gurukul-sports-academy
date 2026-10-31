@@ -40,14 +40,26 @@ export const createAnnouncementSchema = z.object({
   message: z.string().min(1, 'Message is required').max(2000, 'Message cannot exceed 2000 characters'),
   batchIds: z.array(z.string().uuid('Valid batch ID is required')).default([]),
   tournamentIds: z.array(z.string().uuid()).optional(),
+  teamCodes: z.array(z.string()).optional(),
+  teamIds: z.array(z.string()).optional(),
+  teamMemberIds: z.array(z.string()).optional(),
+  includeSelf: z.boolean().optional(),
   metadata: z.record(z.any()).optional(),
 }).refine(
   (data) =>
     (Array.isArray(data.batchIds) && data.batchIds.length > 0) ||
     (Array.isArray(data.tournamentIds) && data.tournamentIds.length > 0) ||
-    (Array.isArray(data.metadata?.tournamentIds) && data.metadata.tournamentIds.length > 0),
+    (Array.isArray(data.metadata?.tournamentIds) && data.metadata.tournamentIds.length > 0) ||
+    (Array.isArray(data.teamCodes) && data.teamCodes.length > 0) ||
+    (Array.isArray(data.metadata?.teamCodes) && data.metadata.teamCodes.length > 0) ||
+    (Array.isArray(data.teamIds) && data.teamIds.length > 0) ||
+    (Array.isArray(data.metadata?.teamIds) && data.metadata.teamIds.length > 0) ||
+    (Array.isArray(data.teamMemberIds) && data.teamMemberIds.length > 0) ||
+    (Array.isArray(data.metadata?.teamMemberIds) && data.metadata.teamMemberIds.length > 0) ||
+    data.includeSelf === true ||
+    data.metadata?.includeSelf === true,
   {
-    message: 'At least one target batch or tournament must be selected',
+    message: 'At least one target audience (batch, tournament squad, or team) must be selected',
     path: ['batchIds'],
   }
 );

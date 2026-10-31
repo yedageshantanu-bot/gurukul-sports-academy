@@ -29,6 +29,7 @@ const FeesPage = React.lazy(() => import('./pages/admin/FeesPage').then((m) => (
 const PaymentsPage = React.lazy(() => import('./pages/admin/PaymentsPage').then((m) => ({ default: m.PaymentsPage })));
 const ReportsPage = React.lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const AnnouncementsPage = React.lazy(() => import('./pages/admin/AnnouncementsPage').then((m) => ({ default: m.AnnouncementsPage })));
+const ScheduledAnnouncementsPage = React.lazy(() => import('./pages/admin/ScheduledAnnouncementsPage').then((m) => ({ default: m.ScheduledAnnouncementsPage })));
 const WhatsAppPage = React.lazy(() => import('./pages/admin/WhatsAppPage').then((m) => ({ default: m.WhatsAppPage })));
 const TeamMessagingPage = React.lazy(() => import('./pages/admin/TeamMessagingPage').then((m) => ({ default: m.TeamMessagingPage })));
 const SettingsPage = React.lazy(() => import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })));
@@ -168,6 +169,7 @@ export const App: React.FC = () => {
                         <Route path="/admin/payments" element={<PaymentsPage />} />
                         <Route path="/admin/reports" element={<ReportsPage />} />
                         <Route path="/admin/announcements" element={<AnnouncementsPage />} />
+                        <Route path="/admin/announcements/scheduled" element={<ScheduledAnnouncementsPage />} />
                         <Route path="/admin/whatsapp-templates" element={<WhatsAppRouteGuard />} />
                         <Route path="/admin/whatsapp" element={<WhatsAppRouteGuard />} />
                         <Route path="/admin/team-messaging" element={<TeamMessagingPage />} />

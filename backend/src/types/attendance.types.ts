@@ -15,6 +15,7 @@ export const bulkAttendanceSchema = z.object({
   records: z.array(attendanceRecordItemSchema).min(1, 'At least one student attendance record is required'),
   teacherId: z.string().uuid('Valid teacher ID is required').optional(),
   sendWhatsApp: z.boolean().optional(),
+  customTemplate: z.string().optional(),
 });
 
 export type BulkAttendanceDTO = z.infer<typeof bulkAttendanceSchema>;

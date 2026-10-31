@@ -85,7 +85,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   } else {
     formattedStudentName = studentFirstName; // fallback
   }
-  const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'GSA-ATH-2026');
+  const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'ATH-2026');
   const discipline = cleanPdfText(cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports');
   const rankName = cleanPdfText(cert.to_rank_name || cert.rankSecured || 'Advanced Grade');
   const beltColor = cleanPdfText(cert.belt_color || cert.beltColor || 'Yellow');
@@ -110,7 +110,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   }
 
-  const certNumber = cleanPdfText(cert.certificate_number || cert.certificateNumber || `GSA-CERT-${Math.floor(100000 + Math.random() * 900000)}`);
+  const certNumber = cleanPdfText(cert.certificate_number || cert.certificateNumber || `CERT-${Math.floor(100000 + Math.random() * 900000)}`);
   const examiner = cleanPdfText(cert.examiner_name || cert.promotedBy || 'Chief Master & Technical Director');
   const dojo = cleanPdfText(cert.represented_from || cert.representedFrom || 'Gurukul Sports Academy Central Dojo');
 

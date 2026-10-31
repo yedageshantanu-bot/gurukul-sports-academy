@@ -73,28 +73,28 @@ export const getBeltBadgeClass = (color: string) => {
 
   // Dual combinations (e.g. "White & Yellow", "Green & Blue", "Blue & Brown")
   if (c.includes('&') || c.includes('/')) {
-    if (c.includes('white') && c.includes('yellow')) return 'bg-gradient-to-r from-slate-200/20 to-yellow-500/20 text-yellow-200 border-yellow-400/40 shadow-sm';
-    if (c.includes('yellow') && c.includes('orange')) return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-amber-200 border-amber-400/40 shadow-sm';
-    if (c.includes('green') && c.includes('blue')) return 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-teal-200 border-teal-400/40 shadow-sm';
-    if (c.includes('blue') && c.includes('brown')) return 'bg-gradient-to-r from-blue-500/20 to-amber-800/30 text-sky-200 border-sky-400/40 shadow-sm';
-    if (c.includes('brown') && c.includes('black')) return 'bg-gradient-to-r from-amber-900/40 to-slate-900/60 text-amber-200 border-amber-700/50 shadow-sm';
-    return 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 border-purple-400/40 shadow-sm';
+    if (c.includes('white') && c.includes('yellow')) return 'bg-amber-100 dark:bg-yellow-500/20 text-amber-950 dark:text-yellow-200 border-2 border-amber-400 dark:border-yellow-400/50 shadow-xs font-bold';
+    if (c.includes('yellow') && c.includes('orange')) return 'bg-amber-100 dark:bg-amber-500/20 text-amber-950 dark:text-amber-200 border-2 border-amber-500 dark:border-amber-400/50 shadow-xs font-bold';
+    if (c.includes('green') && c.includes('blue')) return 'bg-teal-100 dark:bg-emerald-500/20 text-teal-950 dark:text-teal-200 border-2 border-teal-400 dark:border-teal-400/50 shadow-xs font-bold';
+    if (c.includes('blue') && c.includes('brown')) return 'bg-sky-100 dark:bg-blue-500/20 text-sky-950 dark:text-sky-200 border-2 border-sky-400 dark:border-sky-400/50 shadow-xs font-bold';
+    if (c.includes('brown') && c.includes('black')) return 'bg-amber-200 dark:bg-amber-900/40 text-amber-950 dark:text-amber-200 border-2 border-amber-700/70 shadow-xs font-black';
+    return 'bg-purple-100 dark:bg-purple-500/20 text-purple-950 dark:text-purple-200 border-2 border-purple-400 dark:border-purple-400/50 shadow-xs font-bold';
   }
 
-  if (c.includes('gold')) return 'bg-amber-400/25 text-amber-200 border-amber-400/60 shadow-sm shadow-amber-500/10';
-  if (c.includes('camo')) return 'bg-emerald-800/30 text-emerald-200 border-emerald-700/50';
-  if (c.includes('black') || c.includes('dan')) return 'bg-slate-950/90 text-amber-300 border-amber-500/40 shadow-sm';
-  if (c.includes('brown')) return 'bg-amber-950/60 text-amber-200 border-amber-700/60';
-  if (c.includes('maroon')) return 'bg-rose-950/70 text-rose-200 border-rose-700/60 shadow-sm';
-  if (c.includes('purple')) return 'bg-purple-900/40 text-purple-200 border-purple-600/50 shadow-sm';
-  if (c.includes('blue')) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-  if (c.includes('green') || c.includes('emerald')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-  if (c.includes('orange')) return 'bg-orange-500/20 text-orange-300 border-orange-500/40';
-  if (c.includes('yellow')) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
-  if (c.includes('red') || c.includes('rose')) return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-  if (c.includes('white') || c.includes('silver')) return 'bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600 shadow-sm';
+  if (c.includes('gold')) return 'bg-amber-100 dark:bg-amber-400/25 text-amber-950 dark:text-amber-200 border-2 border-amber-500 dark:border-amber-400/70 shadow-xs font-black';
+  if (c.includes('camo')) return 'bg-emerald-100 dark:bg-emerald-800/30 text-emerald-950 dark:text-emerald-200 border-2 border-emerald-500 dark:border-emerald-700/60 shadow-xs font-bold';
+  if (c.includes('black') || c.includes('dan')) return 'bg-slate-950 text-amber-300 border-2 border-amber-500 shadow-xs font-black';
+  if (c.includes('brown')) return 'bg-amber-100 dark:bg-amber-950/60 text-amber-950 dark:text-amber-200 border-2 border-amber-700 shadow-xs font-black';
+  if (c.includes('maroon')) return 'bg-rose-100 dark:bg-rose-950/70 text-rose-950 dark:text-rose-200 border-2 border-rose-500 shadow-xs font-bold';
+  if (c.includes('purple')) return 'bg-purple-100 dark:bg-purple-900/40 text-purple-950 dark:text-purple-200 border-2 border-purple-500 shadow-xs font-bold';
+  if (c.includes('blue')) return 'bg-blue-100 dark:bg-blue-500/20 text-blue-950 dark:text-blue-300 border-2 border-blue-500 shadow-xs font-bold';
+  if (c.includes('green') || c.includes('emerald')) return 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-950 dark:text-emerald-300 border-2 border-emerald-500 shadow-xs font-bold';
+  if (c.includes('orange')) return 'bg-orange-100 dark:bg-orange-500/20 text-orange-950 dark:text-orange-300 border-2 border-orange-500 shadow-xs font-bold';
+  if (c.includes('yellow')) return 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-950 dark:text-yellow-300 border-2 border-yellow-500 shadow-xs font-bold';
+  if (c.includes('red') || c.includes('rose')) return 'bg-rose-100 dark:bg-rose-500/20 text-rose-950 dark:text-rose-300 border-2 border-rose-500 shadow-xs font-bold';
+  if (c.includes('white') || c.includes('silver') || c.includes('praveshika')) return 'bg-white dark:bg-slate-800 text-slate-950 dark:text-slate-100 border-2 border-slate-500 dark:border-slate-400 font-black shadow-sm ring-1 ring-slate-300 dark:ring-slate-700';
 
-  return 'bg-slate-800/60 text-slate-200 border-white/20';
+  return 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500 font-bold';
 };
 
 interface MartialRank {
@@ -185,6 +185,7 @@ export const RanksPage: React.FC = () => {
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [selectedStudentForPromotion, setSelectedStudentForPromotion] = useState<StudentRank | null>(null);
   const [promotionTargetRankId, setPromotionTargetRankId] = useState('');
+  const [promotionDate, setPromotionDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [examinerName, setExaminerName] = useState('Chief Master (Gurukul Academy)');
   const [representedFrom, setRepresentedFrom] = useState('Gurukul Sports Academy Central Dojo');
   const [promoting, setPromoting] = useState(false);
@@ -239,7 +240,7 @@ export const RanksPage: React.FC = () => {
 
     const rows = list.map((cert, index) => [
       index + 1,
-      cert.student_code || 'GSA-ATH',
+      cert.student_code || (cert.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1'),
       cert.student_name,
       cert.parent_name || cert.fatherName || '',
       cert.contact_number || '',
@@ -295,7 +296,7 @@ export const RanksPage: React.FC = () => {
     ];
 
     const row = [
-      cert.student_code || 'GSA-ATH',
+      cert.student_code || (cert.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1'),
       cert.student_name,
       cert.parent_name || cert.fatherName || '',
       cert.contact_number || '',
@@ -358,7 +359,7 @@ export const RanksPage: React.FC = () => {
     ];
 
     const rows = list.map((cert) => [
-      cert.student_code || 'GSA-ATH',
+      cert.student_code || (cert.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1'),
       cert.student_name,
       cert.parent_name || cert.fatherName || '',
       cert.contact_number || '',
@@ -757,7 +758,7 @@ export const RanksPage: React.FC = () => {
         id: r.id || `cert-${Math.random()}`,
         student_id: r.student_id || r.studentId || '',
         student_name: r.student_name || r.playerName || 'Athlete Trainee',
-        student_code: r.student_code || r.regNumber || 'GSA-ATH',
+        student_code: r.student_code || r.regNumber || (r.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1'),
         fatherName: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
         parentName: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
         parent_name: r.parent_name || r.fatherName || r.parentName || r.father_name || '',
@@ -770,7 +771,7 @@ export const RanksPage: React.FC = () => {
         to_rank_name: r.to_rank_name || r.rankSecured || 'Rank Holder',
         belt_color: r.belt_color || r.beltColor || 'Yellow',
         promoted_at: r.promoted_at || r.promotionDate || new Date().toISOString(),
-        certificate_number: r.certificate_number || r.certificateNumber || `GSA-CERT-${String(r.id || '').slice(0, 6)}`,
+        certificate_number: r.certificate_number || r.certificateNumber || `CERT-${String(r.id || '').slice(0, 6)}`,
         examiner_name: r.examiner_name || r.promotedBy || 'Chief Master (Gurukul Academy)',
         represented_from: r.represented_from || r.representedFrom || 'Gurukul Sports Academy Central Dojo',
         notes: r.notes || null,
@@ -793,12 +794,12 @@ export const RanksPage: React.FC = () => {
           const aHasReg = Boolean(
             a.student_code &&
             a.student_code.trim() !== '' &&
-            a.student_code.toUpperCase() !== 'GSA-ATH'
+            !a.student_code.toUpperCase().startsWith('GSA')
           );
           const bHasReg = Boolean(
             b.student_code &&
             b.student_code.trim() !== '' &&
-            b.student_code.toUpperCase() !== 'GSA-ATH'
+            !b.student_code.toUpperCase().startsWith('GSA')
           );
           if (aHasReg !== bHasReg) {
             return aHasReg ? -1 : 1;
@@ -843,6 +844,7 @@ export const RanksPage: React.FC = () => {
   // Open 1-Click Promote Modal
   const openPromoteModal = (studentRank: StudentRank) => {
     setSelectedStudentForPromotion(studentRank);
+    setPromotionDate(new Date().toISOString().split('T')[0]);
     // Find next rank in same discipline
     const disciplineRanks = allRanks
       .filter((r) => r.discipline_code === studentRank.discipline_code)
@@ -878,6 +880,8 @@ export const RanksPage: React.FC = () => {
           disciplineCode: selectedStudentForPromotion.discipline_code,
           new_rank_id: chosenRank.id,
           nextRankId: chosenRank.id,
+          promotion_date: promotionDate,
+          promotionDate: promotionDate,
           examiner_name: examinerName,
           examinerName: examinerName,
           promotedBy: examinerName,
@@ -1442,7 +1446,7 @@ export const RanksPage: React.FC = () => {
                           {idx + 1}
                         </td>
                         <td className="py-3 px-3 font-mono font-bold text-amber-600 dark:text-amber-400 border-r border-slate-100 dark:border-white/5 print:text-black">
-                          {cert.student_code || 'GSA-ATH'}
+                          {cert.student_code || (cert.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1')}
                         </td>
                         <td className="py-3 px-3 border-r border-slate-100 dark:border-white/5">
                           <span className="font-bold text-slate-900 dark:text-white print:text-black block">{cert.student_name}</span>
@@ -1562,38 +1566,38 @@ export const RanksPage: React.FC = () => {
                 return (
                   <Card
                     key={disc.id || disc.code}
-                    className="p-5 preserve-dark bg-[#0A1120] border-slate-700/80 space-y-4 flex flex-col justify-between rounded-2xl shadow-lg"
+                    className="p-5 bg-white dark:bg-[#0A1120] border border-slate-200 dark:border-slate-700/80 space-y-4 flex flex-col justify-between rounded-2xl shadow-sm dark:shadow-lg"
                   >
                     <div>
-                      <div className="flex items-start justify-between pb-3 border-b border-white/10 gap-2">
+                      <div className="flex items-start justify-between pb-3 border-b border-slate-200/80 dark:border-white/10 gap-2">
                         <div>
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
                             {disc.code === 'KALARIPPAYATTU'
                               ? 'Ancient Martial Art'
                               : disc.code === 'KARATE_WUSHU'
                               ? 'Combat & Forms'
                               : 'Martial Discipline'}
                           </span>
-                          <h3 className="text-base font-bold text-white mt-1 flex items-center gap-2">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
                             {disc.name}
-                            <span className="text-[11px] font-normal text-slate-400">({discRanks.length} Belts)</span>
+                            <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">({discRanks.length} Belts)</span>
                           </h3>
                           {disc.description && (
-                            <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{disc.description}</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-1">{disc.description}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
                             size="sm"
                             onClick={() => handleOpenAddBelt(disc.code)}
-                            className="text-[11px] py-1 px-2.5 h-7 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                            className="text-[11px] py-1 px-2.5 h-7 bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-300 border border-amber-500/30"
                           >
                             <Plus className="w-3 h-3 mr-1" /> Add Belt
                           </Button>
                           <button
                             type="button"
                             onClick={() => handleOpenEditDiscipline(disc)}
-                            className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors cursor-pointer"
                             title={`Edit Section: ${disc.name}`}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -1602,7 +1606,7 @@ export const RanksPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleDeleteDiscipline(disc)}
-                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
                               title={`Delete Section: ${disc.name}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1613,14 +1617,14 @@ export const RanksPage: React.FC = () => {
 
                       <div className="space-y-2.5 mt-3">
                         {discRanks.length === 0 ? (
-                          <div className="p-4 rounded-lg bg-slate-900/40 border border-white/5 text-center text-xs text-slate-400">
+                          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 text-center text-xs text-slate-500 dark:text-slate-400">
                             No belts configured in {disc.name} yet. Click &quot;Add Belt&quot; to configure Level 1, Level 2, etc.
                           </div>
                         ) : (
                           discRanks.map((rank) => (
                             <div
                               key={rank.id}
-                              className="p-3 bg-slate-900/60 rounded-lg border border-white/5 flex flex-col gap-1.5 group hover:border-amber-500/40 transition-colors"
+                              className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-white/5 flex flex-col gap-1.5 group hover:border-amber-500/40 transition-colors shadow-2xs"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -1628,36 +1632,36 @@ export const RanksPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleMoveRankOrder(rank, 'UP')}
-                                      className="text-slate-500 hover:text-amber-400 p-0.5 -mb-1 transition-colors"
+                                      className="text-slate-400 hover:text-amber-500 p-0.5 -mb-1 transition-colors cursor-pointer"
                                       title="Kram Upar (Move Up in Hierarchy)"
                                     >
                                       <ChevronUp className="w-3.5 h-3.5" />
                                     </button>
-                                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center">
+                                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center justify-center">
                                       {rank.rank_order}
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() => handleMoveRankOrder(rank, 'DOWN')}
-                                      className="text-slate-500 hover:text-amber-400 p-0.5 -mt-1 transition-colors"
+                                      className="text-slate-400 hover:text-amber-500 p-0.5 -mt-1 transition-colors cursor-pointer"
                                       title="Kram Niche (Move Down in Hierarchy)"
                                     >
                                       <ChevronDown className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                   <div>
-                                    <span className="text-xs font-bold text-white block">{rank.rank_name}</span>
-                                    <span className="text-[11px] text-slate-400">{rank.description || 'Syllabus & Stance Mastery'}</span>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-white block">{rank.rank_name}</span>
+                                    <span className="text-[11px] text-slate-600 dark:text-slate-400">{rank.description || 'Syllabus & Stance Mastery'}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-sm ${getBeltBadgeClass(rank.belt_color)}`}>
+                                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded border shadow-2xs ${getBeltBadgeClass(rank.belt_color)}`}>
                                     {rank.belt_color}
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => handleOpenEditBelt(rank)}
-                                    className="p-1 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+                                    className="p-1 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors cursor-pointer"
                                     title="Edit Belt"
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
@@ -1665,7 +1669,7 @@ export const RanksPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteBelt(rank)}
-                                    className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 rounded transition-colors"
+                                    className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
                                     title="Delete Belt"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1673,8 +1677,8 @@ export const RanksPage: React.FC = () => {
                                 </div>
                               </div>
                               {rank.syllabus && (
-                                <div className="ml-8 text-[10px] text-amber-300/90 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-mono">
-                                  📋 <span className="font-semibold text-amber-200">Syllabus:</span> {rank.syllabus}
+                                <div className="ml-8 text-[10px] text-amber-950 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded border border-amber-300/80 dark:border-amber-500/20 font-mono">
+                                  📋 <span className="font-semibold text-amber-900 dark:text-amber-200">Syllabus:</span> {rank.syllabus}
                                 </div>
                               )}
                             </div>
@@ -1719,6 +1723,22 @@ export const RanksPage: React.FC = () => {
                   </option>
                 ))}
             </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Examination / Promotion Date *
+            </label>
+            <input
+              type="date"
+              required
+              value={promotionDate}
+              onChange={(e) => setPromotionDate(e.target.value)}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
+            />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+              Select examination date (defaults to today). This date updates certificates and official records.
+            </p>
           </div>
 
           <div>
@@ -1869,7 +1889,7 @@ export const RanksPage: React.FC = () => {
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
                     {previewCert.student_name}
                     <span className="text-[11px] font-mono font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                      {previewCert.student_code || 'GSA-ATH'}
+                      {previewCert.student_code || (previewCert.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1')}
                     </span>
                   </h4>
                   <p className="text-xs text-slate-400">

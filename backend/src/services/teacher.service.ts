@@ -279,17 +279,10 @@ export class TeacherService {
       throw new AppError(`Failed to create teacher record: ${teacherError?.message}`, 500);
     }
 
-    // Automatically dispatch teacher portal credentials via WhatsApp if phone provided
-    if (dto.phone) {
-      automationService
-        .triggerTeacherWelcomeAutomation({
-          fullName: dto.fullName,
-          email: dto.email,
-          password: password,
-          phone: dto.phone,
-        })
-        .catch((err) => console.warn('[TeacherService] Failed to dispatch teacher WhatsApp credentials:', err.message));
-    }
+    // Automated teacher WhatsApp messages disabled per user request (hold on teacher automatic messages)
+    // if (dto.phone) {
+    //   automationService.triggerTeacherWelcomeAutomation({ ... })
+    // }
 
     return {
       id: teacher.id,

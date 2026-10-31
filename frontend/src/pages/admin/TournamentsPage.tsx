@@ -8,7 +8,6 @@ import {
   MapPin,
   Users,
   DollarSign,
-  Send,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -20,8 +19,6 @@ import {
   UserPlus,
   BookMarked,
   Edit2,
-  Check,
-  MessageSquare,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { Card } from '../../components/ui/Card';
@@ -107,40 +104,35 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedRegForPay, setSelectedRegForPay] = useState<TournamentRegistration | null>(null);
 
-  // Tournament WhatsApp broadcast modal state
-  const [isTournamentBroadcastOpen, setIsTournamentBroadcastOpen] = useState(false);
-  const [broadcastFilter, setBroadcastFilter] = useState<'ALL' | 'PENDING_FEE' | 'PENDING_DOCS' | 'SELECTED'>('PENDING_FEE');
-  const [broadcastCustomMessage, setBroadcastCustomMessage] = useState('');
-  const [broadcasting, setBroadcasting] = useState(false);
-  const [broadcastNotifyOption, setBroadcastNotifyOption] = useState<'NOW' | 'SCHEDULE'>('NOW');
-  const [broadcastScheduleTime, setBroadcastScheduleTime] = useState<string>(
-    new Date(Date.now() + 3600000).toISOString().slice(0, 16)
-  );
-
-  // Top WhatsApp Template Configurator
-  const DEFAULT_TOURNAMENT_TEMPLATE =
-    '🏆 *Gurukul Sports Academy Tournament Alert*\n\nDear {student_name} / Parents,\nYou have been selected for *{tournament_name}* ({discipline}) scheduled at {venue} on {event_date}.\n• Entry Fee: ₹{entry_fee}\n• Fee Deadline: {deadline}\n• Required Documents: {required_documents}\n\nPlease confirm participation and submit documents promptly!\n\nWarm regards,\nGurukul Sports Academy';
-
-  const [tournamentWhatsappTemplate, setTournamentWhatsappTemplate] = useState<string>(() => {
-    try {
-      return localStorage.getItem('gurukul_tournament_whatsapp_template') || DEFAULT_TOURNAMENT_TEMPLATE;
-    } catch {
-      return DEFAULT_TOURNAMENT_TEMPLATE;
-    }
-  });
-  const [isTournamentTemplateOpen, setIsTournamentTemplateOpen] = useState(false);
-
-  // Form states - Create Tournament
+  // Form states - Create Tournament (Strictly: Name, Start Date, End Date, Venue)
   const [formData, setFormData] = useState({
     title: '',
-    discipline_code: 'KALARIPPAYATTU',
     venue: '',
-    start_date: '',
-    end_date: '',
-    registration_deadline: '',
-    entry_fee: '1500',
-    description: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
   });
+
+  const handleOpenCreateModal = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setFormData({
+      title: '',
+      venue: '',
+      start_date: today,
+      end_date: today,
+    });
+    setIsCreateModalOpen(true);
+  };
+
+  const handleStartDateChange = (val: string) => {
+    setFormData((prev) => {
+      const shouldSync = !prev.end_date || prev.end_date === prev.start_date || prev.end_date < val;
+      return {
+        ...prev,
+        start_date: val,
+        end_date: shouldSync ? val : prev.end_date,
+      };
+    });
+  };
 
   // Nominate state - Academy Students roster
   const [academyStudents, setAcademyStudents] = useState<Array<{ id: string; fullName: string; contactNumber: string; courseName?: string }>>([]);
@@ -148,17 +140,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [nominating, setNominating] = useState(false);
   const [nominateModalTab, setNominateModalTab] = useState<'nominate_new' | 'view_previous'>('nominate_new');
-  const [nominationNotifyOption, setNominationNotifyOption] = useState<'NOW' | 'SCHEDULE' | 'NONE'>('NONE');
-  const [nominationScheduleTime, setNominationScheduleTime] = useState<string>(
-    new Date(Date.now() + 3600000).toISOString().slice(0, 16)
-  );
-  const [nominationCustomMessage, setNominationCustomMessage] = useState<string>(() => {
-    try {
-      return localStorage.getItem('gurukul_tournament_whatsapp_template') || DEFAULT_TOURNAMENT_TEMPLATE;
-    } catch {
-      return DEFAULT_TOURNAMENT_TEMPLATE;
-    }
-  });
 
   // Payment settle state
   const [payAmount, setPayAmount] = useState('');
@@ -167,39 +148,28 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
   const [payRef, setPayRef] = useState('');
   const [settling, setSettling] = useState(false);
 
-  // WhatsApp notification loading state
-  const [notifyingRegId, setNotifyingRegId] = useState<string | null>(null);
-
   const [deletingTournamentId, setDeletingTournamentId] = useState<string | null>(null);
 
-  // Edit Tournament Modal State
+  // Edit Tournament Modal State (Strictly: Name, Start Date, End Date, Venue, Status)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editFormData, setEditFormData] = useState({
     title: '',
-    discipline_code: 'KALARIPPAYATTU',
     venue: '',
     start_date: '',
     end_date: '',
-    registration_deadline: '',
-    entry_fee: '1500',
     status: 'UPCOMING' as 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED',
-    description: '',
   });
 
   const handleOpenEditTournament = (tour: Tournament) => {
     setEditingTournament(tour);
     setEditFormData({
       title: tour.title || tour.name || '',
-      discipline_code: tour.discipline_code || tour.discipline || 'KALARIPPAYATTU',
       venue: tour.venue || '',
       start_date: tour.start_date ? tour.start_date.split('T')[0] : '',
       end_date: tour.end_date ? tour.end_date.split('T')[0] : '',
-      registration_deadline: tour.registration_deadline ? tour.registration_deadline.split('T')[0] : '',
-      entry_fee: String(tour.entry_fee || 0),
       status: tour.status || 'UPCOMING',
-      description: tour.description || '',
     });
     setIsEditModalOpen(true);
   };
@@ -218,14 +188,10 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         body: JSON.stringify({
           title: editFormData.title.trim(),
           name: editFormData.title.trim(),
-          discipline: editFormData.discipline_code,
           venue: editFormData.venue.trim(),
           start_date: editFormData.start_date || null,
           end_date: editFormData.end_date || null,
-          registration_deadline: editFormData.registration_deadline || null,
-          entry_fee: Number(editFormData.entry_fee || 0),
           status: editFormData.status,
-          description: editFormData.description.trim() || null,
         }),
       });
 
@@ -234,7 +200,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
         ...editFormData,
         title: editFormData.title,
         name: editFormData.title,
-        entry_fee: Number(editFormData.entry_fee),
       };
 
       setTournaments((prev) => prev.map((t) => (t.id === editingTournament.id ? { ...t, ...updated } : t)));
@@ -399,21 +364,20 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
 
   const handleCreateTournament = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.title.trim()) {
+      toast.error('Tournament title is required');
+      return;
+    }
     try {
       const payload = {
-        name: formData.title,
-        title: formData.title,
-        discipline: formData.discipline_code,
-        discipline_code: formData.discipline_code,
-        venue: formData.venue,
+        name: formData.title.trim(),
+        title: formData.title.trim(),
+        venue: formData.venue.trim(),
         tournamentDate: formData.start_date,
         tournament_date: formData.start_date,
         start_date: formData.start_date,
         end_date: formData.end_date || formData.start_date,
-        registration_deadline: formData.registration_deadline || formData.start_date,
-        entry_fee: Number(formData.entry_fee) || 0,
-        entryFee: Number(formData.entry_fee) || 0,
-        description: formData.description,
+        registration_deadline: formData.end_date || formData.start_date,
       };
 
       await apiClient('/tournaments', {
@@ -422,15 +386,12 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       });
 
       setIsCreateModalOpen(false);
+      const today = new Date().toISOString().split('T')[0];
       setFormData({
         title: '',
-        discipline_code: 'KALARIPPAYATTU',
         venue: '',
-        start_date: '',
-        end_date: '',
-        registration_deadline: '',
-        entry_fee: '1500',
-        description: '',
+        start_date: today,
+        end_date: today,
       });
       fetchTournaments();
       toast.success(`Championship "${formData.title}" registered successfully!`);
@@ -445,29 +406,19 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     const count = selectedStudentIds.length;
     try {
       setNominating(true);
-      const messageToSend = nominationCustomMessage.trim() || tournamentWhatsappTemplate || DEFAULT_TOURNAMENT_TEMPLATE;
       await apiClient(`/tournaments/${selectedTournament.id}/nominate`, {
         method: 'POST',
         body: JSON.stringify({
           studentIds: selectedStudentIds,
           notes: 'Nominated by Academy Selection Committee',
-          sendWhatsApp: nominationNotifyOption !== 'NONE',
-          scheduleTime: nominationNotifyOption === 'SCHEDULE' ? nominationScheduleTime : undefined,
-          customMessage: nominationNotifyOption !== 'NONE' ? messageToSend : undefined,
+          sendWhatsApp: false,
         }),
       });
 
       setSelectedStudentIds([]);
       await fetchRegistrations(selectedTournament.id);
       await fetchTournaments();
-      if (nominationNotifyOption === 'NONE') {
-        toast.success(`Success! ${count} athletes nominated (No WhatsApp dispatched).`);
-      } else if (nominationNotifyOption === 'SCHEDULE') {
-        toast.success(`Success! ${count} athletes nominated and WhatsApp scheduled for later!`);
-      } else {
-        toast.success(`Success! ${count} athletes nominated and WhatsApp alerts dispatched!`);
-      }
-      // Switch tab so user sees all previously nominated athletes and can add more
+      toast.success(`Success! ${count} athletes nominated.`);
       setNominateModalTab('view_previous');
     } catch (err) {
       console.error('Failed to nominate students:', err);
@@ -529,24 +480,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     }
   };
 
-  const handleSendWhatsAppNotification = async (registrationId: string) => {
-    try {
-      setNotifyingRegId(registrationId);
-      const res: any = await apiClient(`/tournaments/registrations/${registrationId}/notify`, {
-        method: 'POST',
-      });
-      if (selectedTournament) {
-        fetchRegistrations(selectedTournament.id);
-      }
-      toast.success(res?.message || 'WhatsApp selection reminder queued successfully!');
-    } catch (err: any) {
-      console.error('Failed to dispatch notification:', err);
-      toast.error(err.message || 'Failed to send WhatsApp alert.');
-    } finally {
-      setNotifyingRegId(null);
-    }
-  };
-
   const handleToggleDocStatus = async (regId: string, currentStatus?: string) => {
     const nextStatus = currentStatus === 'VERIFIED' ? 'PENDING' : 'VERIFIED';
     try {
@@ -567,38 +500,57 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
     }
   };
 
-  const handleBroadcastTournamentWhatsApp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTournament) return;
-    try {
-      setBroadcasting(true);
-      const res: any = await apiClient(`/tournaments/${selectedTournament.id}/broadcast`, {
-        method: 'POST',
-        body: JSON.stringify({
-          recipientFilter: broadcastFilter,
-          customMessage: broadcastCustomMessage.trim() || undefined,
-          scheduleTime: broadcastNotifyOption === 'SCHEDULE' ? broadcastScheduleTime : undefined,
-        }),
-      });
-      toast.success(res?.message || 'Tournament WhatsApp alert successfully broadcasted!');
-      setIsTournamentBroadcastOpen(false);
-      setBroadcastCustomMessage('');
-      fetchRegistrations(selectedTournament.id);
-      fetchTournaments();
-    } catch (err: any) {
-      console.error('Broadcast failed:', err);
-      toast.error(err.message || 'Failed to dispatch WhatsApp broadcast.');
-    } finally {
-      setBroadcasting(false);
+  const isTournamentCompleted = (t: Tournament) => {
+    if (t.status === 'COMPLETED') return true;
+    if (t.end_date) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const endStr = t.end_date.split('T')[0];
+      if (endStr < todayStr) return true;
     }
+    return false;
   };
+
+  const isTournamentOngoing = (t: Tournament) => {
+    if (t.status === 'ONGOING') return true;
+    if (isTournamentCompleted(t)) return false;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const startStr = (t.start_date || '').split('T')[0];
+    const endStr = (t.end_date || t.start_date || '').split('T')[0];
+    if (startStr && endStr && startStr <= todayStr && endStr >= todayStr) {
+      return true;
+    }
+    return false;
+  };
+
+  const isTournamentUpcoming = (t: Tournament) => {
+    if (isTournamentCompleted(t) || isTournamentOngoing(t)) return false;
+    if (t.status === 'UPCOMING') return true;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const startStr = (t.start_date || '').split('T')[0];
+    if (startStr && startStr > todayStr) {
+      return true;
+    }
+    return true;
+  };
+
+  const allTournamentsCount = (tournaments || []).length;
+  const ongoingTournamentsCount = (tournaments || []).filter(isTournamentOngoing).length;
+  const upcomingTournamentsCount = (tournaments || []).filter(isTournamentUpcoming).length;
+  const completedTournamentsCount = (tournaments || []).filter(isTournamentCompleted).length;
 
   const q = (searchTerm || '').trim().toLowerCase();
   const filteredTournaments = (tournaments || []).filter((t) => {
     const title = (t.title || t.name || '').toLowerCase();
     const venue = (t.venue || '').toLowerCase();
     const matchesSearch = !q || title.includes(q) || venue.includes(q);
-    const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === 'ONGOING') {
+      matchesStatus = isTournamentOngoing(t);
+    } else if (statusFilter === 'UPCOMING') {
+      matchesStatus = isTournamentUpcoming(t);
+    } else if (statusFilter === 'COMPLETED') {
+      matchesStatus = isTournamentCompleted(t);
+    }
     const matchesDiscipline = disciplineFilter === 'ALL' || t.discipline_code === disciplineFilter;
     return matchesSearch && matchesStatus && matchesDiscipline;
   });
@@ -667,13 +619,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             Tournament Registrations & Athlete Roster
           </h1>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Register state, national, and dojo championships, nominate academy athletes, dispatch WhatsApp alerts, and collect segregated tournament entry fees.
+            Register state, national, and dojo championships, nominate academy athletes, and collect segregated tournament entry fees.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={handleOpenCreateModal}
             className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-md shadow-orange-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -681,138 +633,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           </Button>
         </div>
       </div>
-
-      {/* WhatsApp Tournament Template & Classification Card */}
-      <Card className="p-4 bg-gradient-to-br from-amber-950/20 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-amber-500/20">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-100">Tournament WhatsApp Message &amp; Document Classification</h3>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Active WhatsApp Config
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Official announcement dispatched to nominated athletes and parents for tournament selections, document submissions, and fee clearances.
-              </p>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsTournamentTemplateOpen(!isTournamentTemplateOpen)}
-            className="text-xs h-8 border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
-          >
-            <Edit2 className="w-3.5 h-3.5 mr-1.5" />
-            {isTournamentTemplateOpen ? 'Collapse Editor' : 'Edit Template & Preview'}
-          </Button>
-        </div>
-
-        {/* Collapsed Preview */}
-        {!isTournamentTemplateOpen && (
-          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
-            "{tournamentWhatsappTemplate}"
-          </div>
-        )}
-
-        {/* Expanded Editor */}
-        {isTournamentTemplateOpen && (
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                  Template Message Text
-                </label>
-                <textarea
-                  value={tournamentWhatsappTemplate}
-                  onChange={(e) => setTournamentWhatsappTemplate(e.target.value)}
-                  rows={5}
-                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Dynamic Variable Tags:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    '{student_name}',
-                    '{tournament_name}',
-                    '{discipline}',
-                    '{venue}',
-                    '{event_date}',
-                    '{entry_fee}',
-                    '{deadline}',
-                    '{required_documents}',
-                  ].map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setTournamentWhatsappTemplate((prev) => `${prev} ${tag}`)}
-                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 transition-colors"
-                    >
-                      + {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    localStorage.setItem('gurukul_tournament_whatsapp_template', tournamentWhatsappTemplate);
-                    setNominationCustomMessage(tournamentWhatsappTemplate);
-                    toast.success('Tournament WhatsApp template saved!');
-                  }}
-                  className="text-xs bg-amber-600 hover:bg-amber-700 text-white"
-                >
-                  <Check className="w-3.5 h-3.5 mr-1.5" />
-                  Save Template
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setTournamentWhatsappTemplate(DEFAULT_TOURNAMENT_TEMPLATE)}
-                  className="text-xs text-slate-400 hover:text-slate-200"
-                >
-                  Reset Default
-                </Button>
-              </div>
-            </div>
-
-            {/* Live WhatsApp Bubble */}
-            <div>
-              <span className="text-xs font-bold text-slate-200 block mb-1.5">
-                📱 Live Recipient WhatsApp Preview
-              </span>
-              <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100">
-                <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
-                  <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
-                    {tournamentWhatsappTemplate
-                      .replace('{student_name}', 'Aarav Patil')
-                      .replace('{tournament_name}', selectedTournament?.title || 'State Kalari Championship')
-                      .replace('{discipline}', selectedTournament?.discipline || 'Kalarippayattu')
-                      .replace('{venue}', selectedTournament?.venue || 'Balewadi Sports Complex, Pune')
-                      .replace('{event_date}', selectedTournament?.start_date ? new Date(selectedTournament.start_date).toLocaleDateString('en-IN') : '15 Dec 2026')
-                      .replace('{entry_fee}', '1,500')
-                      .replace('{deadline}', '01 Dec 2026')
-                      .replace('{required_documents}', 'Birth Certificate, Aadhar Card, Medical Certificate')}
-                  </p>
-                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
-                    <span>11:15 AM</span>
-                    <span className="text-[#53bdeb]">✓✓</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -840,7 +660,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             <Users className="w-4 h-4 text-blue-500 dark:text-blue-400" />
           </div>
           <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{summary.totalAthletesNominated}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Selected & WhatsApp informed</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Selected athletes</span>
         </Card>
 
         <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-emerald-500/30 transition-all shadow-sm">
@@ -865,7 +685,45 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
       {/* Main Content Layout: Tournament Cards on Left, Athlete Roster Details on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Tournaments List */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className="lg:col-span-5 space-y-3">
+          {/* Status & Classification Filter Pills with counts */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-black/40 rounded-xl border border-slate-200 dark:border-white/5 overflow-x-auto scrollbar-none">
+            {[
+              { id: 'ALL', label: 'All', count: allTournamentsCount },
+              { id: 'ONGOING', label: 'Ongoing', count: ongoingTournamentsCount, dot: 'bg-emerald-500' },
+              { id: 'UPCOMING', label: 'Upcoming', count: upcomingTournamentsCount, dot: 'bg-blue-500' },
+              { id: 'COMPLETED', label: 'Ended / Completed', count: completedTournamentsCount, dot: 'bg-slate-400' },
+            ].map((tab) => {
+              const isActive = statusFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5'
+                  }`}
+                >
+                  {tab.dot && (
+                    <span className={`w-2 h-2 rounded-full ${tab.dot} ${isActive ? 'ring-1 ring-slate-950/40' : ''}`} />
+                  )}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      isActive
+                        ? 'bg-slate-950/20 text-slate-950'
+                        : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
@@ -877,16 +735,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-            >
-              <option value="ALL">All Status</option>
-              <option value="UPCOMING">Upcoming</option>
-              <option value="ONGOING">Ongoing</option>
-              <option value="COMPLETED">Completed</option>
-            </select>
             <select
               value={disciplineFilter}
               onChange={(e) => setDisciplineFilter(e.target.value)}
@@ -936,13 +784,13 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                             {(tour.discipline_code || 'GENERAL').replace('_', ' ')}
                           </span>
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            tour.status === 'UPCOMING'
-                              ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
-                              : tour.status === 'ONGOING'
+                            isTournamentOngoing(tour)
                               ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 animate-pulse'
-                              : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                              : isTournamentCompleted(tour)
+                              ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-white/10'
+                              : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
                           }`}>
-                            {tour.status || 'UPCOMING'}
+                            {isTournamentCompleted(tour) ? 'ENDED / COMPLETED' : isTournamentOngoing(tour) ? 'ONGOING' : tour.status || 'UPCOMING'}
                           </span>
                         </div>
                         <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1.5">{tour.title || tour.name || 'Untitled Tournament'}</h3>
@@ -954,6 +802,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                             {tour.start_date ? new Date(tour.start_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBA'}
+                            {tour.end_date && tour.end_date !== tour.start_date ? ` to ${new Date(tour.end_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                           </span>
                         </div>
                       </div>
@@ -1031,9 +880,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                       {(selectedTournament.discipline_code || 'GENERAL').replace('_', ' ')}
                     </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      Deadline: {selectedTournament.registration_deadline ? new Date(selectedTournament.registration_deadline).toLocaleDateString('en-IN') : 'TBA'}
-                    </span>
                   </div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">{selectedTournament.title || selectedTournament.name || 'Untitled Tournament'}</h2>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-2 font-medium">
@@ -1049,18 +895,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => {
-                      setBroadcastFilter('PENDING_FEE');
-                      setBroadcastCustomMessage('');
-                      setIsTournamentBroadcastOpen(true);
-                    }}
-                    disabled={registrations.length === 0}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2 px-3 shadow-xs flex items-center disabled:opacity-50 cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    WhatsApp Notice &amp; Deadline
-                  </Button>
                   <Button
                     onClick={() => {
                       setSelectedStudentIds([]);
@@ -1094,14 +928,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                   </Button>
                 </div>
               </div>
-
-              {/* Tournament description if any */}
-              {selectedTournament.description && (
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-white/5 text-xs text-slate-700 dark:text-slate-300">
-                  <span className="font-semibold text-slate-900 dark:text-slate-200">Event Overview: </span>
-                  {selectedTournament.description}
-                </div>
-              )}
 
               {/* Nominated Athletes Table with Financial Summary Bar */}
               <div>
@@ -1145,7 +971,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     <Award className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No athletes nominated yet</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Click "Nominate Athletes" to pick academy students. WhatsApp alerts will be sent automatically.
+                      Click "Nominate Athletes" to pick academy students for this championship roster.
                     </p>
                     <Button
                       onClick={() => setIsNominateModalOpen(true)}
@@ -1163,7 +989,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                           <th className="py-2.5 px-3">Selection</th>
                           <th className="py-2.5 px-3">Documents</th>
                           <th className="py-2.5 px-3">Entry Fee</th>
-                          <th className="py-2.5 px-3">WhatsApp Alert</th>
                           <th className="py-2.5 px-3 text-right">Action</th>
                         </tr>
                       </thead>
@@ -1226,27 +1051,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                {reg.whatsapp_notified ? (
-                                  <span className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">
-                                    <CheckCircle2 className="w-3 h-3" /> Dispatched
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-transparent">
-                                    <Clock className="w-3 h-3" /> Not Sent
-                                  </span>
-                                )}
-                                <button
-                                  title="Resend WhatsApp Selection Notice"
-                                  onClick={() => handleSendWhatsAppNotification(reg.id)}
-                                  disabled={notifyingRegId === reg.id}
-                                  className="p-1 hover:bg-emerald-500/20 rounded text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer"
-                                >
-                                  <Send className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
                             <td className="py-3 px-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
                                 <Button
@@ -1284,7 +1088,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               <Trophy className="w-16 h-16 text-slate-300 dark:text-slate-600 mb-4 animate-bounce" />
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Select a Tournament</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-                Click any tournament from the list on the left to view registered athletes, nominate new candidates, send WhatsApp alerts, and settle entry fees.
+                Click any tournament from the list on the left to view registered athletes, nominate new candidates, and settle entry fees.
               </p>
             </Card>
           )}
@@ -1307,39 +1111,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Discipline / खेळ *
-              </label>
-              <select
-                value={editFormData.discipline_code}
-                onChange={(e) => setEditFormData({ ...editFormData, discipline_code: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
-              >
-                <option value="KALARIPPAYATTU">Kalarippayattu (कलारीपयट्टू)</option>
-                <option value="KARATE_WUSHU">Karate & Wushu (कराटे / वुशू)</option>
-                <option value="BOTH">Multi-Discipline Championship</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Status / सद्यस्थिती *
-              </label>
-              <select
-                value={editFormData.status}
-                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as any })}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
-              >
-                <option value="UPCOMING">Upcoming (आगामी)</option>
-                <option value="ONGOING">Ongoing (चालू)</option>
-                <option value="COMPLETED">Completed (पूर्ण)</option>
-                <option value="CANCELLED">Cancelled (रद्द)</option>
-              </select>
-            </div>
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Venue / स्पर्धा ठिकाण *
@@ -1353,13 +1124,14 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Start Date (सुरुवात)
+                Start Date (सुरुवात) *
               </label>
               <input
                 type="date"
+                required
                 value={editFormData.start_date}
                 onChange={(e) => setEditFormData({ ...editFormData, start_date: e.target.value })}
                 className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
@@ -1377,43 +1149,22 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Deadline (नोंदणी मुदत)
-              </label>
-              <input
-                type="date"
-                value={editFormData.registration_deadline}
-                onChange={(e) => setEditFormData({ ...editFormData, registration_deadline: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Entry Fee (नोंदणी शुल्क ₹)
+              Status / सद्यस्थिती *
             </label>
-            <input
-              type="number"
-              min="0"
-              value={editFormData.entry_fee}
-              onChange={(e) => setEditFormData({ ...editFormData, entry_fee: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Event Overview & Notes (पालकांसाठी सूचना / तपशील)
-            </label>
-            <textarea
-              rows={3}
-              value={editFormData.description}
-              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 leading-relaxed font-sans"
-            />
+            <select
+              value={editFormData.status}
+              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as any })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
+            >
+              <option value="UPCOMING">Upcoming (आगामी)</option>
+              <option value="ONGOING">Ongoing (चालू)</option>
+              <option value="COMPLETED">Completed (पूर्ण)</option>
+              <option value="CANCELLED">Cancelled (रद्द)</option>
+            </select>
           </div>
 
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -1442,37 +1193,8 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               placeholder="e.g. Maharashtra State Kalarippayattu Championship 2026"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs font-semibold"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Discipline *</label>
-              <select
-                value={formData.discipline_code}
-                onChange={(e) => setFormData({ ...formData, discipline_code: e.target.value })}
-                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
-              >
-                <option value="KALARIPPAYATTU">Kalarippayattu</option>
-                <option value="KARATE_WUSHU">Karate + Wushu</option>
-                <option value="BOTH">Both (Kalarippayattu + Karate & Wushu)</option>
-                <option value="ALL_DISCIPLINE">All Disciplines</option>
-                <option value="GENERAL">General Athletics</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Entry Fee (₹) *</label>
-              <input
-                type="number"
-                required
-                min="0"
-                value={formData.entry_fee}
-                onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
-                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
-              />
-            </div>
           </div>
 
           <div>
@@ -1487,14 +1209,14 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Start Date *</label>
               <input
                 type="date"
                 required
                 value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               />
             </div>
@@ -1507,26 +1229,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Deadline</label>
-              <input
-                type="date"
-                value={formData.registration_deadline}
-                onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })}
-                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Event Rules / Guidelines</label>
-            <textarea
-              rows={2}
-              placeholder="Weight categories, age brackets, required protective gear..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
-            />
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
@@ -1601,7 +1303,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
           {nominateModalTab === 'nominate_new' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
-                <span>Select athletes to register. WhatsApp notices will dispatch upon confirmation.</span>
+                <span>Select athletes to register for this championship roster.</span>
                 {filteredUnnominated.length > 0 && (
                   <button
                     type="button"
@@ -1673,113 +1375,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                 )}
               </div>
 
-              {/* WhatsApp Notification Preference */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
-                    WhatsApp Notification Preference (व्हॉट्सॲप पर्याय)
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNominationNotifyOption('NONE')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      nominationNotifyOption === 'NONE'
-                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-900 dark:text-amber-200 font-bold shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
-                    }`}
-                  >
-                    <div className="text-[11px] flex items-center gap-1">
-                      <span>📋 Don't Send Yet</span>
-                    </div>
-                    <div className="text-[10px] opacity-80 mt-0.5">केवळ नोंदणी (No WhatsApp)</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setNominationNotifyOption('NOW')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      nominationNotifyOption === 'NOW'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
-                    }`}
-                  >
-                    <div className="text-[11px] flex items-center gap-1">
-                      <span>🚀 Send Now</span>
-                    </div>
-                    <div className="text-[10px] opacity-80 mt-0.5">आत्ताच पाठवा (Direct Alert)</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setNominationNotifyOption('SCHEDULE')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      nominationNotifyOption === 'SCHEDULE'
-                        ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
-                    }`}
-                  >
-                    <div className="text-[11px] flex items-center gap-1">
-                      <span>⏰ Schedule Later</span>
-                    </div>
-                    <div className="text-[10px] opacity-80 mt-0.5">वेळ ठरवून पाठवा (Schedule)</div>
-                  </button>
-                </div>
-
-                {nominationNotifyOption === 'SCHEDULE' && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                      Schedule Dispatch Time:
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={nominationScheduleTime}
-                      onChange={(e) => setNominationScheduleTime(e.target.value)}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                )}
-
-                {nominationNotifyOption !== 'NONE' && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
-                        Message to Athletes / पालकांसाठी अचूक मेसेज:
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setNominationCustomMessage(tournamentWhatsappTemplate || DEFAULT_TOURNAMENT_TEMPLATE)}
-                        className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline font-semibold"
-                      >
-                        Reset to Saved Template
-                      </button>
-                    </div>
-                    <textarea
-                      rows={4}
-                      value={nominationCustomMessage}
-                      onChange={(e) => setNominationCustomMessage(e.target.value)}
-                      placeholder="Enter exact message to send to nominated athlete parents..."
-                      className="w-full text-xs font-mono p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner"
-                    />
-                    <div className="text-[10px] text-slate-500 flex flex-wrap gap-1">
-                      <span>Available Tokens:</span>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{student_name}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{tournament_name}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{discipline}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{venue}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{event_date}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{entry_fee}'}</code>
-                      <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{'{deadline}'}</code>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
                   {selectedStudentIds.length} athletes selected
@@ -1801,13 +1396,7 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                     disabled={selectedStudentIds.length === 0 || nominating}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs"
                   >
-                    {nominating
-                      ? 'Nominating...'
-                      : nominationNotifyOption === 'NONE'
-                      ? `Confirm Nomination (${selectedStudentIds.length})`
-                      : nominationNotifyOption === 'SCHEDULE'
-                      ? `Nominate & Schedule Alerts (${selectedStudentIds.length})`
-                      : `Nominate & Send Alerts (${selectedStudentIds.length})`}
+                    {nominating ? 'Nominating...' : `Confirm Nomination (${selectedStudentIds.length})`}
                   </Button>
                 </div>
               </div>
@@ -1855,21 +1444,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
                         }`}>
                           {reg.payment_status === 'PAID' ? 'Fee Paid' : `₹${reg.fee_amount} Pending`}
                         </span>
-
-                        {reg.whatsapp_notified ? (
-                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                            Notice Sent
-                          </span>
-                        ) : (
-                          <button
-                            title="Send WhatsApp Notice"
-                            onClick={() => handleSendWhatsAppNotification(reg.id)}
-                            disabled={notifyingRegId === reg.id}
-                            className="p-1 hover:bg-emerald-500/20 rounded text-emerald-600 dark:text-emerald-400 transition-colors"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                          </button>
-                        )}
 
                         <button
                           title="Remove from Tournament"
@@ -1985,263 +1559,6 @@ export const TournamentsPage: React.FC<TournamentsPageProps> = ({ embedded = fal
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
             >
               {settling ? 'Updating...' : 'Confirm Fee Settlement'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* MODAL 4: Tournament WhatsApp Broadcast & Deadline Alerts */}
-      <Modal
-        isOpen={isTournamentBroadcastOpen}
-        onClose={() => setIsTournamentBroadcastOpen(false)}
-        title={`WhatsApp Notice: ${selectedTournament?.title || 'Tournament'}`}
-      >
-        <form onSubmit={handleBroadcastTournamentWhatsApp} className="space-y-4">
-          <div className="p-3 bg-gradient-to-r from-indigo-500/10 via-amber-500/10 to-transparent border border-indigo-500/20 rounded-xl text-xs text-slate-700 dark:text-slate-300 space-y-1">
-            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold">
-              <Send className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-              <span>Official WhatsApp Athlete &amp; Parent Broadcast</span>
-            </div>
-            <p className="text-slate-600 dark:text-slate-400 text-[11px]">
-              Sends queued WhatsApp alerts directly to registered athletes with 16s anti-ban throttle. Includes tournament dates, venue, entry fee balance, and fee deadline reminder.
-            </p>
-          </div>
-
-          {/* Filter selection */}
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-              Target Audience
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setBroadcastFilter('PENDING_FEE')}
-                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
-                  broadcastFilter === 'PENDING_FEE'
-                    ? 'bg-rose-500/10 border-rose-500/50 text-rose-700 dark:text-rose-300 shadow-sm'
-                    : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <span className="block font-bold text-slate-900 dark:text-white">Unpaid Fees</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {registrations.filter((r) => r.payment_status !== 'PAID').length} with dues
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setBroadcastFilter('PENDING_DOCS');
-                  setBroadcastCustomMessage(
-                    `📋 *Urgent Document Verification Notice - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nYour nomination for *${selectedTournament?.title || 'the tournament'}* requires submission of mandatory tournament documents:\n• Documents Needed: Birth Certificate, Aadhar Card, Medical Clearance Certificate.\n\nPlease submit these documents at the dojo reception immediately to complete your registration.\n\nWarm regards,\n*Gurukul Sports Academy*`
-                  );
-                }}
-                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
-                  broadcastFilter === 'PENDING_DOCS'
-                    ? 'bg-amber-500/10 border-amber-500/50 text-amber-700 dark:text-amber-300 shadow-sm'
-                    : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <span className="block font-bold text-slate-900 dark:text-white">Missing Docs</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {registrations.filter((r) => r.documents_status === 'PENDING').length} pending docs
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBroadcastFilter('ALL')}
-                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
-                  broadcastFilter === 'ALL'
-                    ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-700 dark:text-indigo-300 shadow-sm'
-                    : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <span className="block font-bold text-slate-900 dark:text-white">All Athletes</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  All {registrations.length} athletes
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBroadcastFilter('SELECTED')}
-                className={`p-2 rounded-lg text-xs font-semibold border transition-all text-left ${
-                  broadcastFilter === 'SELECTED'
-                    ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 shadow-sm'
-                    : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <span className="block font-bold text-slate-900 dark:text-white">Confirmed</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length} confirmed
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Presets */}
-          <div>
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-              Quick Message Templates:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setBroadcastCustomMessage(
-                    `⚠️ *Urgent: Tournament Entry Fee Deadline - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nThis is a reminder that your entry fee for *{tournament_name}* has a pending balance of *{due_amount}*.\n\n• Final Deadline: *{deadline}*\n• Event Venue: {venue}\n\nPlease clear the fee at the dojo desk or online before the deadline to secure your registration.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
-                  )
-                }
-                className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-rose-700 dark:text-rose-300 border border-slate-200 dark:border-white/10 font-medium"
-              >
-                ⚠️ Payment Deadline Reminder
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setBroadcastCustomMessage(
-                    `📋 *Urgent Document Verification Notice - Gurukul Sports Academy*\n\nDear {student_name} / Parents,\n\nYour nomination for *{tournament_name}* requires submission of mandatory tournament documents:\n• Documents Needed: Birth Certificate, Aadhar Card, Medical Clearance Certificate.\n\nPlease submit these documents at the dojo reception immediately to complete your registration.\n\nWarm regards,\n*Gurukul Sports Academy*`
-                  )
-                }
-                className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-white/10 font-medium"
-              >
-                📋 Missing Documents Alert
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setBroadcastCustomMessage(
-                    `🏆 *Tournament Selection & Registration Notice - Gurukul Sports Academy*\n\nCongratulations {student_name}! You have been officially nominated for *{tournament_name}* at {venue}.\n\n• Registration Fee: {due_amount}\n• Fee Deadline: *{deadline}*\n\nPlease confirm your participation and collect official academy gear.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
-                  )
-                }
-                className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-emerald-700 dark:text-emerald-300 border border-slate-200 dark:border-white/10 font-medium"
-              >
-                🏆 Selection &amp; Welcome Notice
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setBroadcastCustomMessage(
-                    `🥊 *Tournament Schedule & Weigh-In Notice - Gurukul Sports Academy*\n\nDear {student_name},\n\nPlease report on time in official academy uniform for *{tournament_name}* at {venue}. Ensure you carry your valid student ID card and protective equipment.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`
-                  )
-                }
-                className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] text-indigo-700 dark:text-indigo-300 border border-slate-200 dark:border-white/10 font-medium"
-              >
-                🥊 Schedule &amp; Uniform Notice
-              </button>
-            </div>
-          </div>
-
-          {/* Custom Message Area */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Message Body (Customizable)
-              </label>
-              <span className="text-[10px] text-slate-500">
-                Tokens: {'{student_name}'}, {'{tournament_name}'}, {'{deadline}'}, {'{due_amount}'}, {'{venue}'}
-              </span>
-            </div>
-            <textarea
-              rows={5}
-              placeholder="Leave empty to use automatic standard notice, or customize your announcement here..."
-              value={broadcastCustomMessage}
-              onChange={(e) => setBroadcastCustomMessage(e.target.value)}
-              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono shadow-xs"
-            />
-          </div>
-
-          {/* Dispatch Timing Preference: Send Now vs Schedule Later */}
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-2.5">
-            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-indigo-500" />
-              Broadcast Timing (प्रक्षेपण वेळ निवडा)
-            </span>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setBroadcastNotifyOption('NOW')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                  broadcastNotifyOption === 'NOW'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
-                }`}
-              >
-                <div className="text-[11px] flex items-center gap-1">
-                  <span>🚀 Send Now</span>
-                </div>
-                <div className="text-[10px] opacity-80 mt-0.5">आत्ताच पाठवा (Direct Alert)</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBroadcastNotifyOption('SCHEDULE')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                  broadcastNotifyOption === 'SCHEDULE'
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold shadow-xs'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium'
-                }`}
-              >
-                <div className="text-[11px] flex items-center gap-1">
-                  <span>⏰ Schedule Later</span>
-                </div>
-                <div className="text-[10px] opacity-80 mt-0.5">वेळ ठरवून पाठवा (Schedule)</div>
-              </button>
-            </div>
-
-            {broadcastNotifyOption === 'SCHEDULE' && (
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                  Scheduled Time:
-                </label>
-                <input
-                  type="datetime-local"
-                  value={broadcastScheduleTime}
-                  onChange={(e) => setBroadcastScheduleTime(e.target.value)}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="p-2.5 bg-slate-100 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between">
-            <span>
-              Payment Deadline: <strong className="text-amber-600 dark:text-amber-400">{selectedTournament?.registration_deadline ? new Date(selectedTournament.registration_deadline).toLocaleDateString('en-IN') : 'TBA'}</strong>
-            </span>
-            <span>
-              Target Count: <strong className="text-slate-900 dark:text-white">
-                {broadcastFilter === 'PENDING_FEE'
-                  ? registrations.filter((r) => r.payment_status !== 'PAID').length
-                  : broadcastFilter === 'PENDING_DOCS'
-                  ? registrations.filter((r) => r.documents_status === 'PENDING').length
-                  : broadcastFilter === 'SELECTED'
-                  ? registrations.filter((r) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED').length
-                  : registrations.length}
-              </strong> athletes
-            </span>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsTournamentBroadcastOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={broadcasting}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
-            >
-              {broadcasting
-                ? 'Processing...'
-                : broadcastNotifyOption === 'SCHEDULE'
-                ? 'Schedule WhatsApp Broadcast'
-                : 'Dispatch WhatsApp Broadcast Now'}
             </Button>
           </div>
         </form>

@@ -302,6 +302,7 @@ export class AttendanceService {
               studentId,
               batchId: dto.batchId,
               date: dto.date,
+              customTemplate: dto.customTemplate,
             });
           } catch (e: any) {
             console.warn('[AttendanceService] WhatsApp absent notification error:', e.message);

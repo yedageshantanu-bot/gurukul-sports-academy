@@ -11,6 +11,14 @@ router.use(verifyAuth);
 
 // List announcements (Admin gets all, Teacher gets announcements for assigned batches)
 router.get('/', (req, res, next) => announcementController.listAnnouncements(req, res, next));
+
+// Scheduled announcements endpoints (MUST be defined before /:id)
+router.get('/scheduled', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.listScheduled(req, res, next));
+router.patch('/scheduled/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.updateScheduled(req, res, next));
+router.put('/scheduled/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.updateScheduled(req, res, next));
+router.delete('/scheduled/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.deleteScheduled(req, res, next));
+router.post('/scheduled/:id/send-now', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.dispatchScheduledNow(req, res, next));
+
 router.get('/:id', (req, res, next) => announcementController.getAnnouncementById(req, res, next));
 
 // Create, update, send, and delete announcements (Admin & Demo Admin)

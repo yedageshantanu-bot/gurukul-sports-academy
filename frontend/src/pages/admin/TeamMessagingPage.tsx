@@ -1,3941 +1,1219 @@
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
-
   Users,
-
-  Send,
-
-  Plus,
-
   Trash2,
-
-  Clock,
-
   Phone,
-
-  RefreshCw,
-
-  Building,
-
-  Edit2,
-
-  Check,
-
-  MessageSquare,
-
-  X,
-
   UserPlus,
-
   FolderPlus,
-
-  FileText,
-
+  Search,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  Building,
+  UserCheck,
+  Megaphone,
+  Tag,
+  Share2,
 } from 'lucide-react';
-
 import { Button } from '../../components/ui/Button';
-
 import { Card } from '../../components/ui/Card';
-
 import { Modal } from '../../components/ui/Modal';
-
-import { Input } from '../../components/ui/Input';
-
-import { Select } from '../../components/ui/Select';
-
 import { apiClient } from '../../lib/api';
-
 import { useToast } from '../../contexts/ToastContext';
 
-
-
-export interface TeamMessageRecord {
-
-  id: string;
-
-  sender_name?: string | null;
-
-  sender_position?: string | null;
-
-  recipient_role: string;
-
-  subject?: string | null;
-
-  message: string;
-
-  priority: 'NORMAL' | 'URGENT' | 'ANNOUNCEMENT';
-
-  status: string;
-
-  created_at: string;
-
-}
-
-
-
 export interface TeamCategory {
-
   id: string;
-
   code: string;
-
   name: string;
-
   marathi_name?: string | null;
-
   description?: string | null;
-
   color?: string | null;
-
   created_at?: string;
-
 }
-
-
 
 export interface TeamMember {
-
   id: string;
-
   phone: string;
-
   name?: string | null;
-
   position?: string | null;
-
   team_code: string;
-
   district?: string | null;
-
   notes?: string | null;
-
   status?: string;
-
   created_at?: string;
-
 }
 
-
-
-export const DEFAULT_TEAMS: TeamCategory[] = [];
-
-
-
-export interface DispatchedLog {
-
+export interface TeamContact {
   id: string;
-
-  recipientPhone: string;
-
-  recipientName?: string;
-
-  message: string;
-
-  status: 'SENT' | 'FAILED';
-
-  timestamp: string;
-
+  name: string;
+  phone: string;
+  position?: string | null;
+  district?: string | null;
+  notes?: string | null;
 }
 
-
-
-const DEFAULT_MEMBERS: TeamMember[] = [];
-
-
-
-const PRESET_TEMPLATES = [
-
-  {
-
-    label: 'Jilapramukh District Notice',
-
-    subject: 'जिल्हास्तरीय स्पर्धा व संघ समन्वय (District Meet)',
-
-    text: 'सादर जय हिंद जिल्हाप्रमुख महोदय, गुरुकुल स्पोर्ट्स अकॅडमी अंतर्गत आगामी जिल्हास्तरीय क्रीडा स्पर्धेचे संघ नामांकन व खेळाडू यादी निश्चिती बैठक आयोजित केली आहे. कृपया आपल्या तालुक्यातील संघ प्रतिनिधींसह उपस्थित राहावे.',
-
-  },
-
-  {
-
-    label: 'Jilapramukh Grading Schedule',
-
-    subject: 'जिल्हास्तरीय बेल्ट ग्रेडिंग परीक्षा',
-
-    text: 'सूचना सर्व जिल्हाप्रमुख: आगामी मार्शल आर्ट्स बेल्ट परीक्षा व प्रमाणपत्र पडताळणी तारीख जाहीर झाली आहे. आपल्या कार्यक्षेत्रातील पात्र विद्यार्थ्यांचे अर्ज अंतिम तारखेपूर्वी सादर करावेत.',
-
-  },
-
-  {
-
-    label: 'Team Meeting',
-
-    subject: 'Emergency Coordination Briefing',
-
-    text: 'Notice to Academy Staff: A short coordination briefing will take place today at the main dojo floor. Please ensure timely presence.',
-
-  },
-
-  {
-
-    label: 'Batch Schedule Update',
-
-    subject: 'Training Timing Adjustments',
-
-    text: 'Attention Team: Training batch timings for Kalarippayattu & Karate have been adjusted for this week. Please review your assigned batches.',
-
-  },
-
-  {
-
-    label: 'Roll Call Reminder',
-
-    subject: 'Daily Attendance Compliance',
-
-    text: 'Duty Alert: Coaches & assistants are requested to mark daily student attendance sheets promptly and verify safety gear.',
-
-  },
-
+const COLOR_OPTIONS = [
+  { id: 'indigo', label: 'Indigo', bg: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30' },
+  { id: 'amber', label: 'Amber', bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30' },
+  { id: 'emerald', label: 'Emerald', bg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' },
+  { id: 'rose', label: 'Rose', bg: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30' },
+  { id: 'blue', label: 'Blue', bg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30' },
+  { id: 'purple', label: 'Purple', bg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30' },
 ];
 
-
+const STORAGE_CONTACTS_KEY = 'gurukul_custom_team_contacts';
 
 export const TeamMessagingPage: React.FC = () => {
-
   const { toast } = useToast();
 
-
-
-  // Database Team Messages state
-
-  const [dbMessages, setDbMessages] = useState<TeamMessageRecord[]>([]);
-
-  const [dbLoading, setDbLoading] = useState(false);
-
-
-
-  // Teams Categories list (Syncs with Cloud DB + Local Storage cache)
-
-  const [teams, setTeams] = useState<TeamCategory[]>(() => {
-
+  const [teams, setTeams] = useState<TeamCategory[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [savedContacts, setSavedContacts] = useState<TeamContact[]>(() => {
     try {
-
-      const saved = localStorage.getItem('gurukul_teams_list');
-
-      return saved ? JSON.parse(saved) : DEFAULT_TEAMS;
-
+      const stored = localStorage.getItem(STORAGE_CONTACTS_KEY);
+      if (stored) return JSON.parse(stored);
     } catch {
-
-      return DEFAULT_TEAMS;
-
+      // ignored
     }
-
+    return [
+      { id: 'c1', name: 'Sensei Vikram Salunkhe (Admin)', phone: '9881888061', position: 'Chief Director' },
+      { id: 'c2', name: 'Shantanu', phone: '9881888061', position: 'Core Member' },
+      { id: 'c3', name: 'Laj', phone: '9404849500', position: 'Core Member' },
+      { id: 'c4', name: 'Kaustubh Team', phone: '+917350260261', position: 'Coordinator' },
+    ];
   });
 
-
-
-  // Team roster (Syncs with Cloud DB + Local Storage cache)
-
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
-
-    try {
-
-      const saved = localStorage.getItem('gurukul_personal_team_members');
-
-      return saved ? JSON.parse(saved) : DEFAULT_MEMBERS;
-
-    } catch {
-
-      return DEFAULT_MEMBERS;
-
-    }
-
-  });
-
-
-
-  // Selected recipient IDs
-
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const [manualPhone, setManualPhone] = useState('');
-
-  const [activeCategory, setActiveCategory] = useState<string>('ALL');
-
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
-
-  const [isManageTeamsModalOpen, setIsManageTeamsModalOpen] = useState(false);
-
-  const [savingDraft, setSavingDraft] = useState(false);
-
-  const [historyTab, setHistoryTab] = useState<'ALL' | 'SENT' | 'DRAFT'>('ALL');
-
-
-
-  // Composer fields (Sender Name optional, Position removed per user requirement)
-
-  const [senderName, setSenderName] = useState('');
-
-  const [recipientRole, setRecipientRole] = useState('JILAPRAMUKH');
-
-  const [priority, setPriority] = useState<'NORMAL' | 'URGENT' | 'ANNOUNCEMENT'>('NORMAL');
-
-  const [subject, setSubject] = useState('');
-
-  const [messageText, setMessageText] = useState('');
-
-  const [sending, setSending] = useState(false);
-
-
-
-  // Multi-Slot Scheduling
-
-  const [broadcastMode, setBroadcastMode] = useState<'NOW' | 'SCHEDULED'>('NOW');
-
-  const [scheduledTimes, setScheduledTimes] = useState<string[]>([
-
-    new Date(Date.now() + 3600000).toISOString().slice(0, 16),
-
-  ]);
-
-
-
-  // Top WhatsApp Team Broadcast Template Configurator
-
-  const DEFAULT_TEAM_TEMPLATE =
-
-    '🥋 *Gurukul Sports Academy Team Notice*\n\nDear {recipient_name},\n{message}\n\nPriority: {priority}\nFrom: {sender_name}\nGurukul Sports Academy Administration';
-
-
-
-  const [teamWhatsappTemplate, setTeamWhatsappTemplate] = useState<string>(() => {
-
-    try {
-
-      return localStorage.getItem('gurukul_team_whatsapp_template') || DEFAULT_TEAM_TEMPLATE;
-
-    } catch {
-
-      return DEFAULT_TEAM_TEMPLATE;
-
-    }
-
-  });
-
-  const [isTeamTemplateOpen, setIsTeamTemplateOpen] = useState(false);
-
-
-
-  // Modal: Add Team Member
-
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
-  const [savingMember, setSavingMember] = useState(false);
-
-  const [newMemberForm, setNewMemberForm] = useState({
-
-    phone: '',
-
-    name: '',
-
-    position: '',
-
-    team_code: 'JILAPRAMUKH',
-
-    district: '',
-
-    notes: '',
-
-  });
-
-
-
-  // Modal: Create New Team / Group
-
-  const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
-
-
-
-  // Edit Team state
-
+  const [loading, setLoading] = useState(true);
+
+  // Active Tab: 'members' or 'teams'
+  const [activeTab, setActiveTab] = useState<'members' | 'teams'>('members');
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
+  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+
+  // Modals
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamCategory | null>(null);
 
-  const [isEditTeamModalOpen, setIsEditTeamModalOpen] = useState(false);
+  // Modal Contact Picker Search
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [showNewContactForm, setShowNewContactForm] = useState(false);
 
-  const [savingEditTeam, setSavingEditTeam] = useState(false);
-
-  const [editTeamForm, setEditTeamForm] = useState({
-
+  // Form states - Member
+  const [memberForm, setMemberForm] = useState({
     name: '',
+    phone: '',
+    teamCode: '',
+    position: '',
+    district: '',
+    notes: '',
+  });
+  const [savingMember, setSavingMember] = useState(false);
 
-    marathiName: '',
-
+  // Form states - Team
+  const [teamForm, setTeamForm] = useState({
+    name: '',
     code: '',
-
+    marathiName: '',
     description: '',
-
     color: 'indigo',
-
   });
-
-
-
-  // Edit Message state
-
-  const [editingMessage, setEditingMessage] = useState<TeamMessageRecord | null>(null);
-
-  const [isEditMessageModalOpen, setIsEditMessageModalOpen] = useState(false);
-
-  const [savingEditMessage, setSavingEditMessage] = useState(false);
-
-  const [editMessageForm, setEditMessageForm] = useState({
-
-    subject: '',
-
-    message: '',
-
-    recipient_role: 'ALL_STAFF',
-
-    priority: 'NORMAL',
-
-    status: 'SENT',
-
-  });
-
-
-
-  const handleOpenEditMessage = (msg: TeamMessageRecord) => {
-
-    setEditingMessage(msg);
-
-    setEditMessageForm({
-
-      subject: msg.subject || '',
-
-      message: msg.message || '',
-
-      recipient_role: msg.recipient_role || 'ALL_STAFF',
-
-      priority: msg.priority || 'NORMAL',
-
-      status: msg.status || 'SENT',
-
-    });
-
-    setIsEditMessageModalOpen(true);
-
-  };
-
-
-
-  const handleUpdateMessage = async (e: React.FormEvent) => {
-
-    e.preventDefault();
-
-    if (!editingMessage) return;
-
-    if (!editMessageForm.message.trim()) {
-
-      toast.error('Message content cannot be empty.');
-
-      return;
-
-    }
-
-    setSavingEditMessage(true);
-
-    try {
-
-      const res = await apiClient<any>(`/team-messages/${editingMessage.id}`, {
-
-        method: 'PATCH',
-
-        body: JSON.stringify({
-
-          subject: editMessageForm.subject.trim() || null,
-
-          message: editMessageForm.message.trim(),
-
-          recipient_role: editMessageForm.recipient_role,
-
-          priority: editMessageForm.priority,
-
-          status: editMessageForm.status,
-
-        }),
-
-      });
-
-
-
-      const updated = res?.data || {
-
-        ...editingMessage,
-
-        ...editMessageForm,
-
-      };
-
-
-
-      setDbMessages((prev) => prev.map((m) => (m.id === editingMessage.id ? { ...m, ...updated } : m)));
-
-      setIsEditMessageModalOpen(false);
-
-      setEditingMessage(null);
-
-      toast.success('Team message updated successfully!');
-
-    } catch (err: any) {
-
-      toast.error(err.message || 'Failed to update message');
-
-    } finally {
-
-      setSavingEditMessage(false);
-
-    }
-
-  };
-
-
-
-  // Cross-team member selection state for creating teams
-
-  const [selectedExistingMemberIds, setSelectedExistingMemberIds] = useState<string[]>([]);
-
-  const [_existingMemberSearch, _setExistingMemberSearch] = useState('');
-
-
-
-  const handleOpenEditTeam = (team: TeamCategory) => {
-
-    setEditingTeam(team);
-
-    setEditTeamForm({
-
-      name: team.name,
-
-      marathiName: team.marathi_name || '',
-
-      code: team.code,
-
-      description: team.description || '',
-
-      color: team.color || 'indigo',
-
-    });
-
-    setIsEditTeamModalOpen(true);
-
-  };
-
-
-
-  const handleUpdateTeam = async (e: React.FormEvent) => {
-
-    e.preventDefault();
-
-    if (!editingTeam) return;
-
-    if (!editTeamForm.name.trim()) {
-
-      toast.error('Team name is required');
-
-      return;
-
-    }
-
-    setSavingEditTeam(true);
-
-    try {
-
-      const updatedCode = editTeamForm.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_') || editingTeam.code;
-
-      if (editingTeam.id && !editingTeam.id.startsWith('t_')) {
-
-        await apiClient(`/team-messages/teams/${editingTeam.id}`, {
-
-          method: 'PATCH',
-
-          body: JSON.stringify({
-
-            name: editTeamForm.name.trim(),
-
-            code: updatedCode,
-
-            marathiName: editTeamForm.marathiName.trim() || null,
-
-            description: editTeamForm.description.trim() || null,
-
-            color: editTeamForm.color,
-
-          }),
-
-        });
-
-      }
-
-
-
-      const updatedCategory: TeamCategory = {
-
-        ...editingTeam,
-
-        name: editTeamForm.name.trim(),
-
-        code: updatedCode,
-
-        marathi_name: editTeamForm.marathiName.trim() || null,
-
-        description: editTeamForm.description.trim() || null,
-
-        color: editTeamForm.color,
-
-      };
-
-
-
-      setTeams((prev) => prev.map((t) => (t.id === editingTeam.id || t.code === editingTeam.code ? updatedCategory : t)));
-
-
-
-      if (editingTeam.code !== updatedCode) {
-
-        setTeamMembers((prev) =>
-
-          prev.map((m) => (m.team_code === editingTeam.code ? { ...m, team_code: updatedCode } : m))
-
-        );
-
-        if (activeCategory === editingTeam.code) {
-
-          setActiveCategory(updatedCode);
-
-        }
-
-      }
-
-
-
-      setIsEditTeamModalOpen(false);
-
-      setEditingTeam(null);
-
-      toast.success(`Team "${updatedCategory.name}" updated successfully!`);
-
-    } catch (err: any) {
-
-      toast.error(err.message || 'Failed to update team');
-
-    } finally {
-
-      setSavingEditTeam(false);
-
-    }
-
-  };
-
   const [savingTeam, setSavingTeam] = useState(false);
 
-  const [newTeamForm, setNewTeamForm] = useState({
+  // Save contacts to localStorage whenever updated
+  const persistContact = (contact: TeamContact) => {
+    setSavedContacts((prev) => {
+      const cleanPhone = contact.phone.replace(/[^0-9+]/g, '');
+      const existingIdx = prev.findIndex(
+        (c) => c.phone.replace(/[^0-9+]/g, '') === cleanPhone || (c.name.trim().toLowerCase() === contact.name.trim().toLowerCase() && c.name.trim())
+      );
+      let updated: TeamContact[];
+      if (existingIdx >= 0) {
+        updated = [...prev];
+        updated[existingIdx] = { ...updated[existingIdx], ...contact };
+      } else {
+        updated = [contact, ...prev];
+      }
+      try {
+        localStorage.setItem(STORAGE_CONTACTS_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Could not persist contacts:', err);
+      }
+      return updated;
+    });
+  };
 
-    name: '',
-
-    code: '',
-
-    marathiName: '',
-
-    description: '',
-
-  });
-
-
-
-  // Dispatched Logs (Local tracking)
-
-  const [dispatchLogs, setDispatchLogs] = useState<DispatchedLog[]>(() => {
-
+  // Load Data: strictly teams and team members (no students or teachers)
+  const fetchData = async () => {
     try {
+      setLoading(true);
+      const [teamsRes, membersRes] = await Promise.allSettled([
+        apiClient<any>('/team-messages/teams'),
+        apiClient<any>('/team-messages/members'),
+      ]);
 
-      const saved = localStorage.getItem('gurukul_team_dispatch_logs');
+      let rawTeams: TeamCategory[] = [];
+      if (teamsRes.status === 'fulfilled') {
+        rawTeams = teamsRes.value?.data || (Array.isArray(teamsRes.value) ? teamsRes.value : []);
+        setTeams(rawTeams);
+        if (rawTeams.length > 0 && !memberForm.teamCode) {
+          setMemberForm((prev) => ({ ...prev, teamCode: rawTeams[0].code }));
+        }
+      }
 
-      return saved ? JSON.parse(saved) : [];
+      if (membersRes.status === 'fulfilled') {
+        const rawMembers: TeamMember[] = membersRes.value?.data || (Array.isArray(membersRes.value) ? membersRes.value : []);
+        setTeamMembers(rawMembers);
 
-    } catch {
-
-      return [];
-
-    }
-
-  });
-
-
-
-  // Fetch Database Team Messages
-
-  const fetchDbMessages = async () => {
-
-    setDbLoading(true);
-
-    try {
-
-      const res = await apiClient<any>('/team-messages');
-
-      const list = Array.isArray(res) ? res : res?.data || [];
-
-      setDbMessages(list);
-
+        // Also aggregate any members from DB into saved contacts directory
+        for (const m of rawMembers) {
+          if (m.phone) {
+            persistContact({
+              id: m.id || `c-${m.phone}`,
+              name: m.name || 'Member',
+              phone: m.phone,
+              position: m.position,
+              district: m.district,
+              notes: m.notes,
+            });
+          }
+        }
+      }
     } catch (err: any) {
-
-      console.warn('Failed to fetch team messages from database:', err?.message);
-
+      console.error('Failed to load team data:', err);
+      toast.error('Could not load teams. Please refresh.');
     } finally {
-
-      setDbLoading(false);
-
+      setLoading(false);
     }
-
   };
-
-
-
-  // Fetch Teams Categories from DB
-
-  const fetchTeams = async () => {
-
-    try {
-
-      const res = await apiClient<any>('/team-messages/teams');
-
-      const list = Array.isArray(res) ? res : res?.data || [];
-
-      if (Array.isArray(list)) {
-
-        setTeams(list);
-
-        try {
-
-          localStorage.setItem('gurukul_teams_list', JSON.stringify(list));
-
-        } catch {}
-
-      }
-
-    } catch (err: any) {
-
-      console.warn('Failed to fetch teams from database:', err?.message);
-
-    }
-
-  };
-
-
-
-  // Fetch Team Members from DB
-
-  const fetchTeamMembers = async () => {
-
-    try {
-
-      const res = await apiClient<any>('/team-messages/members');
-
-      const list = Array.isArray(res) ? res : res?.data || [];
-
-      if (Array.isArray(list)) {
-
-        setTeamMembers(list);
-
-        try {
-
-          localStorage.setItem('gurukul_personal_team_members', JSON.stringify(list));
-
-        } catch {}
-
-      }
-
-    } catch (err: any) {
-
-      console.warn('Failed to fetch team members from database:', err?.message);
-
-    }
-
-  };
-
-
 
   useEffect(() => {
-
-    fetchDbMessages();
-
-    fetchTeams();
-
-    fetchTeamMembers();
-
+    fetchData();
   }, []);
 
-
-
-  useEffect(() => {
-
-    try {
-
-      localStorage.setItem('gurukul_personal_team_members', JSON.stringify(teamMembers));
-
-    } catch {}
-
+  // Map each contact to all teams they belong to
+  const contactTeamsMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const m of teamMembers) {
+      const cleanPhone = m.phone.replace(/[^0-9+]/g, '');
+      const existing = map.get(cleanPhone) || [];
+      if (!existing.includes(m.team_code)) {
+        existing.push(m.team_code);
+      }
+      map.set(cleanPhone, existing);
+    }
+    return map;
   }, [teamMembers]);
 
+  // Unified contacts directory with team memberships
+  const allDirectoryContacts = useMemo(() => {
+    return savedContacts.map((c) => {
+      const cleanPhone = c.phone.replace(/[^0-9+]/g, '');
+      const memberTeams = contactTeamsMap.get(cleanPhone) || [];
+      return {
+        ...c,
+        memberTeams,
+      };
+    });
+  }, [savedContacts, contactTeamsMap]);
 
-
-  useEffect(() => {
-
-    try {
-
-      localStorage.setItem('gurukul_teams_list', JSON.stringify(teams));
-
-    } catch {}
-
-  }, [teams]);
-
-
-
-  useEffect(() => {
-
-    try {
-
-      localStorage.setItem('gurukul_team_dispatch_logs', JSON.stringify(dispatchLogs));
-
-    } catch {}
-
-  }, [dispatchLogs]);
-
-
-
-  // Handle Create New Team
-
-
-
-  // Delete Team handler
-
-  const handleDeleteTeam = async (teamToDelete: TeamCategory) => {
-
-    const confirmDelete = window.confirm(
-
-      `Delete team "${teamToDelete.marathi_name ? `${teamToDelete.marathi_name} (${teamToDelete.name})` : teamToDelete.name}"?\n\nAny existing contacts assigned to this team will remain in your contacts roster.`
-
+  // Filtered directory contacts for modal search
+  const filteredDirectoryContacts = useMemo(() => {
+    const sq = contactSearchQuery.trim().toLowerCase();
+    if (!sq) return allDirectoryContacts;
+    return allDirectoryContacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(sq) ||
+        c.phone.includes(sq) ||
+        (c.position || '').toLowerCase().includes(sq) ||
+        (c.district || '').toLowerCase().includes(sq)
     );
+  }, [allDirectoryContacts, contactSearchQuery]);
 
-    if (!confirmDelete) return;
+  // Filtered members for main list
+  const q = memberSearchQuery.trim().toLowerCase();
+  const filteredMembers = useMemo(() => {
+    return teamMembers.filter((m) => {
+      const matchesTeam = selectedTeamFilter === 'ALL' || m.team_code === selectedTeamFilter;
+      if (!matchesTeam) return false;
+      if (!q) return true;
+      const nameMatch = (m.name || '').toLowerCase().includes(q);
+      const phoneMatch = (m.phone || '').includes(q);
+      const posMatch = (m.position || '').toLowerCase().includes(q);
+      const districtMatch = (m.district || '').toLowerCase().includes(q);
+      const codeMatch = (m.team_code || '').toLowerCase().includes(q);
+      return nameMatch || phoneMatch || posMatch || districtMatch || codeMatch;
+    });
+  }, [teamMembers, selectedTeamFilter, q]);
 
-
-
-    try {
-
-      if (teamToDelete.id) {
-
-        await apiClient(`/team-messages/teams/${teamToDelete.id}`, { method: 'DELETE' }).catch((e) => {
-
-          console.warn('Backend team delete notice:', e.message);
-
-        });
-
-      }
-
-      setTeams((prev) => prev.filter((t) => t.id !== teamToDelete.id && t.code !== teamToDelete.code));
-
-      setTeamMembers((prev) =>
-
-        prev.map((m) => (m.team_code === teamToDelete.code ? { ...m, team_code: 'UNASSIGNED' } : m))
-
-      );
-
-      if (activeCategory === teamToDelete.code) {
-
-        setActiveCategory('ALL');
-
-      }
-
-      toast.success(`Team "${teamToDelete.name}" deleted successfully.`);
-
-    } catch (err: any) {
-
-      toast.error(err.message || 'Failed to delete team');
-
-    }
-
-  };
-
-
-
-  // Save Message as Draft
-
-  const handleSaveDraft = async () => {
-
-    if (!messageText.trim()) {
-
-      toast.error('Please enter message text before saving as draft.');
-
-      return;
-
-    }
-
-    setSavingDraft(true);
-
-    try {
-
-      const res = await apiClient<any>('/team-messages', {
-
-        method: 'POST',
-
-        body: JSON.stringify({
-
-          sender_name: senderName.trim() || null,
-
-          recipient_role: recipientRole,
-
-          subject: subject.trim() || null,
-
-          message: messageText.trim(),
-
-          priority: priority,
-
-          status: 'DRAFT',
-
-          isDraft: true,
-
-        }),
-
+  // Open Add Member Modal
+  const handleOpenAddMemberModal = (preselectedTeamCode?: string, prefillContact?: TeamContact) => {
+    const targetTeam = preselectedTeamCode || (selectedTeamFilter !== 'ALL' ? selectedTeamFilter : teams[0]?.code || '');
+    if (prefillContact) {
+      setMemberForm({
+        name: prefillContact.name,
+        phone: prefillContact.phone,
+        teamCode: targetTeam,
+        position: prefillContact.position || '',
+        district: prefillContact.district || '',
+        notes: prefillContact.notes || '',
       });
-
-
-
-      const savedDraft = res?.data;
-
-      if (savedDraft) {
-
-        setDbMessages((prev) => [savedDraft, ...prev.filter((m) => m.id !== savedDraft.id)]);
-
-      } else {
-
-        await fetchDbMessages();
-
-      }
-
-      toast.success('Team message saved as Draft!');
-
-    } catch (err: any) {
-
-      toast.error(err.message || 'Failed to save draft');
-
-    } finally {
-
-      setSavingDraft(false);
-
-    }
-
-  };
-
-
-
-  // Load Draft into composer
-  // (Available for future draft preview actions)
-
-
-
-  const handleCreateTeam = async (e: React.FormEvent) => {
-
-    e.preventDefault();
-
-    if (!newTeamForm.name.trim()) {
-
-      toast.error('Team name is required.');
-
-      return;
-
-    }
-
-
-
-    setSavingTeam(true);
-
-    try {
-
-      const res = await apiClient<any>('/team-messages/teams', {
-
-        method: 'POST',
-
-        body: JSON.stringify({
-
-          name: newTeamForm.name.trim(),
-
-          code: newTeamForm.code.trim() || undefined,
-
-          marathiName: newTeamForm.marathiName.trim() || undefined,
-
-          description: newTeamForm.description.trim() || undefined,
-
-          color: 'indigo',
-
-        }),
-
-      });
-
-
-
-      const created = res?.data;
-
-      const targetCode = created?.code || newTeamForm.code.trim().toUpperCase();
-
-
-
-      if (selectedExistingMemberIds.length > 0 && targetCode) {
-
-        for (const memId of selectedExistingMemberIds) {
-
-          const existing = teamMembers.find((m) => m.id === memId);
-
-          if (existing) {
-
-            await apiClient<any>('/team-messages/members', {
-
-              method: 'POST',
-
-              body: JSON.stringify({
-
-                phone: existing.phone,
-
-                name: existing.name || undefined,
-
-                teamCode: targetCode,
-
-                district: existing.district || undefined,
-
-                position: existing.position || undefined,
-
-              }),
-
-            }).catch((e) => console.warn('Could not link existing member:', e));
-
-          }
-
-        }
-
-        await fetchTeamMembers();
-
-      }
-
-
-
-      if (created) {
-
-        setTeams((prev) => [...prev.filter((t) => t.code !== created.code), created]);
-
-        setActiveCategory(created.code);
-
-        setRecipientRole(created.code);
-
-      } else {
-
-        await fetchTeams();
-
-      }
-
-
-
-      setIsNewTeamModalOpen(false);
-
-      setNewTeamForm({ name: '', code: '', marathiName: '', description: '' });
-
-      toast.success('New team created and saved to academy database!');
-
-    } catch (err: any) {
-
-      toast.error(err?.message || 'Failed to create team');
-
-    } finally {
-
-      setSavingTeam(false);
-
-    }
-
-  };
-
-
-
-
-
-
-
-  // Handle member addition
-
-  const handleAddMember = async (e: React.FormEvent) => {
-
-    e.preventDefault();
-
-    if (!newMemberForm.phone.trim()) {
-
-      toast.error('Mobile/WhatsApp number is required.');
-
-      return;
-
-    }
-
-
-
-    setSavingMember(true);
-
-    try {
-
-      const res = await apiClient<any>('/team-messages/members', {
-
-        method: 'POST',
-
-        body: JSON.stringify({
-
-          phone: newMemberForm.phone.trim(),
-
-          name: newMemberForm.name.trim() || undefined,
-
-          teamCode: newMemberForm.team_code,
-
-          district: newMemberForm.district.trim() || undefined,
-
-          position:
-
-            newMemberForm.position.trim() ||
-
-            (newMemberForm.team_code === 'JILAPRAMUKH'
-
-              ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
-
-              : undefined),
-
-          notes: newMemberForm.notes.trim() || undefined,
-
-        }),
-
-      });
-
-
-
-      const created = res?.data;
-
-      if (created) {
-
-        setTeamMembers((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
-
-      } else {
-
-        await fetchTeamMembers();
-
-      }
-
-
-
-      setIsAddModalOpen(false);
-
-      setNewMemberForm({
-
-        phone: '',
-
+      setShowNewContactForm(true);
+    } else {
+      setMemberForm({
         name: '',
-
+        phone: '',
+        teamCode: targetTeam,
         position: '',
-
-        team_code: teams[0]?.code || 'JILAPRAMUKH',
-
         district: '',
-
         notes: '',
+      });
+      setShowNewContactForm(false);
+    }
+    setContactSearchQuery('');
+    setIsAddMemberModalOpen(true);
+  };
 
+  // Select contact from directory into modal
+  const handleSelectDirectoryContact = (contact: TeamContact) => {
+    setMemberForm((prev) => ({
+      ...prev,
+      name: contact.name,
+      phone: contact.phone,
+      position: contact.position || prev.position || '',
+      district: contact.district || prev.district || '',
+      notes: contact.notes || prev.notes || '',
+    }));
+    setShowNewContactForm(true);
+    toast.success(`Selected "${contact.name}"! Confirm team below and save.`);
+  };
+
+  // Quick 1-click Add Self (Sensei Vikram Salunkhe)
+  const handleAddSelfToForm = () => {
+    const adminContact: TeamContact = {
+      id: 'admin-self',
+      name: 'Sensei Vikram Salunkhe (Admin)',
+      phone: '9881888061',
+      position: 'Chief Director & Head Coach',
+      district: 'Satara / Pune',
+      notes: 'Central Dojo Admin',
+    };
+    handleSelectDirectoryContact(adminContact);
+  };
+
+  // Save Member
+  const handleSaveMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberForm.phone.trim()) {
+      toast.error('WhatsApp / Phone number is required.');
+      return;
+    }
+    if (!memberForm.teamCode) {
+      toast.error('Please select a target team.');
+      return;
+    }
+
+    try {
+      setSavingMember(true);
+      const res: any = await apiClient('/team-messages/members', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: memberForm.name.trim() || 'Member',
+          phone: memberForm.phone.trim(),
+          teamCode: memberForm.teamCode,
+          position: memberForm.position.trim() || null,
+          district: memberForm.district.trim() || null,
+          notes: memberForm.notes.trim() || null,
+        }),
       });
 
-      toast.success('Team contact added and saved to database!');
-
-    } catch (err: any) {
-
-      // Offline fallback
-
-      const fallbackMember: TeamMember = {
-
-        id: `team_${Date.now()}`,
-
-        phone: newMemberForm.phone.trim(),
-
-        name: newMemberForm.name.trim() || undefined,
-
-        team_code: newMemberForm.team_code,
-
-        district: newMemberForm.district.trim() || undefined,
-
-        position:
-
-          newMemberForm.position.trim() ||
-
-          (newMemberForm.team_code === 'JILAPRAMUKH'
-
-            ? `जिल्हाप्रमुख ${newMemberForm.district ? `(${newMemberForm.district})` : ''}`
-
-            : undefined),
-
-        notes: newMemberForm.notes.trim() || undefined,
-
+      const newMember: TeamMember = res?.data || {
+        id: `mem-${Date.now()}`,
+        name: memberForm.name.trim() || 'Member',
+        phone: memberForm.phone.trim(),
+        team_code: memberForm.teamCode,
+        position: memberForm.position.trim() || null,
+        district: memberForm.district.trim() || null,
+        notes: memberForm.notes.trim() || null,
+        status: 'ACTIVE',
         created_at: new Date().toISOString(),
-
       };
 
-      setTeamMembers((prev) => [fallbackMember, ...prev]);
-
-      setIsAddModalOpen(false);
-
-      toast.success('Team contact saved locally!');
-
-    } finally {
-
-      setSavingMember(false);
-
-    }
-
-  };
-
-
-
-  const handleDeleteMember = async (id: string) => {
-
-    try {
-
-      await apiClient(`/team-messages/members/${id}`, { method: 'DELETE' });
-
-      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
-
-      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
-
-      toast.info('Team contact removed from database.');
-
-    } catch {
-
-      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
-
-      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
-
-      toast.info('Team contact removed.');
-
-    }
-
-  };
-
-
-
-  const handleToggleSelect = (id: string) => {
-
-    setSelectedIds((prev) =>
-
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-
-    );
-
-  };
-
-
-
-  const filteredMembers = teamMembers.filter((m) => {
-
-    const matchesCat = activeCategory === 'ALL' || m.team_code === activeCategory || (m as any).team === activeCategory;
-
-    if (!matchesCat) return false;
-
-    if (!memberSearchQuery.trim()) return true;
-
-    const q = memberSearchQuery.toLowerCase().trim();
-
-    return (
-
-      (m.name || '').toLowerCase().includes(q) ||
-
-      (m.phone || '').includes(q) ||
-
-      (m.district || '').toLowerCase().includes(q) ||
-
-      (m.position || '').toLowerCase().includes(q)
-
-    );
-
-  });
-
-
-
-  const handleSelectAll = () => {
-
-    const activeIds = filteredMembers.map((m) => m.id);
-
-    const allSelected = activeIds.length > 0 && activeIds.every((id) => selectedIds.includes(id));
-
-    if (allSelected) {
-
-      setSelectedIds((prev) => prev.filter((id) => !activeIds.includes(id)));
-
-    } else {
-
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...activeIds])));
-
-    }
-
-  };
-
-
-
-  // Delete DB message
-
-  const handleDeleteDbMessage = async (id: string) => {
-
-    try {
-
-      await apiClient(`/team-messages/${id}`, { method: 'DELETE' });
-
-      setDbMessages((prev) => prev.filter((m) => m.id !== id));
-
-      toast.success('Team message deleted from database.');
-
-    } catch (err: any) {
-
-      toast.error(err.message || 'Failed to delete message');
-
-    }
-
-  };
-
-
-
-  // Save to DB and Dispatch
-
-  const handleDispatchAndSave = async () => {
-
-    if (!messageText.trim()) {
-
-      toast.error('Please enter message content.');
-
-      return;
-
-    }
-
-
-
-    setSending(true);
-
-
-
-    // 1. Save to Database
-
-    try {
-
-      const savedRecord = await apiClient<any>('/team-messages', {
-
-        method: 'POST',
-
-        body: JSON.stringify({
-
-          sender_name: senderName.trim() || null,
-
-          recipient_role: recipientRole,
-
-          subject: subject.trim() || null,
-
-          message: messageText.trim(),
-
-          priority: priority,
-
-          scheduled_at: broadcastMode === 'SCHEDULED' ? scheduledTimes[0] : null,
-
-          scheduled_times: broadcastMode === 'SCHEDULED' ? scheduledTimes : [],
-
-          status: broadcastMode === 'SCHEDULED' ? 'SCHEDULED' : 'SENT',
-
-        }),
-
+      setTeamMembers((prev) => [newMember, ...prev]);
+
+      // Save to directory
+      persistContact({
+        id: `c-${Date.now()}`,
+        name: memberForm.name.trim() || 'Member',
+        phone: memberForm.phone.trim(),
+        position: memberForm.position.trim() || null,
+        district: memberForm.district.trim() || null,
+        notes: memberForm.notes.trim() || null,
       });
 
-
-
-      if (savedRecord?.data) {
-
-        setDbMessages((prev) => [savedRecord.data, ...prev]);
-
-      } else {
-
-        fetchDbMessages();
-
-      }
-
-      if (broadcastMode === 'SCHEDULED') {
-
-        toast.success(`Team message scheduled across ${scheduledTimes.length} delivery slot(s)!`);
-
-      } else {
-
-        toast.success('Team broadcast stored in academy database!');
-
-      }
-
+      setIsAddMemberModalOpen(false);
+      toast.success(`"${memberForm.name || 'Member'}" added to team!`);
     } catch (err: any) {
-
-      console.error('Error storing team message:', err);
-
-      toast.warning('Stored locally; backend sync noted.');
-
+      console.error('Failed to add member:', err);
+      toast.error(err.message || 'Could not add member to team.');
+    } finally {
+      setSavingMember(false);
     }
-
-
-
-    // 2. Dispatch WhatsApp immediately if Mode is NOW and contacts selected
-
-    if (broadcastMode === 'NOW') {
-
-      const recipients: Array<{ phone: string; name?: string | null }> = [];
-
-      teamMembers
-
-        .filter((m) => selectedIds.includes(m.id))
-
-        .forEach((m) => recipients.push({ phone: m.phone, name: m.name }));
-
-
-
-      if (manualPhone.trim()) {
-
-        recipients.push({ phone: manualPhone.trim(), name: 'Direct Contact' });
-
-      }
-
-
-
-      if (recipients.length > 0) {
-
-        let successCount = 0;
-
-        const newLogs: DispatchedLog[] = [];
-
-
-
-        for (const r of recipients) {
-
-          try {
-
-            await apiClient<any>('/whatsapp/send', {
-
-              method: 'POST',
-
-              body: JSON.stringify({
-
-                phone: r.phone,
-
-                message: messageText.trim(),
-
-              }),
-
-            });
-
-            successCount++;
-
-            newLogs.unshift({
-
-              id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-
-              recipientPhone: r.phone,
-
-              recipientName: r.name || undefined,
-
-              message: messageText.trim(),
-
-              status: 'SENT',
-
-              timestamp: new Date().toISOString(),
-
-            });
-
-          } catch {
-
-            newLogs.unshift({
-
-              id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-
-              recipientPhone: r.phone,
-
-              recipientName: r.name || undefined,
-
-              message: messageText.trim(),
-
-              status: 'FAILED',
-
-              timestamp: new Date().toISOString(),
-
-            });
-
-          }
-
-        }
-
-
-
-        setDispatchLogs((prev) => [...newLogs, ...prev].slice(0, 50));
-
-        if (successCount > 0) {
-
-          toast.success(`WhatsApp dispatched to ${successCount} contact(s)!`);
-
-        }
-
-      }
-
-    }
-
-
-
-    setSending(false);
-
-    setMessageText('');
-
-    setSubject('');
-
   };
 
+  // Delete Member
+  const handleDeleteMember = async (member: TeamMember) => {
+    const teamName = teams.find((t) => t.code === member.team_code)?.name || member.team_code;
+    if (!window.confirm(`Remove ${member.name || 'this member'} from "${teamName}"?`)) {
+      return;
+    }
 
+    try {
+      await apiClient(`/team-messages/members/${member.id}`, {
+        method: 'DELETE',
+      });
+      setTeamMembers((prev) => prev.filter((m) => m.id !== member.id));
+      toast.success('Member removed from team.');
+    } catch (err: any) {
+      console.error('Failed to remove member:', err);
+      toast.error('Could not remove member.');
+    }
+  };
+
+  // Open Create/Edit Team Modal
+  const handleOpenTeamModal = (team?: TeamCategory) => {
+    if (team) {
+      setEditingTeam(team);
+      setTeamForm({
+        name: team.name,
+        code: team.code,
+        marathiName: team.marathi_name || '',
+        description: team.description || '',
+        color: team.color || 'indigo',
+      });
+    } else {
+      setEditingTeam(null);
+      setTeamForm({
+        name: '',
+        code: '',
+        marathiName: '',
+        description: '',
+        color: 'indigo',
+      });
+    }
+    setIsTeamModalOpen(true);
+  };
+
+  // Save Team
+  const handleSaveTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamForm.name.trim()) {
+      toast.error('Team name is required.');
+      return;
+    }
+
+    try {
+      setSavingTeam(true);
+      if (editingTeam) {
+        const res: any = await apiClient(`/team-messages/teams/${editingTeam.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: teamForm.name.trim(),
+            code: teamForm.code.trim(),
+            marathiName: teamForm.marathiName.trim() || null,
+            description: teamForm.description.trim() || null,
+            color: teamForm.color,
+          }),
+        });
+        const updated = res?.data || {
+          ...editingTeam,
+          name: teamForm.name,
+          code: teamForm.code,
+          marathi_name: teamForm.marathiName,
+          description: teamForm.description,
+          color: teamForm.color,
+        };
+        setTeams((prev) => prev.map((t) => (t.id === editingTeam.id ? updated : t)));
+        toast.success(`Team "${teamForm.name}" updated!`);
+      } else {
+        const res: any = await apiClient('/team-messages/teams', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: teamForm.name.trim(),
+            code: teamForm.code.trim() || undefined,
+            marathiName: teamForm.marathiName.trim() || null,
+            description: teamForm.description.trim() || null,
+            color: teamForm.color,
+          }),
+        });
+        const created = res?.data || {
+          id: `team-${Date.now()}`,
+          name: teamForm.name,
+          code: teamForm.code || teamForm.name.toUpperCase().replace(/[^A-Z0-9_]/g, '_'),
+          marathi_name: teamForm.marathiName,
+          description: teamForm.description,
+          color: teamForm.color,
+          created_at: new Date().toISOString(),
+        };
+        setTeams((prev) => [...prev, created]);
+        toast.success(`Team "${teamForm.name}" created!`);
+      }
+      setIsTeamModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to save team:', err);
+      toast.error(err.message || 'Could not save team.');
+    } finally {
+      setSavingTeam(false);
+    }
+  };
+
+  // Delete Team
+  const handleDeleteTeam = async (team: TeamCategory) => {
+    const memberCount = teamMembers.filter((m) => m.team_code === team.code).length;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete team "${team.name}"? This team has ${memberCount} enrolled member(s).`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await apiClient(`/team-messages/teams/${team.id}`, { method: 'DELETE' });
+      setTeams((prev) => prev.filter((t) => t.id !== team.id));
+      setTeamMembers((prev) => prev.filter((m) => m.team_code !== team.code));
+      if (selectedTeamFilter === team.code) setSelectedTeamFilter('ALL');
+      toast.success(`Team "${team.name}" deleted.`);
+    } catch (err: any) {
+      console.error('Failed to delete team:', err);
+      toast.error('Could not delete team.');
+    }
+  };
+
+  const getTeamColorClass = (color?: string | null) => {
+    const found = COLOR_OPTIONS.find((c) => c.id === color);
+    return found ? found.bg : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30';
+  };
 
   return (
-
-    <div className="space-y-6 animate-in fade-in duration-200">
-
-      {/* Top Header */}
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
-
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Top Banner / Breadcrumb */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-white/10">
         <div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-
-            Message Your Personal Team
-
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>Administration</span>
+            <span>•</span>
+            <span className="text-amber-600 dark:text-amber-400">Squads &amp; Contacts</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mt-1 flex items-center gap-2.5">
+            <Users className="w-7 h-7 text-amber-500 dark:text-amber-400" />
+            Teams &amp; Contacts Hub
           </h1>
-
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-
-            Publish operational broadcasts, coordination notices, and duty assignments to district coordinators, coaches, and staff.
-
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Dedicated team directory for custom groups (e.g. Friends group, Partners, Committee). Add any contact to multiple teams with quick search. Broadcast directly from Announcements.
           </p>
-
         </div>
 
-
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-
-          <button
-
-            type="button"
-
-            onClick={() => {
-
-              fetchDbMessages();
-
-              fetchTeams();
-
-              fetchTeamMembers();
-
-            }}
-
-            disabled={dbLoading}
-
-            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            to="/admin/announcements"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-300 dark:border-indigo-500/30 flex items-center gap-2 transition-all shadow-xs"
           >
-
-            <RefreshCw className={`w-3.5 h-3.5 ${dbLoading ? 'animate-spin' : ''}`} />
-
-            <span>Refresh Feed</span>
-
-          </button>
-
-
-
+            <Megaphone className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+            <span>Broadcast via Announcements</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
           <Button
-
+            onClick={() => handleOpenTeamModal()}
             variant="outline"
-
-            onClick={() => setIsManageTeamsModalOpen(true)}
-
-            className="gap-1.5 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer shadow-xs"
-
+            className="text-xs font-semibold flex items-center gap-1.5"
           >
-
-            <Users className="w-3.5 h-3.5 text-indigo-500" />
-
-            <span>All Teams ({teams.length})</span>
-
+            <FolderPlus className="w-4 h-4 text-amber-500" />
+            New Team
           </Button>
-
-
-
           <Button
-
-            variant="outline"
-
-            onClick={() => setIsNewTeamModalOpen(true)}
-
-            className="gap-1.5 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-xs font-semibold cursor-pointer shadow-xs"
-
+            onClick={() => handleOpenAddMemberModal()}
+            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20"
           >
-
-            <FolderPlus className="w-3.5 h-3.5" />
-
-            <span>+ Add New Team</span>
-
-          </Button>
-
-
-
-          <Button
-
-            onClick={() => {
-
-              if (teams.length > 0) {
-
-                setNewMemberForm((prev) => ({
-
-                  ...prev,
-
-                  team_code: activeCategory !== 'ALL' ? activeCategory : teams[0].code,
-
-                }));
-
-              }
-
-              setIsAddModalOpen(true);
-
-            }}
-
-            className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold cursor-pointer shadow-xs text-xs"
-
-          >
-
             <UserPlus className="w-4 h-4" />
-
-            <span>+ Add Team Member</span>
-
+            Add Member to Team
           </Button>
-
         </div>
-
       </div>
 
-
-
-      {/* WhatsApp Team Broadcast Template Configurator */}
-
-      <Card className="p-4 bg-gradient-to-br from-indigo-950/20 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl shadow-sm">
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
-
-          <div className="flex items-center gap-2.5">
-
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-
-              <MessageSquare className="w-5 h-5" />
-
-            </div>
-
-            <div>
-
-              <div className="flex items-center gap-2">
-
-                <h3 className="text-sm font-bold text-slate-100">Team WhatsApp Message &amp; Multi-Schedule Automation</h3>
-
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-
-                  Active Team Config
-
-                </span>
-
-              </div>
-
-              <p className="text-xs text-slate-400">
-
-                Staff notices, duty rosters, and meeting reminders sent directly to instructors and coordinators via WhatsApp.
-
-              </p>
-
-            </div>
-
+      {/* KPI Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Teams</span>
+            <Building className="w-4 h-4 text-amber-500" />
           </div>
+          <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{teams.length}</p>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Active custom teams &amp; squads</span>
+        </Card>
 
+        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Team Enrollments</span>
+            <Users className="w-4 h-4 text-emerald-500" />
+          </div>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">{teamMembers.length}</p>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Assigned positions across squads</span>
+        </Card>
 
+        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Unique Contacts</span>
+            <ShieldCheck className="w-4 h-4 text-blue-500" />
+          </div>
+          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2">{savedContacts.length}</p>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Searchable across all teams</span>
+        </Card>
 
-          <Button
+        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Broadcast Ready</span>
+            <Sparkles className="w-4 h-4 text-purple-500" />
+          </div>
+          <p className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-2">100%</p>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Scheduled directly in Announcements</span>
+        </Card>
+      </div>
 
-            variant="outline"
-
-            size="sm"
-
-            onClick={() => setIsTeamTemplateOpen(!isTeamTemplateOpen)}
-
-            className="text-xs h-8 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10"
-
+      {/* Tab Switcher */}
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'members'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+            }`}
           >
-
-            <Edit2 className="w-3.5 h-3.5 mr-1.5" />
-
-            {isTeamTemplateOpen ? 'Collapse Editor' : 'Edit Template & Preview'}
-
-          </Button>
-
+            <Users className="w-4 h-4" />
+            <span>Team Members ({teamMembers.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('teams')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'teams'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+            }`}
+          >
+            <FolderPlus className="w-4 h-4" />
+            <span>Manage Teams ({teams.length})</span>
+          </button>
         </div>
 
-
-
-        {/* Collapsed Preview */}
-
-        {!isTeamTemplateOpen && (
-
-          <div className="mt-3 p-2.5 rounded-xl bg-black/40 border border-white/5 font-mono text-[11px] text-slate-300 line-clamp-2">
-
-            "{teamWhatsappTemplate}"
-
-          </div>
-
-        )}
-
-
-
-        {/* Expanded Editor */}
-
-        {isTeamTemplateOpen && (
-
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            <div className="space-y-3">
-
-              <div>
-
-                <label className="block text-xs font-bold text-slate-200 mb-1.5">
-
-                  Template Message Text
-
-                </label>
-
-                <textarea
-
-                  value={teamWhatsappTemplate}
-
-                  onChange={(e) => setTeamWhatsappTemplate(e.target.value)}
-
-                  rows={4}
-
-                  className="w-full text-xs font-sans p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-
-                />
-
-              </div>
-
-
-
-              <div>
-
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Dynamic Variable Tags:</span>
-
-                <div className="flex flex-wrap gap-1.5">
-
-                  {['{recipient_name}', '{message}', '{priority}', '{sender_name}', '{date}'].map((tag) => (
-
-                    <button
-
-                      key={tag}
-
-                      type="button"
-
-                      onClick={() => setTeamWhatsappTemplate((prev) => `${prev} ${tag}`)}
-
-                      className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
-
-                    >
-
-                      + {tag}
-
-                    </button>
-
-                  ))}
-
-                </div>
-
-              </div>
-
-
-
-              <div className="pt-2 flex items-center justify-between">
-
-                <Button
-
-                  size="sm"
-
-                  onClick={() => {
-
-                    localStorage.setItem('gurukul_team_whatsapp_template', teamWhatsappTemplate);
-
-                    toast.success('Team WhatsApp template saved!');
-
-                  }}
-
-                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-
-                >
-
-                  <Check className="w-3.5 h-3.5 mr-1.5" />
-
-                  Save Template
-
-                </Button>
-
-                <Button
-
-                  variant="ghost"
-
-                  size="sm"
-
-                  onClick={() => setTeamWhatsappTemplate(DEFAULT_TEAM_TEMPLATE)}
-
-                  className="text-xs text-slate-400 hover:text-slate-200"
-
-                >
-
-                  Reset Default
-
-                </Button>
-
-              </div>
-
-            </div>
-
-
-
-            {/* Live WhatsApp Bubble */}
-
-            <div>
-
-              <span className="text-xs font-bold text-slate-200 block mb-1.5">
-
-                📱 Live Team Recipient WhatsApp Preview
-
-              </span>
-
-              <div className="p-3.5 rounded-2xl bg-[#0b141a] border border-[#222e35] text-xs font-sans text-slate-100">
-
-                <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
-
-                  <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
-
-                    {teamWhatsappTemplate
-
-                      .replace('{recipient_name}', 'Shri Patil (Jilapramukh)')
-
-                      .replace('{message}', messageText.trim() || 'Notice to Team: A short coordination briefing will take place today.')
-
-                      .replace('{priority}', priority)
-
-                      .replace('{sender_name}', senderName.trim() || 'Academy Admin')
-
-                      .replace('{date}', new Date().toLocaleDateString('en-IN'))}
-
-                  </p>
-
-                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
-
-                    <span>09:45 AM</span>
-
-                    <span className="text-[#53bdeb]">✓✓</span>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        )}
-
-      </Card>
-
-
-
-      {/* Main Grid: Team Contacts (Left) & Composer (Right) */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-        {/* Left Column: Team Contacts */}
-
-        <div className="lg:col-span-5 space-y-4">
-
-          <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-
-              <div className="flex items-center gap-2">
-
-                <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-
-                  Team Contacts ({filteredMembers.length})
-
-                </h2>
-
-              </div>
-
+        <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
+          No students or teachers here — purely dedicated custom teams &amp; contacts.
+        </span>
+      </div>
+
+      {/* TAB 1: Team Members Roster */}
+      {activeTab === 'members' && (
+        <div className="space-y-4">
+          {/* Team Filter Pills + Quick Search */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-black/40 rounded-xl border border-slate-200 dark:border-white/5 overflow-x-auto scrollbar-none">
               <button
-
                 type="button"
-
-                onClick={handleSelectAll}
-
-                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-
+                onClick={() => setSelectedTeamFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  selectedTeamFilter === 'ALL'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-
-                {filteredMembers.length > 0 && filteredMembers.every((m) => selectedIds.includes(m.id))
-
-                  ? 'Deselect In Group'
-
-                  : 'Select All In Group'}
-
+                All Members ({teamMembers.length})
               </button>
-
-            </div>
-
-
-
-            {/* Search Input for Team Contacts */}
-
-            <div className="relative">
-
-              <input
-
-                type="text"
-
-                placeholder="Search contacts by name, mobile, district, role..."
-
-                value={memberSearchQuery}
-
-                onChange={(e) => setMemberSearchQuery(e.target.value)}
-
-                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-
-              />
-
-              {memberSearchQuery && (
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setMemberSearchQuery('')}
-
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-
-                >
-
-                  ✕ Clear
-
-                </button>
-
-              )}
-
-            </div>
-
-
-
-            {/* Team Category Switcher (No Horizontal Sliding / Multi-Row Wrap + Quick Dropdown) */}
-
-            <div className="space-y-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-
-              {/* Top Quick Dropdown & Count Row */}
-
-              <div className="flex items-center justify-between gap-2">
-
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-
-                  <Users className="w-3.5 h-3.5 text-indigo-500" />
-
-                  <span>Team Filter:</span>
-
-                </span>
-
-                <select
-
-                  value={activeCategory}
-
-                  onChange={(e) => {
-
-                    setActiveCategory(e.target.value);
-
-                    if (e.target.value !== 'ALL') setRecipientRole(e.target.value);
-
-                  }}
-
-                  className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
-
-                >
-
-                  <option value="ALL">All Contacts ({teamMembers.length})</option>
-
-                  {teams.map((t) => (
-
-                    <option key={t.id || t.code} value={t.code}>
-
-                      {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name} ({teamMembers.filter((m) => m.team_code === t.code || (m as any).team === t.code).length})
-
-                    </option>
-
-                  ))}
-
-                </select>
-
-              </div>
-
-
-
-              {/* Multi-Row Wrap Team Pills (Visible at a glance, NO sliding!) */}
-
-              <div className="flex flex-wrap items-center gap-1.5">
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setActiveCategory('ALL')}
-
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-
-                    activeCategory === 'ALL'
-
-                      ? 'bg-indigo-600 text-white shadow-xs'
-
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-
-                  }`}
-
-                >
-
-                  <span>सर्व संपर्क (All)</span>
-
-                  <span className="text-[10px] opacity-80 px-1 py-0.2 rounded-full bg-black/20">
-
-                    {teamMembers.length}
-
-                  </span>
-
-                </button>
-
-
-
-                {teams.map((t) => {
-
-                  const count = teamMembers.filter(
-
-                    (m) => m.team_code === t.code || (m as any).team === t.code
-
-                  ).length;
-
-                  const isCurrent = activeCategory === t.code;
-
-
-
-                  return (
-
-                    <div key={t.id || t.code} className="inline-flex items-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white dark:bg-slate-800 shadow-2xs">
-
-                      <button
-
-                        type="button"
-
-                        onClick={() => {
-
-                          setActiveCategory(t.code);
-
-                          setRecipientRole(t.code);
-
-                        }}
-
-                        className={`px-2 py-1 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-
-                          isCurrent
-
-                            ? 'bg-indigo-600 text-white shadow-xs'
-
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-
-                        }`}
-
-                        title={t.description || t.name}
-
-                      >
-
-                        <span>{t.marathi_name || t.name}</span>
-
-                        <span className="text-[10px] opacity-85 px-1 py-0.2 rounded-full bg-black/15">
-
-                          {count}
-
-                        </span>
-
-                      </button>
-
-                      <button
-
-                        type="button"
-
-                        onClick={(e) => {
-
-                          e.stopPropagation();
-
-                          handleOpenEditTeam(t);
-
-                        }}
-
-                        className="px-1.5 py-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-l border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-
-                        title={`Edit team "${t.name}"`}
-
-                      >
-
-                        <Edit2 className="w-2.5 h-2.5" />
-
-                      </button>
-
-                      <button
-
-                        type="button"
-
-                        onClick={(e) => {
-
-                          e.stopPropagation();
-
-                          handleDeleteTeam(t);
-
-                        }}
-
-                        className="px-1.5 py-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-l border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-
-                        title={`Delete team "${t.name}"`}
-
-                      >
-
-                        <X className="w-2.5 h-2.5" />
-
-                      </button>
-
-                    </div>
-
-                  );
-
-                })}
-
-
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setIsNewTeamModalOpen(true)}
-
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 whitespace-nowrap cursor-pointer flex items-center gap-1"
-
-                  title="Create a new team category"
-
-                >
-
-                  <Plus className="w-3 h-3" />
-
-                  <span>+ New Team</span>
-
-                </button>
-
-              </div>
-
-
-
-              {/* Zero Teams Empty State */}
-
-              {teams.length === 0 && (
-
-                <div className="p-3 rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/40 dark:bg-indigo-950/20 text-center space-y-1.5">
-
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-
-                    No custom teams yet. You can create teams (e.g. Pune Jilapramukh, Coaches, Staff) anytime!
-
-                  </p>
-
+              {teams.map((t) => {
+                const count = teamMembers.filter((m) => m.team_code === t.code).length;
+                const isActive = selectedTeamFilter === t.code;
+                return (
                   <button
-
+                    key={t.id}
                     type="button"
-
-                    onClick={() => setIsNewTeamModalOpen(true)}
-
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs cursor-pointer"
-
+                    onClick={() => setSelectedTeamFilter(t.code)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
                   >
-
-                    <Plus className="w-3.5 h-3.5" />
-
-                    <span>+ Create First Team</span>
-
+                    <span>{t.name}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {count}
+                    </span>
                   </button>
-
-                </div>
-
-              )}
-
+                );
+              })}
             </div>
 
+            {/* Prominent Search Bar */}
+            <div className="relative min-w-[280px]">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search member (e.g. Shantanu, Laj, phone)..."
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-xs"
+              />
+            </div>
+          </div>
 
+          {/* Members Cards / List ("sutta-sutta sabka dikhega") */}
+          {loading ? (
+            <Card className="p-8 text-center text-slate-500 dark:text-slate-400">Loading team members...</Card>
+          ) : filteredMembers.length === 0 ? (
+            <Card className="p-8 text-center bg-white dark:bg-[#0F172A]/70 border-slate-200 dark:border-white/10 shadow-xs">
+              <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No members found</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                {selectedTeamFilter !== 'ALL'
+                  ? `No members enrolled in "${selectedTeamFilter}" yet.`
+                  : 'Start by adding Shantanu, Laj, or any custom contacts into your teams.'}
+              </p>
+              <Button
+                onClick={() => handleOpenAddMemberModal(selectedTeamFilter !== 'ALL' ? selectedTeamFilter : undefined)}
+                className="mt-3 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold"
+              >
+                <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                Add Member to Team
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredMembers.map((member) => {
+                const team = teams.find((t) => t.code === member.team_code);
+                const cleanPhone = member.phone.replace(/[^0-9+]/g, '');
+                const allTeamsForMember = contactTeamsMap.get(cleanPhone) || [member.team_code];
+                const otherTeams = allTeamsForMember.filter((code) => code !== member.team_code);
 
-            {filteredMembers.length === 0 ? (
-
-              <div className="py-8 text-center text-slate-400 text-xs">
-
-                No contacts in this team category. Click &quot;Add Team Member&quot; to assign contacts.
-
-              </div>
-
-            ) : (
-
-              <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2 max-h-[420px] overflow-y-auto">
-
-                {filteredMembers.map((member) => {
-
-                  const isChecked = selectedIds.includes(member.id);
-
-                  const memberTeam = teams.find(
-
-                    (t) => t.code === member.team_code || t.code === (member as any).team
-
-                  );
-
-
-
-                  return (
-
-                    <div
-
-                      key={member.id}
-
-                      onClick={() => handleToggleSelect(member.id)}
-
-                      className={`p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-
-                        isChecked
-
-                          ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60'
-
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-
-                      }`}
-
-                    >
-
-                      <div className="flex items-center gap-3">
-
-                        <input
-
-                          type="checkbox"
-
-                          checked={isChecked}
-
-                          onChange={() => {}} // handled by row click
-
-                          className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
-
-                        />
-
-                        <div>
-
-                          <div className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
-
-                            {member.name || <span className="text-slate-400 italic">No Name (Optional)</span>}
-
-                            {member.team_code === 'JILAPRAMUKH' && (
-
-                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-
-                                जिल्हाप्रमुख {member.district ? `(${member.district})` : ''}
-
-                              </span>
-
-                            )}
-
-                            {member.position && member.team_code !== 'JILAPRAMUKH' && (
-
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-
-                                {member.position}
-
-                              </span>
-
-                            )}
-
-                            {memberTeam && member.team_code !== 'JILAPRAMUKH' && (
-
-                              <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800/40">
-
-                                {memberTeam.marathi_name || memberTeam.name}
-
-                              </span>
-
-                            )}
-
+                return (
+                  <Card
+                    key={member.id}
+                    className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-amber-500/40 transition-all shadow-xs flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Top Header: Avatar + Name + Team Badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                            {(member.name || 'M').charAt(0).toUpperCase()}
                           </div>
-
-                          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-
-                            {member.phone}
-
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                              {member.name || 'Unnamed Member'}
+                            </h4>
+                            <a
+                              href={`https://wa.me/${cleanPhone.replace('+', '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-mono flex items-center gap-1 mt-0.5"
+                            >
+                              <Phone className="w-3 h-3" />
+                              <span>{member.phone}</span>
+                            </a>
                           </div>
-
                         </div>
 
+                        {/* Current Team Badge */}
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getTeamColorClass(
+                            team?.color
+                          )} shrink-0`}
+                        >
+                          {team?.name || member.team_code}
+                        </span>
                       </div>
 
+                      {/* Role & District Details */}
+                      <div className="mt-3 space-y-1 text-xs">
+                        {member.position && (
+                          <div className="text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                            <Tag className="w-3 h-3 text-amber-500 shrink-0" />
+                            <span>{member.position}</span>
+                          </div>
+                        )}
+                        {member.district && (
+                          <div className="text-slate-500 dark:text-slate-400 text-[11px]">
+                            Area: {member.district}
+                          </div>
+                        )}
+                        {member.notes && (
+                          <div className="text-slate-400 dark:text-slate-500 text-[11px] italic">
+                            &quot;{member.notes}&quot;
+                          </div>
+                        )}
+                      </div>
 
+                      {/* Multi-Team Indicator: Shows if Shantanu is also in other teams */}
+                      {otherTeams.length > 0 && (
+                        <div className="mt-3 pt-2 border-t border-slate-100 dark:border-white/5">
+                          <span className="text-[10px] text-slate-400 font-semibold block mb-1">
+                            Also enrolled in:
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {otherTeams.map((otherCode) => {
+                              const otherTeam = teams.find((t) => t.code === otherCode);
+                              return (
+                                <span
+                                  key={otherCode}
+                                  className="px-1.5 py-0.2 rounded text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700"
+                                >
+                                  {otherTeam?.name || otherCode}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
+                    {/* Bottom Action Bar */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
                       <button
-
                         type="button"
-
-                        onClick={(e) => {
-
-                          e.stopPropagation();
-
-                          handleDeleteMember(member.id);
-
-                        }}
-
-                        className="text-slate-400 hover:text-rose-500 p-1 transition-colors cursor-pointer"
-
-                        title="Remove contact"
-
+                        onClick={() =>
+                          handleOpenAddMemberModal(undefined, {
+                            id: member.id,
+                            name: member.name || '',
+                            phone: member.phone,
+                            position: member.position,
+                            district: member.district,
+                            notes: member.notes,
+                          })
+                        }
+                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        title="Add this contact to another team as well"
                       >
-
-                        <Trash2 className="w-3.5 h-3.5" />
-
+                        <Share2 className="w-3 h-3" />
+                        <span>Add to Another Team</span>
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMember(member)}
+                        className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                        title="Remove from this team"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-
-                  );
-
-                })}
-
-              </div>
-
-            )}
-
-
-
-            {/* Direct Ad-hoc Number Input */}
-
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 mt-3 space-y-1.5">
-
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-
-                Or Message Direct / Ad-hoc Phone Number:
-
-              </label>
-
-              <div className="relative">
-
-                <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-
-                <input
-
-                  type="text"
-
-                  placeholder="e.g. +91 98765 43210"
-
-                  value={manualPhone}
-
-                  onChange={(e) => setManualPhone(e.target.value)}
-
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
-
-                />
-
-              </div>
-
+                  </Card>
+                );
+              })}
             </div>
-
-          </Card>
-
-        </div>
-
-
-
-        {/* Right Column: Message Composer */}
-
-        <div className="lg:col-span-7 space-y-4">
-
-          <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-
-              <div className="flex items-center gap-2">
-
-                <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-
-                  Compose Team Bulletin &amp; Dispatch
-
-                </h2>
-
-              </div>
-
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-
-                {selectedIds.length + (manualPhone ? 1 : 0)} Direct Contact(s)
-
-              </span>
-
-            </div>
-
-
-
-            {/* Sender Name (Optional) */}
-
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
-
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-
-                Sender Name <span className="text-slate-400 font-normal">(Optional)</span>
-
-              </label>
-
-              <input
-
-                type="text"
-
-                value={senderName}
-
-                onChange={(e) => setSenderName(e.target.value)}
-
-                placeholder="e.g. Master Shihan / Academy Reception"
-
-                className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-
-              />
-
-            </div>
-
-
-
-            {/* Target Role & Priority */}
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-              <div>
-
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-
-                  Target Team Category
-
-                </label>
-
-                <Select
-
-                  value={recipientRole}
-
-                  onChange={(e) => setRecipientRole(e.target.value)}
-
-                  className="h-9 text-xs"
-
-                >
-
-                  <option value="ALL_STAFF">सर्व संपर्क / All Team Contacts</option>
-
-                  {teams.map((t) => (
-
-                    <option key={t.id || t.code} value={t.code}>
-
-                      {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name}
-
-                    </option>
-
-                  ))}
-
-                </Select>
-
-              </div>
-
-
-
-              <div>
-
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-
-                  Priority Level
-
-                </label>
-
-                <Select
-
-                  value={priority}
-
-                  onChange={(e) => setPriority(e.target.value as any)}
-
-                  className="h-9 text-xs"
-
-                >
-
-                  <option value="NORMAL">Normal Notice</option>
-
-                  <option value="URGENT">Urgent Alert</option>
-
-                  <option value="ANNOUNCEMENT">Announcement</option>
-
-                </Select>
-
-              </div>
-
-
-
-              <div>
-
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-
-                  Bulletin Subject <span className="text-slate-400 font-normal">(Optional)</span>
-
-                </label>
-
-                <input
-
-                  type="text"
-
-                  value={subject}
-
-                  onChange={(e) => setSubject(e.target.value)}
-
-                  placeholder="e.g. Dojo Schedule"
-
-                  className="w-full px-3 py-1.5 h-9 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-
-                />
-
-              </div>
-
-            </div>
-
-
-
-            {/* Quick Templates */}
-
-            <div>
-
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-
-                Quick Template Starters:
-
-              </span>
-
-              <div className="flex flex-wrap gap-1.5">
-
-                {PRESET_TEMPLATES.map((tmpl) => (
-
-                  <button
-
-                    key={tmpl.label}
-
-                    type="button"
-
-                    onClick={() => {
-
-                      setMessageText(tmpl.text);
-
-                      setSubject(tmpl.subject);
-
-                    }}
-
-                    className="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200/60 dark:border-slate-700 transition-colors cursor-pointer"
-
-                  >
-
-                    {tmpl.label}
-
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-
-
-
-            {/* Message Textarea */}
-
-            <div>
-
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-
-                Message Body *
-
-              </label>
-
-              <textarea
-
-                rows={4}
-
-                value={messageText}
-
-                onChange={(e) => setMessageText(e.target.value)}
-
-                placeholder="Type your message to personal team / staff..."
-
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-sans leading-relaxed"
-
-              />
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-
-                <span>Database will store bulletin with sender &amp; role metadata.</span>
-
-                <span>{messageText.length} characters</span>
-
-              </div>
-
-            </div>
-
-
-
-            {/* Multi-slot Broadcast Scheduling */}
-
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-
-              <div className="flex items-center justify-between">
-
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-
-                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
-
-                  Delivery Timing:
-
-                </span>
-
-                <div className="flex items-center gap-2">
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => setBroadcastMode('NOW')}
-
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-
-                      broadcastMode === 'NOW'
-
-                        ? 'bg-emerald-600 text-white shadow-xs'
-
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-
-                    }`}
-
-                  >
-
-                    Send Immediately
-
-                  </button>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => setBroadcastMode('SCHEDULED')}
-
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-
-                      broadcastMode === 'SCHEDULED'
-
-                        ? 'bg-indigo-600 text-white shadow-xs'
-
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-
-                    }`}
-
-                  >
-
-                    Schedule Multi-Slot Times
-
-                  </button>
-
-                </div>
-
-              </div>
-
-
-
-              {broadcastMode === 'SCHEDULED' && (
-
-                <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
-
-                  <span className="text-[11px] font-semibold text-slate-400 block">
-
-                    Configured Delivery Time Slots:
-
-                  </span>
-
-                  {scheduledTimes.map((time, idx) => (
-
-                    <div key={idx} className="flex items-center gap-2">
-
-                      <span className="text-[11px] font-bold text-indigo-400 w-12 flex-shrink-0">
-
-                        Slot #{idx + 1}:
-
-                      </span>
-
-                      <input
-
-                        type="datetime-local"
-
-                        value={time}
-
-                        onChange={(e) => {
-
-                          const updated = [...scheduledTimes];
-
-                          updated[idx] = e.target.value;
-
-                          setScheduledTimes(updated);
-
-                        }}
-
-                        className="px-2.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono flex-1"
-
-                      />
-
-                      {scheduledTimes.length > 1 && (
-
-                        <button
-
-                          type="button"
-
-                          onClick={() => setScheduledTimes(scheduledTimes.filter((_, i) => i !== idx))}
-
-                          className="p-1 text-rose-400 hover:text-rose-600 rounded"
-
-                          title="Remove slot"
-
-                        >
-
-                          <X className="w-3.5 h-3.5" />
-
-                        </button>
-
-                      )}
-
-                    </div>
-
-                  ))}
-
-
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => {
-
-                      const lastTime = scheduledTimes[scheduledTimes.length - 1];
-
-                      const nextDate = lastTime ? new Date(new Date(lastTime).getTime() + 86400000) : new Date(Date.now() + 86400000);
-
-                      setScheduledTimes([...scheduledTimes, nextDate.toISOString().slice(0, 16)]);
-
-                    }}
-
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline mt-1"
-
-                  >
-
-                    <Plus className="w-3 h-3" /> Add Another Schedule Slot
-
-                  </button>
-
-                </div>
-
-              )}
-
-            </div>
-
-
-
-            {/* Dispatch Action */}
-
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-
-              <Button
-
-                type="button"
-
-                variant="outline"
-
-                onClick={() => {
-
-                  setMessageText('');
-
-                  setSubject('');
-
-                }}
-
-                className="text-xs cursor-pointer"
-
-              >
-
-                Clear
-
-              </Button>
-
-
-
-              <Button
-
-                type="button"
-
-                variant="outline"
-
-                onClick={handleSaveDraft}
-
-                disabled={savingDraft || !messageText.trim()}
-
-                className="gap-1.5 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-xs font-bold cursor-pointer"
-
-                title="Save this message as a draft to edit or dispatch later"
-
-              >
-
-                <FileText className="w-3.5 h-3.5" />
-
-                <span>{savingDraft ? 'Saving Draft...' : 'Save as Draft'}</span>
-
-              </Button>
-
-
-
-              <Button
-
-                type="button"
-
-                onClick={handleDispatchAndSave}
-
-                disabled={sending || !messageText.trim()}
-
-                className={`gap-2 text-white font-bold text-xs cursor-pointer shadow-sm ${
-
-                  broadcastMode === 'SCHEDULED'
-
-                    ? 'bg-indigo-600 hover:bg-indigo-500'
-
-                    : 'bg-emerald-600 hover:bg-emerald-500'
-
-                }`}
-
-              >
-
-                <Send className="w-3.5 h-3.5" />
-
-                <span>
-
-                  {sending
-
-                    ? 'Saving & Scheduling...'
-
-                    : broadcastMode === 'SCHEDULED'
-
-                    ? `Schedule Broadcast (${scheduledTimes.length} Slot${scheduledTimes.length === 1 ? '' : 's'})`
-
-                    : 'Save Bulletin & Send Alert'}
-
-                </span>
-
-              </Button>
-
-            </div>
-
-          </Card>
-
-        </div>
-
-      </div>
-
-
-
-      {/* Database Saved Broadcasts Section */}
-
-      <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-
-          <div className="flex items-center gap-2">
-
-            <Building className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-
-              Academy Team Broadcasts History ({dbMessages.length})
-
-            </h2>
-
-          </div>
-
-          <div className="flex items-center gap-2">
-
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
-
-              <button
-
-                type="button"
-
-                onClick={() => setHistoryTab('ALL')}
-
-                className={`px-2 py-0.5 rounded ${historyTab === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'}`}
-
-              >
-
-                All ({dbMessages.length})
-
-              </button>
-
-              <button
-
-                type="button"
-
-                onClick={() => setHistoryTab('SENT')}
-
-                className={`px-2 py-0.5 rounded ${historyTab === 'SENT' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'}`}
-
-              >
-
-                Dispatched ({dbMessages.filter((m) => m.status !== 'DRAFT').length})
-
-              </button>
-
-              <button
-
-                type="button"
-
-                onClick={() => setHistoryTab('DRAFT')}
-
-                className={`px-2 py-0.5 rounded ${historyTab === 'DRAFT' ? 'bg-amber-500 text-slate-950 font-extrabold shadow-xs' : 'text-amber-600 dark:text-amber-400'}`}
-
-              >
-
-                Drafts ({dbMessages.filter((m) => m.status === 'DRAFT').length})
-
-              </button>
-
-            </div>
-
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hidden sm:inline-block">
-
-              Cloud Synced
-
-            </span>
-
-          </div>
-
-        </div>
-
-
-
-        {dbLoading ? (
-
-          <div className="py-8 text-center text-xs text-slate-400">Loading broadcasts...</div>
-
-        ) : dbMessages.length === 0 ? (
-
-          <div className="py-8 text-center text-xs text-slate-400">
-
-            No team bulletins published yet. Compose your first message above.
-
-          </div>
-
-        ) : (
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pt-1">
-
-            {dbMessages
-
-              .filter((msg) => {
-
-                if (historyTab === 'SENT') return msg.status !== 'DRAFT';
-
-                if (historyTab === 'DRAFT') return msg.status === 'DRAFT';
-
-                return true;
-
-              })
-
-              .map((msg) => (
-
-              <div
-
-                key={msg.id}
-
-                className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2 relative"
-
-              >
-
-                <div className="flex items-center justify-between gap-2">
-
-                  <div className="flex items-center gap-1.5 flex-wrap">
-
-                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
-
-                      {msg.sender_name || 'Gurukul Admin'}
-
-                    </span>
-
-                    {msg.sender_position && (
-
-                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200/40 dark:border-indigo-800/40">
-
-                        {msg.sender_position}
-
-                      </span>
-
-                    )}
-
-                  </div>
-
-
-
-                  <div className="flex items-center gap-1.5">
-
-                    {msg.status === 'DRAFT' && (
-
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-
-                        Draft
-
-                      </span>
-
-                    )}
-
-                    <span
-
-                      className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-
-                        msg.priority === 'URGENT'
-
-                          ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-
-                          : msg.priority === 'ANNOUNCEMENT'
-
-                          ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-
-                          : 'bg-slate-500/10 text-slate-400'
-
-                      }`}
-
-                    >
-
-                      {msg.priority}
-
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditMessage(msg)}
-                      className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 cursor-pointer flex items-center gap-1"
-                      title="Edit message / संदेश बदला"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this team message from the database?')) {
-                          handleDeleteDbMessage(msg.id);
-                        }
-                      }}
-                      className="text-slate-400 hover:text-rose-500 p-1 transition-colors cursor-pointer rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      title="Delete message / हटवा"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-
-                  </div>
-
-                </div>
-
-
-
-                {msg.subject && (
-
-                  <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-
-                    {msg.subject}
-
-                  </div>
-
-                )}
-
-
-
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
-
-                  {msg.message}
-
-                </p>
-
-
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-
-                  <span className="font-mono text-[10px] bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-
-                    To: {msg.recipient_role}
-
-                  </span>
-
-                  <span>{new Date(msg.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
-
-                </div>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        )}
-
-      </Card>
-
-
-
-      {/* Dispatched Logs Card */}
-
-      <Card className="p-5 border-slate-200/80 dark:border-slate-800 shadow-sm">
-
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-
-          <div className="flex items-center gap-2">
-
-            <Clock className="w-4 h-4 text-slate-500" />
-
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-
-              Recent WhatsApp Dispatches Log
-
-            </h2>
-
-          </div>
-
-          {dispatchLogs.length > 0 && (
-
-            <button
-
-              type="button"
-
-              onClick={() => setDispatchLogs([])}
-
-              className="text-xs text-slate-400 hover:text-rose-500 cursor-pointer"
-
-            >
-
-              Clear Logs
-
-            </button>
-
           )}
-
         </div>
+      )}
 
-
-
-        {dispatchLogs.length === 0 ? (
-
-          <div className="py-6 text-center text-xs text-slate-400">
-
-            No team WhatsApp dispatches logged in this session yet.
-
-          </div>
-
-        ) : (
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2 max-h-56 overflow-y-auto">
-
-            {dispatchLogs.map((log) => (
-
-              <div key={log.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-
-                <div className="space-y-0.5">
-
-                  <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-
-                    <span>{log.recipientName || 'Team Member'}</span>
-
-                    <span className="font-mono text-slate-400 text-[11px]">{log.recipientPhone}</span>
-
-                  </div>
-
-                  <div className="text-slate-600 dark:text-slate-300 text-[11px] line-clamp-1">
-
-                    &ldquo;{log.message}&rdquo;
-
-                  </div>
-
-                </div>
-
-
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-
-                  <span
-
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-
-                      log.status === 'SENT'
-
-                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
-
-                        : 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400'
-
-                    }`}
-
-                  >
-
-                    {log.status === 'SENT' ? 'Delivered' : 'Failed'}
-
-                  </span>
-
-                  <span className="text-[11px] text-slate-400 whitespace-nowrap">
-
-                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-
-                  </span>
-
-                </div>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        )}
-
-      </Card>
-
-
-
-
-
-      {/* MODAL: Manage All Teams & Coordination Wings */}
-
-      <Modal
-
-        isOpen={isManageTeamsModalOpen}
-
-        onClose={() => setIsManageTeamsModalOpen(false)}
-
-        title="Manage All Teams & Coordination Groups"
-
-        maxWidth="lg"
-
-      >
-
+      {/* TAB 2: Manage Teams Directory */}
+      {activeTab === 'teams' && (
         <div className="space-y-4">
-
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-
-              Overview of all active wings, district leadership, and assigned members.
-
-            </p>
-
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+              Create, rename, or color-code your custom squads.
+            </span>
             <Button
-
-              size="sm"
-
-              onClick={() => {
-
-                setIsManageTeamsModalOpen(false);
-
-                setIsNewTeamModalOpen(true);
-
-              }}
-
-              className="gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
-
+              onClick={() => handleOpenTeamModal()}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5"
             >
-
               <FolderPlus className="w-3.5 h-3.5" />
-
-              <span>Add New Team</span>
-
+              New Team
             </Button>
-
           </div>
 
-
-
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl">
-
-            {teams.map((t) => {
-
-              const memberCount = teamMembers.filter((m) => m.team_code === t.code || (m as any).team === t.code).length;
-
-
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {teams.map((team) => {
+              const membersCount = teamMembers.filter((m) => m.team_code === team.code).length;
               return (
+                <Card
+                  key={team.id}
+                  className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-amber-500/30 transition-all shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded-full border ${getTeamColorClass(team.color)}`} />
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{team.name}</h4>
+                      </div>
+                      <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                        {team.code}
+                      </span>
+                    </div>
 
-                <div key={t.id || t.code} className="p-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    {team.marathi_name && (
+                      <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1">
+                        {team.marathi_name}
+                      </div>
+                    )}
 
-                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
+                      {team.description || 'Dedicated custom team for broadcasting and management.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-amber-500" />
+                      {membersCount} {membersCount === 1 ? 'Member' : 'Members'}
+                    </span>
 
                     <div className="flex items-center gap-2">
-
-                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{t.name}</span>
-
-                      {t.marathi_name && (
-
-                        <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/60 dark:border-indigo-800">
-
-                          {t.marathi_name}
-
-                        </span>
-
-                      )}
-
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-
-                        {t.code}
-
-                      </span>
-
-                    </div>
-
-                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
-
-                      <span><strong>{memberCount}</strong> assigned contact(s)</span>
-
-                      {t.description && <span>• {t.description}</span>}
-
-                    </div>
-
-                  </div>
-
-
-
-                  <div className="flex items-center gap-2">
-
-                    <button
-
-                      type="button"
-
-                      onClick={() => {
-
-                        setActiveCategory(t.code);
-
-                        setRecipientRole(t.code);
-
-                        setIsManageTeamsModalOpen(false);
-
-                      }}
-
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer"
-
-                    >
-
-                      View Members
-
-                    </button>
-
-                    <button
-
+                      <button
                         type="button"
-
                         onClick={() => {
-
-                          setIsManageTeamsModalOpen(false);
-
-                          handleOpenEditTeam(t);
-
+                          setSelectedTeamFilter(team.code);
+                          setActiveTab('members');
                         }}
-
-                        className="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900/60 transition-colors cursor-pointer"
-
-                        title="Edit this team"
-
+                        className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
                       >
-
-                        <Edit2 className="w-3.5 h-3.5" />
-
+                        View Members <ArrowRight className="w-3 h-3" />
                       </button>
 
                       <button
-
                         type="button"
-
-                        onClick={() => handleDeleteTeam(t)}
-
-                        className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer"
-
-                        title="Delete this team"
-
+                        onClick={() => handleDeleteTeam(team)}
+                        className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                        title="Delete team"
                       >
-
                         <Trash2 className="w-3.5 h-3.5" />
-
                       </button>
-
+                    </div>
                   </div>
-
-                </div>
-
+                </Card>
               );
-
             })}
-
           </div>
-
-
-
-          <div className="flex justify-end pt-2">
-
-            <Button variant="outline" onClick={() => setIsManageTeamsModalOpen(false)}>
-
-              Close
-
-            </Button>
-
-          </div>
-
         </div>
+      )}
 
-      </Modal>
-
-
-
-
-
-      {/* MODAL: Edit Team / Group */}
-
-      <Modal isOpen={isEditTeamModalOpen} onClose={() => setIsEditTeamModalOpen(false)} title="Edit Team / Group">
-
-        <form onSubmit={handleUpdateTeam} className="space-y-4">
-
-          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
-
-            Edit details for team <strong>{editingTeam?.name}</strong>. Assigned contacts will automatically retain their membership.
-
+      {/* MODAL 1: Add Member to Team */}
+      <Modal
+        isOpen={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        title="Add Member to Team"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          {/* Quick "Add Self / Admin" Banner */}
+          <div className="p-3 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 rounded-xl flex items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-amber-500" />
+                Add Sensei Vikram Salunkhe (Self/Admin)?
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                1-click populate with Phone: 9881888061.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddSelfToForm}
+              className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 py-1 px-3 shadow-xs"
+            >
+              Select Self
+            </Button>
           </div>
 
+          {/* STEP 1: Pick from Existing Contacts (Shantanu, Laj, etc.) */}
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-amber-500" />
+                <span>Search &amp; Pick Contact (Shantanu, Laj, etc.)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowNewContactForm(!showNewContactForm)}
+                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+              >
+                {showNewContactForm ? 'Hide Form' : '+ New Person Form'}
+              </button>
+            </div>
 
-
-          <Input
-
-            label="Team Name (English) *"
-
-            required
-
-            placeholder="e.g. Pune District Heads"
-
-            value={editTeamForm.name}
-
-            onChange={(e) => setEditTeamForm({ ...editTeamForm, name: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Regional / Marathi Name (Optional)"
-
-            placeholder="उदा. पुणे जिल्हाप्रमुख"
-
-            value={editTeamForm.marathiName}
-
-            onChange={(e) => setEditTeamForm({ ...editTeamForm, marathiName: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Team Code / Short Tag *"
-
-            required
-
-            placeholder="e.g. PUNE_JP"
-
-            value={editTeamForm.code}
-
-            onChange={(e) => setEditTeamForm({ ...editTeamForm, code: e.target.value.toUpperCase() })}
-
-          />
-
-
-
-          <div className="space-y-1.5">
-
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description</label>
-
-            <textarea
-
-              rows={2}
-
-              value={editTeamForm.description}
-
-              onChange={(e) => setEditTeamForm({ ...editTeamForm, description: e.target.value })}
-
-              placeholder="What this team represents..."
-
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-
+            {/* Small Search Bar on Top */}
+            <input
+              type="text"
+              placeholder="Search contacts by name (e.g. Shantanu, Laj) or phone..."
+              value={contactSearchQuery}
+              onChange={(e) => setContactSearchQuery(e.target.value)}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-xs"
             />
 
-          </div>
+            {/* Directory List of Contacts */}
+            <div className="max-h-44 overflow-y-auto space-y-1.5 pt-1 pr-1 border-t border-slate-200 dark:border-white/5">
+              {filteredDirectoryContacts.length === 0 ? (
+                <div className="py-3 text-center">
+                  <p className="text-xs text-slate-500">No contact matching &quot;{contactSearchQuery}&quot;</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMemberForm((prev) => ({ ...prev, name: contactSearchQuery }));
+                      setShowNewContactForm(true);
+                    }}
+                    className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                  >
+                    + Add &quot;{contactSearchQuery}&quot; as New Contact
+                  </button>
+                </div>
+              ) : (
+                filteredDirectoryContacts.map((contact) => {
+                  const targetTeamCode = memberForm.teamCode;
+                  const isAlreadyInTarget = contact.memberTeams.includes(targetTeamCode);
 
-
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-
-            <Button type="button" variant="outline" onClick={() => setIsEditTeamModalOpen(false)} disabled={savingEditTeam}>
-
-              Cancel
-
-            </Button>
-
-            <Button type="submit" disabled={savingEditTeam} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold">
-
-              {savingEditTeam ? 'Saving Changes...' : 'Save Changes'}
-
-            </Button>
-
-          </div>
-
-        </form>
-
-      </Modal>
-
-
-
-      {/* MODAL: Create New Team / Group */}
-
-      <Modal isOpen={isNewTeamModalOpen} onClose={() => setIsNewTeamModalOpen(false)} title="Create New Team / Group">
-
-        <form onSubmit={handleCreateTeam} className="space-y-4">
-
-          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
-
-            Create a custom team or coordination wing (e.g. <strong>तालुकाप्रमुख</strong>, <strong>समिती</strong>, <strong>वैद्यकीय पथक</strong>, etc.) to organize team broadcasts.
-
-          </div>
-
-
-
-          <Input
-
-            label="Team Name (English) *"
-
-            required
-
-            placeholder="e.g. Taluka Pramukh / Committee"
-
-            value={newTeamForm.name}
-
-            onChange={(e) => setNewTeamForm({ ...newTeamForm, name: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Marathi Name / Label (मराठी नाव - Optional)"
-
-            placeholder="e.g. तालुकाप्रमुख / क्रीडा समिती"
-
-            value={newTeamForm.marathiName}
-
-            onChange={(e) => setNewTeamForm({ ...newTeamForm, marathiName: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Team Code / Identifier (Optional, e.g. TALUKA_PRAMUKH)"
-
-            placeholder="Auto-generated if left blank"
-
-            value={newTeamForm.code}
-
-            onChange={(e) => setNewTeamForm({ ...newTeamForm, code: e.target.value.toUpperCase() })}
-
-          />
-
-
-
-          <Input
-
-            label="Description / Purpose (Optional)"
-
-            placeholder="e.g. Block coordinators for local dojo branches"
-
-            value={newTeamForm.description}
-
-            onChange={(e) => setNewTeamForm({ ...newTeamForm, description: e.target.value })}
-
-          />
-
-          {/* Member Picker: Add members from previous teams */}
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Pick Existing Members (मागील टीममधील व्यक्ती निवडा)
-              </label>
-              <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                {selectedExistingMemberIds.length} Selected
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Select members from other teams (e.g. Raj, Rasul Karim, Mizar) to add them to this team automatically.
-            </p>
-            {teamMembers.length > 0 ? (
-              <div className="space-y-1.5 max-h-40 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-800">
-                {Array.from(new Map(teamMembers.map((m) => [m.phone, m])).values()).map((member) => {
-                  const isChecked = selectedExistingMemberIds.includes(member.id);
                   return (
-                    <label
-                      key={member.id}
-                      className={`flex items-center justify-between p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                        isChecked
-                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
+                    <div
+                      key={contact.id}
+                      className="p-2 rounded-lg bg-white dark:bg-[#0A1120] border border-slate-200 dark:border-white/5 hover:border-amber-500/40 flex items-center justify-between text-xs transition-all shadow-2xs"
                     >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedExistingMemberIds((prev) => [...prev, member.id]);
-                            } else {
-                              setSelectedExistingMemberIds((prev) => prev.filter((id) => id !== member.id));
-                            }
-                          }}
-                          className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                        />
-                        <span className="font-semibold">{member.name || 'Athlete / Contact'}</span>
-                        <span className="font-mono text-[11px] text-slate-400">({member.phone})</span>
+                      <div className="truncate mr-2">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                          <span>{contact.name}</span>
+                          <span className="text-[11px] text-slate-500 font-mono font-normal">
+                            ({contact.phone})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {contact.position && (
+                            <span className="text-[10px] text-slate-400">{contact.position} • </span>
+                          )}
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                            Teams: {contact.memberTeams.length > 0 ? contact.memberTeams.join(', ') : 'None yet'}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                        {member.team_code}
-                      </span>
-                    </label>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleSelectDirectoryContact(contact)}
+                        className={`text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 ${
+                          isAlreadyInTarget
+                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+                            : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                        }`}
+                      >
+                        {isAlreadyInTarget ? 'Select Again' : 'Pick +'}
+                      </Button>
+                    </div>
                   );
-                })}
-              </div>
-            ) : (
-              <div className="text-[11px] text-slate-400 italic">No existing contacts in database yet.</div>
-            )}
+                })
+              )}
+            </div>
           </div>
 
-
-
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
-
-            <Button type="button" variant="outline" onClick={() => setIsNewTeamModalOpen(false)} className="cursor-pointer">
-
-              Cancel
-
-            </Button>
-
-            <Button type="submit" disabled={savingTeam} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer">
-
-              {savingTeam ? 'Saving Team...' : 'Create Team'}
-
-            </Button>
-
-          </div>
-
-        </form>
-
-      </Modal>
-
-
-
-      {/* MODAL: Add Team Member */}
-
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add Team Contact">
-
-        <form onSubmit={handleAddMember} className="space-y-4">
-
-          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200">
-
-            <strong>टीप:</strong> नाव आणि पद ऐच्छिक (Optional) आहे. संदेश मिळवण्यासाठी फक्त मोबाईल / व्हॉट्सॲप नंबर आवश्यक आहे.
-
-          </div>
-
-          {/* Quick-Pick Existing Contact */}
-          {teamMembers.length > 0 && (
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-              <label className="block text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                Quick-Pick Existing Contact (जुन्या संपर्कांमधून थेट निवडा)
+          {/* Member Details Form */}
+          <form onSubmit={handleSaveMember} className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                Target Team / Squad *
               </label>
               <select
-                onChange={(e) => {
-                  const found = teamMembers.find((m) => m.id === e.target.value);
-                  if (found) {
-                    setNewMemberForm((prev) => ({
-                      ...prev,
-                      name: found.name || '',
-                      phone: found.phone || '',
-                      district: found.district || '',
-                      position: found.position || '',
-                    }));
-                  }
-                }}
-                className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                required
+                value={memberForm.teamCode}
+                onChange={(e) => setMemberForm({ ...memberForm, teamCode: e.target.value })}
+                className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs font-semibold"
               >
-                <option value="">-- Choose contact to auto-fill details --</option>
-                {Array.from(new Map(teamMembers.map((m) => [m.phone, m])).values()).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name || 'Member'} ({m.phone}) - Current Team: {m.team_code}
+                {teams.length === 0 && <option value="">-- No Teams Created Yet --</option>}
+                {teams.map((t) => (
+                  <option key={t.id} value={t.code}>
+                    {t.name} ({t.code})
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Shantanu, Laj"
+                  value={memberForm.name}
+                  onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs font-medium"
+                />
+              </div>
 
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  WhatsApp / Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="e.g. 9881888061"
+                  value={memberForm.phone}
+                  onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-amber-500 shadow-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Position / Role (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Coordinator, Partner, Member"
+                  value={memberForm.position}
+                  onChange={(e) => setMemberForm({ ...memberForm, position: e.target.value })}
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  District / Area (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Satara, Pune, Karad"
+                  value={memberForm.district}
+                  onChange={(e) => setMemberForm({ ...memberForm, district: e.target.value })}
+                  className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
+              <Button type="button" variant="outline" onClick={() => setIsAddMemberModalOpen(false)} className="text-xs">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingMember}
+                className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs"
+              >
+                {savingMember ? 'Adding...' : 'Save & Add to Team'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* MODAL 2: Create / Edit Team */}
+      <Modal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        title={editingTeam ? `Edit Team: ${editingTeam.name}` : 'Create New Team / Squad'}
+        maxWidth="sm"
+      >
+        <form onSubmit={handleSaveTeam} className="space-y-3.5">
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Team Name (English) *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Friends Group, Core Partners, Marketing"
+              value={teamForm.name}
+              onChange={(e) => {
+                const name = e.target.value;
+                setTeamForm({
+                  ...teamForm,
+                  name,
+                  code: editingTeam ? teamForm.code : name.toUpperCase().replace(/[^A-Z0-9_]/g, '_').substring(0, 24),
+                });
+              }}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs font-semibold"
+            />
+          </div>
 
           <div>
-
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-
-              Team Classification / वर्गवारी *
-
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Marathi Name / Title (Optional)
             </label>
-
-            <Select
-
-              value={newMemberForm.team_code}
-
-              onChange={(e) => setNewMemberForm({ ...newMemberForm, team_code: e.target.value })}
-
-              className="h-9 text-xs"
-
-            >
-
-              {teams.map((t) => (
-
-                <option key={t.id || t.code} value={t.code}>
-
-                  {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name}
-
-                </option>
-
-              ))}
-
-            </Select>
-
-          </div>
-
-
-
-          <Input
-
-            label="WhatsApp / Mobile Number *"
-
-            type="tel"
-
-            required
-
-            placeholder="e.g. +91 98765 43210"
-
-            value={newMemberForm.phone}
-
-            onChange={(e) => setNewMemberForm({ ...newMemberForm, phone: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Member Full Name (नाव - Optional)"
-
-            placeholder="e.g. Shri Patil (Jilapramukh)"
-
-            value={newMemberForm.name}
-
-            onChange={(e) => setNewMemberForm({ ...newMemberForm, name: e.target.value })}
-
-          />
-
-
-
-          {newMemberForm.team_code === 'JILAPRAMUKH' && (
-
-            <Input
-
-              label="District / कार्यक्षेत्र जिल्हा (Optional)"
-
-              placeholder="e.g. Ahmednagar / Pune / Satara"
-
-              value={newMemberForm.district}
-
-              onChange={(e) => setNewMemberForm({ ...newMemberForm, district: e.target.value })}
-
+            <input
+              type="text"
+              placeholder="e.g. मित्र परिवार, कोअर टीम"
+              value={teamForm.marathiName}
+              onChange={(e) => setTeamForm({ ...teamForm, marathiName: e.target.value })}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
-
-          )}
-
-
-
-          <Input
-
-            label="Position / Role (पद - Optional)"
-
-            placeholder="e.g. District Chief Coordinator / Head Coach"
-
-            value={newMemberForm.position}
-
-            onChange={(e) => setNewMemberForm({ ...newMemberForm, position: e.target.value })}
-
-          />
-
-
-
-          <Input
-
-            label="Internal Notes (टीप - Optional)"
-
-            placeholder="e.g. Available for district meetings"
-
-            value={newMemberForm.notes}
-
-            onChange={(e) => setNewMemberForm({ ...newMemberForm, notes: e.target.value })}
-
-          />
-
-
-
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
-
-            <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} className="cursor-pointer">
-
-              Cancel
-
-            </Button>
-
-            <Button type="submit" disabled={savingMember} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer">
-
-              {savingMember ? 'Saving Contact...' : 'Save Contact'}
-
-            </Button>
-
           </div>
 
-        </form>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Team System Code (Uppercase) *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. FRIENDS_GROUP"
+              value={teamForm.code}
+              onChange={(e) => setTeamForm({ ...teamForm, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_') })}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-amber-500 shadow-xs"
+            />
+          </div>
 
-      </Modal>
-
-    
-      {/* MODAL: Edit Message */}
-      <Modal isOpen={isEditMessageModalOpen} onClose={() => setIsEditMessageModalOpen(false)} title="Edit Team Broadcast / बदल करा">
-        <form onSubmit={handleUpdateMessage} className="space-y-4">
-          <Input
-            label="Subject / Topic (ऐच्छिक)"
-            placeholder="e.g. Training Rescheduled / Match Lineup"
-            value={editMessageForm.subject}
-            onChange={(e) => setEditMessageForm({ ...editMessageForm, subject: e.target.value })}
-          />
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Message Content (संदेश मजकूर) *
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Description (Optional)
             </label>
             <textarea
-              rows={4}
-              required
-              value={editMessageForm.message}
-              onChange={(e) => setEditMessageForm({ ...editMessageForm, message: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-sans leading-relaxed"
+              rows={2}
+              placeholder="Brief description of this group..."
+              value={teamForm.description}
+              onChange={(e) => setTeamForm({ ...teamForm, description: e.target.value })}
+              className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Target Category
-              </label>
-              <Select
-                value={editMessageForm.recipient_role}
-                onChange={(e) => setEditMessageForm({ ...editMessageForm, recipient_role: e.target.value })}
-                className="h-9 text-xs"
-              >
-                <option value="ALL_STAFF">सर्व संपर्क / All Team Contacts</option>
-                {teams.map((t) => (
-                  <option key={t.id || t.code} value={t.code}>
-                    {t.marathi_name ? `${t.marathi_name} (${t.name})` : t.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Priority Level
-              </label>
-              <Select
-                value={editMessageForm.priority}
-                onChange={(e) => setEditMessageForm({ ...editMessageForm, priority: e.target.value as any })}
-                className="h-9 text-xs"
-              >
-                <option value="NORMAL">Normal Notice</option>
-                <option value="URGENT">Urgent Alert</option>
-                <option value="ANNOUNCEMENT">Announcement</option>
-              </Select>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              Badge Color Accent
+            </label>
+            <div className="flex items-center gap-2">
+              {COLOR_OPTIONS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setTeamForm({ ...teamForm, color: c.id })}
+                  className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
+                    teamForm.color === c.id ? 'border-amber-500 scale-110 shadow-sm' : 'border-transparent'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-md ${c.bg}`} />
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button type="button" variant="outline" onClick={() => setIsEditMessageModalOpen(false)}>
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
+            <Button type="button" variant="outline" onClick={() => setIsTeamModalOpen(false)} className="text-xs">
               Cancel
             </Button>
-            <Button type="submit" disabled={savingEditMessage} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold">
-              {savingEditMessage ? 'Updating...' : 'Save & Update Message'}
+            <Button
+              type="submit"
+              disabled={savingTeam}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs"
+            >
+              {savingTeam ? 'Saving...' : editingTeam ? 'Update Team' : 'Create Team'}
             </Button>
           </div>
         </form>
       </Modal>
-</div>
-
+    </div>
   );
-
 };
-
-
-
-export default TeamMessagingPage;
-

@@ -19,6 +19,7 @@ import {
   Trophy,
   Award,
   Send,
+  Clock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { apiClient } from '../../lib/api';
@@ -83,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { name: 'Reports', to: '/admin/reports', icon: FileText },
         { name: 'Announcements', to: '/admin/announcements', icon: Megaphone },
+        { name: 'Scheduled Messages', to: '/admin/announcements/scheduled', icon: Clock },
         { name: 'Personal Team Messages', to: '/admin/team-messaging', icon: Send },
         { name: 'Settings', to: '/admin/settings', icon: Settings },
       ],
@@ -149,6 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { name: 'Payments', to: '/admin/payments', icon: Receipt },
         { name: 'Reports', to: '/admin/reports', icon: FileText },
         { name: 'Announcements', to: '/admin/announcements', icon: Megaphone },
+        { name: 'Scheduled Messages', to: '/admin/announcements/scheduled', icon: Clock },
         { name: 'Personal Team Messages', to: '/admin/team-messaging', icon: Send },
         { name: 'WhatsApp', to: '/admin/whatsapp-templates', icon: MessageSquare },
         { name: 'Settings', to: '/admin/settings', icon: Settings },

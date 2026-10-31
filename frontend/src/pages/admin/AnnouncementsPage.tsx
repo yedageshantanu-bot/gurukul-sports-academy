@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Card } from '../../components/ui/Card';
@@ -29,6 +30,8 @@ import {
   BookmarkPlus,
   X,
   Check,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
 
@@ -85,10 +88,13 @@ export const AnnouncementsPage: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [batches, setBatches] = useState<{ id: string; name: string; subject?: string }[]>([]);
   const [tournaments, setTournaments] = useState<{ id: string; title: string; location?: string; status?: string }[]>([]);
+  const [teams, setTeams] = useState<Array<{ id: string; code: string; name: string; marathi_name?: string }>>([]);
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; phone: string; team_code: string; position?: string }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [scheduledCount, setScheduledCount] = useState<number>(0);
 
   // Custom presets state (persisted to localStorage)
   const [customPresets, setCustomPresets] = useState<AnnouncementPreset[]>(() => {
@@ -138,11 +144,15 @@ export const AnnouncementsPage: React.FC = () => {
     message: string;
     batchIds: string[];
     tournamentIds: string[];
+    teamCodes: string[];
+    includeSelf: boolean;
   }>({
     title: '',
     message: '',
     batchIds: [],
     tournamentIds: [],
+    teamCodes: [],
+    includeSelf: false,
   });
 
   const [editFormData, setEditFormData] = useState<{
@@ -150,11 +160,15 @@ export const AnnouncementsPage: React.FC = () => {
     message: string;
     batchIds: string[];
     tournamentIds: string[];
+    teamCodes: string[];
+    includeSelf: boolean;
   }>({
     title: '',
     message: '',
     batchIds: [],
     tournamentIds: [],
+    teamCodes: [],
+    includeSelf: false,
   });
 
   const fetchAnnouncements = async () => {
@@ -164,6 +178,15 @@ export const AnnouncementsPage: React.FC = () => {
       setError(null);
       const data = await apiClient<any>('/announcements');
       setAnnouncements(Array.isArray(data) ? data : data?.data || []);
+
+      // Also fetch scheduled announcements count
+      apiClient<any>('/announcements/scheduled')
+        .then((res) => {
+          const sData = Array.isArray(res) ? res : res?.data || [];
+          const pending = sData.filter((i: any) => i.status === 'SCHEDULED').length;
+          setScheduledCount(pending);
+        })
+        .catch(() => {});
     } catch (err: any) {
       setError(err.message || 'Failed to fetch announcements');
     } finally {
@@ -192,10 +215,31 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  const fetchTeamsAndMembers = async () => {
+    if (!token) return;
+    try {
+      const [tRes, mRes] = await Promise.allSettled([
+        apiClient<any>('/team-messages/teams'),
+        apiClient<any>('/team-messages/members'),
+      ]);
+      if (tRes.status === 'fulfilled') {
+        const rawT = tRes.value?.data || (Array.isArray(tRes.value) ? tRes.value : []);
+        setTeams(rawT);
+      }
+      if (mRes.status === 'fulfilled') {
+        const rawM = mRes.value?.data || (Array.isArray(mRes.value) ? mRes.value : []);
+        setTeamMembers(rawM);
+      }
+    } catch (err) {
+      console.error('Failed to load teams for announcements:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAnnouncements();
     fetchBatches();
     fetchTournaments();
+    fetchTeamsAndMembers();
   }, [token]);
 
   // Presets Handlers
@@ -305,16 +349,39 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  // Team handlers (CREATE)
+  const handleToggleTeam = (code: string) => {
+    setFormData((prev) => {
+      const exists = prev.teamCodes.includes(code);
+      return {
+        ...prev,
+        teamCodes: exists ? prev.teamCodes.filter((c) => c !== code) : [...prev.teamCodes, code],
+      };
+    });
+  };
+
+  const handleSelectAllTeams = () => {
+    if (formData.teamCodes.length === teams.length) {
+      setFormData((prev) => ({ ...prev, teamCodes: [] }));
+    } else {
+      setFormData((prev) => ({ ...prev, teamCodes: teams.map((t) => t.code) }));
+    }
+  };
+
   // Edit Handlers
   const handleOpenEdit = (a: Announcement) => {
     setEditingAnnouncement(a);
     const selectedIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
     const selectedTourneys = a.metadata?.tournamentIds || [];
+    const selectedTeams = a.metadata?.teamCodes || [];
+    const includeSelf = Boolean(a.metadata?.includeSelf);
     setEditFormData({
       title: a.title,
       message: a.message,
       batchIds: selectedIds,
       tournamentIds: selectedTourneys,
+      teamCodes: selectedTeams,
+      includeSelf,
     });
     setIsEditModalOpen(true);
   };
@@ -357,11 +424,34 @@ export const AnnouncementsPage: React.FC = () => {
     }
   };
 
+  const handleToggleEditTeam = (code: string) => {
+    setEditFormData((prev) => {
+      const exists = prev.teamCodes.includes(code);
+      return {
+        ...prev,
+        teamCodes: exists ? prev.teamCodes.filter((c) => c !== code) : [...prev.teamCodes, code],
+      };
+    });
+  };
+
+  const handleSelectAllEditTeams = () => {
+    if (editFormData.teamCodes.length === teams.length) {
+      setEditFormData((prev) => ({ ...prev, teamCodes: [] }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, teamCodes: teams.map((t) => t.code) }));
+    }
+  };
+
   // Submission
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.batchIds.length === 0 && formData.tournamentIds.length === 0) {
-      toast.warning('Please select at least one target batch or tournament squad.');
+    if (
+      formData.batchIds.length === 0 &&
+      formData.tournamentIds.length === 0 &&
+      formData.teamCodes.length === 0 &&
+      !formData.includeSelf
+    ) {
+      toast.warning('Please select at least one target batch, tournament squad, or team.');
       return;
     }
 
@@ -375,8 +465,12 @@ export const AnnouncementsPage: React.FC = () => {
           message: formData.message,
           batchIds: formData.batchIds,
           tournamentIds: formData.tournamentIds,
+          teamCodes: formData.teamCodes,
+          includeSelf: formData.includeSelf,
           metadata: {
             tournamentIds: formData.tournamentIds,
+            teamCodes: formData.teamCodes,
+            includeSelf: formData.includeSelf,
           },
         }),
       });
@@ -384,7 +478,14 @@ export const AnnouncementsPage: React.FC = () => {
       setSuccessMessage('Announcement created as DRAFT. You can now preview and broadcast it safely.');
       toast.success('Announcement drafted successfully!');
       setIsCreateModalOpen(false);
-      setFormData({ title: '', message: '', batchIds: [], tournamentIds: [] });
+      setFormData({
+        title: '',
+        message: '',
+        batchIds: [],
+        tournamentIds: [],
+        teamCodes: [],
+        includeSelf: false,
+      });
       fetchAnnouncements();
     } catch (err: any) {
       setError(err.message || 'Failed to create announcement');
@@ -396,8 +497,13 @@ export const AnnouncementsPage: React.FC = () => {
   const handleUpdateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAnnouncement) return;
-    if (editFormData.batchIds.length === 0 && editFormData.tournamentIds.length === 0) {
-      toast.warning('Please select at least one target batch or tournament squad.');
+    if (
+      editFormData.batchIds.length === 0 &&
+      editFormData.tournamentIds.length === 0 &&
+      editFormData.teamCodes.length === 0 &&
+      !editFormData.includeSelf
+    ) {
+      toast.warning('Please select at least one target batch, tournament squad, or team.');
       return;
     }
 
@@ -411,8 +517,12 @@ export const AnnouncementsPage: React.FC = () => {
           message: editFormData.message,
           batchIds: editFormData.batchIds,
           tournamentIds: editFormData.tournamentIds,
+          teamCodes: editFormData.teamCodes,
+          includeSelf: editFormData.includeSelf,
           metadata: {
             tournamentIds: editFormData.tournamentIds,
+            teamCodes: editFormData.teamCodes,
+            includeSelf: editFormData.includeSelf,
           },
         }),
       });
@@ -461,12 +571,17 @@ export const AnnouncementsPage: React.FC = () => {
       const payload = {
         scheduledTime: broadcastMode === 'SCHEDULED' && targetIso ? new Date(targetIso).toISOString() : undefined,
         scheduledTimes: broadcastMode === 'SCHEDULED' ? scheduledDateTimes.map((t) => new Date(t).toISOString()) : undefined,
+        customTemplate: announcementWhatsappTemplate || undefined,
       };
 
       const res = await apiClient<any>(`/announcements/${broadcastTarget.id}/send`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      if (res?.disconnected) {
+        throw new Error(res?.error?.message || res?.message || 'WhatsApp Gateway is disconnected. Please link your device in WhatsApp Settings.');
+      }
 
       const msg = res?.data?.message || res?.message || 'Announcement broadcast queued successfully.';
       setSuccessMessage(msg);
@@ -531,6 +646,29 @@ export const AnnouncementsPage: React.FC = () => {
           <Plus className="w-4 h-4" />
           Create Announcement
         </Button>
+      </div>
+
+      {/* Primary View Switcher Banner */}
+      <div className="p-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-xl flex items-center gap-1 max-w-md">
+        <button
+          type="button"
+          className="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 cursor-default"
+        >
+          <Megaphone className="w-3.5 h-3.5" />
+          <span>All Announcements</span>
+        </button>
+        <Link
+          to="/admin/announcements/scheduled"
+          className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center gap-2 transition-colors"
+        >
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
+          <span>Scheduled Messages</span>
+          {scheduledCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black border border-amber-500/30">
+              {scheduledCount}
+            </span>
+          )}
+        </Link>
       </div>
 
       {/* WhatsApp Broadcast Template Configurator */}
@@ -608,6 +746,7 @@ export const AnnouncementsPage: React.FC = () => {
                   size="sm"
                   onClick={() => {
                     localStorage.setItem('gurukul_announcement_whatsapp_template', announcementWhatsappTemplate);
+                    setIsAnnouncementTemplateOpen(false);
                     toast.success('Announcement WhatsApp template saved!');
                   }}
                   className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -727,6 +866,8 @@ export const AnnouncementsPage: React.FC = () => {
                 {announcements.map((a) => {
                   const targetBatches = (a.batches || []).map((b) => b.batch?.name).filter(Boolean);
                   const targetedTournaments = tournaments.filter((t) => (a.metadata?.tournamentIds || []).includes(t.id));
+                  const targetedTeams = teams.filter((t) => (a.metadata?.teamCodes || []).includes(t.code));
+                  const hasSelf = Boolean(a.metadata?.includeSelf);
 
                   return (
                     <tr key={a.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
@@ -761,7 +902,22 @@ export const AnnouncementsPage: React.FC = () => {
                               {tourney.title}
                             </span>
                           ))}
-                          {targetBatches.length === 0 && targetedTournaments.length === 0 && (
+                          {targetedTeams.map((team, idx) => (
+                            <span
+                              key={`tm-${idx}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60"
+                            >
+                              <Users className="w-2.5 h-2.5 text-indigo-500" />
+                              {team.name}
+                            </span>
+                          ))}
+                          {hasSelf && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60">
+                              <UserCheck className="w-2.5 h-2.5 text-emerald-500" />
+                              + Self Admin
+                            </span>
+                          )}
+                          {targetBatches.length === 0 && targetedTournaments.length === 0 && targetedTeams.length === 0 && !hasSelf && (
                             <span className="text-xs text-slate-400 italic">No targets specified</span>
                           )}
                         </div>
@@ -984,6 +1140,78 @@ export const AnnouncementsPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* 3. Teams & Organizational Squads */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Teams &amp; Custom Squads ({formData.teamCodes.length}/{teams.length} selected)</span>
+                </div>
+                {teams.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllTeams}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                  >
+                    {formData.teamCodes.length === teams.length ? 'Deselect All Teams' : 'Select All Teams'}
+                  </button>
+                )}
+              </div>
+
+              {/* 1-Click Send copy to Self / Admin */}
+              <label className="flex items-center gap-2 p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/30 text-xs font-semibold text-slate-800 dark:text-amber-200 cursor-pointer shadow-xs">
+                <input
+                  type="checkbox"
+                  checked={formData.includeSelf}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, includeSelf: e.target.checked }))}
+                  className="rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Self / Personal Admin (Send broadcast copy to Sensei Vikram Salunkhe: 9881888061)</span>
+                </span>
+              </label>
+
+              {teams.length === 0 ? (
+                <div className="text-xs text-slate-400 py-2 italic text-center">
+                  No teams configured yet.{' '}
+                  <Link to="/admin/team-messaging" className="text-indigo-500 hover:underline font-semibold">
+                    Create Teams in Teams Hub
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {teams.map((team) => {
+                    const memberCount = teamMembers.filter((m) => m.team_code === team.code).length;
+                    return (
+                      <label
+                        key={team.id}
+                        className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-all shadow-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.teamCodes.includes(team.code)}
+                          onChange={() => handleToggleTeam(team.code)}
+                          className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div className="truncate flex-1">
+                          <div className="truncate font-semibold flex items-center justify-between gap-1">
+                            <span>{team.name}</span>
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded font-mono text-slate-600 dark:text-slate-300">
+                              {memberCount}
+                            </span>
+                          </div>
+                          {team.marathi_name && (
+                            <div className="text-[10px] text-slate-400 truncate">{team.marathi_name}</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -1153,6 +1381,78 @@ export const AnnouncementsPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* 3. Teams & Organizational Squads */}
+            <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Teams &amp; Custom Squads ({editFormData.teamCodes.length}/{teams.length} selected)</span>
+                </div>
+                {teams.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllEditTeams}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                  >
+                    {editFormData.teamCodes.length === teams.length ? 'Deselect All Teams' : 'Select All Teams'}
+                  </button>
+                )}
+              </div>
+
+              {/* 1-Click Send copy to Self / Admin */}
+              <label className="flex items-center gap-2 p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/30 text-xs font-semibold text-slate-800 dark:text-amber-200 cursor-pointer shadow-xs">
+                <input
+                  type="checkbox"
+                  checked={editFormData.includeSelf}
+                  onChange={(e) => setEditFormData((prev) => ({ ...prev, includeSelf: e.target.checked }))}
+                  className="rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Self / Personal Admin (Send broadcast copy to Sensei Vikram Salunkhe: 9881888061)</span>
+                </span>
+              </label>
+
+              {teams.length === 0 ? (
+                <div className="text-xs text-slate-400 py-2 italic text-center">
+                  No teams configured yet.{' '}
+                  <Link to="/admin/team-messaging" className="text-indigo-500 hover:underline font-semibold">
+                    Create Teams in Teams Hub
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {teams.map((team) => {
+                    const memberCount = teamMembers.filter((m) => m.team_code === team.code).length;
+                    return (
+                      <label
+                        key={team.id}
+                        className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-all shadow-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editFormData.teamCodes.includes(team.code)}
+                          onChange={() => handleToggleEditTeam(team.code)}
+                          className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div className="truncate flex-1">
+                          <div className="truncate font-semibold flex items-center justify-between gap-1">
+                            <span>{team.name}</span>
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded font-mono text-slate-600 dark:text-slate-300">
+                              {memberCount}
+                            </span>
+                          </div>
+                          {team.marathi_name && (
+                            <div className="text-[10px] text-slate-400 truncate">{team.marathi_name}</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -1220,7 +1520,7 @@ export const AnnouncementsPage: React.FC = () => {
               <div>
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">{broadcastTarget.title}</h4>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Targeting {(broadcastTarget.batches || []).length} batch(es) & {(broadcastTarget.metadata?.tournamentIds || []).length} tournament squad(s)
+                  Targeting {(broadcastTarget.batches || []).length} batch(es), {(broadcastTarget.metadata?.tournamentIds || []).length} tournament squad(s), {(broadcastTarget.metadata?.teamCodes || []).length} team(s){broadcastTarget.metadata?.includeSelf ? ' + Self Admin' : ''}
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">

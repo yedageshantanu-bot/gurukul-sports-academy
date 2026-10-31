@@ -292,7 +292,7 @@ export class ReportService {
     }
 
     const rawRecords = (records || []).map((r: any) => {
-      const receiptNo = `GSA-REC-${r.id.slice(0, 8).toUpperCase()}`;
+      const receiptNo = `REC-${r.id.slice(0, 8).toUpperCase()}`;
       return {
         ...r,
         provider: r.payment_method || 'UPI',

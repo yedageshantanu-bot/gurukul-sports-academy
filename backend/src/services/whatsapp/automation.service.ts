@@ -151,11 +151,13 @@ export class WhatsAppAutomationService {
     studentId: string;
     batchId: string;
     date: string;
+    customTemplate?: string;
   }) {
     try {
-      // 1. Get active template
+      // 1. Get active template or custom template
       const template = await templateService.getActiveTemplateForEvent('ATTENDANCE_ABSENT');
-      if (!template) {
+      const rawTemplate = params.customTemplate?.trim() || template?.body;
+      if (!rawTemplate) {
         console.log('[WhatsAppAutomation] No active template for ATTENDANCE_ABSENT. Skipping.');
         return null;
       }
@@ -186,7 +188,7 @@ export class WhatsAppAutomationService {
 
       // 3. Render variables
       const academyName = await this.getAcademyName();
-      const baseBody = this.renderTemplate(template.body, {
+      const baseBody = this.renderTemplate(rawTemplate, {
         academy_name: academyName,
         student_name: student.name,
         parent_name: student.parent_name || 'Parent',
@@ -386,11 +388,12 @@ export class WhatsAppAutomationService {
     studentId: string;
     studentFeeId: string;
     eventType?: 'FEE_DUE' | 'FEE_OVERDUE' | 'FEE_UPCOMING';
+    customTemplate?: string;
   }) {
     const eventType: WhatsAppEventType = (params.eventType as WhatsAppEventType) || 'FEE_DUE';
 
     const template = await templateService.getActiveTemplateForEvent(eventType);
-    if (!template) {
+    if (!template && !params.customTemplate) {
       throw new AppError(`No active template found for ${eventType}`, 400, 'TEMPLATE_NOT_FOUND');
     }
 
@@ -443,7 +446,8 @@ export class WhatsAppAutomationService {
     });
     console.log(`[WhatsAppAutomation] Generating Zero-Cut Fee Reminder for student ${student.name} (Rs. ${pendingAmount}) with UPI Link: ${zeroCutUpiLink}`);
 
-    const baseBody = this.renderTemplate(template.body, {
+    const rawTemplateBody = (params.customTemplate && params.customTemplate.trim()) || template?.body || '';
+    const baseBody = this.renderTemplate(rawTemplateBody, {
       academy_name: upiDetails.academyName,
       student_name: student.name,
       parent_name: student.parent_name || 'Parent',
@@ -713,60 +717,15 @@ export class WhatsAppAutomationService {
   // ============================================================================
   // AUTOMATION: TEACHER WELCOME CREDENTIALS
   // ============================================================================
-  async triggerTeacherWelcomeAutomation(params: {
+  async triggerTeacherWelcomeAutomation(_params: {
     fullName: string;
     email: string;
     password?: string;
     phone: string;
   }) {
-    try {
-      const recipientPhone = queueService.normalizePhoneNumber(params.phone);
-      if (!recipientPhone) {
-        console.warn('[WhatsAppAutomation] Invalid teacher phone number for welcome message:', params.phone);
-        return null;
-      }
-
-      const appUrl = process.env.APP_URL || 'http://localhost:3000';
-      const loginUrl = `${appUrl}/login`;
-      const academyName = await this.getAcademyName();
-
-      const messageBody = [
-        `*Welcome to ${academyName}!* 🎓`,
-        ``,
-        `Hello *${params.fullName}*,`,
-        `Your teacher instructor account has been created successfully. Here are your login credentials:`,
-        ``,
-        `🔗 *Portal Login:* ${loginUrl}`,
-        `📧 *Email:* ${params.email}`,
-        params.password ? `🔑 *Password:* ${params.password}` : '',
-        ``,
-        `Please log in to access your assigned batches and mark attendance.`,
-        ``,
-        `_Best regards,_`,
-        `*${academyName} Administration*`,
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      console.log(`[WhatsAppAutomation] Enqueueing teacher welcome notification for ${recipientPhone} (${params.fullName})`);
-
-      const queued = await queueService.enqueueMessage({
-        recipientPhone,
-        messageBody,
-        eventType: 'TEACHER_CREDENTIALS',
-        metadata: {
-          teacherName: params.fullName,
-          teacherEmail: params.email,
-          createdAt: new Date().toISOString(),
-        },
-      });
-
-      await queueService.processItem(queued);
-      return queued;
-    } catch (err: any) {
-      console.warn('[WhatsAppAutomation.triggerTeacherWelcomeAutomation] Handled warning:', err.message);
-      return null;
-    }
+    // Disabled per user instruction: hold on all automatic teacher messages
+    console.log('[WhatsAppAutomation] Teacher automatic notifications held/disabled.');
+    return null;
   }
 
   // ============================================================================
@@ -816,7 +775,7 @@ export class WhatsAppAutomationService {
   // ============================================================================
   // AUTOMATION: BATCH TEACHER ASSIGNMENT & UNASSIGNMENT
   // ============================================================================
-  async triggerBatchTeacherAssignedAutomation(params: {
+  async triggerBatchTeacherAssignedAutomation(_params: {
     teacherPhone: string;
     teacherName: string;
     batchName: string;
@@ -825,60 +784,19 @@ export class WhatsAppAutomationService {
     startTime?: string;
     endTime?: string;
   }) {
-    try {
-      const recipientPhone = queueService.normalizePhoneNumber(params.teacherPhone);
-      const appUrl = process.env.APP_URL || 'http://localhost:3000';
-      const scheduleInfo = params.scheduleDays?.length ? `Schedule: ${params.scheduleDays.join(', ')}` : '';
-      const timeInfo = params.startTime && params.endTime ? `Time: ${params.startTime} - ${params.endTime}` : '';
-      const academyName = await this.getAcademyName();
-
-      const messageBody = `*Batch Assigned: ${academyName}*\n\nHello ${params.teacherName},\nYou have been assigned as the instructor for:\n*Batch:* ${params.batchName} (${params.subject || 'Academic'})\n${scheduleInfo}\n${timeInfo}\n\nPlease log in to your portal (${appUrl}/login) to view your enrolled students and record attendance.\n\n- ${academyName} Administration`;
-
-      const queued = await queueService.enqueueMessage({
-        recipientPhone,
-        messageBody,
-        eventType: 'TEACHER_BATCH_ASSIGNED',
-        metadata: {
-          batchName: params.batchName,
-          assignedAt: new Date().toISOString(),
-        },
-      });
-
-      await queueService.processItem(queued);
-      return queued;
-    } catch (err: any) {
-      console.warn('[WhatsAppAutomation.triggerBatchTeacherAssignedAutomation] Warning:', err.message);
-      return null;
-    }
+    // Disabled per user instruction
+    return null;
   }
 
-  async triggerBatchTeacherUnassignedAutomation(params: {
+  async triggerBatchTeacherUnassignedAutomation(_params: {
     teacherPhone: string;
     teacherName: string;
     batchName: string;
   }) {
-    try {
-      const recipientPhone = queueService.normalizePhoneNumber(params.teacherPhone);
-      const academyName = await this.getAcademyName();
-      const messageBody = `*Notice: Batch Unassigned - ${academyName}*\n\nHello ${params.teacherName},\nYou have been unassigned from batch *${params.batchName}*.\n\nThank you for your instruction and support.\n- ${academyName} Administration`;
-
-      const queued = await queueService.enqueueMessage({
-        recipientPhone,
-        messageBody,
-        eventType: 'TEACHER_BATCH_UNASSIGNED',
-        metadata: {
-          batchName: params.batchName,
-          unassignedAt: new Date().toISOString(),
-        },
-      });
-
-      await queueService.processItem(queued);
-      return queued;
-    } catch (err: any) {
-      console.warn('[WhatsAppAutomation.triggerBatchTeacherUnassignedAutomation] Warning:', err.message);
-      return null;
-    }
+    // Disabled per user instruction
+    return null;
   }
+
 
   // ============================================================================
   // AUTOMATION: BATCH STUDENT ENROLLMENT & UNENROLLMENT
@@ -1171,7 +1089,7 @@ export class WhatsAppAutomationService {
           regNumber: srData.reg_number || promData?.reg_number || undefined,
           promotedAt: promData?.promotion_date || srData.promoted_at || undefined,
           examinerName: promData?.promoted_by || srData.promoted_by || 'Chief Master (Gurukul Academy)',
-          certificateNumber: promData?.certificate_number || 'GSA-CERTIFIED',
+          certificateNumber: promData?.certificate_number || 'CERTIFIED',
           previousRankName: promData?.previous_rank_name || undefined,
           examResult: 'PASSED & PROMOTED',
         };

@@ -20,6 +20,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { FeePlan, StudentFee } from '../../types/fee';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -74,6 +75,7 @@ const monthlyPeriodOptions = generateMonthlyPeriodOptions();
 
 export const FeesPage: React.FC = () => {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const streamParam = searchParams.get('stream');
   const [activeStream, setActiveStream] = useState<'TUITION' | 'PUBLICATIONS' | 'TOURNAMENTS'>(
@@ -575,20 +577,23 @@ export const FeesPage: React.FC = () => {
           studentFeeId: fee.id,
           studentId: fee.student_id,
           eventType: fee.status === 'OVERDUE' ? 'FEE_OVERDUE' : 'FEE_DUE',
+          customTemplate: feeWhatsappTemplate || undefined,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || data.error || 'Failed to dispatch WhatsApp fee reminder');
+      if (!res.ok || data.disconnected) {
+        throw new Error(data.message || data.error?.message || data.error || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
       }
 
       setReminderSuccessMessage(
         `WhatsApp reminder sent to ${fee.student?.name || 'student'} (${data.data?.recipient_phone || 'recipient'})! Queued safely for dispatch.`
       );
+      toast.success(`WhatsApp reminder dispatched for ${fee.student?.name || 'student'}`);
       setTimeout(() => setReminderSuccessMessage(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Error sending WhatsApp reminder');
+      toast.error(err.message || 'WhatsApp Gateway disconnected. Please connect in WhatsApp Settings.');
     } finally {
       setSendingReminderId(null);
     }
@@ -665,7 +670,9 @@ export const FeesPage: React.FC = () => {
   const handleSaveFeeTemplate = () => {
     try {
       localStorage.setItem('gurukul_whatsapp_fee_template', feeWhatsappTemplate);
+      setIsFeeTemplateOpen(false);
       setReminderSuccessMessage('WhatsApp Fee Reminder template saved successfully!');
+      toast.success('WhatsApp Fee Reminder template saved!');
       setTimeout(() => setReminderSuccessMessage(null), 4000);
     } catch (err) {
       console.error(err);

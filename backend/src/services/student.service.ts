@@ -1010,14 +1010,14 @@ export class StudentService {
     if (dto.admissionDate && dto.admissionDate.trim()) {
       updates.admission_date = dto.admissionDate.trim();
     }
-    if (dto.monthlyFee !== undefined && !isNaN(Number(dto.monthlyFee))) {
+    if (dto.monthlyFee !== undefined && dto.monthlyFee !== null && !isNaN(Number(dto.monthlyFee))) {
       updates.monthly_fee = Number(dto.monthlyFee);
     }
-    if (dto.feeDueDay !== undefined && !isNaN(Number(dto.feeDueDay))) {
+    if (dto.feeDueDay !== undefined && dto.feeDueDay !== null && !isNaN(Number(dto.feeDueDay))) {
       updates.fee_due_day = Number(dto.feeDueDay);
     }
     if (dto.status) updates.status = dto.status;
-    if (dto.whatsappOptIn !== undefined) updates.whatsapp_opt_in = dto.whatsappOptIn;
+    if (dto.whatsappOptIn !== undefined && dto.whatsappOptIn !== null) updates.whatsapp_opt_in = dto.whatsappOptIn;
 
     const { data: updated, error } = await supabaseAdmin
       .from('students')

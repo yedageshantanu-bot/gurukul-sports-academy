@@ -273,7 +273,7 @@ export class PdfReportService {
           doc.text('Discipline: ', 48, currentY + 44, { continued: true });
           doc.font('Helvetica-Bold').fillColor('#78350F').text(rank.disciplineName, { continued: true });
           doc.font('Helvetica').fillColor('#92400E').text('   |   Reg No: ', { continued: true });
-          doc.font('Helvetica-Bold').fillColor(accentGold).text(rank.regNumber || 'GSA-ATHLETE');
+          doc.font('Helvetica-Bold').fillColor(accentGold).text(rank.regNumber || 'ATHLETE');
 
           // Details line 2
           const promDate = rank.promotedAt

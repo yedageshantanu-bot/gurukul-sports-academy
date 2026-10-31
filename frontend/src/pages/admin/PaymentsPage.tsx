@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { PaymentRecord, StudentFee } from '../../types/fee';
 import {
   Banknote,
@@ -29,6 +30,7 @@ import { formatBillingPeriod } from './FeesPage';
 
 export const PaymentsPage: React.FC = () => {
   const { token } = useAuth();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'accounts' | 'receipts'>('accounts');
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -245,20 +247,28 @@ export const PaymentsPage: React.FC = () => {
 
     setSendingReminderFeeId(targetFeeId);
     try {
+      const savedFeeTemplate = localStorage.getItem('gurukul_whatsapp_fee_template') || undefined;
       const res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ studentFeeId: targetFeeId }),
+        body: JSON.stringify({
+          studentFeeId: targetFeeId,
+          customTemplate: savedFeeTemplate,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Failed to dispatch reminder');
+      if (!res.ok || data.disconnected) {
+        throw new Error(data.error?.message || data.message || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
+      }
       setSuccessToast(`WhatsApp payment reminder dispatched for ${item.studentName || item.student?.name || 'student'}!`);
+      toast.success(`WhatsApp payment reminder dispatched for ${item.studentName || item.student?.name || 'student'}!`);
       setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Error sending reminder');
+      toast.error(err.message || 'WhatsApp Gateway disconnected. Please connect in WhatsApp Settings.');
     } finally {
       setSendingReminderFeeId(null);
     }

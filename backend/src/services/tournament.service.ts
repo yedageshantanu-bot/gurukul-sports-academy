@@ -119,6 +119,7 @@ Warm regards,
 
     const enriched = (tournaments || []).map((t: any) => {
       const stats = statsMap.get(t.id) || { participants: 0, expected: 0, collected: 0, pending: 0 };
+      const endDate = t.description?.match(/END_DATE:([^\s]+)/)?.[1] || t.registration_deadline || t.tournament_date || '';
       return {
         ...t,
         title: t.title || t.name || 'Untitled Tournament',
@@ -126,7 +127,7 @@ Warm regards,
         discipline_code: t.discipline_code || t.discipline || 'KALARIPPAYATTU',
         venue: t.venue || 'Gurukul Sports Ground',
         start_date: t.start_date || t.tournament_date || '',
-        end_date: t.end_date || t.tournament_date || '',
+        end_date: endDate,
         registration_deadline: t.registration_deadline || t.tournament_date || '',
         entry_fee: Number(t.entry_fee || 0),
         registrationCount: stats.participants,
@@ -155,16 +156,16 @@ Warm regards,
 
     const name = dto.name || dto.title;
     const venue = dto.venue;
-    const tournamentDate = dto.tournamentDate || dto.tournament_date || dto.startDate || dto.start_date;
-    const registrationDeadline = dto.registrationDeadline || dto.registration_deadline || tournamentDate;
+    const startDate = dto.startDate || dto.start_date || dto.tournamentDate || dto.tournament_date;
+    const endDate = dto.endDate || dto.end_date || startDate;
     const discipline = dto.discipline || dto.discipline_code || 'General Sports';
     const organizer = dto.organizer || 'Gurukul Sports Federation';
-    const entryFee = dto.entryFee !== undefined ? Number(dto.entryFee) : (dto.entry_fee !== undefined ? Number(dto.entry_fee) : 1000);
+    const entryFee = dto.entryFee !== undefined ? Number(dto.entryFee) : (dto.entry_fee !== undefined ? Number(dto.entry_fee) : 0);
     const status = dto.status || 'UPCOMING';
-    const description = dto.description || '';
+    const description = endDate ? `END_DATE:${endDate}` : '';
 
-    if (!name || !venue || !tournamentDate) {
-      throw new AppError('Tournament name, venue, and date are required', 400);
+    if (!name || !venue || !startDate) {
+      throw new AppError('Tournament name, venue, and start date are required', 400);
     }
 
     const { data, error } = await supabaseAdmin
@@ -174,8 +175,8 @@ Warm regards,
         discipline,
         organizer,
         venue,
-        tournament_date: tournamentDate,
-        registration_deadline: registrationDeadline,
+        tournament_date: startDate,
+        registration_deadline: endDate,
         entry_fee: entryFee,
         status,
         description,
@@ -190,6 +191,7 @@ Warm regards,
       title: data.name,
       discipline_code: data.discipline,
       start_date: data.tournament_date,
+      end_date: endDate,
     };
   }
 
@@ -240,13 +242,14 @@ Warm regards,
     const totalCollected = (registrations || []).reduce((acc, r: any) => acc + Number(r.amount_paid || 0), 0);
     const totalPending = Math.max(0, totalExpected - totalCollected);
 
+    const endDate = tournament.description?.match(/END_DATE:([^\s]+)/)?.[1] || tournament.registration_deadline || tournament.tournament_date || '';
     const mappedTournament = {
       ...tournament,
       title: tournament.name || tournament.title || 'Untitled Tournament',
       name: tournament.name || tournament.title || 'Untitled Tournament',
       discipline_code: tournament.discipline_code || tournament.discipline || 'KALARIPPAYATTU',
       start_date: tournament.start_date || tournament.tournament_date || '',
-      end_date: tournament.end_date || tournament.tournament_date || '',
+      end_date: endDate,
       registration_deadline: tournament.registration_deadline || tournament.tournament_date || '',
       entry_fee: Number(tournament.entry_fee || 0),
       stats: {
@@ -264,10 +267,7 @@ Warm regards,
   }
 
   /**
-   * Nominate / Select multiple students for a tournament and dispatch WhatsApp notifications
-   */
-  /**
-   * Nominate / Select multiple students for a tournament and dispatch WhatsApp notifications
+   * Nominate / Select multiple students for a tournament (WhatsApp messaging disabled per client instructions)
    */
   static async nominateStudents(tournamentId: string, dto: NominateStudentsDTO) {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
@@ -286,9 +286,7 @@ Warm regards,
     if (tErr || !tournament) throw new AppError('Tournament not found', 404);
 
     const rawFee = dto.entryFee !== undefined ? dto.entryFee : dto.entry_fee;
-    const fee = rawFee !== undefined ? Number(rawFee) : Number(tournament.entry_fee || 1000);
-    const shouldSendWhatsApp = dto.sendWhatsApp === true;
-    const scheduledTimeMs = dto.scheduleTime ? new Date(dto.scheduleTime).getTime() : Date.now();
+    const fee = rawFee !== undefined ? Number(rawFee) : Number(tournament.entry_fee || 0);
 
     const rows = studentIds.map((studentId) => ({
       tournament_id: tournamentId,
@@ -298,7 +296,7 @@ Warm regards,
       amount_paid: 0.00,
       payment_status: 'PENDING',
       selection_status: 'SELECTED',
-      whatsapp_notified: shouldSendWhatsApp,
+      whatsapp_notified: false,
     }));
 
     const { data, error } = await supabaseAdmin
@@ -318,51 +316,6 @@ Warm regards,
       `);
 
     if (error) throw new AppError(`Failed to nominate students: ${error.message}`, 500);
-
-    // Send WhatsApp notification ONLY if admin chose to dispatch or schedule
-    if (shouldSendWhatsApp) {
-      const templateToUse = dto.customMessage?.trim() || dto.template?.trim() || TournamentService.DEFAULT_NOMINATION_TEMPLATE;
-      const deadlineStr = tournament.registration_deadline ? new Date(tournament.registration_deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-      const dateStr = tournament.tournament_date ? new Date(tournament.tournament_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-      const tourName = tournament.name || tournament.title || 'Championship';
-      const discipline = tournament.discipline || tournament.discipline_code || 'Martial Arts & Sports';
-      const venue = tournament.venue || 'Gurukul Sports Ground';
-
-      const isScheduled = Boolean(dto.scheduleTime && new Date(dto.scheduleTime).getTime() > Date.now());
-      const scheduledIso = isScheduled ? new Date(dto.scheduleTime!).toISOString() : new Date().toISOString();
-
-      for (const reg of (data || [])) {
-        const s = (Array.isArray(reg.students) ? reg.students[0] : reg.students) as any;
-        const phone = s?.parent_whatsapp || s?.student_mobile;
-        if (phone) {
-          const body = TournamentService.formatTournamentMessage(templateToUse, {
-            studentName: s.name,
-            tournamentName: tourName,
-            discipline,
-            venue,
-            eventDate: dateStr,
-            entryFee: fee,
-            deadline: deadlineStr,
-          });
-
-          queueService.enqueueMessage({
-            recipientPhone: phone,
-            messageBody: body,
-            studentId: s.id,
-            eventType: 'TOURNAMENT_SELECTION',
-            idempotencyKey: `TOURNAMENT:${tournamentId}:${s.id}:${Date.now()}`,
-            scheduledAt: scheduledIso,
-            metadata: {
-              tournamentId,
-              scheduledTime: dto.scheduleTime,
-            },
-          }).catch((e) => console.warn('[TournamentService] WhatsApp dispatch error:', e.message));
-        }
-      }
-
-      // Trigger background processing immediately
-      queueService.triggerBackgroundProcessing();
-    }
 
     return {
       nominatedCount: data?.length || 0,
@@ -418,223 +371,23 @@ Warm regards,
   }
 
   /**
-   * Send WhatsApp notification to an individual registered athlete
+   * Send WhatsApp notification to an individual registered athlete (Disabled per client mandate)
    */
   static async notifyRegistration(registrationId: string, customMessage?: string) {
-    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
-
-    const { data: reg, error: rErr } = await supabaseAdmin
-      .from('tournament_registrations')
-      .select(`
-        id,
-        tournament_id,
-        fee_amount,
-        amount_paid,
-        payment_status,
-        selection_status,
-        payment_date,
-        tournaments (
-          id,
-          name,
-          title,
-          discipline,
-          tournament_date,
-          registration_deadline,
-          venue,
-          entry_fee
-        ),
-        students (
-          id,
-          name,
-          parent_name,
-          parent_whatsapp,
-          student_mobile
-        )
-      `)
-      .eq('id', registrationId)
-      .single();
-
-    if (rErr || !reg) throw new AppError('Tournament registration record not found', 404);
-
-    const s = reg.students as any;
-    const t = reg.tournaments as any;
-    const phone = s?.parent_whatsapp || s?.student_mobile;
-    if (!phone) {
-      throw new AppError('Student does not have a registered contact phone for WhatsApp', 400);
-    }
-
-    const tourName = t?.title || t?.name || 'Championship';
-    const due = Math.max(0, Number(reg.fee_amount || 0) - Number(reg.amount_paid || 0));
-    const deadlineStr = t?.registration_deadline ? new Date(t.registration_deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-    const dateStr = t?.tournament_date ? new Date(t.tournament_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-
-    let msg = '';
-    if (customMessage && customMessage.trim()) {
-      msg = TournamentService.formatTournamentMessage(customMessage.trim(), {
-        studentName: s.name,
-        tournamentName: tourName,
-        discipline: t?.discipline || 'Martial Arts & Sports',
-        venue: t?.venue || 'Gurukul Sports Ground',
-        eventDate: dateStr,
-        entryFee: Number(reg.fee_amount || 0),
-        dueAmount: due,
-        deadline: deadlineStr,
-      });
-    } else {
-      msg = `🏆 *Tournament Update - Gurukul Sports Academy*\n\nHello *${s.name}*,\n\nYou are registered for:\n• *Tournament:* ${tourName}\n• *Date:* ${dateStr}\n• *Venue:* ${t?.venue || 'Gurukul Sports Ground'}\n• *Entry Fee:* ₹${Number(reg.fee_amount || 0).toLocaleString('en-IN')}\n• *Paid:* ₹${Number(reg.amount_paid || 0).toLocaleString('en-IN')}\n• *Pending Dues:* ₹${due.toLocaleString('en-IN')}\n• *Fee Payment Deadline:* ${deadlineStr}\n\n${due > 0 ? '⚠️ *Please settle your pending entry fee before the deadline.*' : '✅ *Your entry fee is fully settled. All the best!*'}\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-    }
-
-    await queueService.enqueueMessage({
-      recipientPhone: phone,
-      messageBody: msg,
-      studentId: s.id,
-      eventType: 'TOURNAMENT_UPDATE',
-      idempotencyKey: `TOURNAMENT_NOTIFY:${registrationId}:${Date.now()}`,
-    });
-
-    // Immediately trigger background worker
-    queueService.triggerBackgroundProcessing();
-
-    await supabaseAdmin
-      .from('tournament_registrations')
-      .update({
-        whatsapp_notified: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', registrationId);
-
-    return { success: true, message: `WhatsApp alert sent to ${s.name} (${phone})` };
+    return { success: true, message: 'Tournament WhatsApp messaging is disabled per academy request.' };
   }
 
   /**
-   * Broadcast WhatsApp message to tournament athletes (with filters & deadline & scheduling)
+   * Broadcast WhatsApp message to tournament athletes (Disabled per client mandate)
    */
   static async broadcastTournamentWhatsApp(
     tournamentId: string,
-    options: {
-      recipientFilter?: 'ALL' | 'PENDING_FEE' | 'PENDING_DOCS' | 'SELECTED';
-      customMessage?: string;
-      includeDeadline?: boolean;
-      scheduleTime?: string;
-    }
+    options: any
   ) {
-    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
-
-    const { data: tournament, error: tErr } = await supabaseAdmin
-      .from('tournaments')
-      .select('*')
-      .eq('id', tournamentId)
-      .single();
-
-    if (tErr || !tournament) throw new AppError('Tournament not found', 404);
-
-    const { data: registrations, error: rErr } = await supabaseAdmin
-      .from('tournament_registrations')
-      .select(`
-        id,
-        fee_amount,
-        amount_paid,
-        payment_status,
-        selection_status,
-        documents_status,
-        documents_required,
-        students (
-          id,
-          name,
-          parent_name,
-          parent_whatsapp,
-          student_mobile
-        )
-      `)
-      .eq('tournament_id', tournamentId);
-
-    if (rErr) throw new AppError(`Failed to fetch registrations: ${rErr.message}`, 500);
-
-    let filtered = registrations || [];
-    if (options.recipientFilter === 'PENDING_FEE') {
-      filtered = filtered.filter((r: any) => Number(r.amount_paid || 0) < Number(r.fee_amount || 0));
-    } else if (options.recipientFilter === 'PENDING_DOCS') {
-      filtered = filtered.filter((r: any) => r.documents_status === 'PENDING');
-    } else if (options.recipientFilter === 'SELECTED') {
-      filtered = filtered.filter((r: any) => r.selection_status === 'SELECTED' || r.selection_status === 'CONFIRMED');
-    }
-
-    if (filtered.length === 0) {
-      throw new AppError('No athletes matched the recipient filter', 400);
-    }
-
-    const tourName = tournament.name || tournament.title || 'Championship';
-    const deadlineStr = tournament.registration_deadline ? new Date(tournament.registration_deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-    const dateStr = tournament.tournament_date ? new Date(tournament.tournament_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA';
-    const discipline = tournament.discipline || tournament.discipline_code || 'General Sports';
-
-    const isScheduled = Boolean(options.scheduleTime && new Date(options.scheduleTime).getTime() > Date.now());
-    let startTimestamp = isScheduled ? new Date(options.scheduleTime!).getTime() : Date.now();
-
-    const items = filtered
-      .map((reg: any) => {
-        const s = reg.students;
-        const phone = s?.parent_whatsapp || s?.student_mobile;
-        if (!phone) return null;
-
-        const due = Math.max(0, Number(reg.fee_amount || 0) - Number(reg.amount_paid || 0));
-        let body = '';
-        if (options.customMessage && options.customMessage.trim()) {
-          body = TournamentService.formatTournamentMessage(options.customMessage.trim(), {
-            studentName: s.name,
-            tournamentName: tourName,
-            discipline,
-            venue: tournament.venue || 'Gurukul Sports Ground',
-            eventDate: dateStr,
-            entryFee: Number(reg.fee_amount || 0),
-            dueAmount: due,
-            deadline: deadlineStr,
-            requiredDocuments: reg.documents_required || 'Birth Certificate, Aadhar Card, Medical Certificate',
-          });
-        } else if (options.recipientFilter === 'PENDING_FEE') {
-          body = `⚠️ *Tournament Fee Deadline Reminder - Gurukul Sports Academy*\n\nDear *${s.name}* / Parents,\n\nThis is a reminder that your entry fee for *${tourName}* has a pending balance of *₹${due.toLocaleString('en-IN')}*.\n\n• *Deadline to Settle:* ${deadlineStr}\n• *Event Date:* ${dateStr}\n• *Venue:* ${tournament.venue}\n\nPlease clear the registration fee at the dojo desk or online before the deadline to confirm your spot.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-        } else if (options.recipientFilter === 'PENDING_DOCS') {
-          body = `📋 *Tournament Document Verification - Gurukul Sports Academy*\n\nDear *${s.name}* / Parents,\n\nPlease submit pending tournament verification documents (Aadhar, Birth Cert, Medical Clearance) for *${tourName}* at the academy office before *${deadlineStr}*.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-        } else {
-          body = `🏆 *Tournament Notice - Gurukul Sports Academy*\n\nDear *${s.name}* / Parents,\n\nOfficial notice regarding *${tourName}*:\n• *Date:* ${dateStr}\n• *Venue:* ${tournament.venue}\n• *Registration Fee:* ₹${Number(reg.fee_amount || 0).toLocaleString('en-IN')}\n• *Pending Dues:* ₹${due.toLocaleString('en-IN')}\n• *Registration Deadline:* ${deadlineStr}\n\nKindly prepare your sports kit and ensure regular attendance.\n\nWarm regards,\n*Gurukul Sports & Martial Arts Academy*`;
-        }
-
-        return {
-          recipientPhone: phone,
-          messageBody: body,
-          studentId: s.id,
-          eventType: 'TOURNAMENT_BROADCAST',
-          idempotencyKey: `TOURN_BROADCAST:${tournamentId}:${s.id}:${Date.now()}`,
-          metadata: {
-            tournamentId,
-            recipientFilter: options.recipientFilter,
-            scheduledTime: options.scheduleTime,
-          },
-        };
-      })
-      .filter(Boolean) as any[];
-
-    const queuedItems = await queueService.enqueueBatchStaggered(items, 3000, startTimestamp);
-
-    // Update whatsapp_notified flag on registrations
-    const regIds = filtered.map((r: any) => r.id);
-    if (regIds.length > 0) {
-      await supabaseAdmin
-        .from('tournament_registrations')
-        .update({ whatsapp_notified: true, updated_at: new Date().toISOString() })
-        .in('id', regIds);
-    }
-
-    // Trigger processing right away
-    queueService.triggerBackgroundProcessing();
-
     return {
       success: true,
-      message: isScheduled
-        ? `Tournament alert scheduled for ${queuedItems.length} athlete(s) at ${new Date(startTimestamp).toLocaleString('en-IN')}`
-        : `Tournament alert successfully dispatched/queued for ${queuedItems.length} athlete(s).`,
-      sentCount: queuedItems.length,
-      scheduledAt: isScheduled ? new Date(startTimestamp).toISOString() : undefined,
+      message: 'Tournament WhatsApp messaging is disabled per academy request.',
+      sentCount: 0,
     };
   }
 
@@ -656,9 +409,6 @@ Warm regards,
   }
 
   /**
-   * Delete a tournament and its registrations
-   */
-  /**
    * Update tournament details
    */
   static async updateTournament(tournamentId: string, updates: any) {
@@ -668,14 +418,15 @@ Warm regards,
       updated_at: new Date().toISOString(),
     };
     if (updates.title || updates.name) payload.name = updates.title || updates.name;
-    if (updates.discipline || updates.discipline_code) payload.discipline = updates.discipline || updates.discipline_code;
     if (updates.venue !== undefined) payload.venue = updates.venue;
-    if (updates.organizer !== undefined) payload.organizer = updates.organizer;
-    if (updates.start_date || updates.tournament_date) payload.tournament_date = updates.start_date || updates.tournament_date;
-    if (updates.registration_deadline !== undefined) payload.registration_deadline = updates.registration_deadline;
-    if (updates.entry_fee !== undefined) payload.entry_fee = Number(updates.entry_fee);
+    const startDate = updates.start_date || updates.startDate || updates.tournament_date;
+    if (startDate) payload.tournament_date = startDate;
+    const endDate = updates.end_date || updates.endDate;
+    if (endDate) {
+      payload.registration_deadline = endDate;
+      payload.description = `END_DATE:${endDate}`;
+    }
     if (updates.status !== undefined) payload.status = updates.status;
-    if (updates.description !== undefined) payload.description = updates.description;
 
     const { data, error } = await supabaseAdmin
       .from('tournaments')
@@ -686,12 +437,14 @@ Warm regards,
 
     if (error) throw new AppError(`Failed to update tournament: ${error.message}`, 500);
 
+    const resolvedEndDate = data.description?.match(/END_DATE:([^\s]+)/)?.[1] || data.registration_deadline || data.tournament_date;
+
     return {
       ...data,
       title: data.name,
       discipline_code: data.discipline,
       start_date: data.tournament_date,
-      end_date: data.tournament_date,
+      end_date: resolvedEndDate,
     };
   }
 

@@ -320,6 +320,14 @@ export class WhatsAppQueueService {
 
     if (this.supabase) {
       try {
+        // 0. Auto-expire old pending items older than 48 hours so they never clog the dispatch pipeline
+        const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+        await this.supabase
+          .from('whatsapp_queue')
+          .update({ status: 'FAILED', failure_reason: 'Stale delivery window expired', updated_at: now })
+          .eq('status', 'PENDING')
+          .lt('scheduled_at', twoDaysAgo);
+
         // 1. Recover stale PROCESSING items older than 3 minutes back to PENDING
         const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
         await this.supabase
@@ -328,11 +336,12 @@ export class WhatsAppQueueService {
           .eq('status', 'PROCESSING')
           .lt('updated_at', threeMinutesAgo);
 
-        // 2. Query due items
+        // 2. Query due items (scheduled within last 48 hours up to now)
         let query = this.supabase
           .from('whatsapp_queue')
           .select('*')
-          .eq('status', 'PENDING');
+          .eq('status', 'PENDING')
+          .gte('scheduled_at', twoDaysAgo);
 
         if (!forceNow) {
           query = query.lte('scheduled_at', now);
@@ -354,9 +363,186 @@ export class WhatsAppQueueService {
     }
 
     // Fallback to in-memory queue
+    const twoDaysAgoTime = Date.now() - 48 * 60 * 60 * 1000;
     return Array.from(this.inMemoryQueue.values())
-      .filter((i) => i.status === 'PENDING' && (forceNow || i.scheduled_at <= now))
+      .filter((i) => i.status === 'PENDING' && new Date(i.scheduled_at).getTime() >= twoDaysAgoTime && (forceNow || i.scheduled_at <= now))
       .slice(0, batchSize);
+  }
+
+  /**
+   * Cancel all pending queue items associated with an announcement
+   */
+  async cancelPendingItemsForAnnouncement(announcementId: string, title?: string): Promise<number> {
+    let cancelledCount = 0;
+    const now = new Date().toISOString();
+
+    // 1. In-Memory cancellation
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesId = item.idempotency_key?.includes(announcementId) || (item.metadata as any)?.announcementId === announcementId;
+        const matchesTitle = title && (item.message_body?.startsWith(`📢 *${title}*`) || item.message_body?.includes(`📢 *${title}*\n`));
+        if (matchesId || matchesTitle) {
+          item.status = 'CANCELLED';
+          item.updated_at = now;
+          cancelledCount++;
+        }
+      }
+    }
+
+    // 2. Supabase cancellation
+    if (this.supabase) {
+      try {
+        if (announcementId) {
+          const { data } = await this.supabase
+            .from('whatsapp_queue')
+            .update({ status: 'CANCELLED', updated_at: now })
+            .eq('status', 'PENDING')
+            .eq('event_type', 'ANNOUNCEMENT')
+            .ilike('idempotency_key', `%${announcementId}%`)
+            .select('id');
+          if (data) cancelledCount = Math.max(cancelledCount, data.length);
+        }
+
+        if (title && cancelledCount === 0) {
+          const { data } = await this.supabase
+            .from('whatsapp_queue')
+            .update({ status: 'CANCELLED', updated_at: now })
+            .eq('status', 'PENDING')
+            .eq('event_type', 'ANNOUNCEMENT')
+            .ilike('message_body', `📢 *${title}*%`)
+            .select('id');
+          if (data) cancelledCount = Math.max(cancelledCount, data.length);
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] Error cancelling announcement queue items:', err.message);
+      }
+    }
+
+    return cancelledCount;
+  }
+
+  /**
+   * Update scheduled time and/or message body for pending queue items of an announcement
+   */
+  async updateScheduledAnnouncementItems(
+    announcementId: string,
+    newScheduledTime: string,
+    newFormattedMessage?: string,
+    title?: string
+  ): Promise<number> {
+    let updatedCount = 0;
+    const now = new Date().toISOString();
+
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesId = item.idempotency_key?.includes(announcementId) || (item.metadata as any)?.announcementId === announcementId;
+        const matchesTitle = title && (item.message_body?.startsWith(`📢 *${title}*`) || item.message_body?.includes(`📢 *${title}*\n`));
+        if (matchesId || matchesTitle) {
+          item.scheduled_at = newScheduledTime;
+          if (newFormattedMessage) item.message_body = newFormattedMessage;
+          item.updated_at = now;
+          updatedCount++;
+        }
+      }
+    }
+
+    if (this.supabase) {
+      try {
+        const updatePayload: any = {
+          scheduled_at: newScheduledTime,
+          updated_at: now,
+        };
+        if (newFormattedMessage) {
+          updatePayload.message_body = newFormattedMessage;
+        }
+
+        let { data } = await this.supabase
+          .from('whatsapp_queue')
+          .update(updatePayload)
+          .eq('status', 'PENDING')
+          .eq('event_type', 'ANNOUNCEMENT')
+          .ilike('idempotency_key', `%${announcementId}%`)
+          .select('id');
+
+        if ((!data || data.length === 0) && title) {
+          const res = await this.supabase
+            .from('whatsapp_queue')
+            .update(updatePayload)
+            .eq('status', 'PENDING')
+            .eq('event_type', 'ANNOUNCEMENT')
+            .ilike('message_body', `📢 *${title}*%`)
+            .select('id');
+          data = res.data;
+        }
+
+        if (data) updatedCount = Math.max(updatedCount, data.length);
+      } catch (err: any) {
+        console.warn('[QueueService] Error updating announcement queue items:', err.message);
+      }
+    }
+
+    return updatedCount;
+  }
+
+  /**
+   * Dispatch scheduled announcement items immediately
+   */
+  async dispatchAnnouncementNow(announcementId: string, title?: string): Promise<{ dispatched: number; immediateSuccess: number }> {
+    const now = new Date().toISOString();
+    const affectedIds: string[] = [];
+
+    // Find and update items to now
+    if (this.supabase) {
+      try {
+        let { data } = await this.supabase
+          .from('whatsapp_queue')
+          .update({ scheduled_at: now, updated_at: now })
+          .eq('status', 'PENDING')
+          .eq('event_type', 'ANNOUNCEMENT')
+          .ilike('idempotency_key', `%${announcementId}%`)
+          .select('*');
+
+        if ((!data || data.length === 0) && title) {
+          const res = await this.supabase
+            .from('whatsapp_queue')
+            .update({ scheduled_at: now, updated_at: now })
+            .eq('status', 'PENDING')
+            .eq('event_type', 'ANNOUNCEMENT')
+            .ilike('message_body', `📢 *${title}*%`)
+            .select('*');
+          data = res.data;
+        }
+
+        if (data && data.length > 0) {
+          for (const item of data) {
+            this.inMemoryQueue.set(item.id, item as WhatsAppQueueItem);
+            affectedIds.push(item.id);
+          }
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] Error triggering immediate dispatch:', err.message);
+      }
+    }
+
+    // Also update in-memory
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesId = item.idempotency_key?.includes(announcementId) || (item.metadata as any)?.announcementId === announcementId;
+        const matchesTitle = title && (item.message_body?.startsWith(`📢 *${title}*`) || item.message_body?.includes(`📢 *${title}*\n`));
+        if (matchesId || matchesTitle) {
+          item.scheduled_at = now;
+          if (!affectedIds.includes(item.id)) affectedIds.push(item.id);
+        }
+      }
+    }
+
+    // Trigger queue runner in background
+    this.triggerBackgroundProcessing();
+
+    return {
+      dispatched: affectedIds.length,
+      immediateSuccess: affectedIds.length,
+    };
   }
 
   // ============================================================================
@@ -459,8 +645,8 @@ export class WhatsAppQueueService {
 
           for (const item of dueItems) {
             const res = await this.processItem(item);
-            if (!res.success && res.reason?.includes('not connected')) {
-              console.log('[QueueService] WhatsApp disconnected mid-dispatch. Halting background worker.');
+            if (!res.success && (res.status === 'PENDING' || res.reason?.includes('not connected') || res.reason?.includes('limit') || res.reason?.includes('healthcheck'))) {
+              console.log(`[QueueService] Background worker paused (${res.reason || 'Pending'}). Will resume next tick.`);
               return;
             }
           }
@@ -571,23 +757,25 @@ export class WhatsAppQueueService {
       item.updated_at = now;
     }
 
-    if (this.supabase && item) {
+    if (this.supabase) {
       try {
-        await this.supabase
-          .from('whatsapp_queue')
-          .update({
-            status: item.status,
-            failure_reason: reason,
-            attempts: item.attempts,
-            updated_at: now,
-          })
-          .eq('id', id);
-      } catch {
-        // Ignored
+        const updatePayload: Record<string, any> = {
+          failure_reason: reason,
+          updated_at: now,
+        };
+        if (item) {
+          updatePayload.status = item.status;
+          updatePayload.attempts = item.attempts;
+        } else if (countAsAttempt) {
+          updatePayload.status = 'FAILED';
+        }
+        await this.supabase.from('whatsapp_queue').update(updatePayload).eq('id', id);
+      } catch (err: any) {
+        console.warn('[QueueService] Error updating failed item in Supabase:', err.message);
       }
 
       // Record in whatsapp_messages log on permanent failure
-      if (item.status === 'FAILED') {
+      if (item && item.status === 'FAILED') {
         try {
           await this.supabase.from('whatsapp_messages').insert({
             template_id: item.template_id,

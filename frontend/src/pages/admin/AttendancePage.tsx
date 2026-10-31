@@ -8,7 +8,7 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { apiClient } from '../../lib/api';
 import { BatchItem } from '../../types/crm';
 import { AttendanceRecord, AttendanceSheetResponse, AttendanceSheetStudentRow } from '../../types/attendance';
-import { Calendar, Users, Save, Check, X, CheckCircle2, XCircle, RefreshCw, AlertCircle, MessageSquare, RotateCcw } from 'lucide-react';
+import { Calendar, Users, Save, Check, X, CheckCircle2, XCircle, RefreshCw, AlertCircle, MessageSquare, RotateCcw, Edit2 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const AttendancePage: React.FC = () => {
@@ -39,13 +39,15 @@ export const AttendancePage: React.FC = () => {
   const [customWaTemplate, setCustomWaTemplate] = useState<string>(() => {
     return localStorage.getItem('gurukul_attendance_wa_template') || DEFAULT_ATTENDANCE_MSG;
   });
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [templateSavedMsg, setTemplateSavedMsg] = useState(false);
 
   const handleSaveTemplate = () => {
     localStorage.setItem('gurukul_attendance_wa_template', customWaTemplate);
     setTemplateSavedMsg(true);
-    toast.success('Custom attendance WhatsApp message template saved!');
-    setTimeout(() => setTemplateSavedMsg(false), 4000);
+    setIsTemplateEditorOpen(false);
+    toast.success('WhatsApp Attendance Message template saved & applied!');
+    setTimeout(() => setTemplateSavedMsg(false), 3000);
   };
 
   const handleResetTemplate = () => {
@@ -259,6 +261,7 @@ export const AttendancePage: React.FC = () => {
           date: selectedDate,
           records: recordsToSubmit,
           sendWhatsApp: sendAbsentAlerts,
+          customTemplate: customWaTemplate || undefined,
         }),
       });
 
@@ -363,96 +366,138 @@ export const AttendancePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Admin Configurable Message Template Card (Permanently Visible) */}
-      <Card className="p-5 border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-[#1E293B] to-[#0F172A] text-white shadow-md rounded-2xl border border-white/10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-              <MessageSquare className="w-4 h-4" />
+      {/* Top Admin Configurable Message Template Card (Collapsible) */}
+      {!isTemplateEditorOpen ? (
+        <Card className="p-4 border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-[#1E293B] to-[#0F172A] text-white shadow-md rounded-2xl border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 flex-shrink-0">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">WhatsApp Attendance Message Template</h3>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Active
+                  </span>
+                  {templateSavedMsg && (
+                    <span className="text-[10px] font-bold text-emerald-400 animate-pulse">Saved!</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5 line-clamp-1 italic font-sans truncate">
+                  "{customWaTemplate || DEFAULT_ATTENDANCE_MSG}"
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                WhatsApp Attendance Message Template
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Admin Configurable
-                </span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Admin decides and sets the message template sent to parents. A ready demo is pre-filled; edit anytime and click Save.
+
+            <button
+              type="button"
+              onClick={() => setIsTemplateEditorOpen(true)}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto flex-shrink-0"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Customize Template</span>
+            </button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-5 border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-[#1E293B] to-[#0F172A] text-white shadow-md rounded-2xl border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  Edit WhatsApp Attendance Message Template
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Editor
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure the message template sent to parents. Click "Save Template" to apply and close.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetTemplate}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Reset to default demo message"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset Demo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsTemplateEditorOpen(false)}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
+                className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Save Template</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3.5 space-y-2.5">
+            <textarea
+              rows={2}
+              value={customWaTemplate}
+              onChange={(e) => setCustomWaTemplate(e.target.value)}
+              placeholder="Type the WhatsApp attendance message template..."
+              className="w-full p-3 bg-slate-950/60 border border-white/10 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans leading-relaxed"
+            />
+
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-[11px] text-slate-400 font-semibold mr-1">Click to insert variables:</span>
+              {[
+                { tag: '{student_name}', label: 'Student Name' },
+                { tag: '{status}', label: 'Status' },
+                { tag: '{date}', label: 'Date' },
+                { tag: '{batch_name}', label: 'Batch Name' },
+                { tag: '{parent_name}', label: 'Parent Name' },
+              ].map((item) => (
+                <button
+                  key={item.tag}
+                  type="button"
+                  onClick={() => handleInsertTag(item.tag)}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white/10 hover:bg-white/20 text-emerald-300 border border-white/10 transition-colors cursor-pointer"
+                  title={`Insert ${item.tag}`}
+                >
+                  + {item.tag}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Parent Preview Box */}
+            <div className="p-3 bg-black/40 border border-white/10 rounded-xl text-xs space-y-1 mt-2">
+              <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                <span>Parent WhatsApp Message Preview:</span>
+                <span className="text-slate-400 font-normal">Live Rendered</span>
+              </div>
+              <p className="text-slate-200 font-sans italic text-xs leading-relaxed bg-white/5 p-2 rounded-lg border border-white/5">
+                {(customWaTemplate || DEFAULT_ATTENDANCE_MSG)
+                  .replace(/{student_name}/g, 'Aarav Sharma')
+                  .replace(/{athlete_name}/g, 'Aarav Sharma')
+                  .replace(/{name}/g, 'Aarav Sharma')
+                  .replace(/{status}/g, 'PRESENT')
+                  .replace(/{date}/g, selectedDate || new Date().toISOString().split('T')[0])
+                  .replace(/{batch_name}/g, batches.find((b) => b.id === selectedBatchId)?.name || 'Morning Martial Arts')
+                  .replace(/{parent_name}/g, "Aarav's Parent")}
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleResetTemplate}
-              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Reset to default demo message"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset Demo</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveTemplate}
-              className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>{templateSavedMsg ? 'Saved!' : 'Save Template'}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-3.5 space-y-2.5">
-          <textarea
-            rows={2}
-            value={customWaTemplate}
-            onChange={(e) => setCustomWaTemplate(e.target.value)}
-            placeholder="Type the WhatsApp attendance message template..."
-            className="w-full p-3 bg-slate-950/60 border border-white/10 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans leading-relaxed"
-          />
-
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-[11px] text-slate-400 font-semibold mr-1">Click to insert variables:</span>
-            {[
-              { tag: '{student_name}', label: 'Student Name' },
-              { tag: '{status}', label: 'Status' },
-              { tag: '{date}', label: 'Date' },
-              { tag: '{batch_name}', label: 'Batch Name' },
-              { tag: '{parent_name}', label: 'Parent Name' },
-            ].map((item) => (
-              <button
-                key={item.tag}
-                type="button"
-                onClick={() => handleInsertTag(item.tag)}
-                className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white/10 hover:bg-white/20 text-emerald-300 border border-white/10 transition-colors cursor-pointer"
-                title={`Insert ${item.tag}`}
-              >
-                + {item.tag}
-              </button>
-            ))}
-          </div>
-
-          {/* Live Parent Preview Box */}
-          <div className="p-3 bg-black/40 border border-white/10 rounded-xl text-xs space-y-1 mt-2">
-            <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-              <span>Parent WhatsApp Message Preview:</span>
-              <span className="text-slate-400 font-normal">Live Rendered</span>
-            </div>
-            <p className="text-slate-200 font-sans italic text-xs leading-relaxed bg-white/5 p-2 rounded-lg border border-white/5">
-              {(customWaTemplate || DEFAULT_ATTENDANCE_MSG)
-                .replace(/{student_name}/g, 'Aarav Sharma')
-                .replace(/{athlete_name}/g, 'Aarav Sharma')
-                .replace(/{name}/g, 'Aarav Sharma')
-                .replace(/{status}/g, 'PRESENT')
-                .replace(/{date}/g, selectedDate || new Date().toISOString().split('T')[0])
-                .replace(/{batch_name}/g, batches.find((b) => b.id === selectedBatchId)?.name || 'Morning Martial Arts')
-                .replace(/{parent_name}/g, "Aarav's Parent")}
-            </p>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {activeTab === 'sheet' ? (
         /* =========================================================

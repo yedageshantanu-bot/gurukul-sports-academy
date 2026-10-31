@@ -365,6 +365,7 @@ export class WhatsAppController {
         studentId,
         studentFeeId: validated.studentFeeId,
         eventType: req.body.eventType,
+        customTemplate: req.body.customTemplate,
       });
 
       if (log.status === 'FAILED') {

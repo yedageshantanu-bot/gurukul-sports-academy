@@ -27,6 +27,37 @@ export interface PromoteStudentDTO {
 export class RankService {
   /**
    * Get all martial arts disciplines with their ordered ranks
+  /**
+   * Generates next clean sequential registration number without GSA prefix (e.g. KL-1, KL-2..., KAR-1, KAR-2...)
+   */
+  static async getNextSequentialRegNumber(disciplineCode: string): Promise<string> {
+    const prefix = disciplineCode === 'KALARIPPAYATTU' ? 'KL' : disciplineCode === 'KARATE_WUSHU' ? 'KAR' : disciplineCode.substring(0, 3).toUpperCase();
+    try {
+      const { data: rows } = await supabaseAdmin
+        .from('student_ranks')
+        .select('reg_number')
+        .eq('discipline_code', disciplineCode);
+
+      let maxNum = 0;
+      for (const row of rows || []) {
+        if (!row.reg_number) continue;
+        const reg = String(row.reg_number).trim();
+        const match = reg.match(new RegExp(`^${prefix}-(\\d+)$`, 'i'));
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+      return `${prefix}-${maxNum + 1}`;
+    } catch {
+      return `${prefix}-1`;
+    }
+  }
+
+  /**
+   * Fetch all configured disciplines with their belt hierarchy
    */
   static async getDisciplinesWithRanks() {
     if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
@@ -461,8 +492,8 @@ export class RankService {
           const firstRank = discRanks[0] || null;
           const initialOrder = firstRank?.rank_order || 1;
           const nextRank = discRanks.find((r: any) => r.rank_order === initialOrder + 1) || discRanks[1] || null;
-          const shortCode = dCode.substring(0, 3);
-          const studentCode = `GSA-${shortCode}-${student.id.substring(0, 4).toUpperCase()}`;
+          const prefix = dCode === 'KALARIPPAYATTU' ? 'KL' : dCode === 'KARATE_WUSHU' ? 'KAR' : dCode.substring(0, 3).toUpperCase();
+          const studentCode = `${prefix}-${resultCards.length + 1}`;
 
           resultCards.push({
             id: `first-enroll-${student.id}-${dCode}`,
@@ -564,7 +595,7 @@ export class RankService {
 
     const representedFrom = dto.representedFrom || dto.represented_from || existingRank?.represented_from || 'Gurukul Sports Academy Central Dojo';
     const dob = dto.dob || existingRank?.dob || '2012-05-14';
-    const regNumber = dto.regNumber || dto.reg_number || existingRank?.reg_number || `GSA-${disciplineCode.substring(0, 3)}-${studentId.substring(0, 4).toUpperCase()}`;
+    const regNumber = dto.regNumber || dto.reg_number || existingRank?.reg_number || await RankService.getNextSequentialRegNumber(disciplineCode);
     const certificateNumber = `CERT-${promotionDate.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // 4. Upsert student_ranks
@@ -765,14 +796,14 @@ export class RankService {
 
     const records = deduplicatedData.map((r: any) => {
       const studentName = r.students?.name || 'Player';
-      const regNo = r.reg_number || 'GSA-ATH';
+      const regNo = r.reg_number || (r.discipline_code === 'KALARIPPAYATTU' ? 'KL-1' : 'KAR-1');
       const discName = r.discipline_code === 'KALARIPPAYATTU'
         ? 'Kalarippayattu'
         : r.discipline_code === 'KARATE_WUSHU'
         ? 'Karate + Wushu'
         : 'Martial Arts';
       const promDate = r.promotion_date || r.created_at || new Date().toISOString().split('T')[0];
-      const certNo = r.certificate_number || `GSA-CERT-${r.id ? String(r.id).slice(0, 6) : '2026'}`;
+      const certNo = r.certificate_number || `CERT-${promDate.replace(/-/g, '')}-${r.id ? String(r.id).slice(0, 4) : '2026'}`;
       const examName = r.promoted_by || 'Chief Master (Gurukul Academy)';
       const repFrom = r.represented_from || 'Gurukul Sports & Martial Arts Academy';
       const toRank = r.new_rank_name || 'Rank Holder';
@@ -899,8 +930,7 @@ export class RankService {
         .eq('discipline_code', dCode)
         .maybeSingle();
 
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
-      const regNum = existingSr?.reg_number || `GSA-${dCode.substring(0, 3)}-${new Date().getFullYear()}-${randomSuffix}`;
+      const regNum = existingSr?.reg_number || await RankService.getNextSequentialRegNumber(dCode);
 
       const { data, error } = await supabaseAdmin
         .from('student_ranks')
