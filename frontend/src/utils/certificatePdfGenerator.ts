@@ -25,6 +25,15 @@ export interface CertificateData {
   promotedBy?: string;
   represented_from?: string;
   representedFrom?: string;
+  // Printing calibration & Plain Paper / Stationery Overprint Mode
+  printMode?: 'FULL_COLOR' | 'PLAIN_PAPER';
+  offsetY?: number; // In millimeters (+/- vertical shift)
+  offsetX?: number; // In millimeters (+/- horizontal shift)
+  hideBorder?: boolean;
+  hideHeader?: boolean;
+  hideSeal?: boolean;
+  hideCommendation?: boolean;
+  hideBadgeBox?: boolean;
 }
 
 /**
@@ -114,72 +123,85 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const examiner = cleanPdfText(cert.examiner_name || cert.promotedBy || 'Chief Master & Technical Director');
   const dojo = cleanPdfText(cert.represented_from || cert.representedFrom || 'Gurukul Sports Academy Central Dojo');
 
-  // 1. Background Fill (Delicate Parchment Cream)
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width,
-    height,
-    color: rgb(0.996, 0.992, 0.976),
-  });
+  // Print mode and alignment calibrations
+  const isPlainPaper = cert.printMode === 'PLAIN_PAPER';
+  const hideBorder = cert.hideBorder ?? isPlainPaper;
+  const hideHeader = cert.hideHeader ?? isPlainPaper;
+  const hideSeal = cert.hideSeal ?? isPlainPaper;
+  const hideBackground = isPlainPaper;
+  const hideBadgeBox = cert.hideBadgeBox ?? isPlainPaper;
 
-  // 2. Layer 1: Outermost Deep Navy Border
-  page.drawRectangle({
-    x: 18,
-    y: 18,
-    width: width - 36,
-    height: height - 36,
-    borderWidth: 4,
-    borderColor: rgb(15 / 255, 23 / 255, 42 / 255), // Navy #0F172A
-  });
+  // 1 millimeter = 2.83465 PDF points
+  const dx = (cert.offsetX || 0) * 2.83465;
+  const dy = (cert.offsetY || 0) * 2.83465;
 
-  // 3. Layer 2: Ornate Antique Gold Border with Corner Insets
-  page.drawRectangle({
-    x: 26,
-    y: 26,
-    width: width - 52,
-    height: height - 52,
-    borderWidth: 1.8,
-    borderColor: rgb(217 / 255, 119 / 255, 6 / 255), // Rich Amber Gold #D97706
-  });
-
-  // 4. Layer 3: Hairline Interior Gold Accent Border
-  page.drawRectangle({
-    x: 31,
-    y: 31,
-    width: width - 62,
-    height: height - 62,
-    borderWidth: 0.6,
-    borderColor: rgb(245 / 255, 158 / 255, 11 / 255), // Light Gold #F59E0B
-  });
-
-  // 5. Corner Corner Flourish Squares & Diamonds
-  const drawCornerFlourish = (cx: number, cy: number) => {
+  // 1. Background Fill (Delicate Parchment Cream) - skipped in plain paper mode
+  if (!hideBackground) {
     page.drawRectangle({
-      x: cx - 4,
-      y: cy - 4,
-      width: 8,
-      height: 8,
-      color: rgb(217 / 255, 119 / 255, 6 / 255),
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: rgb(0.996, 0.992, 0.976),
     });
-    page.drawCircle({
-      x: cx,
-      y: cy,
-      size: 7,
-      borderWidth: 1,
+  }
+
+  // 2. Multi-tier Borders & Corner Flourishes - skipped in plain paper mode
+  if (!hideBorder) {
+    page.drawRectangle({
+      x: 18,
+      y: 18,
+      width: width - 36,
+      height: height - 36,
+      borderWidth: 4,
       borderColor: rgb(15 / 255, 23 / 255, 42 / 255),
     });
-  };
-  drawCornerFlourish(26, 26);
-  drawCornerFlourish(width - 26, 26);
-  drawCornerFlourish(26, height - 26);
-  drawCornerFlourish(width - 26, height - 26);
 
-  // Helper to center text horizontally
+    page.drawRectangle({
+      x: 26,
+      y: 26,
+      width: width - 52,
+      height: height - 52,
+      borderWidth: 1.8,
+      borderColor: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+
+    page.drawRectangle({
+      x: 31,
+      y: 31,
+      width: width - 62,
+      height: height - 62,
+      borderWidth: 0.6,
+      borderColor: rgb(245 / 255, 158 / 255, 11 / 255),
+    });
+
+    const drawCornerFlourish = (cx: number, cy: number) => {
+      page.drawRectangle({
+        x: cx - 4,
+        y: cy - 4,
+        width: 8,
+        height: 8,
+        color: rgb(217 / 255, 119 / 255, 6 / 255),
+      });
+      page.drawCircle({
+        x: cx,
+        y: cy,
+        size: 7,
+        borderWidth: 1,
+        borderColor: rgb(15 / 255, 23 / 255, 42 / 255),
+      });
+    };
+    drawCornerFlourish(26, 26);
+    drawCornerFlourish(width - 26, 26);
+    drawCornerFlourish(26, height - 26);
+    drawCornerFlourish(width - 26, height - 26);
+  }
+
+  // Helper to center text horizontally with offset calibration
   const drawCenteredText = (text: string, y: number, size: number, font: any, color: any) => {
     const textWidth = font.widthOfTextAtSize(text, size);
     page.drawText(text, {
-      x: (width - textWidth) / 2,
+      x: (width - textWidth) / 2 + dx,
       y,
       size,
       font,
@@ -187,37 +209,40 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   };
 
-  // 6. Header: Academy Name & Affiliation
-  let currentY = height - 64;
-  drawCenteredText('GURUKUL SPORTS & MARTIAL ARTS ACADEMY', currentY, 21, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
-  
-  currentY -= 14;
-  drawCenteredText('CENTRAL DOJO - COUNCIL OF TRADITIONAL KALARIPPAYATTU & COMBAT SPORTS', currentY, 8.5, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
+  // 6. Header: Academy Name & Affiliation (or align on pre-printed stationery)
+  let currentY = height - 64 + dy;
+  if (!hideHeader) {
+    drawCenteredText('GURUKUL SPORTS & MARTIAL ARTS ACADEMY', currentY, 21, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
+    
+    currentY -= 14;
+    drawCenteredText('CENTRAL DOJO - COUNCIL OF TRADITIONAL KALARIPPAYATTU & COMBAT SPORTS', currentY, 8.5, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
 
-  // Decorative Golden Divider Line with Center Diamond
-  currentY -= 14;
-  const dividerHalfWidth = 260;
-  const centerX = width / 2;
-  page.drawLine({
-    start: { x: centerX - dividerHalfWidth, y: currentY },
-    end: { x: centerX - 12, y: currentY },
-    thickness: 1.2,
-    color: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
-  page.drawLine({
-    start: { x: centerX + 12, y: currentY },
-    end: { x: centerX + dividerHalfWidth, y: currentY },
-    thickness: 1.2,
-    color: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
-  // Center Diamond
-  page.drawRectangle({
-    x: centerX - 4,
-    y: currentY - 4,
-    width: 8,
-    height: 8,
-    color: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
+    // Decorative Golden Divider Line with Center Diamond
+    currentY -= 14;
+    const dividerHalfWidth = 260;
+    const centerX = width / 2 + dx;
+    page.drawLine({
+      start: { x: centerX - dividerHalfWidth, y: currentY },
+      end: { x: centerX - 12, y: currentY },
+      thickness: 1.2,
+      color: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+    page.drawLine({
+      start: { x: centerX + 12, y: currentY },
+      end: { x: centerX + dividerHalfWidth, y: currentY },
+      thickness: 1.2,
+      color: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+    page.drawRectangle({
+      x: centerX - 4,
+      y: currentY - 4,
+      width: 8,
+      height: 8,
+      color: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+  } else {
+    currentY -= 42;
+  }
 
   // 7. Certificate Title
   currentY -= 26;
@@ -245,7 +270,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   }
 
   const nameWidth = fontBold.widthOfTextAtSize(displayStudentName, nameFontSize);
-  const nameX = (width - nameWidth) / 2;
+  const nameX = (width - nameWidth) / 2 + dx;
   const nameNavyColor = rgb(10 / 255, 17 / 255, 32 / 255);
 
   // Subtle soft depth shadow behind the name to create a premium elevated effect
@@ -314,26 +339,28 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   currentY -= 48;
   const badgeWidth = 440;
   const badgeHeight = 44;
-  const badgeX = (width - badgeWidth) / 2;
+  const badgeX = (width - badgeWidth) / 2 + dx;
   const badgeY = currentY;
 
-  // Badge background with soft warm amber tint
-  page.drawRectangle({
-    x: badgeX,
-    y: badgeY,
-    width: badgeWidth,
-    height: badgeHeight,
-    color: rgb(254 / 255, 243 / 255, 199 / 255), // Amber 100
-    borderWidth: 1.5,
-    borderColor: rgb(217 / 255, 119 / 255, 6 / 255), // Amber 600
-  });
+  // Badge background with soft warm amber tint (hidden on pre-printed stationery)
+  if (!hideBadgeBox) {
+    page.drawRectangle({
+      x: badgeX,
+      y: badgeY,
+      width: badgeWidth,
+      height: badgeHeight,
+      color: rgb(254 / 255, 243 / 255, 199 / 255),
+      borderWidth: 1.5,
+      borderColor: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+  }
 
   // Badge Text: Rank Name + Belt Color
   const rankText = cleanPdfText(`${rankName.toUpperCase()} - ${beltColor.toUpperCase()} BELT`);
   const discText = `Discipline: ${discipline}`;
   const rankTextWidth = fontBold.widthOfTextAtSize(rankText, 14);
   page.drawText(rankText, {
-    x: (width - rankTextWidth) / 2,
+    x: (width - rankTextWidth) / 2 + dx,
     y: badgeY + 24,
     size: 14,
     font: fontBold,
@@ -342,7 +369,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
 
   const discTextWidth = fontBold.widthOfTextAtSize(discText, 9.5);
   page.drawText(discText, {
-    x: (width - discTextWidth) / 2,
+    x: (width - discTextWidth) / 2 + dx,
     y: badgeY + 10,
     size: 9.5,
     font: fontBold,
@@ -364,16 +391,18 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const startX = 60;
 
   metadata.forEach((m, idx) => {
-    const boxX = startX + idx * cardWidth;
-    page.drawRectangle({
-      x: boxX + 4,
-      y: colY - 14,
-      width: cardWidth - 8,
-      height: 32,
-      color: rgb(248 / 255, 250 / 255, 252 / 255),
-      borderWidth: 0.75,
-      borderColor: rgb(203 / 255, 213 / 255, 225 / 255),
-    });
+    const boxX = startX + idx * cardWidth + dx;
+    if (!isPlainPaper) {
+      page.drawRectangle({
+        x: boxX + 4,
+        y: colY - 14,
+        width: cardWidth - 8,
+        height: 32,
+        color: rgb(248 / 255, 250 / 255, 252 / 255),
+        borderWidth: 0.75,
+        borderColor: rgb(203 / 255, 213 / 255, 225 / 255),
+      });
+    }
 
     const lblWidth = fontBold.widthOfTextAtSize(m.label, 7.5);
     page.drawText(m.label, {
@@ -395,10 +424,10 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   });
 
   // 13. Signatures & Official Gold Seal Section
-  const footerY = 62;
+  const footerY = 62 + dy;
 
   // Left Signature: Chief Examiner
-  const leftSigX = 80;
+  const leftSigX = 80 + dx;
   page.drawLine({
     start: { x: leftSigX, y: footerY + 22 },
     end: { x: leftSigX + 180, y: footerY + 22 },
@@ -421,8 +450,9 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   });
 
   // Center: Official Golden Seal Medallion (Drawn with vectors)
-  const sealCenterX = width / 2;
+  const sealCenterX = width / 2 + dx;
   const sealCenterY = footerY + 16;
+  if (!hideSeal) {
   page.drawCircle({
     x: sealCenterX,
     y: sealCenterY,
@@ -468,9 +498,10 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     font: fontBold,
     color: rgb(217 / 255, 119 / 255, 6 / 255),
   });
+  }
 
   // Right Signature: Academy Director
-  const rightSigX = width - 260;
+  const rightSigX = width - 260 + dx;
   page.drawLine({
     start: { x: rightSigX, y: footerY + 22 },
     end: { x: rightSigX + 180, y: footerY + 22 },
@@ -530,4 +561,39 @@ export async function downloadCertificatePdf(cert: CertificateData): Promise<voi
   document.body.removeChild(link);
   
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+
+/**
+ * Directly invokes the browser printing dialog for the generated certificate PDF
+ */
+export async function printCertificatePdf(cert: CertificateData): Promise<void> {
+  const pdfBytes = await generateMartialArtsCertificatePdf(cert);
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.open(url, '_blank');
+    }
+    setTimeout(() => {
+      try {
+        document.body.removeChild(iframe);
+      } catch {}
+      URL.revokeObjectURL(url);
+    }, 60000);
+  };
 }

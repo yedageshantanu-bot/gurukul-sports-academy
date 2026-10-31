@@ -30,6 +30,15 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { useToast } from '../../contexts/ToastContext';
+import {
+  downloadCertificatePdf,
+  printCertificatePdf,
+  CertificateData,
+} from '../../utils/certificatePdfGenerator';
+import {
+  downloadCombinedCertificatesPdf,
+  printCombinedCertificatesPdf,
+} from '../../utils/certificateBundlePdf';
 
 // Default martial arts belt & sash categories
 // Default martial arts belt & sash categories (Official Gurukul syllabus aligned)
@@ -212,6 +221,92 @@ export const RanksPage: React.FC = () => {
 
   // Preview Certificate Modal (Clean Excel Tabular View)
   const [previewCert, setPreviewCert] = useState<CertificateRecord | null>(null);
+
+  // Plain Paper / Stationery Overprint & Print State
+  const [isPrintCertModalOpen, setIsPrintCertModalOpen] = useState(false);
+  const [certsToPrint, setCertsToPrint] = useState<CertificateRecord[]>([]);
+  const [certPrintMode, setCertPrintMode] = useState<'PLAIN_PAPER' | 'FULL_COLOR'>(() => {
+    return (localStorage.getItem('gurukul_cert_print_mode') as 'PLAIN_PAPER' | 'FULL_COLOR') || 'PLAIN_PAPER';
+  });
+  const [certOffsetY, setCertOffsetY] = useState<number>(() => {
+    return Number(localStorage.getItem('gurukul_cert_offset_y') || 0);
+  });
+  const [certOffsetX, setCertOffsetX] = useState<number>(() => {
+    return Number(localStorage.getItem('gurukul_cert_offset_x') || 0);
+  });
+  const [isPrintingCert, setIsPrintingCert] = useState(false);
+
+  const handleOpenPrintModal = (records: CertificateRecord | CertificateRecord[]) => {
+    const list = Array.isArray(records) ? records : [records];
+    if (list.length === 0) {
+      toast.error('No certificates selected to print.');
+      return;
+    }
+    setCertsToPrint(list);
+    setIsPrintCertModalOpen(true);
+  };
+
+  const handleSavePrinterCalibration = () => {
+    localStorage.setItem('gurukul_cert_print_mode', certPrintMode);
+    localStorage.setItem('gurukul_cert_offset_y', String(certOffsetY));
+    localStorage.setItem('gurukul_cert_offset_x', String(certOffsetX));
+    toast.success('Printer calibration settings saved as default!');
+  };
+
+  const handleExecutePrint = async (action: 'print' | 'download') => {
+    if (certsToPrint.length === 0) return;
+    try {
+      setIsPrintingCert(true);
+      const mappedCerts: CertificateData[] = certsToPrint.map((c) => ({
+        student_name: c.student_name,
+        student_code: c.student_code || undefined,
+        dob: c.dob || undefined,
+        parentName: c.parent_name || c.fatherName,
+        discipline_name: c.discipline_name,
+        to_rank_name: c.to_rank_name,
+        belt_color: c.belt_color,
+        promoted_at: c.promoted_at,
+        certificate_number: c.certificate_number,
+        examiner_name: c.examiner_name,
+        represented_from: c.represented_from,
+        printMode: certPrintMode,
+        offsetX: certOffsetX,
+        offsetY: certOffsetY,
+      }));
+
+      if (mappedCerts.length === 1) {
+        if (action === 'print') {
+          await printCertificatePdf(mappedCerts[0]);
+          toast.success('Certificate sent to printer!');
+        } else {
+          await downloadCertificatePdf(mappedCerts[0]);
+          toast.success('Certificate PDF downloaded!');
+        }
+      } else {
+        const label = certDisciplineFilter !== 'ALL' ? certDisciplineFilter : 'Batch';
+        if (action === 'print') {
+          await printCombinedCertificatesPdf(mappedCerts, label, {
+            printMode: certPrintMode,
+            offsetX: certOffsetX,
+            offsetY: certOffsetY,
+          });
+          toast.success(`Sent ${mappedCerts.length} certificates to printer!`);
+        } else {
+          await downloadCombinedCertificatesPdf(mappedCerts, label, {
+            printMode: certPrintMode,
+            offsetX: certOffsetX,
+            offsetY: certOffsetY,
+          });
+          toast.success(`Downloaded ${mappedCerts.length} certificates bundle PDF!`);
+        }
+      }
+      setIsPrintCertModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate certificate PDF');
+    } finally {
+      setIsPrintingCert(false);
+    }
+  };
 
   // Export full certificate registry to Excel CSV spreadsheet
   const exportCertificatesToCsv = () => {
@@ -1497,6 +1592,14 @@ export const RanksPage: React.FC = () => {
                         <td className="py-3 px-3 text-right print:hidden">
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
+                              onClick={() => handleOpenPrintModal(cert)}
+                              className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold py-1 px-2.5 shadow-xs rounded-md flex items-center gap-1 cursor-pointer"
+                              title="Print certificate (Plain Paper / Pre-printed Stationery or Full Color)"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              Print / PDF
+                            </Button>
+                            <Button
                               onClick={() => exportSingleCertificateToCsv(cert)}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1 px-2.5 shadow-xs rounded-md flex items-center gap-1 cursor-pointer"
                               title="Export this row to Excel (CSV)"
@@ -2018,6 +2121,13 @@ export const RanksPage: React.FC = () => {
                 className="text-xs"
               >
                 Close
+              </Button>
+              <Button
+                onClick={() => handleOpenPrintModal(previewCert)}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print Certificate PDF
               </Button>
               <Button
                 onClick={() => exportSingleCertificateToCsv(previewCert)}
@@ -2543,6 +2653,197 @@ export const RanksPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* MODAL 5: Plain Paper / Pre-printed Stationery Overprint & Calibration */}
+      <Modal
+        isOpen={isPrintCertModalOpen}
+        onClose={() => setIsPrintCertModalOpen(false)}
+        title="Print Official Martial Arts Certificate"
+        maxWidth="xl"
+      >
+        <div className="space-y-5 text-xs text-slate-800 dark:text-slate-200">
+          <div className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-xl flex items-start gap-3">
+            <Award className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white text-xs">
+                {certsToPrint.length === 1
+                  ? certsToPrint[0].student_name
+                  : `Batch Print: ${certsToPrint.length} Selected Certificates`}
+              </p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                {certsToPrint.length === 1
+                  ? `${certsToPrint[0].discipline_name} — ${certsToPrint[0].to_rank_name} Rank (${certsToPrint[0].certificate_number || 'Official Serial'})`
+                  : `Multi-page document bundle ready for high-resolution printing or pre-printed stationery feeding.`}
+              </p>
+            </div>
+          </div>
+
+          {/* Mode Selector */}
+          <div className="space-y-2">
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block">
+              Printing Mode / Stationery Type:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCertPrintMode('PLAIN_PAPER')}
+                className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                  certPrintMode === 'PLAIN_PAPER'
+                    ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs'
+                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    📜 Stationery Overprint
+                  </span>
+                  {certPrintMode === 'PLAIN_PAPER' && <Check className="w-3.5 h-3.5 text-amber-500" />}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Hides background color, borders, logos & gold seals. Prints <strong>only text</strong> into pre-printed blank certificates.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCertPrintMode('FULL_COLOR')}
+                className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                  certPrintMode === 'FULL_COLOR'
+                    ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs'
+                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    🎨 Full Color Digital
+                  </span>
+                  {certPrintMode === 'FULL_COLOR' && <Check className="w-3.5 h-3.5 text-amber-500" />}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Complete design with royal parchment fill, decorative borders, dojo watermark, and golden wax seal.
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* Printer Alignment Calibration */}
+          <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs">
+                <Settings2 className="w-3.5 h-3.5 text-amber-500" />
+                Printer Calibration & Offsets (Millimeters)
+              </span>
+              <button
+                type="button"
+                onClick={handleSavePrinterCalibration}
+                className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                title="Saves current offsets and mode to browser localStorage"
+              >
+                Save as Default
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Adjust if your office printer roller feeds slightly higher/lower. Fine-tune by millimeters to line up perfectly with pre-printed blanks.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  Vertical Shift (Y Offset): {certOffsetY > 0 ? `+${certOffsetY} mm (Down)` : certOffsetY < 0 ? `${certOffsetY} mm (Up)` : '0 mm'}
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCertOffsetY((y) => y - 1)}
+                    className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded hover:bg-slate-100 cursor-pointer text-slate-700 dark:text-slate-300"
+                    title="Shift Up by 1mm"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={certOffsetY}
+                    onChange={(e) => setCertOffsetY(Number(e.target.value))}
+                    className="w-full text-center bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 rounded py-1 px-2 text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCertOffsetY((y) => y + 1)}
+                    className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded hover:bg-slate-100 cursor-pointer text-slate-700 dark:text-slate-300"
+                    title="Shift Down by 1mm"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  Horizontal Shift (X Offset): {certOffsetX > 0 ? `+${certOffsetX} mm (Right)` : certOffsetX < 0 ? `${certOffsetX} mm (Left)` : '0 mm'}
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCertOffsetX((x) => x - 1)}
+                    className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded hover:bg-slate-100 cursor-pointer text-slate-700 dark:text-slate-300"
+                    title="Shift Left by 1mm"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                  </button>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={certOffsetX}
+                    onChange={(e) => setCertOffsetX(Number(e.target.value))}
+                    className="w-full text-center bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 rounded py-1 px-2 text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCertOffsetX((x) => x + 1)}
+                    className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded hover:bg-slate-100 cursor-pointer text-slate-700 dark:text-slate-300"
+                    title="Shift Right by 1mm"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5 -rotate-90" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsPrintCertModalOpen(false)}
+              className="text-xs"
+              disabled={isPrintingCert}
+            >
+              Cancel
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => handleExecutePrint('download')}
+                disabled={isPrintingCert}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer"
+              >
+                Download PDF
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExecutePrint('print')}
+                disabled={isPrintingCert}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-1.5 px-4 rounded-lg flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                {isPrintingCert ? 'Preparing Print...' : 'Direct Print'}
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

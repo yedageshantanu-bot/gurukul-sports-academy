@@ -589,6 +589,8 @@ export class WhatsAppQueueService {
 
   private isProcessingBackground = false;
   private schedulerInterval: NodeJS.Timeout | null = null;
+  private watchdogInterval: NodeJS.Timeout | null = null;
+  private lastWatchdogReconnectAttempt: number = 0;
 
   /**
    * Continuous WhatsApp Queue & Schedule Runner.
@@ -610,12 +612,63 @@ export class WhatsAppQueueService {
     if (this.schedulerInterval.unref) {
       this.schedulerInterval.unref();
     }
+
+    // Start 2.5-minute WhatsApp Keep-Alive & Auto-Reconnect Watchdog
+    this.startWatchdog();
+  }
+
+  startWatchdog(intervalMs = 150000): void {
+    if (this.watchdogInterval) return;
+    console.log(`[WhatsApp Watchdog] 🛡️ 24/7 Keep-Alive & Auto-Reconnect Watchdog active (pinging every ${intervalMs / 1000}s)`);
+
+    const runWatchdogPing = async () => {
+      try {
+        const settings = await whatsappSettingsService.getSettings();
+        if (settings.emergency_stop) return;
+
+        const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+        if (!provider || typeof provider.getStatus !== 'function') return;
+
+        const status = await provider.getStatus();
+        if (status.status === 'CONNECTED') {
+          return;
+        }
+
+        // If disconnected or session dropped, attempt auto-reconnect with 3-minute backoff
+        const now = Date.now();
+        if (now - this.lastWatchdogReconnectAttempt > 180000) {
+          this.lastWatchdogReconnectAttempt = now;
+          console.log(`[WhatsApp Watchdog] ⚠️ Connection status is '${status.status}'. Attempting automatic socket reconnect...`);
+          if (typeof provider.connect === 'function') {
+            const reconnectRes = await provider.connect();
+            if (reconnectRes.status?.status === 'CONNECTED') {
+              console.log('[WhatsApp Watchdog] ✅ Auto-reconnected WhatsApp session successfully!');
+            } else if (reconnectRes.qrCode) {
+              console.log('[WhatsApp Watchdog] 📱 WhatsApp requires QR code re-authentication.');
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('[WhatsApp Watchdog] Ping notice:', err.message);
+      }
+    };
+
+    setTimeout(runWatchdogPing, 10000);
+
+    this.watchdogInterval = setInterval(runWatchdogPing, intervalMs);
+    if (this.watchdogInterval.unref) {
+      this.watchdogInterval.unref();
+    }
   }
 
   stopQueueScheduler(): void {
     if (this.schedulerInterval) {
       clearInterval(this.schedulerInterval);
       this.schedulerInterval = null;
+    }
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = null;
     }
   }
 

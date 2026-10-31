@@ -43,9 +43,17 @@ function formatDisplayDateRange(range?: string): string {
  * Each certificate is rendered identically to generateMartialArtsCertificatePdf
  * on its own A4 Landscape page.
  */
+export interface CertificateBundleOptions {
+  printMode?: 'FULL_COLOR' | 'PLAIN_PAPER';
+  offsetX?: number;
+  offsetY?: number;
+  skipCover?: boolean;
+}
+
 export async function generateCombinedCertificatesPdf(
   certs: CertificateData[],
-  dateRange?: string
+  dateRange?: string,
+  options?: CertificateBundleOptions
 ): Promise<Uint8Array> {
   const combinedDoc = await PDFDocument.create();
 
@@ -53,15 +61,19 @@ export async function generateCombinedCertificatesPdf(
   const width = 841.89;
   const height = 595.28;
 
+  const isPlain = options?.printMode === 'PLAIN_PAPER';
+  const shouldSkipCover = Boolean(options?.skipCover || isPlain);
+
   // Embed standard typography fonts
   const fontBold = await combinedDoc.embedFont(StandardFonts.HelveticaBold);
   const fontRegular = await combinedDoc.embedFont(StandardFonts.Helvetica);
   const fontItalic = await combinedDoc.embedFont(StandardFonts.TimesRomanItalic);
 
   // ---------------------------------------------------------------------------
-  // COVER PAGE (A4 Landscape, consistent with certificates)
+  // COVER PAGE (A4 Landscape, consistent with certificates) - skipped in Plain Paper mode
   // ---------------------------------------------------------------------------
-  const coverPage = combinedDoc.addPage([width, height]);
+  if (!shouldSkipCover) {
+    const coverPage = combinedDoc.addPage([width, height]);
 
   // Parchment Cream Background
   coverPage.drawRectangle({
@@ -311,13 +323,19 @@ export async function generateCombinedCertificatesPdf(
     font: fontRegular,
     color: rgb(148 / 255, 163 / 255, 184 / 255),
   });
+  }
 
   // ---------------------------------------------------------------------------
   // APPEND CERTIFICATE PAGES
   // Render each certificate via generateMartialArtsCertificatePdf and copy pages
   // ---------------------------------------------------------------------------
   for (const cert of certs) {
-    const singlePdfBytes = await generateMartialArtsCertificatePdf(cert);
+    const singlePdfBytes = await generateMartialArtsCertificatePdf({
+      ...cert,
+      printMode: options?.printMode || cert.printMode,
+      offsetX: options?.offsetX !== undefined ? options.offsetX : cert.offsetX,
+      offsetY: options?.offsetY !== undefined ? options.offsetY : cert.offsetY,
+    });
     const srcDoc = await PDFDocument.load(singlePdfBytes);
     const pageIndices = srcDoc.getPageIndices();
     const copiedPages = await combinedDoc.copyPages(srcDoc, pageIndices);
@@ -335,16 +353,18 @@ export async function generateCombinedCertificatesPdf(
  */
 export async function downloadCombinedCertificatesPdf(
   certs: CertificateData[],
-  label?: string
+  label?: string,
+  options?: CertificateBundleOptions
 ): Promise<void> {
-  const pdfBytes = await generateCombinedCertificatesPdf(certs, label);
+  const pdfBytes = await generateCombinedCertificatesPdf(certs, label, options);
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
 
+  const modeSuffix = options?.printMode === 'PLAIN_PAPER' ? '_PlainPaper' : '_FullColor';
   const safeLabel = (label || 'all')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 50);
-  const fileName = `Gurukul_Certificates_Bundle_${safeLabel}.pdf`;
+  const fileName = `Gurukul_Certificates_Bundle_${safeLabel}${modeSuffix}.pdf`;
 
   const link = document.createElement('a');
   link.href = url;
@@ -354,4 +374,42 @@ export async function downloadCombinedCertificatesPdf(
   document.body.removeChild(link);
 
   setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+/**
+ * Directly invokes browser printing for a combined multi-page PDF bundle
+ */
+export async function printCombinedCertificatesPdf(
+  certs: CertificateData[],
+  label?: string,
+  options?: CertificateBundleOptions
+): Promise<void> {
+  const pdfBytes = await generateCombinedCertificatesPdf(certs, label, options);
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.open(url, '_blank');
+    }
+    setTimeout(() => {
+      try {
+        document.body.removeChild(iframe);
+      } catch {}
+      URL.revokeObjectURL(url);
+    }, 60000);
+  };
 }

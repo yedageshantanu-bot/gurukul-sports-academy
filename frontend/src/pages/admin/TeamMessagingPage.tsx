@@ -1012,48 +1012,71 @@ export const TeamMessagingPage: React.FC = () => {
         maxWidth="md"
       >
         <div className="space-y-4">
-          {/* Selected Member Preview Banner (if picked from directory) */}
+          {/* STEP 1: Dedicated Selected Contact Card */}
           {(() => {
             const selectedContact = savedContacts.find(
               (c) => c.id === selectedContactId || (memberForm.phone && c.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)))
             );
             if (!selectedContact && !memberForm.name.trim()) return null;
 
+            const targetTeam = teams.find((t) => t.code === memberForm.teamCode);
+            const isAlreadyInTargetTeam = teamMembers.some(
+              (m: TeamMember) => m.team_code === memberForm.teamCode && m.phone.endsWith((selectedContact?.phone || memberForm.phone || '').replace(/[^0-9]/g, '').slice(-10))
+            );
+
             return (
-              <div className="p-3 bg-amber-500/10 border-2 border-amber-500/40 rounded-xl flex items-center justify-between gap-3 shadow-xs">
-                <div className="flex items-center gap-2.5 truncate">
-                  <div className="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
-                    ✓
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>{selectedContact?.name || memberForm.name}</span>
-                      <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-semibold">
-                        ({selectedContact?.phone || memberForm.phone || 'No phone'})
-                      </span>
+              <div className="p-3.5 bg-amber-500/10 border-2 border-amber-500/40 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 truncate">
+                    <div className="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
+                      ✓
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {selectedContact?.position || memberForm.position || 'Team Member'} {selectedContact?.district || memberForm.district ? `• ${selectedContact?.district || memberForm.district}` : ''}
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{selectedContact?.name || memberForm.name}</span>
+                        <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                          ({selectedContact?.phone || memberForm.phone || 'No phone'})
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {selectedContact?.position || memberForm.position || 'Team Member'} {selectedContact?.district || memberForm.district ? `• ${selectedContact?.district || memberForm.district}` : ''}
+                      </div>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContactId(null);
+                      setMemberForm((prev) => ({ ...prev, name: '', phone: '', position: '', district: '', notes: '' }));
+                      toast.info('Removed contact selection.');
+                    }}
+                    className="px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                    title="Remove selection"
+                  >
+                    Clear / Remove ✕
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedContactId(null);
-                    setMemberForm((prev) => ({ ...prev, name: '', phone: '', position: '', district: '', notes: '' }));
-                    toast.info('Removed contact selection.');
-                  }}
-                  className="px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
-                  title="Remove selection"
-                >
-                  Clear / Remove ✕
-                </button>
+
+                {/* Team Status Indicator */}
+                <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-600 dark:text-slate-300">
+                    Target: <strong>{targetTeam?.name || memberForm.teamCode}</strong>
+                  </span>
+                  {isAlreadyInTargetTeam ? (
+                    <span className="text-rose-600 dark:text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30">
+                      ⚠️ Already in this team
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                      Ready to Add ✓
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })()}
 
-          {/* STEP 1: Pick from Existing Contacts (Shantanu, Laj, etc.) */}
+          {/* STEP 2: Pick from Existing Contacts (Shantanu, Laj, etc.) */}
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -1078,75 +1101,72 @@ export const TeamMessagingPage: React.FC = () => {
               className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-xs"
             />
 
-            {/* Directory List of Contacts */}
-            <div className="max-h-44 overflow-y-auto space-y-1.5 pt-1 pr-1 border-t border-slate-200 dark:border-white/5">
-              {filteredDirectoryContacts.length === 0 ? (
-                <div className="py-3 text-center">
-                  <p className="text-xs text-slate-500">No contact matching &quot;{contactSearchQuery}&quot;</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedContactId(null);
-                      setMemberForm((prev) => ({ ...prev, name: contactSearchQuery }));
-                      setShowNewContactForm(true);
-                    }}
-                    className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer"
-                  >
-                    + Add &quot;{contactSearchQuery}&quot; as New Contact
-                  </button>
-                </div>
-              ) : (
-                filteredDirectoryContacts.map((contact) => {
-                  const isSelected = selectedContactId === contact.id || (memberForm.phone && contact.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)));
+            {/* Directory List of Contacts (Excludes currently picked contact) */}
+            {(() => {
+              const unpickedContacts = filteredDirectoryContacts.filter(
+                (c) => c.id !== selectedContactId && (!memberForm.phone || !c.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)))
+              );
 
-                  return (
-                    <div
-                      key={contact.id}
-                      className={`p-2 rounded-lg border flex items-center justify-between text-xs transition-all shadow-2xs ${
-                        isSelected
-                          ? 'bg-amber-500/15 dark:bg-amber-500/20 border-amber-500 ring-1 ring-amber-500/50'
-                          : 'bg-white dark:bg-[#0A1120] border-slate-200 dark:border-white/5 hover:border-amber-500/40'
-                      }`}
-                    >
-                      <div className="truncate mr-2">
-                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                          <span>{contact.name}</span>
-                          {isSelected && (
-                            <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded shadow-2xs">
-                              Selected ✓
-                            </span>
-                          )}
-                          <span className="text-[11px] text-slate-500 font-mono font-normal">
-                            ({contact.phone})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {contact.position && (
-                            <span className="text-[10px] text-slate-400">{contact.position} • </span>
-                          )}
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                            Teams: {contact.memberTeams.length > 0 ? contact.memberTeams.join(', ') : 'None yet'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleSelectDirectoryContact(contact)}
-                        className={`text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 cursor-pointer ${
-                          isSelected
-                            ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-xs'
-                            : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
-                        }`}
-                      >
-                        {isSelected ? 'Remove ✕' : 'Pick +'}
-                      </Button>
+              return (
+                <div className="max-h-44 overflow-y-auto space-y-1.5 pt-1 pr-1 border-t border-slate-200 dark:border-white/5">
+                  {unpickedContacts.length === 0 ? (
+                    <div className="py-3 text-center">
+                      <p className="text-xs text-slate-500">
+                        {selectedContactId
+                          ? 'This contact is currently selected above.'
+                          : `No contact matching "${contactSearchQuery}"`}
+                      </p>
+                      {!selectedContactId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedContactId(null);
+                            setMemberForm((prev) => ({ ...prev, name: contactSearchQuery }));
+                            setShowNewContactForm(true);
+                          }}
+                          className="mt-1 text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer"
+                        >
+                          + Add &quot;{contactSearchQuery}&quot; as New Contact
+                        </button>
+                      )}
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  ) : (
+                    unpickedContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="p-2 rounded-lg border flex items-center justify-between text-xs transition-all shadow-2xs bg-white dark:bg-[#0A1120] border-slate-200 dark:border-white/5 hover:border-amber-500/40"
+                      >
+                        <div className="truncate mr-2">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                            <span>{contact.name}</span>
+                            <span className="text-[11px] text-slate-500 font-mono font-normal">
+                              ({contact.phone})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {contact.position && (
+                              <span className="text-[10px] text-slate-400">{contact.position} • </span>
+                            )}
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                              Teams: {contact.memberTeams.length > 0 ? contact.memberTeams.join(', ') : 'None yet'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleSelectDirectoryContact(contact)}
+                          className="text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 cursor-pointer bg-amber-500 hover:bg-amber-600 text-slate-950"
+                        >
+                          Pick +
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Member Details Form */}
