@@ -289,6 +289,26 @@ export class TeamMessageController {
         return;
       }
 
+      const clean10 = phone.trim().replace(/[^0-9]/g, '').slice(-10);
+      if (clean10) {
+        const { data: existingMembers } = await supabaseAdmin
+          .from('team_members')
+          .select('id, phone')
+          .eq('team_code', teamCode.trim());
+
+        const isDuplicateInTeam = (existingMembers || []).some(
+          (m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10
+        );
+
+        if (isDuplicateInTeam) {
+          res.status(400).json({
+            success: false,
+            message: 'This contact is already enrolled in this team.',
+          });
+          return;
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('team_members')
         .insert({

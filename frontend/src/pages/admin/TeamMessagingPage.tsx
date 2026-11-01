@@ -63,28 +63,11 @@ const COLOR_OPTIONS = [
   { id: 'purple', label: 'Purple', bg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30' },
 ];
 
-const STORAGE_CONTACTS_KEY = 'gurukul_custom_team_contacts';
-
 export const TeamMessagingPage: React.FC = () => {
   const { toast } = useToast();
 
   const [teams, setTeams] = useState<TeamCategory[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [savedContacts, setSavedContacts] = useState<TeamContact[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_CONTACTS_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {
-      // ignored
-    }
-    return [
-      { id: 'c1', name: 'Sensei Vikram Salunkhe (Admin)', phone: '9881888061', position: 'Chief Director' },
-      { id: 'c2', name: 'Shantanu', phone: '9822001122', position: 'Core Member' },
-      { id: 'c3', name: 'Laj', phone: '9404849500', position: 'Core Member' },
-      { id: 'c4', name: 'Kaustubh Team', phone: '+917350260261', position: 'Coordinator' },
-    ];
-  });
-
   const [loading, setLoading] = useState(true);
 
   // Active Tab: 'members' or 'teams'
@@ -124,30 +107,7 @@ export const TeamMessagingPage: React.FC = () => {
   });
   const [savingTeam, setSavingTeam] = useState(false);
 
-  // Save contacts to localStorage whenever updated
-  const persistContact = (contact: TeamContact) => {
-    setSavedContacts((prev) => {
-      const clean10 = contact.phone.replace(/[^0-9]/g, '').slice(-10);
-      const existingIdx = prev.findIndex(
-        (c) => c.phone.replace(/[^0-9]/g, '').slice(-10) === clean10 || (c.name.trim().toLowerCase() === contact.name.trim().toLowerCase() && c.name.trim())
-      );
-      let updated: TeamContact[];
-      if (existingIdx >= 0) {
-        updated = [...prev];
-        updated[existingIdx] = { ...updated[existingIdx], ...contact };
-      } else {
-        updated = [contact, ...prev];
-      }
-      try {
-        localStorage.setItem(STORAGE_CONTACTS_KEY, JSON.stringify(updated));
-      } catch (err) {
-        console.warn('Could not persist contacts:', err);
-      }
-      return updated;
-    });
-  };
-
-  // Load Data: strictly teams and team members (no students or teachers)
+  // Load Data: strictly teams and team members from DB
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -168,20 +128,6 @@ export const TeamMessagingPage: React.FC = () => {
       if (membersRes.status === 'fulfilled') {
         const rawMembers: TeamMember[] = membersRes.value?.data || (Array.isArray(membersRes.value) ? membersRes.value : []);
         setTeamMembers(rawMembers);
-
-        // Also aggregate any members from DB into saved contacts directory
-        for (const m of rawMembers) {
-          if (m.phone) {
-            persistContact({
-              id: m.id || `c-${m.phone}`,
-              name: m.name || 'Member',
-              phone: m.phone,
-              position: m.position,
-              district: m.district,
-              notes: m.notes,
-            });
-          }
-        }
       }
     } catch (err: any) {
       console.error('Failed to load team data:', err);
@@ -191,7 +137,15 @@ export const TeamMessagingPage: React.FC = () => {
     }
   };
 
+  // On mount: fetch DB data and purge any legacy mock contacts from storage
   useEffect(() => {
+    try {
+      localStorage.removeItem('gurukul_custom_team_contacts');
+      localStorage.removeItem('gurukul_team_contacts');
+      localStorage.removeItem('custom_team_contacts');
+    } catch {
+      // ignored
+    }
     fetchData();
   }, []);
 
@@ -199,7 +153,8 @@ export const TeamMessagingPage: React.FC = () => {
   const contactTeamsMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const m of teamMembers) {
-      const clean10 = m.phone.replace(/[^0-9]/g, '').slice(-10);
+      const digits = m.phone ? m.phone.replace(/[^0-9]/g, '') : '';
+      const clean10 = digits.length >= 10 ? digits.slice(-10) : digits;
       if (!clean10) continue;
       const existing = map.get(clean10) || [];
       if (!existing.includes(m.team_code)) {
@@ -211,28 +166,47 @@ export const TeamMessagingPage: React.FC = () => {
   }, [teamMembers]);
 
   // Unified contacts directory strictly deduplicated by 10-digit phone
+  // Primary and sole source of truth: enrolled team members from the database
   const allDirectoryContacts = useMemo(() => {
     const seenPhones = new Map<string, TeamContact>();
-    for (const c of savedContacts) {
-      const clean10 = c.phone.replace(/[^0-9]/g, '').slice(-10);
+
+    for (const m of teamMembers) {
+      const digits = m.phone ? m.phone.replace(/[^0-9]/g, '') : '';
+      const clean10 = digits.length >= 10 ? digits.slice(-10) : digits;
       if (!clean10) continue;
       if (!seenPhones.has(clean10)) {
-        seenPhones.set(clean10, c);
+        seenPhones.set(clean10, {
+          id: m.id || `c-${clean10}`,
+          name: m.name || 'Member',
+          phone: m.phone,
+          position: m.position,
+          district: m.district,
+          notes: m.notes,
+        });
       } else {
         const existing = seenPhones.get(clean10)!;
-        if (!existing.position && c.position) existing.position = c.position;
+        if (!existing.position && m.position) existing.position = m.position;
+        if (!existing.district && m.district) existing.district = m.district;
+        if (!existing.notes && m.notes) existing.notes = m.notes;
+        if ((!existing.name || existing.name === 'Member') && m.name) {
+          existing.name = m.name;
+        }
       }
     }
 
     return Array.from(seenPhones.values()).map((c) => {
-      const clean10 = c.phone.replace(/[^0-9]/g, '').slice(-10);
+      const digits = c.phone.replace(/[^0-9]/g, '');
+      const clean10 = digits.length >= 10 ? digits.slice(-10) : digits;
       const memberTeams = contactTeamsMap.get(clean10) || [];
       return {
         ...c,
         memberTeams,
       };
     });
-  }, [savedContacts, contactTeamsMap]);
+  }, [teamMembers, contactTeamsMap]);
+
+  // Exact count of unique individual contacts
+  const uniqueContactsCount = allDirectoryContacts.length;
 
   // Filtered directory contacts for modal search
   const filteredDirectoryContacts = useMemo(() => {
@@ -366,16 +340,6 @@ export const TeamMessagingPage: React.FC = () => {
       };
 
       setTeamMembers((prev) => [newMember, ...prev]);
-
-      // Save to directory
-      persistContact({
-        id: `c-${Date.now()}`,
-        name: memberForm.name.trim(),
-        phone: cleanPhone,
-        position: memberForm.position.trim() || null,
-        district: memberForm.district.trim() || null,
-        notes: memberForm.notes.trim() || null,
-      });
 
       setIsAddMemberModalOpen(false);
       toast.success(`"${memberForm.name}" added to team!`);
@@ -630,7 +594,7 @@ export const TeamMessagingPage: React.FC = () => {
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Unique Contacts</span>
             <ShieldCheck className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2">{savedContacts.length}</p>
+          <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2">{uniqueContactsCount}</p>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Searchable across all teams</span>
         </Card>
 
@@ -727,7 +691,7 @@ export const TeamMessagingPage: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search member (e.g. Shantanu, Laj, phone)..."
+                placeholder="Search member by name, phone, or position..."
                 value={memberSearchQuery}
                 onChange={(e) => setMemberSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-xs"
@@ -735,7 +699,7 @@ export const TeamMessagingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Members Cards / List ("sutta-sutta sabka dikhega") */}
+          {/* Members Cards / List */}
           {loading ? (
             <Card className="p-8 text-center text-slate-500 dark:text-slate-400">Loading team members...</Card>
           ) : filteredMembers.length === 0 ? (
@@ -745,7 +709,7 @@ export const TeamMessagingPage: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
                 {selectedTeamFilter !== 'ALL'
                   ? `No members enrolled in "${selectedTeamFilter}" yet.`
-                  : 'Start by adding Shantanu, Laj, or any custom contacts into your teams.'}
+                  : 'Start by adding custom contacts into your teams.'}
               </p>
               <Button
                 onClick={() => handleOpenAddMemberModal(selectedTeamFilter !== 'ALL' ? selectedTeamFilter : undefined)}
@@ -760,7 +724,8 @@ export const TeamMessagingPage: React.FC = () => {
               {filteredMembers.map((member) => {
                 const team = teams.find((t) => t.code === member.team_code);
                 const cleanPhone = member.phone.replace(/[^0-9+]/g, '');
-                const allTeamsForMember = contactTeamsMap.get(cleanPhone) || [member.team_code];
+                const clean10 = member.phone ? member.phone.replace(/[^0-9]/g, '').slice(-10) : '';
+                const allTeamsForMember = contactTeamsMap.get(clean10) || [member.team_code];
                 const otherTeams = allTeamsForMember.filter((code) => code !== member.team_code);
 
                 return (
@@ -1014,14 +979,21 @@ export const TeamMessagingPage: React.FC = () => {
         <div className="space-y-4">
           {/* STEP 1: Dedicated Selected Contact Card */}
           {(() => {
-            const selectedContact = savedContacts.find(
-              (c) => c.id === selectedContactId || (memberForm.phone && c.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)))
+            const currentClean10 = memberForm.phone.replace(/[^0-9]/g, '').slice(-10);
+            const selectedContact = allDirectoryContacts.find(
+              (c) =>
+                c.id === selectedContactId ||
+                (currentClean10 && c.phone.replace(/[^0-9]/g, '').slice(-10) === currentClean10)
             );
             if (!selectedContact && !memberForm.name.trim()) return null;
 
             const targetTeam = teams.find((t) => t.code === memberForm.teamCode);
+            const selectedContactPhone10 = (selectedContact?.phone || memberForm.phone || '').replace(/[^0-9]/g, '').slice(-10);
             const isAlreadyInTargetTeam = teamMembers.some(
-              (m: TeamMember) => m.team_code === memberForm.teamCode && m.phone.endsWith((selectedContact?.phone || memberForm.phone || '').replace(/[^0-9]/g, '').slice(-10))
+              (m: TeamMember) =>
+                m.team_code === memberForm.teamCode &&
+                m.phone &&
+                m.phone.replace(/[^0-9]/g, '').slice(-10) === selectedContactPhone10
             );
 
             return (
@@ -1076,12 +1048,12 @@ export const TeamMessagingPage: React.FC = () => {
             );
           })()}
 
-          {/* STEP 2: Pick from Existing Contacts (Shantanu, Laj, etc.) */}
+          {/* STEP 2: Pick from Existing Contacts */}
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Search className="w-3.5 h-3.5 text-amber-500" />
-                <span>Search &amp; Pick Contact (Shantanu, Laj, etc.)</span>
+                <span>Search &amp; Pick Contact</span>
               </label>
               <button
                 type="button"
@@ -1095,7 +1067,7 @@ export const TeamMessagingPage: React.FC = () => {
             {/* Small Search Bar on Top */}
             <input
               type="text"
-              placeholder="Search contacts by name (e.g. Shantanu, Laj) or phone..."
+              placeholder="Search contacts by name or phone..."
               value={contactSearchQuery}
               onChange={(e) => setContactSearchQuery(e.target.value)}
               className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-xs"
@@ -1103,8 +1075,11 @@ export const TeamMessagingPage: React.FC = () => {
 
             {/* Directory List of Contacts (Excludes currently picked contact) */}
             {(() => {
+              const formClean10 = memberForm.phone.replace(/[^0-9]/g, '').slice(-10);
               const unpickedContacts = filteredDirectoryContacts.filter(
-                (c) => c.id !== selectedContactId && (!memberForm.phone || !c.phone.endsWith(memberForm.phone.replace(/[^0-9]/g, '').slice(-10)))
+                (c) =>
+                  c.id !== selectedContactId &&
+                  (!formClean10 || c.phone.replace(/[^0-9]/g, '').slice(-10) !== formClean10)
               );
 
               return (
@@ -1198,7 +1173,7 @@ export const TeamMessagingPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Shantanu, Laj"
+                  placeholder="e.g. Ramesh Patil"
                   value={memberForm.name}
                   onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
                   className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 shadow-xs font-medium"
@@ -1356,7 +1331,7 @@ export const TeamMessagingPage: React.FC = () => {
                 Assign Existing Contacts Immediately (Optional)
               </label>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Check who to enroll in this team right now (e.g. Shantanu, Laj):
+                Select existing contacts to enroll in this new team right away:
               </p>
               <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-50 dark:bg-black/30 p-2 rounded-lg border border-slate-200 dark:border-white/5">
                 {allDirectoryContacts.map((c) => {

@@ -252,8 +252,13 @@ export class AnnouncementService {
       );
     }
 
-    // Deduplicate recipients by phone number
+    // Deduplicate recipients strictly by normalized 10-digit phone number
     const recipientMap = new Map<string, { recipientPhone: string; name: string; studentId?: string }>();
+    const getRecipientKey = (rawPhone?: string | null) => {
+      if (!rawPhone) return '';
+      const digits = rawPhone.replace(/[^0-9]/g, '');
+      return digits.length >= 10 ? digits.slice(-10) : digits;
+    };
 
     // 2a. Fetch active students in target batches
     if (targetedBatchIds.length > 0) {
@@ -272,8 +277,9 @@ export class AnnouncementService {
         const st = row.student as any;
         if (st && st.status === 'ACTIVE') {
           const phone = st.parent_whatsapp || st.student_mobile;
-          if (phone && !recipientMap.has(phone)) {
-            recipientMap.set(phone, { recipientPhone: phone, name: st.name, studentId: st.id });
+          const key = getRecipientKey(phone);
+          if (key && !recipientMap.has(key)) {
+            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
           }
         }
       }
@@ -296,8 +302,9 @@ export class AnnouncementService {
         const st = row.student as any;
         if (st && st.status === 'ACTIVE') {
           const phone = st.parent_whatsapp || st.student_mobile;
-          if (phone && !recipientMap.has(phone)) {
-            recipientMap.set(phone, { recipientPhone: phone, name: st.name, studentId: st.id });
+          const key = getRecipientKey(phone);
+          if (key && !recipientMap.has(key)) {
+            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
           }
         }
       }
@@ -320,8 +327,9 @@ export class AnnouncementService {
       }
 
       for (const tm of teamMembers || []) {
-        if (tm.phone && !recipientMap.has(tm.phone)) {
-          recipientMap.set(tm.phone, {
+        const key = getRecipientKey(tm.phone);
+        if (key && !recipientMap.has(key)) {
+          recipientMap.set(key, {
             recipientPhone: tm.phone,
             name: tm.name || 'Team Member',
           });
@@ -337,8 +345,9 @@ export class AnnouncementService {
         .limit(1)
         .maybeSingle();
       const adminPhone = ws?.device_phone_number || '9881888061';
-      if (adminPhone && !recipientMap.has(adminPhone)) {
-        recipientMap.set(adminPhone, {
+      const key = getRecipientKey(adminPhone);
+      if (key && !recipientMap.has(key)) {
+        recipientMap.set(key, {
           recipientPhone: adminPhone,
           name: 'Sensei Vikram Salunkhe (Admin Self)',
         });
