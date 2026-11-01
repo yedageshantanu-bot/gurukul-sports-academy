@@ -115,7 +115,7 @@ export const FeesPage: React.FC = () => {
 
   // WhatsApp Fee Reminder Template & Rules
   const DEFAULT_FEE_TEMPLATE =
-    'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues or pay online: {payment_link}. Thank you!';
+    'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues. Thank you!\n- Gurukul Sports Academy';
 
   const [feeWhatsappTemplate, setFeeWhatsappTemplate] = useState<string>(() => {
     try {
@@ -1193,7 +1193,7 @@ export const FeesPage: React.FC = () => {
                         .replace('{course}', 'Kalarippayattu')
                         .replace('{pending_amount}', '10,000')
                         .replace('{due_date}', '10 Nov 2026')
-                        .replace('{payment_link}', 'https://gurukul-sports-academy.pages.dev/pay')}
+                        .replace('{payment_link}', '')}
                     </p>
                     <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
                       <span>10:30 AM</span>

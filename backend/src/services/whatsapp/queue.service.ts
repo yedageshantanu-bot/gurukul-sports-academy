@@ -927,6 +927,11 @@ export class WhatsAppQueueService {
     const failedToday = items.filter((i) => i.status === 'FAILED' && i.updated_at.startsWith(today)).length;
 
     let totalSentAllTime = items.filter((i) => i.status === 'SENT' || (i.status as string) === 'MOCK').length;
+    let monthSent = 0;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+
     if (this.supabase) {
       try {
         const { count: msgCount } = await this.supabase
@@ -944,6 +949,22 @@ export class WhatsAppQueueService {
             totalSentAllTime = Math.max(totalSentAllTime, queueCount);
           }
         }
+
+        const { count: msgMonth } = await this.supabase
+          .from('whatsapp_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'SENT')
+          .gte('created_at', startOfMonth)
+          .lte('created_at', endOfMonth);
+
+        const { count: queueMonth } = await this.supabase
+          .from('whatsapp_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'SENT')
+          .gte('updated_at', startOfMonth)
+          .lte('updated_at', endOfMonth);
+
+        monthSent = Math.max(msgMonth || 0, queueMonth || 0);
       } catch {
         // Fallback to in-memory count
       }
@@ -952,6 +973,7 @@ export class WhatsAppQueueService {
     return {
       sent: sentToday,
       totalSent: totalSentAllTime,
+      monthSent,
       pending,
       processing,
       failed: failedToday,

@@ -52,6 +52,8 @@ export class WhatsAppController {
             emergencyStop: settings.emergency_stop,
           },
           stats,
+          todayStats: stats,
+          isConnected: deviceStatus.status === 'CONNECTED',
         },
       });
     } catch (err) {

@@ -939,8 +939,7 @@ export async function onRequest(context: any) {
         // Auto-send WhatsApp login credentials to Faculty Member in BACKGROUND
         if (body.phone) {
           const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
-          const portalUrl = 'https://effort-career-demo.pages.dev';
-          const teacherMsg = `Namaste Prof. ${body.fullName}!\n\nWelcome to ${academyName} Faculty Team.\nYour faculty instructor account has been created successfully.\n\nYour Login Credentials:\n- Portal URL: ${portalUrl}\n- Email: ${newEmail}\n- Password: ${teacherPassword}\n- Subject Assigned: ${body.subject || 'All Subjects'}\n\nPlease log in to access your assigned batches and conduct daily attendance.\n\nWarm regards,\n${academyName}`;
+          const teacherMsg = `Namaste Prof. ${body.fullName}!\n\nWelcome to ${academyName}.\nYour faculty instructor account has been created successfully.\n\nAccount Credentials:\n- Mobile: ${body.phone}\n- Password: ${teacherPassword}\n- Subject Assigned: ${body.subject || 'All Subjects'}\n\nPlease access your batches to conduct daily attendance.\n\n- ${academyName}`;
           runInBackground(context, () => dispatchWhatsApp(body.phone, teacherMsg, context.env));
         }
 
@@ -1575,10 +1574,44 @@ export async function onRequest(context: any) {
         }
       } catch {}
 
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+
+      let totalSent = 0;
+      let monthSent = 0;
+      let sentToday = 0;
+      let queued = 0;
+      let failed = 0;
+
+      try {
+        const { count: totalMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT');
+        const { count: totalQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT');
+        totalSent = Math.max(totalMsg || 0, totalQ || 0);
+
+        const { count: monthMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('created_at', startOfMonth).lte('created_at', endOfMonth);
+        const { count: monthQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('updated_at', startOfMonth).lte('updated_at', endOfMonth);
+        monthSent = Math.max(monthMsg || 0, monthQ || 0);
+
+        const { count: todayMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('created_at', todayStr);
+        const { count: todayQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('updated_at', todayStr);
+        sentToday = Math.max(todayMsg || 0, todayQ || 0);
+
+        const { count: pendingQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'PENDING');
+        queued = pendingQ || 0;
+
+        const { count: failedQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'FAILED');
+        failed = failedQ || 0;
+      } catch (e) {
+        // Fallback
+      }
+
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       return jsonResponse({
         success: true,
         data: {
+          isConnected: bridgeStatus === 'CONNECTED',
           status: bridgeStatus,
           phoneNumber: bridgePhone,
           lastConnectedAt: new Date().toISOString(),
@@ -1587,6 +1620,24 @@ export async function onRequest(context: any) {
           providerName: 'Prototype Linked-Device Bridge (Baileys Multi-Device)',
           isConfigured: true,
           details: `WhatsApp messaging bridge is ${bridgeStatus.toLowerCase()}`,
+          device: {
+            status: bridgeStatus,
+            phoneNumber: bridgePhone,
+          },
+          todayStats: {
+            sent: sentToday,
+            monthSent: monthSent,
+            totalSent: totalSent,
+            queued: queued,
+            failed: failed,
+          },
+          stats: {
+            sent: sentToday,
+            monthSent: monthSent,
+            totalSent: totalSent,
+            queued: queued,
+            failed: failed,
+          },
         },
       });
     }
@@ -2003,11 +2054,17 @@ export async function onRequest(context: any) {
             };
         return jsonResponse({ success: true, data: data || defaultSettings });
       }
-      if (method === 'PATCH') {
+      if (method === 'PATCH' || method === 'PUT') {
         const body = await request.json();
-        const { data, error } = await supabase.from('academy_settings').update(body).select().single();
-        if (error) throw error;
-        return jsonResponse({ success: true, data });
+        const { data: existing } = await supabase.from('academy_settings').select('id').limit(1).maybeSingle();
+        let result;
+        if (existing?.id) {
+          result = await supabase.from('academy_settings').update({ ...body, updated_at: new Date().toISOString() }).eq('id', existing.id).select().single();
+        } else {
+          result = await supabase.from('academy_settings').insert({ ...body, updated_at: new Date().toISOString() }).select().single();
+        }
+        if (result.error) throw result.error;
+        return jsonResponse({ success: true, message: 'Academy settings updated successfully', data: result.data });
       }
     }
 

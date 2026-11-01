@@ -5,10 +5,6 @@ import { apiClient } from '../../lib/api';
 import { PhoneInput } from '../../components/ui/PhoneInput';
 import {
   Building2,
-  Mail,
-  MapPin,
-  Globe,
-  Coins,
   CheckCircle2,
   AlertCircle,
   Save,
@@ -19,8 +15,6 @@ import {
   MessageSquare,
   ExternalLink,
   ShieldCheck,
-  QrCode,
-  CreditCard,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -29,19 +23,17 @@ export const SettingsPage: React.FC = () => {
   const [whatsappStats, setWhatsappStats] = useState<{
     isConnected: boolean;
     sent: number;
+    monthSent: number;
     totalSent: number;
     queued: number;
     failed: number;
-    dailyLimit: number;
-    remainingLimit: number;
   }>({
     isConnected: false,
     sent: 0,
+    monthSent: 0,
     totalSent: 0,
     queued: 0,
     failed: 0,
-    dailyLimit: 100,
-    remainingLimit: 100,
   });
 
   const [formData, setFormData] = useState({
@@ -57,8 +49,6 @@ export const SettingsPage: React.FC = () => {
   });
 
   const [saving, setSaving] = useState(false);
-  const [calcVolume, setCalcVolume] = useState<number>(350);
-  const [selectedMonth] = useState<string>('November 2026');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,27 +73,36 @@ export const SettingsPage: React.FC = () => {
         const res = await apiClient<{
           success: boolean;
           data: {
-            isConnected: boolean;
-            todayStats: {
+            isConnected?: boolean;
+            status?: string;
+            device?: { status: string };
+            todayStats?: {
               sent: number;
+              monthSent?: number;
               totalSent?: number;
               failed: number;
               queued: number;
-              dailyLimit: number;
-              remainingLimit: number;
+            };
+            stats?: {
+              sent: number;
+              monthSent?: number;
+              totalSent?: number;
+              failed: number;
+              queued: number;
             };
           };
         }>('/whatsapp/status');
 
         if (res.data) {
+          const statsObj = res.data.todayStats || res.data.stats;
+          const isConn = res.data.isConnected ?? (res.data.device?.status === 'CONNECTED' || res.data.status === 'CONNECTED');
           setWhatsappStats({
-            isConnected: !!res.data.isConnected,
-            sent: res.data.todayStats?.sent || 0,
-            totalSent: res.data.todayStats?.totalSent || 0,
-            queued: res.data.todayStats?.queued || 0,
-            failed: res.data.todayStats?.failed || 0,
-            dailyLimit: res.data.todayStats?.dailyLimit || 100,
-            remainingLimit: res.data.todayStats?.remainingLimit || 100,
+            isConnected: !!isConn,
+            sent: statsObj?.sent || 0,
+            monthSent: statsObj?.monthSent || 0,
+            totalSent: statsObj?.totalSent || 0,
+            queued: statsObj?.queued || 0,
+            failed: statsObj?.failed || 0,
           });
         }
       } catch (err) {
@@ -184,6 +183,21 @@ export const SettingsPage: React.FC = () => {
       setTimeout(() => setSuccessMessage(null), 3000);
     }
   };
+
+  // Current month active date range (e.g. "01 Nov 2026 – 30 Nov 2026")
+  const dateRangeStr = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startDay = String(start.getDate()).padStart(2, '0');
+    const endDay = String(end.getDate()).padStart(2, '0');
+    const month = now.toLocaleDateString('en-IN', { month: 'short' });
+    const year = now.getFullYear();
+    return `${startDay} ${month} ${year} – ${endDay} ${month} ${year}`;
+  })();
+
+  const monthMessages = whatsappStats.monthSent ?? whatsappStats.totalSent ?? whatsappStats.sent ?? 0;
+  const totalBilled = (monthMessages * 0.17).toFixed(2);
 
   return (
     <div className="space-y-6 pb-12">
@@ -354,7 +368,7 @@ export const SettingsPage: React.FC = () => {
                   Total Dispatched
                 </span>
                 <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 block mt-0.5">
-                  {whatsappStats.totalSent || whatsappStats.sent || 0}
+                  {whatsappStats.totalSent || 0}
                 </span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">All-time count</span>
               </div>
@@ -367,108 +381,53 @@ export const SettingsPage: React.FC = () => {
                   {whatsappStats.sent || 0}
                 </span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                  Limit: {whatsappStats.dailyLimit}/day
+                  Today's count
                 </span>
               </div>
             </div>
 
             {/* Cost Tracker @ 17 Paise (₹0.17/msg) */}
-            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl space-y-2">
+            <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl space-y-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-emerald-900 dark:text-emerald-200">
-                  Monthly Cost Tracker ({selectedMonth})
+                  Monthly Cost Tracker
                 </span>
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200">
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20">
                   ₹0.17 / msg
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-center pt-1">
-                <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
+              <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                Period: <span className="font-semibold text-slate-800 dark:text-slate-200">{dateRangeStr}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center pt-0.5">
+                <div className="p-2.5 bg-white/90 dark:bg-slate-900/90 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Month Messages</span>
-                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                    {whatsappStats.totalSent || 280} msgs
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mt-0.5 block">
+                    {monthMessages} msgs
                   </span>
                 </div>
-                <div className="p-2 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
+                <div className="p-2.5 bg-white/90 dark:bg-slate-900/90 rounded-lg border border-emerald-200/50 dark:border-emerald-800/40">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Total Billed</span>
-                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                    ₹{(((whatsappStats.totalSent || 280) * 0.17)).toFixed(2)}
+                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                    ₹{totalBilled}
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Interactive Cost Calculator Simulator */}
-            <div className="p-3 bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 rounded-xl space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 dark:text-slate-200">Volume Cost Simulator</span>
-                <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
-                  ₹{(calcVolume * 0.17).toFixed(2)}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>Target Messages: <strong>{calcVolume}</strong></span>
-                  <span>Rate: 17p</span>
-                </div>
-                <input
-                  type="range"
-                  min="50"
-                  max="2000"
-                  step="50"
-                  value={calcVolume}
-                  onChange={(e) => setCalcVolume(parseInt(e.target.value, 10))}
-                  className="w-full accent-indigo-600 h-1.5 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {/* Anti-Ban Safety Health Shield */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>Anti-Ban Safety Shield</span>
-                </div>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  98% Ultra-Safe
-                </span>
-              </div>
-              <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
-                <li className="flex items-center gap-1.5">
-                  <span className="text-emerald-500">✓</span>
-                  <span>Daily Cap: <strong>60–70 msgs/day</strong> recommended</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span className="text-emerald-500">✓</span>
-                  <span>100% saved parent contacts (0% cold spam)</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span className="text-emerald-500">✓</span>
-                  <span>Randomized 3–6s queue spacing active</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <span className="text-emerald-500">✓</span>
-                  <span>24/7 On-Demand Instant Dispatch (No time locks)</span>
-                </li>
-              </ul>
             </div>
 
             {/* Details List */}
             <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 pt-1">
               <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/5">
-                <span className="text-slate-500 dark:text-slate-400">Remaining Quota Today</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{whatsappStats.remainingLimit} msgs</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400">Queue Backlog</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-300">{whatsappStats.queued} pending</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-slate-500 dark:text-slate-400">Dispatch Status</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Gateway Status</span>
+                <span className={`font-semibold flex items-center gap-1 ${
+                  whatsappStats.isConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                }`}>
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Anti-Ban Engine Active
+                  {whatsappStats.isConnected ? 'Connected & Ready' : 'Standby'}
                 </span>
               </div>
             </div>
@@ -512,70 +471,13 @@ export const SettingsPage: React.FC = () => {
                 />
               </div>
 
-              <PhoneInput
-                label="Primary Contact Phone"
-                value={formData.phone}
-                onChange={(val) => handleInputChange('phone', val)}
-                placeholder="98765 43210"
-                helperText="Official academy WhatsApp/mobile contact number."
-              />
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Mail className="w-3 h-3 text-orange-400" />
-                  Official Email Address
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="admin@gurukulsports.in"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Globe className="w-3 h-3 text-orange-400" />
-                  Official Website
-                </label>
-                <input
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => handleInputChange('website', e.target.value)}
-                  placeholder="https://gurukulsports.in"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Coins className="w-3 h-3 text-orange-400" />
-                  Primary Billing Currency
-                </label>
-                <select
-                  value={formData.currency}
-                  onChange={(e) => handleInputChange('currency', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
-                >
-                  <option value="INR">INR (₹) — Indian Rupee</option>
-                  <option value="USD">USD ($) — US Dollar</option>
-                  <option value="AED">AED (د.إ) — UAE Dirham</option>
-                  <option value="GBP">GBP (£) — British Pound</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-orange-400" />
-                  Campus / Facility Physical Address
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  placeholder="Full physical sports complex address..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-orange-500 transition-colors shadow-xs"
+              <div className="sm:col-span-2">
+                <PhoneInput
+                  label="Primary Contact Phone"
+                  value={formData.phone}
+                  onChange={(val) => handleInputChange('phone', val)}
+                  placeholder="98765 43210"
+                  helperText="Official academy WhatsApp/mobile contact number."
                 />
               </div>
             </div>
@@ -588,91 +490,6 @@ export const SettingsPage: React.FC = () => {
               >
                 <Save className="w-4 h-4" />
                 <span>{saving ? 'Saving...' : 'Save Settings'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Direct UPI Settlement (0% Transaction Fee) Card */}
-          <div className="bg-white dark:bg-[#1E293B] border border-emerald-500/30 rounded-xl p-6 shadow-sm dark:shadow-lg space-y-5 relative overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 gap-2">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-                  Direct UPI Fee Settlement (0% Gateway Cut)
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Collect tuition fees directly into your academy bank account with 0% commission. Parents tap on WhatsApp to open GPay, PhonePe, Paytm, or BHIM.
-                </p>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                0.00% Commission (Zero Cut)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <QrCode className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                  Academy UPI ID (VPA) <span className="text-emerald-500 dark:text-emerald-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.upi_id}
-                  onChange={(e) => handleInputChange('upi_id', e.target.value)}
-                  placeholder="e.g. gurukulsports@okaxis or 9876543210@upi"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
-                />
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Google Pay, PhonePe, Paytm or Bank UPI VPA where fees will be deposited directly.
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Registered Bank Account / Payee Name <span className="text-emerald-500 dark:text-emerald-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.upi_payee_name}
-                  onChange={(e) => handleInputChange('upi_payee_name', e.target.value)}
-                  placeholder="e.g. Gurukul Sports Academy"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
-                />
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Exact beneficiary title verified by NPCI UPI apps during payment.
-                </span>
-              </div>
-            </div>
-
-            {/* Live Deep-Link Preview Box */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/5 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-                Live 1-Tap UPI Intent Preview:
-              </span>
-              <p className="text-xs text-slate-800 dark:text-slate-300 font-mono break-all bg-slate-100 dark:bg-black/40 p-2.5 rounded-lg border border-slate-200 dark:border-white/5">
-                upi://pay?pa={formData.upi_id || 'gurukulsports@upi'}&amp;pn={encodeURIComponent(formData.upi_payee_name || 'Gurukul Sports Academy')}&amp;am=1000&amp;cu=INR&amp;tn=Gurukul%20Tuition%20Fee
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Direct Bank Credit
-                </span>
-                <span>•</span>
-                <span>No Razorpay 2% cut</span>
-                <span>•</span>
-                <span>Instant parent WhatsApp receipt</span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saving ? 'Saving...' : 'Save UPI Payment Setup'}</span>
               </button>
             </div>
           </div>

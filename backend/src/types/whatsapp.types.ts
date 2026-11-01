@@ -222,6 +222,7 @@ export interface WhatsAppSettings {
 export interface TodayStats {
   sent: number;
   totalSent: number;
+  monthSent?: number;
   pending: number;
   processing: number;
   failed: number;
