@@ -160,7 +160,7 @@ export const WhatsAppPage: React.FC = () => {
     }
 
     try {
-      await apiClient('/whatsapp/send', {
+      const res = await apiClient<any>('/whatsapp/send', {
         method: 'POST',
         body: JSON.stringify({
           recipientPhone: normalizedPhone,
@@ -170,8 +170,9 @@ export const WhatsAppPage: React.FC = () => {
         }),
       });
 
-      setSuccess(`Direct WhatsApp message dispatched via OpenWA gateway to ${normalizedPhone}!`);
-      toast.success(`WhatsApp message sent to ${normalizedPhone}!`);
+      const successMsg = res?.message || `Direct WhatsApp message dispatched to ${normalizedPhone}!`;
+      setSuccess(successMsg);
+      toast.success(successMsg);
       setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to send test message';

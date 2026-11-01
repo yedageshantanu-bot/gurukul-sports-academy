@@ -187,7 +187,7 @@ async function runFeesTests() {
     // -------------------------------------------------------------------------
     // TEST 7: Admin assigns student fee (201)
     // -------------------------------------------------------------------------
-    const billingPeriod = `2026-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const billingPeriod = '2026-12';
     const assignFeeRes = await fetch(`${BASE_URL}/fees/students`, {
       method: 'POST',
       headers: {

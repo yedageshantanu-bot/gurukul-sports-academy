@@ -65,11 +65,11 @@ router.get('/reports/download-pdf/:studentId', requireRole(ROLES.ADMIN, ROLES.DE
 // ==============================================================================
 // 5. TEMPLATES
 // ==============================================================================
-router.get('/templates', (req, res, next) => whatsappController.listTemplates(req, res, next));
-router.post('/templates', (req, res, next) => whatsappController.createTemplate(req, res, next));
-router.get('/templates/:id', (req, res, next) => whatsappController.getTemplateById(req, res, next));
-router.patch('/templates/:id', (req, res, next) => whatsappController.updateTemplate(req, res, next));
-router.post('/templates/:id/activate', (req, res, next) => whatsappController.activateTemplate(req, res, next));
-router.post('/templates/:id/deactivate', (req, res, next) => whatsappController.deactivateTemplate(req, res, next));
+router.get('/templates', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.listTemplates(req, res, next));
+router.post('/templates', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.createTemplate(req, res, next));
+router.get('/templates/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.getTemplateById(req, res, next));
+router.patch('/templates/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.updateTemplate(req, res, next));
+router.post('/templates/:id/activate', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.activateTemplate(req, res, next));
+router.post('/templates/:id/deactivate', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.deactivateTemplate(req, res, next));
 
 export default router;

@@ -306,21 +306,31 @@ export class WhatsAppController {
 
   async sendCustomMessage(req: Request, res: Response, next: NextFunction) {
     try {
+      const validated = sendCustomMessageSchema.parse(req.body);
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before sending messages.`,
-          },
+      const isConnected = deviceStatus.status === 'CONNECTED';
+
+      if (!isConnected) {
+        const queued = await queueService.enqueueMessage({
+          recipientPhone: validated.recipientPhone,
+          messageBody: validated.messageBody,
+          studentId: validated.studentId,
+          templateId: validated.templateId,
+          eventType: validated.eventType || 'CUSTOM_NOTIFICATION',
+          scheduledAt: validated.scheduledAt,
+        });
+
+        return res.status(200).json({
+          success: true,
+          queued: true,
+          connected: false,
+          message: `Message queued successfully! WhatsApp Gateway is currently ${deviceStatus.status}. It will automatically dispatch once WhatsApp connects.`,
+          data: queued,
         });
       }
 
-      const validated = sendCustomMessageSchema.parse(req.body);
       const result = await automationService.sendCustomMessage(validated);
 
       if (!result.result.success || result.message.status === 'FAILED') {
@@ -335,6 +345,8 @@ export class WhatsAppController {
 
       res.status(200).json({
         success: true,
+        queued: false,
+        connected: true,
         data: result,
       });
     } catch (err) {
@@ -344,22 +356,13 @@ export class WhatsAppController {
 
   async triggerFeeReminder(req: Request, res: Response, next: NextFunction) {
     try {
+      const validated = triggerFeeReminderSchema.parse(req.body);
+      const studentId = req.body.studentId;
+
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before sending fee reminders.`,
-          },
-        });
-      }
-
-      const validated = triggerFeeReminderSchema.parse(req.body);
-      const studentId = req.body.studentId;
+      const isConnected = deviceStatus.status === 'CONNECTED';
 
       const log = await automationService.triggerFeeReminderAutomation({
         studentId,
@@ -367,6 +370,16 @@ export class WhatsAppController {
         eventType: req.body.eventType,
         customTemplate: req.body.customTemplate,
       });
+
+      if (!isConnected) {
+        return res.status(200).json({
+          success: true,
+          queued: true,
+          connected: false,
+          message: `WhatsApp payment reminder queued! Gateway is currently ${deviceStatus.status}. It will automatically dispatch once WhatsApp connects.`,
+          data: log,
+        });
+      }
 
       if (log.status === 'FAILED') {
         return res.status(400).json({
@@ -380,6 +393,9 @@ export class WhatsAppController {
 
       res.status(200).json({
         success: true,
+        queued: false,
+        connected: true,
+        message: 'WhatsApp payment reminder dispatched successfully.',
         data: log,
       });
     } catch (err) {
@@ -392,22 +408,18 @@ export class WhatsAppController {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before broadcasting fee reminders.`,
-          },
-        });
-      }
+      const isConnected = deviceStatus.status === 'CONNECTED';
 
       const result = await automationService.triggerMonthly5thFeeDueAutomation();
       queueService.triggerBackgroundProcessing();
 
       res.status(200).json({
         success: true,
+        queued: true,
+        connected: isConnected,
+        message: isConnected
+          ? `Monthly fee reminders dispatched for ${result.queuedCount} students!`
+          : `Monthly fee reminders queued for ${result.queuedCount} students! They will automatically dispatch once WhatsApp connects.`,
         data: result,
       });
     } catch (err) {
@@ -420,16 +432,7 @@ export class WhatsAppController {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before broadcasting fee reminders.`,
-          },
-        });
-      }
+      const isConnected = deviceStatus.status === 'CONNECTED';
 
       const forceAllUnpaid = req.body.forceAllUnpaid === true;
       const result = await automationService.triggerMultiStageFeeCadenceAutomation({ forceAllUnpaid });
@@ -439,6 +442,11 @@ export class WhatsAppController {
 
       res.status(200).json({
         success: true,
+        queued: true,
+        connected: isConnected,
+        message: isConnected
+          ? 'Fee cadence reminders dispatched!'
+          : 'Fee cadence reminders queued! They will automatically dispatch once WhatsApp connects.',
         data: result,
       });
     } catch (err) {
@@ -533,19 +541,20 @@ export class WhatsAppController {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before sending student reports.`,
-          },
-        });
-      }
+      const isConnected = deviceStatus.status === 'CONNECTED';
 
       const studentId = req.params.studentId;
       const result = await automationService.sendStudentMonthlyReport(studentId);
+
+      if (!isConnected) {
+        return res.status(200).json({
+          success: true,
+          queued: true,
+          connected: false,
+          message: `Student report queued! Gateway is currently ${deviceStatus.status}. It will automatically dispatch once WhatsApp connects.`,
+          data: result,
+        });
+      }
 
       if (!result.success) {
         return res.status(400).json({
@@ -559,6 +568,8 @@ export class WhatsAppController {
 
       res.status(200).json({
         success: result.success,
+        queued: false,
+        connected: true,
         data: result,
       });
     } catch (err) {
@@ -571,22 +582,18 @@ export class WhatsAppController {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
       const deviceStatus = await provider.getStatus();
-      if (deviceStatus.status !== 'CONNECTED') {
-        return res.status(400).json({
-          success: false,
-          disconnected: true,
-          error: {
-            code: 'WHATSAPP_DISCONNECTED',
-            message: `WhatsApp Gateway is currently ${deviceStatus.status}. Please scan QR code in WhatsApp settings before broadcasting student reports.`,
-          },
-        });
-      }
+      const isConnected = deviceStatus.status === 'CONNECTED';
 
       const result = await automationService.sendAllMonthlyReportsBatch();
       queueService.triggerBackgroundProcessing();
 
       res.status(200).json({
         success: true,
+        queued: true,
+        connected: isConnected,
+        message: isConnected
+          ? `Monthly reports dispatched for ${result.processed} students!`
+          : `Monthly reports processed for ${result.processed} students. Gateway is currently ${deviceStatus.status}.`,
         data: result,
       });
     } catch (err) {

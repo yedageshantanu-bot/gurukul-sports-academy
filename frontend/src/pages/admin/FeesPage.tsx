@@ -576,14 +576,13 @@ export const FeesPage: React.FC = () => {
       });
 
       const data = await res.json();
-      if (!res.ok || data.disconnected) {
-        throw new Error(data.message || data.error?.message || data.error || 'WhatsApp Gateway is currently disconnected. Please connect in WhatsApp Settings.');
+      if (!res.ok) {
+        throw new Error(data.error?.message || data.message || 'Failed to dispatch WhatsApp reminder.');
       }
 
-      setReminderSuccessMessage(
-        `WhatsApp reminder sent to ${fee.student?.name || 'student'} (${data.data?.recipient_phone || 'recipient'})! Queued safely for dispatch.`
-      );
-      toast.success(`WhatsApp reminder dispatched for ${fee.student?.name || 'student'}`);
+      const msg = data.message || `WhatsApp reminder queued for ${fee.student?.name || 'student'}!`;
+      setReminderSuccessMessage(msg);
+      toast.success(msg);
       setTimeout(() => setReminderSuccessMessage(null), 6000);
     } catch (err: any) {
       setError(err.message || 'Error sending WhatsApp reminder');

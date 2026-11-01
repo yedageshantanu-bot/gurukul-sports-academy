@@ -605,7 +605,7 @@ export const StudentsPage: React.FC = () => {
     }
     setSendingWa(true);
     try {
-      await apiClient('/whatsapp/send', {
+      const res = await apiClient<any>('/whatsapp/send', {
         method: 'POST',
         body: JSON.stringify({
           recipientPhone: waTargetStudent.parentWhatsapp,
@@ -614,7 +614,7 @@ export const StudentsPage: React.FC = () => {
           eventType: 'CUSTOM_NOTIFICATION',
         }),
       });
-      toast.success(`WhatsApp message sent to ${waTargetStudent.name}!`);
+      toast.success(res?.message || `WhatsApp message sent to ${waTargetStudent.name}!`);
       setIsWaModalOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to dispatch WhatsApp message');

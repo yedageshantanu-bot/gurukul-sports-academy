@@ -381,13 +381,14 @@ export const PaymentsPage: React.FC = () => {
           });
         }
 
-        const data = res ? await res.json() : { disconnected: true };
-        if (!res || !res.ok || data.disconnected) {
+        const data = res ? await res.json() : { success: false };
+        if (!res || !res.ok) {
           throw new Error(data.error?.message || data.message || 'WhatsApp Gateway is currently disconnected. Please connect device in WhatsApp Settings.');
         }
 
-        setSuccessToast(`WhatsApp payment reminder dispatched for ${item.studentName}!`);
-        toast.success(`WhatsApp payment reminder dispatched for ${item.studentName}!`);
+        const msg = data.message || `WhatsApp payment reminder queued for ${item.studentName}!`;
+        setSuccessToast(msg);
+        toast.success(msg);
       }
       setTimeout(() => setSuccessToast(null), 6000);
     } catch (err: any) {

@@ -108,6 +108,8 @@ async function seedUsers() {
       .upsert(
         {
           profile_id: teacherUserId,
+          name: 'Lead Instructor',
+          email: DEV_TEACHER_EMAIL,
           subject: 'Science & Mathematics',
           status: STATUS.ACTIVE,
           updated_at: new Date().toISOString(),
