@@ -277,7 +277,7 @@ export const RanksPage: React.FC = () => {
       if (mappedCerts.length === 1) {
         if (action === 'print') {
           await printCertificatePdf(mappedCerts[0]);
-          toast.success('Certificate sent to printer!');
+          toast.success('Certificate opened in print preview tab!');
         } else {
           await downloadCertificatePdf(mappedCerts[0]);
           toast.success('Certificate PDF downloaded!');
@@ -290,7 +290,7 @@ export const RanksPage: React.FC = () => {
             offsetX: certOffsetX,
             offsetY: certOffsetY,
           });
-          toast.success(`Sent ${mappedCerts.length} certificates to printer!`);
+          toast.success(`Opened ${mappedCerts.length} certificates in print preview tab!`);
         } else {
           await downloadCombinedCertificatesPdf(mappedCerts, label, {
             printMode: certPrintMode,

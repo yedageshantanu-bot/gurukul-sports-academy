@@ -465,6 +465,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     if (waRecipients.length === 0 || !waMessageTemplate.trim()) return;
     setIsSendingBatch(true);
     let successCount = 0;
+    let failReason = '';
     try {
       for (const r of waRecipients) {
         const msg = waMessageTemplate
@@ -485,13 +486,17 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
             }),
           });
           successCount++;
-        } catch {
-          // continue with rest
+        } catch (err: any) {
+          failReason = err.message || failReason;
         }
       }
-      toast.success(`WhatsApp message dispatched to ${successCount} customer(s)!`);
-      setIsWaComposerOpen(false);
-      setSelectedStudentIds([]);
+      if (successCount > 0) {
+        toast.success(`WhatsApp message dispatched to ${successCount} customer(s)!`);
+        setIsWaComposerOpen(false);
+        setSelectedStudentIds([]);
+      } else {
+        toast.error(failReason || 'WhatsApp delivery failed. WhatsApp Gateway is currently disconnected. Please link device in WhatsApp Settings.');
+      }
     } finally {
       setIsSendingBatch(false);
     }

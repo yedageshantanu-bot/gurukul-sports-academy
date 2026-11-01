@@ -388,28 +388,19 @@ export async function printCombinedCertificatesPdf(
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.src = url;
-  document.body.appendChild(iframe);
-
-  iframe.onload = () => {
+  const printWin = window.open(url, '_blank');
+  if (printWin) {
+    printWin.focus();
     try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch {
-      window.open(url, '_blank');
-    }
-    setTimeout(() => {
-      try {
-        document.body.removeChild(iframe);
-      } catch {}
-      URL.revokeObjectURL(url);
-    }, 60000);
-  };
+      printWin.onload = () => {
+        try {
+          printWin.print();
+        } catch {}
+      };
+    } catch {}
+  } else {
+    await downloadCombinedCertificatesPdf(certs, label, options);
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
 }

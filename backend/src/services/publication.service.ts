@@ -275,6 +275,7 @@ export class PublicationService {
         eventType: 'PUBLICATION_FEE_REMINDER',
         idempotencyKey: `PUB_REMIND:${record.id}:${new Date().toISOString().split('T')[0]}`,
       });
+      queueService.triggerBackgroundProcessing();
       return { success: true, message: 'WhatsApp publication renewal reminder dispatched.' };
     } catch (err: any) {
       console.warn('[PublicationService.sendRenewalReminder] WhatsApp dispatch failed:', err.message);

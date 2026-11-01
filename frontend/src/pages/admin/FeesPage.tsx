@@ -607,14 +607,18 @@ export const FeesPage: React.FC = () => {
         },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to trigger monthly reminders');
+      if (!res.ok) {
+        throw new Error(data.error?.message || data.message || 'Failed to trigger monthly reminders');
+      }
 
       setReminderSuccessMessage(
         `Monthly fee reminders queued for ${data.data?.queuedCount || 0} students! Dispatched safely via WhatsApp queue.`
       );
+      toast.success(`Monthly fee reminders queued for ${data.data?.queuedCount || 0} students!`);
       setTimeout(() => setReminderSuccessMessage(null), 8000);
     } catch (err: any) {
       setError(err.message || 'Error triggering monthly fee reminders');
+      toast.error(err.message || 'WhatsApp Gateway disconnected. Please connect in WhatsApp Settings.');
     } finally {
       setTriggeringMonthly(false);
     }
@@ -728,16 +732,17 @@ export const FeesPage: React.FC = () => {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setReminderSuccessMessage(
-          `Monthly fees synchronized for ${data.data?.period || currentPeriod}! Generated: ${data.data?.createdCount || 0} active student bills, Verified: ${data.data?.existingCount || 0} students.`
-        );
+        const msg = `Monthly fees synchronized for ${data.data?.period || currentPeriod}! Generated: ${data.data?.createdCount || 0} active student bills, Verified: ${data.data?.existingCount || 0} students.`;
+        setReminderSuccessMessage(msg);
+        toast.success(msg);
         setTimeout(() => setReminderSuccessMessage(null), 8000);
         await fetchData();
       } else {
-        throw new Error(data.message || 'Failed to sync monthly fees');
+        throw new Error(data.error?.message || data.message || 'Failed to sync monthly fees');
       }
     } catch (err: any) {
       setError(err.message || 'Error syncing monthly fees');
+      toast.error(err.message || 'Error syncing monthly fees');
     } finally {
       setSyncingMonthly(false);
     }
