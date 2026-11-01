@@ -31,7 +31,6 @@ import {
   X,
   Check,
   Users,
-  UserCheck,
 } from 'lucide-react';
 import { Announcement } from '../../types/announcement';
 
@@ -145,14 +144,12 @@ export const AnnouncementsPage: React.FC = () => {
     batchIds: string[];
     tournamentIds: string[];
     teamCodes: string[];
-    includeSelf: boolean;
   }>({
     title: '',
     message: '',
     batchIds: [],
     tournamentIds: [],
     teamCodes: [],
-    includeSelf: false,
   });
 
   const [editFormData, setEditFormData] = useState<{
@@ -161,14 +158,12 @@ export const AnnouncementsPage: React.FC = () => {
     batchIds: string[];
     tournamentIds: string[];
     teamCodes: string[];
-    includeSelf: boolean;
   }>({
     title: '',
     message: '',
     batchIds: [],
     tournamentIds: [],
     teamCodes: [],
-    includeSelf: false,
   });
 
   const fetchAnnouncements = async () => {
@@ -374,14 +369,12 @@ export const AnnouncementsPage: React.FC = () => {
     const selectedIds = (a.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
     const selectedTourneys = a.metadata?.tournamentIds || [];
     const selectedTeams = a.metadata?.teamCodes || [];
-    const includeSelf = Boolean(a.metadata?.includeSelf);
     setEditFormData({
       title: a.title,
       message: a.message,
       batchIds: selectedIds,
       tournamentIds: selectedTourneys,
       teamCodes: selectedTeams,
-      includeSelf,
     });
     setIsEditModalOpen(true);
   };
@@ -448,8 +441,7 @@ export const AnnouncementsPage: React.FC = () => {
     if (
       formData.batchIds.length === 0 &&
       formData.tournamentIds.length === 0 &&
-      formData.teamCodes.length === 0 &&
-      !formData.includeSelf
+      formData.teamCodes.length === 0
     ) {
       toast.warning('Please select at least one target batch, tournament squad, or team.');
       return;
@@ -466,11 +458,9 @@ export const AnnouncementsPage: React.FC = () => {
           batchIds: formData.batchIds,
           tournamentIds: formData.tournamentIds,
           teamCodes: formData.teamCodes,
-          includeSelf: formData.includeSelf,
           metadata: {
             tournamentIds: formData.tournamentIds,
             teamCodes: formData.teamCodes,
-            includeSelf: formData.includeSelf,
           },
         }),
       });
@@ -484,7 +474,6 @@ export const AnnouncementsPage: React.FC = () => {
         batchIds: [],
         tournamentIds: [],
         teamCodes: [],
-        includeSelf: false,
       });
       fetchAnnouncements();
     } catch (err: any) {
@@ -500,8 +489,7 @@ export const AnnouncementsPage: React.FC = () => {
     if (
       editFormData.batchIds.length === 0 &&
       editFormData.tournamentIds.length === 0 &&
-      editFormData.teamCodes.length === 0 &&
-      !editFormData.includeSelf
+      editFormData.teamCodes.length === 0
     ) {
       toast.warning('Please select at least one target batch, tournament squad, or team.');
       return;
@@ -518,11 +506,9 @@ export const AnnouncementsPage: React.FC = () => {
           batchIds: editFormData.batchIds,
           tournamentIds: editFormData.tournamentIds,
           teamCodes: editFormData.teamCodes,
-          includeSelf: editFormData.includeSelf,
           metadata: {
             tournamentIds: editFormData.tournamentIds,
             teamCodes: editFormData.teamCodes,
-            includeSelf: editFormData.includeSelf,
           },
         }),
       });
@@ -867,7 +853,6 @@ export const AnnouncementsPage: React.FC = () => {
                   const targetBatches = (a.batches || []).map((b) => b.batch?.name).filter(Boolean);
                   const targetedTournaments = tournaments.filter((t) => (a.metadata?.tournamentIds || []).includes(t.id));
                   const targetedTeams = teams.filter((t) => (a.metadata?.teamCodes || []).includes(t.code));
-                  const hasSelf = Boolean(a.metadata?.includeSelf);
 
                   return (
                     <tr key={a.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
@@ -911,13 +896,7 @@ export const AnnouncementsPage: React.FC = () => {
                               {team.name}
                             </span>
                           ))}
-                          {hasSelf && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60">
-                              <UserCheck className="w-2.5 h-2.5 text-emerald-500" />
-                              + Self Admin
-                            </span>
-                          )}
-                          {targetBatches.length === 0 && targetedTournaments.length === 0 && targetedTeams.length === 0 && !hasSelf && (
+                          {targetBatches.length === 0 && targetedTournaments.length === 0 && targetedTeams.length === 0 && (
                             <span className="text-xs text-slate-400 italic">No targets specified</span>
                           )}
                         </div>
@@ -1159,20 +1138,6 @@ export const AnnouncementsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* 1-Click Send copy to Self / Admin */}
-              <label className="flex items-center gap-2 p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/30 text-xs font-semibold text-slate-800 dark:text-amber-200 cursor-pointer shadow-xs">
-                <input
-                  type="checkbox"
-                  checked={formData.includeSelf}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, includeSelf: e.target.checked }))}
-                  className="rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Self / Personal Admin (Send broadcast copy to Sensei Vikram Salunkhe: 9881888061)</span>
-                </span>
-              </label>
-
               {teams.length === 0 ? (
                 <div className="text-xs text-slate-400 py-2 italic text-center">
                   No teams configured yet.{' '}
@@ -1400,20 +1365,6 @@ export const AnnouncementsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* 1-Click Send copy to Self / Admin */}
-              <label className="flex items-center gap-2 p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/30 text-xs font-semibold text-slate-800 dark:text-amber-200 cursor-pointer shadow-xs">
-                <input
-                  type="checkbox"
-                  checked={editFormData.includeSelf}
-                  onChange={(e) => setEditFormData((prev) => ({ ...prev, includeSelf: e.target.checked }))}
-                  className="rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Self / Personal Admin (Send broadcast copy to Sensei Vikram Salunkhe: 9881888061)</span>
-                </span>
-              </label>
-
               {teams.length === 0 ? (
                 <div className="text-xs text-slate-400 py-2 italic text-center">
                   No teams configured yet.{' '}
@@ -1520,7 +1471,7 @@ export const AnnouncementsPage: React.FC = () => {
               <div>
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">{broadcastTarget.title}</h4>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Targeting {(broadcastTarget.batches || []).length} batch(es), {(broadcastTarget.metadata?.tournamentIds || []).length} tournament squad(s), {(broadcastTarget.metadata?.teamCodes || []).length} team(s){broadcastTarget.metadata?.includeSelf ? ' + Self Admin' : ''}
+                  Targeting {(broadcastTarget.batches || []).length} batch(es), {(broadcastTarget.metadata?.tournamentIds || []).length} tournament squad(s), {(broadcastTarget.metadata?.teamCodes || []).length} team(s)
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -1736,6 +1687,22 @@ export const AnnouncementsPage: React.FC = () => {
                         {t.title}
                       </span>
                     ))}
+                  {teams
+                    .filter((tm) => (previewAnnouncement.metadata?.teamCodes || []).includes(tm.code))
+                    .map((tm, idx) => (
+                      <span
+                        key={`preview-tm-${idx}`}
+                        className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 flex items-center gap-1"
+                      >
+                        <Users className="w-3 h-3 text-indigo-500" />
+                        {tm.name}
+                      </span>
+                    ))}
+                  {(previewAnnouncement.batches || []).length === 0 &&
+                    tournaments.filter((t) => (previewAnnouncement.metadata?.tournamentIds || []).includes(t.id)).length === 0 &&
+                    teams.filter((tm) => (previewAnnouncement.metadata?.teamCodes || []).includes(tm.code)).length === 0 && (
+                      <span className="text-xs text-slate-400 italic">No targets specified</span>
+                    )}
                 </div>
               </div>
 
