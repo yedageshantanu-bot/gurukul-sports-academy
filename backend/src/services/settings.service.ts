@@ -63,10 +63,10 @@ export class SettingsService {
               }
             : {
                 academy_name: 'Gurukul Sports Academy',
-                phone: '+91 70384 23366',
-                email: 'contact@amitacademy.edu',
-                address: '3rd Floor, Arihant Mall, Opposite Central Bus Stand, Ratnagiri, Maharashtra 415612',
-                website: 'https://amitacademy.com',
+                phone: '+91 94048 49500',
+                email: '',
+                address: '',
+                website: '',
                 currency: 'INR',
               }
         )

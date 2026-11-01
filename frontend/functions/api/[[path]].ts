@@ -1607,6 +1607,15 @@ export async function onRequest(context: any) {
         // Fallback
       }
 
+      const startDay = String(new Date(now.getFullYear(), now.getMonth(), 1).getDate()).padStart(2, '0');
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const endDay = String(lastDay.getDate()).padStart(2, '0');
+      const monthStr = now.toLocaleDateString('en-IN', { month: 'short' });
+      const yearNum = now.getFullYear();
+      const billingPeriod = `${startDay} ${monthStr} ${yearNum} – ${endDay} ${monthStr} ${yearNum}`;
+      const ratePerMessage = 0.17;
+      const monthBilled = Number((monthSent * ratePerMessage).toFixed(2));
+
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       return jsonResponse({
         success: true,
@@ -1630,6 +1639,9 @@ export async function onRequest(context: any) {
             totalSent: totalSent,
             queued: queued,
             failed: failed,
+            ratePerMessage,
+            monthBilled,
+            billingPeriod,
           },
           stats: {
             sent: sentToday,
@@ -1637,6 +1649,9 @@ export async function onRequest(context: any) {
             totalSent: totalSent,
             queued: queued,
             failed: failed,
+            ratePerMessage,
+            monthBilled,
+            billingPeriod,
           },
         },
       });

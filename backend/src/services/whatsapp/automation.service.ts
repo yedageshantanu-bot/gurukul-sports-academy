@@ -1357,28 +1357,19 @@ export class WhatsAppAutomationService {
     }
 
     const academyName = await this.getAcademyName();
-    const portalUrl = 'https://gurukul-sports-academy.pages.dev/login';
-    const autoLoginLink = `${portalUrl}?phone=${encodeURIComponent(authInfo.phone)}&pin=${encodeURIComponent(authInfo.password)}&autologin=1`;
 
     const messageBody = [
       `🥋 *Welcome to ${academyName}, ${student.name}!*`,
       ``,
-      `Your official Student Mobile App is ready! You can now track your daily attendance, belt ranks, and fee records right on your phone:`,
+      `Your official student profile has been registered successfully.`,
       ``,
-      `🚀 *Direct 1-Tap Auto-Login Link*:`,
-      `${autoLoginLink}`,
-      `_(Tap this link to open the app and log in automatically without typing password!)_`,
+      `📱 *Account Details*:`,
+      `• Registered Mobile: *${authInfo.phone}*`,
+      `• Student ID / PIN: *${authInfo.password}*`,
       ``,
-      `📱 *Manual Login Credentials (if needed)*:`,
-      `• Mobile: *${authInfo.phone}*`,
-      `• Password: *${authInfo.password}*`,
-      `• App Portal: ${portalUrl}`,
+      `Daily attendance updates, training alerts, and fee receipts will be shared directly on this WhatsApp number.`,
       ``,
-      `📲 *How to install on your phone home screen*:`,
-      `1. Open the direct login link above in Chrome or Safari.`,
-      `2. Click *"Add to Home Screen"* / *"Install App"* when prompted for 1-tap app access!`,
-      ``,
-      `- ${academyName} Administration`,
+      `- ${academyName}`,
     ].join('\n');
 
     const provider = await whatsappProviderFactory.getProvider();

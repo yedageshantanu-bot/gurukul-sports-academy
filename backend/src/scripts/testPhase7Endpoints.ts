@@ -189,11 +189,11 @@ async function runPhase7Tests() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
       body: JSON.stringify({
-        academy_name: 'Apex Academy',
-        phone: '+91 98765 43210',
-        email: 'contact@apexacademy.edu',
-        address: '123 Education Boulevard, Tech City',
-        website: 'https://apexacademy.edu',
+        academy_name: 'Gurukul Sports Academy',
+        phone: '+91 94048 49500',
+        email: '',
+        address: '',
+        website: '',
       }),
     });
   } catch (err: any) {

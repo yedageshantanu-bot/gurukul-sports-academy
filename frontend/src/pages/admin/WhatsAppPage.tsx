@@ -13,6 +13,8 @@ import {
   Radio,
   Clock,
   Check,
+  MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface DeviceStatus {
@@ -27,6 +29,22 @@ export const WhatsAppPage: React.FC = () => {
   const { toast } = useToast();
   const [device, setDevice] = useState<DeviceStatus>({
     status: 'DISCONNECTED',
+  });
+  const [whatsappStats, setWhatsappStats] = useState<{
+    isConnected: boolean;
+    sent: number;
+    monthSent: number;
+    totalSent: number;
+    queued: number;
+    failed: number;
+    billingPeriod?: string;
+  }>({
+    isConnected: false,
+    sent: 0,
+    monthSent: 0,
+    totalSent: 0,
+    queued: 0,
+    failed: 0,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,6 +75,19 @@ export const WhatsAppPage: React.FC = () => {
             return { ...deviceData, qrCode: prev.qrCode, status: 'QR_READY' };
           }
           return deviceData;
+        });
+      }
+
+      const statsObj = payload?.todayStats || payload?.stats;
+      if (statsObj) {
+        setWhatsappStats({
+          isConnected: deviceData?.status === 'CONNECTED' || !!payload?.isConnected,
+          sent: statsObj.sent || 0,
+          monthSent: statsObj.monthSent || 0,
+          totalSent: statsObj.totalSent || 0,
+          queued: statsObj.queued ?? statsObj.pending ?? 0,
+          failed: statsObj.failed || 0,
+          billingPeriod: statsObj.billingPeriod,
         });
       }
     } catch (err: any) {
@@ -185,6 +216,22 @@ export const WhatsAppPage: React.FC = () => {
 
   const isConnected = device.status === 'CONNECTED';
 
+  // Current month active date range (e.g. "01 Nov 2026 – 30 Nov 2026")
+  const dateRangeStr = (() => {
+    if (whatsappStats.billingPeriod) return whatsappStats.billingPeriod;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startDay = String(start.getDate()).padStart(2, '0');
+    const endDay = String(end.getDate()).padStart(2, '0');
+    const month = now.toLocaleDateString('en-IN', { month: 'short' });
+    const year = now.getFullYear();
+    return `${startDay} ${month} ${year} – ${endDay} ${month} ${year}`;
+  })();
+
+  const monthMessages = whatsappStats.monthSent ?? whatsappStats.totalSent ?? whatsappStats.sent ?? 0;
+  const totalBilled = (monthMessages * 0.17).toFixed(2);
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -240,14 +287,83 @@ export const WhatsAppPage: React.FC = () => {
         </div>
       )}
 
-      {/* Safe Queue Info Banner */}
-      <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-start sm:items-center gap-3 text-xs text-slate-700 dark:text-slate-300 shadow-xs">
-        <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 shrink-0">
-          <Clock className="w-4 h-4" />
+      {/* WhatsApp Messaging Stats & Cost Tracker */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Dispatched */}
+        <div className="p-4 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+              Total Dispatched
+            </span>
+            <MessageSquare className="w-4 h-4 text-emerald-500" />
+          </div>
+          <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 block mt-1">
+            {whatsappStats.totalSent || 0}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">All-time count</span>
         </div>
-        <div className="flex-1">
-          <span className="font-semibold text-slate-900 dark:text-white">Smart Anti-Ban Queue Active:</span> Automated fee reminders and announcements are safely staggered with natural delays so your WhatsApp number stays 100% healthy. You can trigger reminders anytime without restrictions!
+
+        {/* Sent Today */}
+        <div className="p-4 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+              Sent Today
+            </span>
+            <Clock className="w-4 h-4 text-orange-400" />
+          </div>
+          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-1">
+            {whatsappStats.sent || 0}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Today's count</span>
         </div>
+
+        {/* Month Messages */}
+        <div className="p-4 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+              Month Messages
+            </span>
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              ₹0.17 / msg
+            </span>
+          </div>
+          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-1">
+            {monthMessages} msgs
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate block" title={dateRangeStr}>
+            {dateRangeStr}
+          </span>
+        </div>
+
+        {/* Monthly Cost Tracker */}
+        <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-bold text-emerald-900 dark:text-emerald-200 tracking-wider">
+              Monthly Cost Tracker
+            </span>
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 block mt-1">
+              ₹{totalBilled}
+            </span>
+            <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+              Rate: ₹0.17 / msg
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Gateway Status Info Banner */}
+      <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-700 dark:text-slate-300 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="font-semibold text-slate-900 dark:text-white">Live WhatsApp Gateway:</span>
+          <span>Attendance alerts, fee receipts, and parent broadcasts dispatched in real-time.</span>
+        </div>
+        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+          Queue backlog: {whatsappStats.queued} pending
+        </span>
       </div>
 
       {/* Main Grid: QR Code & Status */}

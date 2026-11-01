@@ -58,11 +58,11 @@ export const SettingsPage: React.FC = () => {
       setFormData({
         academy_name: settings.academy_name || 'Gurukul Sports Academy',
         logo_url: settings.logo_url || '/logo.png',
-        phone: settings.phone || '+91 98765 43210',
-        email: settings.email || 'admin@gurukulsports.in',
-        address: settings.address || 'Gurukul Sports Complex, Multi-Sport Training Facility, Pune, Maharashtra',
-        website: settings.website || 'https://gurukulsports.in',
-        currency: settings.currency || 'INR',
+        phone: settings.phone || '+91 94048 49500',
+        email: settings.email || '',
+        address: settings.address || '',
+        website: settings.website || '',
+        currency: 'INR',
         upi_id: settings.upi_id || 'gurukulsports@upi',
         upi_payee_name: settings.upi_payee_name || settings.academy_name || 'Gurukul Sports Academy',
       });
@@ -171,11 +171,11 @@ export const SettingsPage: React.FC = () => {
       setFormData({
         academy_name: settings.academy_name || 'Gurukul Sports Academy',
         logo_url: settings.logo_url || '/logo.png',
-        phone: settings.phone || '+91 98765 43210',
-        email: settings.email || 'admin@gurukulsports.in',
-        address: settings.address || 'Gurukul Sports Complex, Multi-Sport Training Facility, Pune, Maharashtra',
-        website: settings.website || 'https://gurukulsports.in',
-        currency: settings.currency || 'INR',
+        phone: settings.phone || '+91 94048 49500',
+        email: settings.email || '',
+        address: settings.address || '',
+        website: settings.website || '',
+        currency: 'INR',
         upi_id: settings.upi_id || 'gurukulsports@upi',
         upi_payee_name: settings.upi_payee_name || settings.academy_name || 'Gurukul Sports Academy',
       });

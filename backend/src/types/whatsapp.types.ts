@@ -228,4 +228,7 @@ export interface TodayStats {
   failed: number;
   dailyLimit: number;
   remainingDailyLimit: number;
+  ratePerMessage?: number;
+  monthBilled?: number;
+  billingPeriod?: string;
 }
