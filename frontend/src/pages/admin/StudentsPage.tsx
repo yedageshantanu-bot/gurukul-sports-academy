@@ -1194,15 +1194,14 @@ export const StudentsPage: React.FC = () => {
 
                   <div className="flex items-center gap-1">
                     {s.parentWhatsapp && (
-                      <a
-                        href={`https://wa.me/${s.parentWhatsapp.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handleOpenWhatsAppModal(s)}
                         className="p-1.5 rounded-lg border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
-                        title="Chat on WhatsApp"
+                        title="Send WhatsApp Message"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
                     )}
                     <button
                       type="button"

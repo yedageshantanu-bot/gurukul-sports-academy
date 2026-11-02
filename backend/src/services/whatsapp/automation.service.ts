@@ -486,7 +486,7 @@ export class WhatsAppAutomationService {
   // ============================================================================
   async triggerFeeReminderAutomation(params: {
     studentId?: string;
-    studentFeeId: string;
+    studentFeeId?: string;
     eventType?: 'FEE_DUE' | 'FEE_OVERDUE' | 'FEE_UPCOMING' | 'FEE_OVERDUE_ALERT' | 'FEE_DUE_REMINDER';
     customTemplate?: string;
   }) {
@@ -504,26 +504,36 @@ export class WhatsAppAutomationService {
       throw new AppError(`No active template found for ${eventType}`, 400, 'TEMPLATE_NOT_FOUND');
     }
 
-    // Resilient lookup: query student_fees first to guarantee valid fee & student association
-    const feeRes = await this.supabase
-      .from('student_fees')
-      .select('id, student_id, amount_due, amount_paid, due_date, billing_period')
-      .eq('id', params.studentFeeId)
-      .single();
-
-    if (feeRes.error || !feeRes.data) {
-      throw new AppError('Student fee record not found', 404, 'RESOURCE_NOT_FOUND');
+    // Resilient lookup: query student_fees by studentFeeId, or fallback to latest fee for studentId
+    let fee: any = null;
+    if (params.studentFeeId) {
+      const feeRes = await this.supabase
+        .from('student_fees')
+        .select('id, student_id, amount_due, amount_paid, due_date, billing_period')
+        .eq('id', params.studentFeeId)
+        .maybeSingle();
+      fee = feeRes.data;
     }
 
-    const fee = feeRes.data;
-    const targetStudentId = params.studentId || fee.student_id;
+    const targetStudentId = params.studentId || fee?.student_id;
     if (!targetStudentId) {
-      throw new AppError('Student not associated with this fee record', 404, 'RESOURCE_NOT_FOUND');
+      throw new AppError('Student identifier not provided or associated with this fee record', 404, 'RESOURCE_NOT_FOUND');
+    }
+
+    if (!fee) {
+      const feeRes = await this.supabase
+        .from('student_fees')
+        .select('id, student_id, amount_due, amount_paid, due_date, billing_period')
+        .eq('student_id', targetStudentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      fee = feeRes.data;
     }
 
     const studentRes = await this.supabase
       .from('students')
-      .select('id, name, parent_name, parent_whatsapp, student_mobile, course')
+      .select('id, name, parent_name, parent_whatsapp, student_mobile, course, monthly_fee')
       .eq('id', targetStudentId)
       .single();
 
@@ -532,7 +542,9 @@ export class WhatsAppAutomationService {
     }
 
     const student = studentRes.data;
-    const pendingAmount = Math.max(0, Number(fee.amount_due) - Number(fee.amount_paid));
+    const pendingAmount = fee
+      ? Math.max(0, Number(fee.amount_due) - Number(fee.amount_paid))
+      : Number(student.monthly_fee || 1500);
 
     const recipientPhone = student.parent_whatsapp || student.student_mobile;
     if (!recipientPhone) {
@@ -871,9 +883,9 @@ export class WhatsAppAutomationService {
       event_type: queued.event_type,
       message_body: queued.message_body,
       provider_message_id: queued.provider_message_id,
-      status: queued.status,
-      error_message: queued.failure_reason,
-      sent_at: queued.sent_at,
+      status: (processResult as any).status || queued.status,
+      error_message: (processResult as any).reason || queued.failure_reason,
+      sent_at: (processResult as any).status === 'SENT' ? new Date().toISOString() : queued.sent_at,
       created_at: queued.created_at,
     };
 

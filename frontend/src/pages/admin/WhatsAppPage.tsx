@@ -208,15 +208,15 @@ export const WhatsAppPage: React.FC = () => {
       const rawPhone = deviceData?.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
       const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
 
-      setWhatsappStats({
+      setWhatsappStats((prev) => ({
         isConnected: Boolean(isDeviceReallyConnected),
-        sent: statsObj?.sent || 0,
-        monthSent: statsObj?.monthSent || 0,
-        totalSent: statsObj?.totalSent || 0,
-        queued: statsObj?.queued ?? statsObj?.pending ?? 0,
-        failed: statsObj?.failed || 0,
-        billingPeriod: statsObj?.billingPeriod,
-      });
+        sent: Math.max(prev.sent || 0, statsObj?.sent || 0),
+        monthSent: Math.max(prev.monthSent || 0, statsObj?.monthSent || 0),
+        totalSent: Math.max(prev.totalSent || 0, statsObj?.totalSent || 0),
+        queued: statsObj?.queued ?? statsObj?.pending ?? prev.queued ?? 0,
+        failed: statsObj?.failed ?? prev.failed ?? 0,
+        billingPeriod: statsObj?.billingPeriod || prev.billingPeriod,
+      }));
     } catch (err: any) {
       console.warn('Failed to load WhatsApp status:', err);
     } finally {
@@ -428,7 +428,7 @@ export const WhatsAppPage: React.FC = () => {
       // Status filter
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'SENT') {
-          if (msg.status !== 'SENT' && msg.status !== 'DELIVERED' && msg.status !== 'MOCK') return false;
+          if (msg.status !== 'SENT' && msg.status !== 'DELIVERED' && msg.status !== 'MOCK' && msg.status !== 'OK' && (msg.status as string) !== 'SENT_NOW') return false;
         } else if (statusFilter === 'QUEUED') {
           if (msg.status !== 'QUEUED') return false;
         } else if (statusFilter === 'FAILED') {

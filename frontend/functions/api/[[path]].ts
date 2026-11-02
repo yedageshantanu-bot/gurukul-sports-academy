@@ -2241,16 +2241,20 @@ export async function onRequest(context: any) {
 
     if (route === 'announcements' && method === 'POST') {
       const body = await request.json();
-      const { title, message, batchIds } = body;
+      const { title, message, batchIds, scheduledTime } = body;
+      const isScheduledFuture = scheduledTime && new Date(scheduledTime).getTime() > Date.now() + 30000;
 
       const { data, error } = await supabase
         .from('announcements')
         .insert({
           title: title || 'Notice',
           message: message || '',
-          status: 'DRAFT',
+          status: isScheduledFuture ? 'SCHEDULED' : 'DRAFT',
           created_at: new Date().toISOString(),
           sent_at: new Date().toISOString(),
+          metadata: isScheduledFuture
+            ? { isScheduled: true, scheduledAt: scheduledTime, scheduledStatus: 'SCHEDULED' }
+            : {},
         })
         .select()
         .single();
@@ -2266,6 +2270,154 @@ export async function onRequest(context: any) {
       }
 
       return jsonResponse({ success: true, data }, 201);
+    }
+
+    // 9c. Scheduled Announcements Management
+    if (pathParts[0] === 'announcements' && pathParts[1] === 'scheduled') {
+      // 1. GET /api/announcements/scheduled
+      if (pathParts.length === 2 && method === 'GET') {
+        const { data: annData } = await supabase
+          .from('announcements')
+          .select(`
+            id, title, message, status, created_at, updated_at, metadata,
+            announcement_batches (
+              batch_id,
+              batches ( id, name, subject )
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        const { data: queueData } = await supabase
+          .from('whatsapp_queue')
+          .select('*')
+          .eq('event_type', 'ANNOUNCEMENT');
+
+        const scheduledList = (annData || [])
+          .filter((a: any) => {
+            const meta = a.metadata || {};
+            const isScheduled = (meta.isScheduled && meta.scheduledStatus === 'SCHEDULED') || a.status === 'SCHEDULED';
+            const hasPendingQ = (queueData || []).some((q: any) => q.status === 'PENDING' && (q.idempotency_key?.includes(a.id) || q.message_body?.includes(a.title)));
+            return isScheduled || hasPendingQ;
+          })
+          .map((a: any) => {
+            const meta = a.metadata || {};
+            const related = (queueData || []).filter((q: any) => q.idempotency_key?.includes(a.id) || q.message_body?.includes(a.title));
+            const pendingCount = related.filter((q: any) => q.status === 'PENDING').length;
+            const sentCount = related.filter((q: any) => q.status === 'SENT' || q.status === 'MOCK' || q.status === 'OK').length;
+            const failedCount = related.filter((q: any) => q.status === 'FAILED').length;
+            const earliestScheduled = related
+              .filter((q: any) => q.status === 'PENDING')
+              .sort((x: any, y: any) => new Date(x.scheduled_at).getTime() - new Date(y.scheduled_at).getTime())[0]?.scheduled_at;
+
+            return {
+              id: a.id,
+              title: a.title,
+              message: a.message,
+              status: pendingCount > 0 ? 'SCHEDULED' : (sentCount > 0 ? 'SENT' : (meta.scheduledStatus || 'SCHEDULED')),
+              scheduled_at: earliestScheduled || meta.scheduledAt || a.updated_at || a.created_at,
+              created_at: a.created_at,
+              updated_at: a.updated_at,
+              batches: (a.announcement_batches || []).map((ab: any) => ({
+                id: ab.batches?.id || ab.batch_id,
+                name: ab.batches?.name || 'Batch',
+              })),
+              stats: {
+                total: related.length || meta.totalRecipients || 1,
+                pending: pendingCount,
+                sent: sentCount,
+                failed: failedCount,
+              },
+              metadata: a.metadata,
+            };
+          });
+
+        return jsonResponse({ success: true, data: scheduledList });
+      }
+
+      // 2. POST /api/announcements/scheduled/:id/send-now
+      if (pathParts.length === 4 && pathParts[3] === 'send-now' && method === 'POST') {
+        const announcementId = pathParts[2];
+        const { data: ann } = await supabase.from('announcements').select('*').eq('id', announcementId).single();
+        if (!ann) return jsonResponse({ success: false, message: 'Announcement not found' }, 404);
+
+        const { data: abList } = await supabase.from('announcement_batches').select('batch_id').eq('announcement_id', announcementId);
+        const batchIds = (abList || []).map((ab: any) => ab.batch_id);
+
+        let recipients: string[] = [];
+        if (batchIds.length > 0) {
+          const { data: enrollments } = await supabase
+            .from('batch_students')
+            .select('student_id, students ( name, parent_whatsapp, student_mobile, status )')
+            .in('batch_id', batchIds)
+            .eq('status', 'ACTIVE');
+          const phoneSet = new Set<string>();
+          for (const en of (enrollments || [])) {
+            const st = en.students;
+            const p = st?.parent_whatsapp || st?.student_mobile;
+            if (p) phoneSet.add(p);
+          }
+          recipients = Array.from(phoneSet);
+        }
+
+        const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
+        const broadcastMsg = `📢 *OFFICIAL ANNOUNCEMENT*\n*${academyName}*\n\n📌 *${ann.title}*\n\n${ann.message}\n\nWarm regards,\n${academyName}`;
+
+        runInBackground(context, async () => {
+          for (const targetPhone of recipients) {
+            try {
+              const res = await dispatchWhatsApp(targetPhone, broadcastMsg, context.env);
+              if (res.ok) {
+                await supabase.from('whatsapp_messages').insert({
+                  recipient_phone: targetPhone,
+                  event_type: 'ANNOUNCEMENT',
+                  message_body: broadcastMsg,
+                  status: 'SENT',
+                  provider_message_id: res.data?.messageId || 'msg_' + Date.now(),
+                  sent_at: new Date().toISOString(),
+                }).catch(() => {});
+              }
+            } catch {}
+          }
+        });
+
+        await supabase.from('announcements').update({
+          status: 'SENT',
+          sent_at: new Date().toISOString(),
+          metadata: { ...(ann.metadata || {}), scheduledStatus: 'SENT' },
+        }).eq('id', announcementId);
+
+        return jsonResponse({
+          success: true,
+          data: { dispatched: true, recipientsCount: recipients.length, message: `Scheduled announcement dispatched immediately to ${recipients.length} recipients.` },
+        });
+      }
+
+      // 3. PUT / PATCH /api/announcements/scheduled/:id
+      if (pathParts.length === 3 && (method === 'PUT' || method === 'PATCH')) {
+        const announcementId = pathParts[2];
+        const body = await request.json();
+        const { title, message, scheduledTime } = body;
+        const updates: any = {};
+        if (title !== undefined) updates.title = title;
+        if (message !== undefined) updates.message = message;
+        if (scheduledTime !== undefined) {
+          updates.metadata = { isScheduled: true, scheduledAt: scheduledTime, scheduledStatus: 'SCHEDULED' };
+          updates.status = 'SCHEDULED';
+        }
+        await supabase.from('announcements').update(updates).eq('id', announcementId);
+        return jsonResponse({ success: true, message: 'Scheduled announcement updated successfully' });
+      }
+
+      // 4. DELETE /api/announcements/scheduled/:id
+      if (pathParts.length === 3 && method === 'DELETE') {
+        const announcementId = pathParts[2];
+        await supabase.from('announcements').update({
+          status: 'CANCELLED',
+          metadata: { scheduledStatus: 'CANCELLED' },
+        }).eq('id', announcementId);
+        await supabase.from('whatsapp_queue').update({ status: 'CANCELLED' }).eq('event_type', 'ANNOUNCEMENT').ilike('idempotency_key', `%${announcementId}%`);
+        return jsonResponse({ success: true, message: 'Scheduled announcement cancelled successfully' });
+      }
     }
 
     if (pathParts[0] === 'announcements' && pathParts[2] === 'send' && method === 'POST') {

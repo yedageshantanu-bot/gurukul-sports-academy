@@ -247,6 +247,25 @@ Please clear dues at counter.`;
   assert(!!stats.billingPeriod, 'billingPeriod is populated');
 
   // ==========================================
+  // TEST 9: Trigger Fee Reminder Without studentFeeId (studentId only)
+  // ==========================================
+  console.log('\n--- 9. Fee Reminder Trigger With studentId Fallback ---');
+  const { triggerFeeReminderSchema } = await import('../types/whatsapp.types.js');
+  const parsedSchema = triggerFeeReminderSchema.parse({
+    studentId: '6c524a15-1fd2-4e47-b662-4e9bf815e1b4',
+    studentFeeId: '',
+  });
+  assert(parsedSchema.studentId === '6c524a15-1fd2-4e47-b662-4e9bf815e1b4', 'studentId preserved when studentFeeId is empty string');
+  assert(parsedSchema.studentFeeId === undefined, 'Empty studentFeeId transformed to undefined');
+
+  // Verify triggerFeeReminderAutomation works with studentId only
+  const feeReminderResult = await automationService.triggerFeeReminderAutomation({
+    studentId: '6c524a15-1fd2-4e47-b662-4e9bf815e1b4',
+  });
+  assert(!!feeReminderResult.id, 'Fee reminder queued/dispatched successfully using studentId alone');
+  assert(feeReminderResult.recipient_phone.includes('9404849500'), 'Dispatched to correct student phone');
+
+  // ==========================================
   // SUMMARY
   // ==========================================
   console.log(`\n============================================================`);

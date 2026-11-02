@@ -129,12 +129,13 @@ export const sendCustomMessageSchema = z.object({
 });
 
 export const triggerFeeReminderSchema = z.object({
-  studentFeeId: z.string().uuid('Invalid student fee ID format'),
+  studentFeeId: z.string().trim().uuid('Invalid student fee ID format').optional().nullable().or(z.literal('')),
   studentId: z.string().trim().uuid('Invalid student ID format').optional().nullable().or(z.literal('')),
   eventType: z.enum(['FEE_DUE', 'FEE_OVERDUE', 'FEE_UPCOMING', 'FEE_OVERDUE_ALERT', 'FEE_DUE_REMINDER']).optional(),
   customTemplate: z.string().optional(),
 }).transform((data) => ({
   ...data,
+  studentFeeId: data.studentFeeId && data.studentFeeId.trim() ? data.studentFeeId.trim() : undefined,
   studentId: data.studentId && data.studentId.trim() ? data.studentId.trim() : undefined,
 }));
 

@@ -31,6 +31,7 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { API_BASE } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { formatBillingPeriod } from './FeesPage';
 
 export type PaymentStreamType = 'ALL' | 'ACADEMIC' | 'TOURNAMENTS' | 'PUBLICATIONS';
@@ -382,9 +383,10 @@ export const PaymentsPage: React.FC = () => {
       } else {
         // Academic Tuition
         const targetFeeId = item.feeId;
+        const targetStudentId = item.studentId;
         const savedFeeTemplate = localStorage.getItem('gurukul_whatsapp_fee_template') || undefined;
         let res;
-        if (targetFeeId) {
+        if (targetFeeId || targetStudentId) {
           res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
             method: 'POST',
             headers: {
@@ -392,7 +394,8 @@ export const PaymentsPage: React.FC = () => {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              studentFeeId: targetFeeId,
+              studentFeeId: targetFeeId || undefined,
+              studentId: targetStudentId || undefined,
               customTemplate: savedFeeTemplate,
             }),
           });
@@ -1565,6 +1568,19 @@ export const PaymentsPage: React.FC = () => {
                     } else {
                       window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
                     }
+
+                    // Audit log to whatsapp_messages so every dispatched message is counted and billed accurately
+                    try {
+                      const cleanPhone = parentPhone ? `+${parentPhone.replace(/[^0-9]/g, '')}` : '';
+                      supabase.from('whatsapp_messages').insert({
+                        student_id: selectedReceipt.student?.id || selectedReceipt.student_id || selectedReceipt.studentId || null,
+                        recipient_phone: cleanPhone,
+                        event_type: 'PAYMENT_RECEIPT',
+                        message_body: decodeURIComponent(msg),
+                        status: 'SENT',
+                        sent_at: new Date().toISOString(),
+                      }).then(() => null, () => null);
+                    } catch {}
                   }}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
                 >
