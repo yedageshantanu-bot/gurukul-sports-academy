@@ -373,7 +373,8 @@ export const AdminDashboard: React.FC = () => {
   const collectedFees = monthlyFeeSummary?.collected ?? (kpis?.totalCollectedFees ?? (kpis?.feesCollectedThisMonth ?? 0));
   const pendingFees = (kpis as any)?.totalPendingFees ?? (monthlyFeeSummary?.pending ?? (kpis?.feesPendingThisMonth ?? (feeFollowups.length > 0 ? feeFollowups.reduce((acc, f) => acc + (f.remainingAmount || 0), 0) : 0)));
   const overdueFees = (monthlyFeeSummary as any)?.overdue ?? ((kpis as any)?.totalOverdueFees ?? (kpis?.feesOverdueThisMonth ?? 0));
-  const collectionRate = expectedFees > 0 ? Math.round((collectedFees / expectedFees) * 100) : 0;
+  const collectionRate = expectedFees > 0 ? Math.min(100, Math.round((collectedFees / expectedFees) * 100)) : 0;
+
 
   const todayPresent = attendanceData?.todayPresent ?? kpis?.todayPresent ?? 0;
   const todayTotal = attendanceData?.todayTotal ?? kpis?.todayTotal ?? (totalStudents || 0);
@@ -786,7 +787,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div className="h-3 rounded-full bg-slate-200 dark:bg-[#273549] overflow-hidden flex">
               <div style={{ width: `${collectionRate}%` }} className="bg-[#22C55E] h-full" title={`Collected: ${collectionRate}%`} />
-              <div style={{ width: `${expectedFees > 0 ? Math.round((pendingFees / expectedFees) * 100) : 0}%` }} className="bg-[#F59E0B] h-full" title="Pending" />
+              <div style={{ width: `${expectedFees > 0 ? Math.min(100 - collectionRate, Math.round((pendingFees / expectedFees) * 100)) : 0}%` }} className="bg-[#F59E0B] h-full" title="Pending" />
             </div>
           </div>
 

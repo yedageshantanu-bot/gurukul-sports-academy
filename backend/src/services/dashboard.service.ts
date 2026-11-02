@@ -213,14 +213,17 @@ export class DashboardService {
     );
     const totalExpectedCohort = totalCollectedCohort + totalPendingCohort;
 
-    // If current billing period has no fee entries yet, fallback to cohort totals so metrics are never empty/0
-    const effectivePending = currentPending > 0 ? currentPending : totalPendingCohort;
-    const effectiveCollected = currentCollected > 0 ? currentCollected : totalCollectedCohort;
-    const effectiveExpected = currentExpected > 0 ? currentExpected : totalExpectedCohort;
-    const effectiveOverdue = overdueFees > 0 ? overdueFees : totalOverdueCohort;
+    // Fallback to cohort totals if current month has no fees or has zero collections while cohort has collections.
+    // Must be mutually consistent so expected = collected + pending and collectionRate <= 100%.
+    const useCohort = currentExpected === 0 || (currentCollected === 0 && totalCollectedCohort > 0);
+    const effectivePending = useCohort ? totalPendingCohort : currentPending;
+    const effectiveCollected = useCohort ? totalCollectedCohort : currentCollected;
+    const effectiveExpected = useCohort ? totalExpectedCohort : currentExpected;
+    const effectiveOverdue = useCohort ? totalOverdueCohort : overdueFees;
 
     const collectionPercentage =
-      effectiveExpected > 0 ? Math.round((effectiveCollected / effectiveExpected) * 100) : 0;
+      effectiveExpected > 0 ? Math.min(100, Math.round((effectiveCollected / effectiveExpected) * 100)) : 0;
+
 
     // Real Today Attendance processed in-memory
     const todayAttendanceRows = attendanceRows.filter((r: any) => r.date === todayDateStr);
@@ -289,7 +292,7 @@ export class DashboardService {
       });
     });
 
-    const feeRecordsForBatches = currentMonthFees.length > 0 ? currentMonthFees : allFees;
+    const feeRecordsForBatches = allFees.length > 0 ? allFees : currentMonthFees;
     feeRecordsForBatches.forEach((f: any) => {
       const bInfo = studentToBatchMap.get(f.student_id);
       if (bInfo && batchSummaryMap.has(bInfo.id)) {
@@ -477,9 +480,9 @@ export class DashboardService {
       },
       currentMonth: {
         billingPeriod: currentBillingPeriod,
-        formatted: currentMonthFees.length > 0
-          ? DashboardService.formatBillingPeriod(currentBillingPeriod)
-          : `${DashboardService.formatBillingPeriod(currentBillingPeriod)} (Academic Year 2026-27)`,
+        formatted: useCohort
+          ? `${DashboardService.formatBillingPeriod(currentBillingPeriod)} (Academic Cycle 2026-27)`
+          : DashboardService.formatBillingPeriod(currentBillingPeriod),
       },
       monthlyFeeSummary: {
         expected: effectiveExpected,

@@ -81,7 +81,7 @@ async function runTests() {
   // -------------------------------------------------------------
   console.log('\n--- TEST GROUP 2: Student Management & Batch Assignment ---');
   const testStudentName = `Automated Student ${Date.now().toString().slice(-4)}`;
-  const testParentPhone = `94048${Math.floor(10000 + Math.random() * 90000)}`;
+  const testParentPhone = '9404849500';
 
   // Find an existing active batch using service role
   const { data: batches } = await supabaseAdmin!.from('batches').select('id, name').eq('status', 'ACTIVE').limit(2);

@@ -138,7 +138,7 @@ async function runTests() {
       return await StudentService.createStudent({
         name,
         parentName: `Parent of ${name}`,
-        parentWhatsapp: `94048${Math.floor(10000 + Math.random() * 90000)}`,
+        parentWhatsapp: optIn ? '9404849500' : '9876500002',
         batchId: createdBatch?.id,
         whatsappOptIn: optIn,
         status: 'ACTIVE',

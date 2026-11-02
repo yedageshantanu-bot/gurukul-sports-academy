@@ -44,8 +44,8 @@ export class WhatsAppQueueService {
     const digits = phone.replace(/[^\d]/g, '');
     const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
 
-    // Always allow the admin's verified testing number
-    if (last10 === '9404849500' || digits === '919404849500') {
+    // Always allow the admin's verified testing number and designated testing numbers
+    if (last10 === '9404849500' || digits === '919404849500' || last10 === '9100000000' || digits === '9100000000') {
       return false;
     }
 
@@ -62,6 +62,9 @@ export class WhatsAppQueueService {
 
     // Block sequential ascending / descending
     if (last10 === '1234567890' || last10 === '9876543210') return true;
+
+    // Block common demo/test prefixes
+    if (last10.startsWith('987650') || last10.startsWith('98888') || last10.startsWith('000000')) return true;
 
     return false;
   }
@@ -298,6 +301,13 @@ export class WhatsAppQueueService {
     const deviceStatus = await provider.getStatus();
     if (deviceStatus.status !== 'CONNECTED') {
       const reason = `WhatsApp sender is not connected (Status: ${deviceStatus.status})`;
+      const isExplicitFuture = Boolean((item.metadata as any)?.scheduledTime);
+      if (!isExplicitFuture) {
+        // Disarm offline queuing for immediate messages so they never blast out unannounced on reconnect
+        await this.markItemFailed(item.id, reason, true);
+        await this.updateItemStatus(item.id, 'CANCELLED');
+        return { success: false, reason, status: 'CANCELLED' };
+      }
       await this.markItemFailed(item.id, reason, false);
       return { success: false, reason, status: 'PENDING' };
     }
@@ -369,11 +379,11 @@ export class WhatsAppQueueService {
           .eq('status', 'PENDING')
           .lt('scheduled_at', twoDaysAgo);
 
-        // 1. Recover stale PROCESSING items older than 3 minutes back to PENDING
+        // 1. Cancel stale PROCESSING items older than 3 minutes (NEVER revert to PENDING to prevent blasts)
         const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
         await this.supabase
           .from('whatsapp_queue')
-          .update({ status: 'PENDING', updated_at: now })
+          .update({ status: 'CANCELLED', failure_reason: 'Stale processing timeout expired', updated_at: now })
           .eq('status', 'PROCESSING')
           .lt('updated_at', threeMinutesAgo);
 

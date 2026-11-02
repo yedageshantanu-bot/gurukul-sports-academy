@@ -133,14 +133,9 @@ export class WhatsAppAutomationService {
 
   /**
    * Intelligently formats message:
-   * - 1st & 2nd message to parent: Appends contact save guidance so parent saves academy number and links become clickable.
-   * - 3rd message onwards: Keeps message 100% clean and concise without repetitive notes ("badd badd mai nahi jayega").
+   * Honors template exact text strictly without injecting unsolicited onboarding/save notes or links.
    */
-  async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
-    const priorCount = await this.getPriorMessageCount(phone);
-    if (priorCount < 2) {
-      return `${baseBody}\n\n📌 *महत्वपूर्ण सूचना:* भविष्य के सभी अपडेट्स, अटेंडेंस और फ़ीस लिंक्स प्राप्त करने के लिए कृपया यह आधिकारिक ${academyName} नंबर अपने फ़ोन में *'Save'* कर लें।\n_(Please save this official contact number in your phone contacts.)_`;
-    }
+  async formatMessageWithOnboardingNote(baseBody: string, _phone: string, _academyName: string): Promise<string> {
     return baseBody;
   }
 
