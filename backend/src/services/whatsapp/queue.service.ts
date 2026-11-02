@@ -185,9 +185,9 @@ export class WhatsAppQueueService {
     const idempotencyKey =
       params.idempotencyKey || this.generateIdempotencyKey(normalizedPhone, eventType, params.messageBody);
 
-    // Duplicate guard: reject duplicate send if the exact same message is already queued or recorded
+    // Duplicate guard: reject duplicate send if the exact same message is currently queued or in-flight
     for (const item of this.inMemoryQueue.values()) {
-      if (item.idempotency_key === idempotencyKey) {
+      if (item.idempotency_key === idempotencyKey && (item.status === 'PENDING' || item.status === 'PROCESSING')) {
         console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Halting duplicate.`);
         throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
       }
@@ -199,10 +199,11 @@ export class WhatsAppQueueService {
           .from('whatsapp_queue')
           .select('id, status')
           .eq('idempotency_key', idempotencyKey)
+          .in('status', ['PENDING', 'PROCESSING'])
           .maybeSingle();
 
         if (existing) {
-          console.log(`[QueueService] Message with idempotency key ${idempotencyKey} already exists in DB. Halting duplicate.`);
+          console.log(`[QueueService] Message with idempotency key ${idempotencyKey} is already ${existing.status} in DB. Halting duplicate.`);
           throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
         }
       } catch (err: any) {
@@ -259,6 +260,36 @@ export class WhatsAppQueueService {
 
         if (error) {
           if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            const { data: existingRec } = await this.supabase
+              .from('whatsapp_queue')
+              .select('id, status')
+              .eq('idempotency_key', newItem.idempotency_key)
+              .maybeSingle();
+
+            if (existingRec && existingRec.status !== 'PENDING' && existingRec.status !== 'PROCESSING') {
+              const { data: updated, error: updateErr } = await this.supabase
+                .from('whatsapp_queue')
+                .update({
+                  recipient_phone: newItem.recipient_phone,
+                  student_id: newItem.student_id,
+                  event_type: newItem.event_type,
+                  message_body: newItem.message_body,
+                  scheduled_at: newItem.scheduled_at,
+                  status: newItem.status,
+                  attempts: 0,
+                  failure_reason: null,
+                  sent_at: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', existingRec.id)
+                .select()
+                .single();
+
+              if (!updateErr && updated) {
+                this.inMemoryQueue.set(existingRec.id, { ...newItem, ...updated });
+                return updated as WhatsAppQueueItem;
+              }
+            }
             throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
           }
         }

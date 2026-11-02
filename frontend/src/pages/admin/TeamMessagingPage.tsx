@@ -378,7 +378,7 @@ export const TeamMessagingPage: React.FC = () => {
 
     try {
       const url = isAllTab
-        ? `/team-messages/members/${member.id}?allTeams=true`
+        ? `/team-messages/members/${member.id}?allTeams=true&phone=${encodeURIComponent(member.phone || '')}`
         : `/team-messages/members/${member.id}`;
 
       await apiClient(url, { method: 'DELETE' });
@@ -410,9 +410,8 @@ export const TeamMessagingPage: React.FC = () => {
     }
 
     try {
-      await apiClient(`/team-messages/members/${contact.id}?allTeams=true`, {
-        method: 'DELETE',
-      });
+      const url = `/team-messages/members/${contact.id}?allTeams=true&phone=${encodeURIComponent(contact.phone || '')}`;
+      await apiClient(url, { method: 'DELETE' });
       if (clean10) {
         setTeamMembers((prev) =>
           prev.filter((m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) !== clean10)

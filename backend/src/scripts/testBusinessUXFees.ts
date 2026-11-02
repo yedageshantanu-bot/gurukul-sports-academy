@@ -325,6 +325,8 @@ async function runTests() {
     if (studentIds.length > 0) {
       await supabaseAdmin!.from('student_fees').delete().in('student_id', studentIds);
       await supabaseAdmin!.from('batch_students').delete().in('student_id', studentIds);
+      await supabaseAdmin!.from('whatsapp_queue').delete().in('student_id', studentIds);
+      await supabaseAdmin!.from('whatsapp_messages').delete().in('student_id', studentIds);
       await supabaseAdmin!.from('students').delete().in('id', studentIds);
     }
     if (createdBatch?.id) {

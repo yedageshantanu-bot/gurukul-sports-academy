@@ -355,17 +355,32 @@ export class TeamMessageController {
     try {
       const { id } = req.params;
       const allTeams = req.query.allTeams === 'true' || req.query.byPhone === 'true';
+      const phoneParam = ((req.query.phone as string) || (req.body?.phone as string) || '').trim();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-      if (allTeams) {
-        // Look up member's phone number to wipe contact across all teams
-        const { data: member } = await supabaseAdmin
-          .from('team_members')
-          .select('id, phone')
-          .eq('id', id)
-          .maybeSingle();
+      let clean10 = phoneParam ? phoneParam.replace(/[^0-9]/g, '').slice(-10) : '';
 
-        if (member?.phone) {
-          const clean10 = member.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (!clean10 && !isUuid) {
+        const digits = id.replace(/[^0-9]/g, '');
+        if (digits.length >= 10) {
+          clean10 = digits.slice(-10);
+        }
+      }
+
+      if (allTeams || clean10) {
+        if (!clean10 && isUuid) {
+          const { data: member } = await supabaseAdmin
+            .from('team_members')
+            .select('id, phone')
+            .eq('id', id)
+            .maybeSingle();
+
+          if (member?.phone) {
+            clean10 = member.phone.replace(/[^0-9]/g, '').slice(-10);
+          }
+        }
+
+        if (clean10) {
           const { data: allMembers } = await supabaseAdmin
             .from('team_members')
             .select('id, phone');
@@ -374,16 +389,18 @@ export class TeamMessageController {
             .filter((m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10)
             .map((m) => m.id);
 
-          if (!idsToDelete.includes(id)) {
+          if (isUuid && !idsToDelete.includes(id)) {
             idsToDelete.push(id);
           }
 
-          const { error } = await supabaseAdmin
-            .from('team_members')
-            .delete()
-            .in('id', idsToDelete);
+          if (idsToDelete.length > 0) {
+            const { error } = await supabaseAdmin
+              .from('team_members')
+              .delete()
+              .in('id', idsToDelete);
 
-          if (error) throw error;
+            if (error) throw error;
+          }
 
           res.status(200).json({
             success: true,
@@ -393,12 +410,14 @@ export class TeamMessageController {
         }
       }
 
-      const { error } = await supabaseAdmin
-        .from('team_members')
-        .delete()
-        .eq('id', id);
+      if (isUuid) {
+        const { error } = await supabaseAdmin
+          .from('team_members')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       res.status(200).json({
         success: true,

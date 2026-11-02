@@ -752,23 +752,27 @@ export const FeesPage: React.FC = () => {
           });
           const tplsJson = await tplsRes.json().catch(() => null);
           const tpls = tplsJson?.data || [];
-          const existingTpl = tpls.find((t: any) =>
+          const existingTpls = tpls.filter((t: any) =>
             ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'].includes(t.event_type)
           );
 
-          if (existingTpl?.id) {
-            await fetch(`${API_BASE}/whatsapp/templates/${existingTpl.id}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                body: feeWhatsappTemplate,
-                name: existingTpl.name || 'Fee Due Reminder',
-                active: true,
-              }),
-            });
+          if (existingTpls.length > 0) {
+            await Promise.all(
+              existingTpls.map((tpl: any) =>
+                fetch(`${API_BASE}/whatsapp/templates/${tpl.id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    body: feeWhatsappTemplate,
+                    name: tpl.name || 'Fee Reminder',
+                    active: true,
+                  }),
+                })
+              )
+            );
           } else {
             await fetch(`${API_BASE}/whatsapp/templates`, {
               method: 'POST',

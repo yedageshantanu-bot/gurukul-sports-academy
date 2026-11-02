@@ -2624,6 +2624,167 @@ export async function onRequest(context: any) {
       }
     }
 
+    // ----------------------------------------------------
+    // TEAM MESSAGES & SQUADS (EDGE / PAGES FUNCTION SUPPORT)
+    // ----------------------------------------------------
+    if (route === 'team-messages' || route.startsWith('team-messages/')) {
+      // Teams: /api/team-messages/teams
+      if (route === 'team-messages/teams' || (pathParts[0] === 'team-messages' && pathParts[1] === 'teams')) {
+        if (method === 'GET') {
+          const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: true });
+          if (error) throw error;
+          return jsonResponse({ success: true, data: data || [] });
+        }
+        if (method === 'POST') {
+          const body = await request.json();
+          const name = body.name?.trim();
+          const generatedCode = (body.code && body.code.trim())
+            ? body.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_')
+            : name.toUpperCase().replace(/[^A-Z0-9_]/g, '_').substring(0, 30);
+          const { data, error } = await supabase
+            .from('teams')
+            .insert({
+              name,
+              code: generatedCode,
+              marathi_name: body.marathiName ? body.marathiName.trim() : null,
+              description: body.description ? body.description.trim() : null,
+              color: body.color || 'indigo',
+            })
+            .select('*')
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data }, 201);
+        }
+        if (pathParts.length === 3 && (method === 'PATCH' || method === 'PUT')) {
+          const teamId = pathParts[2];
+          const body = await request.json();
+          const updates: any = { updated_at: new Date().toISOString() };
+          if (body.name) updates.name = body.name.trim();
+          if (body.code) updates.code = body.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+          if (body.marathiName !== undefined) updates.marathi_name = body.marathiName;
+          if (body.description !== undefined) updates.description = body.description;
+          if (body.color !== undefined) updates.color = body.color;
+          const { data, error } = await supabase.from('teams').update(updates).eq('id', teamId).select('*').single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data });
+        }
+        if (pathParts.length === 3 && method === 'DELETE') {
+          const teamId = pathParts[2];
+          const { data: team } = await supabase.from('teams').select('code').eq('id', teamId).maybeSingle();
+          if (team?.code) {
+            await supabase.from('team_members').delete().eq('team_code', team.code);
+          }
+          const { error } = await supabase.from('teams').delete().eq('id', teamId);
+          if (error) throw error;
+          return jsonResponse({ success: true, message: 'Team and all enrolled members removed successfully' });
+        }
+      }
+
+      // Team Members: /api/team-messages/members
+      if (route === 'team-messages/members' || (pathParts[0] === 'team-messages' && pathParts[1] === 'members')) {
+        if (method === 'GET') {
+          let q = supabase.from('team_members').select('*').order('created_at', { ascending: false });
+          const teamCode = url.searchParams.get('teamCode');
+          if (teamCode && teamCode !== 'ALL') {
+            q = q.eq('team_code', teamCode);
+          }
+          const { data, error } = await q;
+          if (error) throw error;
+          return jsonResponse({ success: true, data: data || [] });
+        }
+        if (method === 'POST') {
+          const body = await request.json();
+          const clean10 = (body.phone || '').trim().replace(/[^0-9]/g, '').slice(-10);
+          if (clean10 && body.teamCode) {
+            const { data: existing } = await supabase
+              .from('team_members')
+              .select('id, phone')
+              .eq('team_code', body.teamCode.trim());
+            const isDup = (existing || []).some(
+              (m: any) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10
+            );
+            if (isDup) {
+              return jsonResponse({ success: false, message: 'This contact is already enrolled in this team.' }, 400);
+            }
+          }
+          const { data, error } = await supabase
+            .from('team_members')
+            .insert({
+              name: body.name ? body.name.trim() : null,
+              phone: body.phone.trim(),
+              position: body.position ? body.position.trim() : null,
+              team_code: body.teamCode.trim(),
+              district: body.district ? body.district.trim() : null,
+              notes: body.notes ? body.notes.trim() : null,
+              status: 'ACTIVE',
+            })
+            .select('*')
+            .single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data }, 201);
+        }
+        if (pathParts.length === 3 && method === 'DELETE') {
+          const memberId = pathParts[2];
+          const allTeams = url.searchParams.get('allTeams') === 'true' || url.searchParams.get('byPhone') === 'true';
+          const phoneParam = url.searchParams.get('phone') || '';
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId);
+          let clean10 = phoneParam ? phoneParam.replace(/[^0-9]/g, '').slice(-10) : '';
+
+          if (!clean10 && !isUuid) {
+            const digits = memberId.replace(/[^0-9]/g, '');
+            if (digits.length >= 10) clean10 = digits.slice(-10);
+          }
+
+          if (allTeams || clean10) {
+            if (!clean10 && isUuid) {
+              const { data: member } = await supabase.from('team_members').select('id, phone').eq('id', memberId).maybeSingle();
+              if (member?.phone) clean10 = member.phone.replace(/[^0-9]/g, '').slice(-10);
+            }
+
+            if (clean10) {
+              const { data: allMembers } = await supabase.from('team_members').select('id, phone');
+              const idsToDelete = (allMembers || [])
+                .filter((m: any) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10)
+                .map((m: any) => m.id);
+              if (isUuid && !idsToDelete.includes(memberId)) idsToDelete.push(memberId);
+              if (idsToDelete.length > 0) {
+                await supabase.from('team_members').delete().in('id', idsToDelete);
+              }
+              return jsonResponse({ success: true, message: 'Contact permanently removed from all teams and directory' });
+            }
+          }
+
+          if (isUuid) {
+            await supabase.from('team_members').delete().eq('id', memberId);
+          }
+          return jsonResponse({ success: true, message: 'Team member removed successfully' });
+        }
+      }
+
+      // Team Messages: /api/team-messages
+      if (route === 'team-messages') {
+        if (method === 'GET') {
+          const { data, error } = await supabase.from('team_messages').select('*').order('created_at', { ascending: false });
+          if (error) throw error;
+          return jsonResponse({ success: true, data: data || [] });
+        }
+        if (method === 'POST') {
+          const body = await request.json();
+          const { data, error } = await supabase.from('team_messages').insert({
+            sender_name: body.senderName ? body.senderName.trim() : null,
+            sender_position: body.senderPosition ? body.senderPosition.trim() : null,
+            recipient_role: body.recipientRole || 'ALL_STAFF',
+            subject: body.subject ? body.subject.trim() : null,
+            message: (body.message || '').trim(),
+            priority: body.priority || 'NORMAL',
+            status: body.isDraft ? 'DRAFT' : 'SENT',
+          }).select('*').single();
+          if (error) throw error;
+          return jsonResponse({ success: true, data }, 201);
+        }
+      }
+    }
+
     // Default fallback for any unspecified endpoint
     return jsonResponse({ success: true, data: [] });
   } catch (err: any) {
