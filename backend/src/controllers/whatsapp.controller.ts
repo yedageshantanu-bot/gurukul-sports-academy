@@ -368,7 +368,7 @@ export class WhatsAppController {
   async triggerFeeReminder(req: Request, res: Response, next: NextFunction) {
     try {
       const validated = triggerFeeReminderSchema.parse(req.body);
-      const studentId = req.body.studentId;
+      const studentId = validated.studentId || req.body.studentId;
 
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
@@ -389,8 +389,8 @@ export class WhatsAppController {
       const log = await automationService.triggerFeeReminderAutomation({
         studentId,
         studentFeeId: validated.studentFeeId,
-        eventType: req.body.eventType,
-        customTemplate: req.body.customTemplate,
+        eventType: validated.eventType,
+        customTemplate: validated.customTemplate,
       });
 
       if (log.status === 'FAILED') {

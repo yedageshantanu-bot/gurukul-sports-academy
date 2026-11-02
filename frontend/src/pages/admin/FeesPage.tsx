@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -126,6 +126,26 @@ export const FeesPage: React.FC = () => {
   });
 
   const [isFeeTemplateOpen, setIsFeeTemplateOpen] = useState(false);
+  const templateTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInsertTagAtCursor = (tag: string) => {
+    const textarea = templateTextareaRef.current;
+    if (!textarea) {
+      setFeeWhatsappTemplate((prev) => `${prev} ${tag}`);
+      return;
+    }
+    const start = textarea.selectionStart ?? feeWhatsappTemplate.length;
+    const end = textarea.selectionEnd ?? feeWhatsappTemplate.length;
+    const before = feeWhatsappTemplate.substring(0, start);
+    const after = feeWhatsappTemplate.substring(end);
+    const updated = `${before}${tag}${after}`;
+    setFeeWhatsappTemplate(updated);
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + tag.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
   const [reminderRules, setReminderRules] = useState(() => {
     try {
       const saved = localStorage.getItem('gurukul_fee_reminder_rules');
@@ -1127,6 +1147,7 @@ export const FeesPage: React.FC = () => {
                   Template Message Text
                 </label>
                 <textarea
+                  ref={templateTextareaRef}
                   value={feeWhatsappTemplate}
                   onChange={(e) => setFeeWhatsappTemplate(e.target.value)}
                   rows={4}
@@ -1136,7 +1157,7 @@ export const FeesPage: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Insert Dynamic Variable Tags:</span>
+                <span className="text-[11px] font-semibold text-slate-400 block mb-1">Insert Dynamic Variable Tags (At Cursor Position):</span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     '{student_name}',
@@ -1149,7 +1170,7 @@ export const FeesPage: React.FC = () => {
                     <button
                       key={tag}
                       type="button"
-                      onClick={() => setFeeWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      onClick={() => handleInsertTagAtCursor(tag)}
                       className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
                     >
                       + {tag}
@@ -1188,12 +1209,12 @@ export const FeesPage: React.FC = () => {
                   <div className="bg-[#005c4b] text-[#e9edef] p-3 rounded-xl rounded-tr-none shadow-sm space-y-1.5">
                     <p className="whitespace-pre-wrap leading-relaxed text-[12px]">
                       {feeWhatsappTemplate
-                        .replace('{student_name}', 'Aarav Patil')
-                        .replace('{parent_name}', 'Rajesh Patil')
-                        .replace('{course}', 'Kalarippayattu')
-                        .replace('{pending_amount}', '10,000')
-                        .replace('{due_date}', '10 Nov 2026')
-                        .replace('{payment_link}', '')}
+                        .replace(/(?:\{\{|\{)\s*student_name\s*(?:\}\}|\})/gi, 'Aarav Patil')
+                        .replace(/(?:\{\{|\{)\s*parent_name\s*(?:\}\}|\})/gi, 'Rajesh Patil')
+                        .replace(/(?:\{\{|\{)\s*course\s*(?:\}\}|\})/gi, 'Kalarippayattu')
+                        .replace(/(?:\{\{|\{)\s*pending_amount\s*(?:\}\}|\})/gi, '10,000')
+                        .replace(/(?:\{\{|\{)\s*due_date\s*(?:\}\}|\})/gi, '10 Nov 2026')
+                        .replace(/(?:\{\{|\{)\s*payment_link\s*(?:\}\}|\})/gi, 'https://pay.upi/gurukul')}
                     </p>
                     <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
                       <span>10:30 AM</span>

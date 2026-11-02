@@ -129,7 +129,8 @@ export const sendCustomMessageSchema = z.object({
 export const triggerFeeReminderSchema = z.object({
   studentFeeId: z.string().uuid('Invalid student fee ID format'),
   studentId: z.string().uuid('Invalid student ID format').optional(),
-  eventType: z.enum(['FEE_DUE', 'FEE_OVERDUE', 'FEE_UPCOMING']).optional(),
+  eventType: z.enum(['FEE_DUE', 'FEE_OVERDUE', 'FEE_UPCOMING', 'FEE_OVERDUE_ALERT', 'FEE_DUE_REMINDER']).optional(),
+  customTemplate: z.string().optional(),
 });
 
 // Settings & controls schemas

@@ -44,9 +44,19 @@ export class WhatsAppQueueService {
     const digits = phone.replace(/[^\d]/g, '');
     const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
 
-    // Always allow the admin's verified testing number and designated testing numbers
-    if (last10 === '9404849500' || digits === '919404849500' || last10 === '9100000000' || digits === '9100000000') {
+    // Reject numbers with less than 10 digits
+    if (digits.length < 10) return true;
+
+    // Always allow verified admin testing phone
+    if (last10 === '9404849500' || digits === '919404849500') {
       return false;
+    }
+
+    // For Indian phone numbers (10 digits or 12 digits with 91), must begin with valid mobile series [6-9]
+    if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+      if (!/^[6-9]\d{9}$/.test(last10)) {
+        return true;
+      }
     }
 
     // Block common demo and test numbers from sample seeds
@@ -54,6 +64,7 @@ export class WhatsAppQueueService {
       '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
       '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
       '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
+      '9100000000',
     ];
     if (knownDummies.includes(last10)) return true;
 
@@ -1012,50 +1023,86 @@ export class WhatsAppQueueService {
     const today = new Date().toISOString().split('T')[0];
 
     const items = Array.from(this.inMemoryQueue.values());
-    const sentToday = items.filter((i) => (i.status === 'SENT' || (i.status as string) === 'MOCK') && i.sent_at?.startsWith(today)).length;
-    const pending = items.filter((i) => i.status === 'PENDING').length;
-    const processing = items.filter((i) => i.status === 'PROCESSING').length;
-    const failedToday = items.filter((i) => i.status === 'FAILED' && i.updated_at.startsWith(today)).length;
+    let sentToday = items.filter((i) => (i.status === 'SENT' || (i.status as string) === 'MOCK') && i.sent_at?.startsWith(today)).length;
+    let pending = items.filter((i) => i.status === 'PENDING').length;
+    let processing = items.filter((i) => i.status === 'PROCESSING').length;
+    let failedToday = items.filter((i) => i.status === 'FAILED' && i.updated_at.startsWith(today)).length;
 
     let totalSentAllTime = items.filter((i) => i.status === 'SENT' || (i.status as string) === 'MOCK').length;
     let monthSent = 0;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+    const todayStart = `${today}T00:00:00.000Z`;
+    const todayEnd = `${today}T23:59:59.999Z`;
 
     if (this.supabase) {
       try {
-        const { count: msgCount } = await this.supabase
-          .from('whatsapp_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'SENT');
-        if (typeof msgCount === 'number' && msgCount > 0) {
-          totalSentAllTime = msgCount;
-        } else {
-          const { count: queueCount } = await this.supabase
+        const [
+          { count: msgCount },
+          { count: queueCount },
+          { count: msgToday },
+          { count: queueToday },
+          { count: msgMonth },
+          { count: queueMonth },
+          { count: queuePending },
+          { count: queueProcessing },
+          { count: msgFailedToday },
+        ] = await Promise.all([
+          this.supabase
+            .from('whatsapp_messages')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['SENT', 'DELIVERED', 'MOCK']),
+          this.supabase
             .from('whatsapp_queue')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'SENT');
-          if (typeof queueCount === 'number') {
-            totalSentAllTime = Math.max(totalSentAllTime, queueCount);
-          }
-        }
+            .in('status', ['SENT', 'MOCK']),
+          this.supabase
+            .from('whatsapp_messages')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['SENT', 'DELIVERED', 'MOCK'])
+            .gte('created_at', todayStart)
+            .lte('created_at', todayEnd),
+          this.supabase
+            .from('whatsapp_queue')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['SENT', 'MOCK'])
+            .gte('updated_at', todayStart)
+            .lte('updated_at', todayEnd),
+          this.supabase
+            .from('whatsapp_messages')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['SENT', 'DELIVERED', 'MOCK'])
+            .gte('created_at', startOfMonth)
+            .lte('created_at', endOfMonth),
+          this.supabase
+            .from('whatsapp_queue')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['SENT', 'MOCK'])
+            .gte('updated_at', startOfMonth)
+            .lte('updated_at', endOfMonth),
+          this.supabase
+            .from('whatsapp_queue')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'PENDING'),
+          this.supabase
+            .from('whatsapp_queue')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'PROCESSING'),
+          this.supabase
+            .from('whatsapp_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'FAILED')
+            .gte('created_at', todayStart)
+            .lte('created_at', todayEnd),
+        ]);
 
-        const { count: msgMonth } = await this.supabase
-          .from('whatsapp_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'SENT')
-          .gte('created_at', startOfMonth)
-          .lte('created_at', endOfMonth);
-
-        const { count: queueMonth } = await this.supabase
-          .from('whatsapp_queue')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'SENT')
-          .gte('updated_at', startOfMonth)
-          .lte('updated_at', endOfMonth);
-
+        totalSentAllTime = Math.max(totalSentAllTime, (msgCount || 0) + (queueCount && queueCount > (msgCount || 0) ? queueCount - (msgCount || 0) : 0), msgCount || 0);
+        sentToday = Math.max(sentToday, (msgToday || 0) + (queueToday && queueToday > (msgToday || 0) ? queueToday - (msgToday || 0) : 0), msgToday || 0);
         monthSent = Math.max(msgMonth || 0, queueMonth || 0);
+        if (typeof queuePending === 'number') pending = Math.max(pending, queuePending);
+        if (typeof queueProcessing === 'number') processing = Math.max(processing, queueProcessing);
+        if (typeof msgFailedToday === 'number') failedToday = Math.max(failedToday, msgFailedToday);
       } catch {
         // Fallback to in-memory count
       }

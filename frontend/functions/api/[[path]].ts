@@ -1685,7 +1685,7 @@ export async function onRequest(context: any) {
 
     if (route === 'whatsapp/trigger-fee-reminder' && method === 'POST') {
       const body = await request.json();
-      const { studentFeeId, studentId } = body;
+      const { studentFeeId, studentId, customTemplate } = body;
 
       let student: any = null;
       let feeRecord: any = null;
@@ -1706,17 +1706,43 @@ export async function onRequest(context: any) {
       }
 
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
-      const amount = feeRecord?.amount_due || student?.monthly_fee || '1,500';
+      const amount = (feeRecord ? Math.max(0, Number(feeRecord.amount_due || 0) - Number(feeRecord.amount_paid || 0)) : null) || student?.monthly_fee || '1,500';
       const dueDate = feeRecord?.due_date || '5th of this month';
+      const parentName = student?.parent_name?.trim() || (student?.name ? `${student.name} Palak` : 'Palak');
+      const studentName = student?.name || 'Student';
+      const course = student?.course || 'Sports Coaching';
 
-      const reminderText = `Dear Parent/Guardian,\n\nThis is an official fee reminder from ${academyName}.\n\nTuition fee of ₹${amount} for ${student?.name || 'Student'} is due on ${dueDate}.\n\nKindly complete the payment at your earliest convenience to avoid interruption.\n\nThank you,\n${academyName}`;
+      let reminderText = `Dear ${parentName},\n\nThis is an official fee reminder from ${academyName}.\n\nTuition fee of ₹${amount} for ${studentName} is due on ${dueDate}.\n\nKindly complete the payment at your earliest convenience to avoid interruption.\n\nThank you,\n${academyName}`;
+
+      if (customTemplate && customTemplate.trim()) {
+        reminderText = customTemplate
+          .replace(/(?:\{\{|\{)\s*parent_name\s*(?:\}\}|\})/gi, parentName)
+          .replace(/(?:\{\{|\{)\s*student_name\s*(?:\}\}|\})/gi, studentName)
+          .replace(/(?:\{\{|\{)\s*course\s*(?:\}\}|\})/gi, course)
+          .replace(/(?:\{\{|\{)\s*pending_amount\s*(?:\}\}|\})/gi, String(amount))
+          .replace(/(?:\{\{|\{)\s*due_date\s*(?:\}\}|\})/gi, dueDate)
+          .replace(/(?:\{\{|\{)\s*payment_link\s*(?:\}\}|\})/gi, '');
+      }
 
       const res = await dispatchWhatsApp(phone, reminderText, context.env);
+
+      try {
+        await supabase.from('whatsapp_messages').insert({
+          student_id: student?.id,
+          recipient_phone: phone,
+          event_type: 'FEE_REMINDER',
+          message_body: reminderText,
+          status: res.ok ? 'SENT' : 'FAILED',
+          provider_message_id: res.data?.messageId,
+          sent_at: res.ok ? new Date().toISOString() : null,
+        });
+      } catch {}
+
       return jsonResponse({
         success: res.ok,
         data: {
           recipient_phone: phone,
-          status: 'SENT',
+          status: res.ok ? 'SENT' : 'FAILED',
           message: 'Fee reminder sent successfully',
           messageId: res.data?.messageId,
         },
@@ -1817,20 +1843,21 @@ export async function onRequest(context: any) {
       }
     }
 
-    if (route === 'whatsapp/logs') {
-      return jsonResponse({
-        success: true,
-        data: [
-          {
-            id: 'log-1',
-            recipient_phone: '+919404849500',
-            event_type: 'CUSTOM',
-            status: 'DELIVERED',
-            provider_message_id: '3EB0EA53C76D9C921D6DD5',
-            created_at: new Date().toISOString(),
-          },
-        ],
-      });
+    if (route === 'whatsapp/logs' || route === 'whatsapp/messages') {
+      try {
+        const { data: logs } = await supabase
+          .from('whatsapp_messages')
+          .select('*, student:students(id, name, course, parent_name)')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        return jsonResponse({
+          success: true,
+          data: logs || [],
+        });
+      } catch {
+        return jsonResponse({ success: true, data: [] });
+      }
     }
 
     if (route === 'whatsapp/queue') {

@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { PhoneInput } from '../../components/ui/PhoneInput';
+import { Modal } from '../../components/ui/Modal';
 import {
   Smartphone,
   RefreshCw,
@@ -15,6 +17,9 @@ import {
   Check,
   MessageSquare,
   ShieldCheck,
+  Search,
+  Eye,
+  XCircle,
 } from 'lucide-react';
 
 interface DeviceStatus {
@@ -23,6 +28,26 @@ interface DeviceStatus {
   qrCode?: string;
   sessionStatus?: string;
   lastConnectedAt?: string;
+}
+
+export interface WhatsAppLogMessage {
+  id: string;
+  template_id?: string;
+  student_id?: string;
+  recipient_phone: string;
+  event_type: string;
+  message_body: string;
+  provider_message_id?: string;
+  status: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'MOCK';
+  error_message?: string;
+  sent_at?: string;
+  created_at: string;
+  student?: {
+    id: string;
+    name: string;
+    course?: string;
+    parent_name?: string;
+  };
 }
 
 export const WhatsAppPage: React.FC = () => {
@@ -51,10 +76,52 @@ export const WhatsAppPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Message Logs & Audit Outbox States
+  const [messages, setMessages] = useState<WhatsAppLogMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | '7DAYS'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SENT' | 'QUEUED' | 'FAILED'>('ALL');
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState<WhatsAppLogMessage | null>(null);
+
   // Test message form
   const [testPhone, setTestPhone] = useState('');
   const [testMessage, setTestMessage] = useState('Hello from Gurukul Sports Academy! Your training session reminder.');
   const [sendingTest, setSendingTest] = useState(false);
+
+  // Fetch Message Outbox Logs from backend with Supabase fallback
+  const fetchMessages = useCallback(async () => {
+    setLoadingMessages(true);
+    try {
+      const res = await apiClient<any>('/whatsapp/logs');
+      const data = res?.data !== undefined ? res.data : (Array.isArray(res) ? res : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setMessages(data);
+      } else {
+        const { data: sbData } = await supabase
+          .from('whatsapp_messages')
+          .select('*, student:students(id, name, course, parent_name)')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (sbData) setMessages(sbData as any);
+      }
+    } catch (err: any) {
+      console.warn('Failed to load WhatsApp logs via API, falling back to direct Supabase:', err);
+      try {
+        const { data: sbData } = await supabase
+          .from('whatsapp_messages')
+          .select('*, student:students(id, name, course, parent_name)')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (sbData) setMessages(sbData as any);
+      } catch (sbErr) {
+        console.warn('Direct Supabase log fetch note:', sbErr);
+      }
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
 
   // Fetch status from backend via apiClient (handles token refresh & prod URL)
   const fetchStatus = useCallback(async () => {
@@ -100,7 +167,8 @@ export const WhatsAppPage: React.FC = () => {
 
   useEffect(() => {
     fetchStatus();
-  }, [fetchStatus]);
+    fetchMessages();
+  }, [fetchStatus, fetchMessages]);
 
   // Auto-refresh when waiting for scan, connecting, or refreshing
   useEffect(() => {
@@ -205,6 +273,8 @@ export const WhatsAppPage: React.FC = () => {
       setSuccess(successMsg);
       toast.success(successMsg);
       setTimeout(() => setSuccess(null), 5000);
+      fetchStatus();
+      fetchMessages();
     } catch (err: any) {
       const errMsg = err.message || 'Failed to send test message';
       setError(errMsg);
@@ -215,6 +285,22 @@ export const WhatsAppPage: React.FC = () => {
   };
 
   const isConnected = device.status === 'CONNECTED';
+
+  // Synced Metrics: Guaranteed to match Outbox Table & Supabase
+  const todayStr = new Date().toISOString().split('T')[0];
+  const displayTotalSent = useMemo(() => {
+    const listSent = messages.filter((m) => m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK').length;
+    return Math.max(whatsappStats.totalSent || 0, listSent);
+  }, [messages, whatsappStats.totalSent]);
+
+  const displaySentToday = useMemo(() => {
+    const listToday = messages.filter(
+      (m) =>
+        (m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK') &&
+        (m.sent_at?.startsWith(todayStr) || m.created_at?.startsWith(todayStr))
+    ).length;
+    return Math.max(whatsappStats.sent || 0, listToday);
+  }, [messages, whatsappStats.sent, todayStr]);
 
   // Current month active date range (e.g. "01 Nov 2026 – 30 Nov 2026")
   const dateRangeStr = (() => {
@@ -229,8 +315,51 @@ export const WhatsAppPage: React.FC = () => {
     return `${startDay} ${month} ${year} – ${endDay} ${month} ${year}`;
   })();
 
-  const monthMessages = whatsappStats.monthSent ?? whatsappStats.totalSent ?? whatsappStats.sent ?? 0;
+  const monthMessages = Math.max(whatsappStats.monthSent || 0, displayTotalSent);
   const totalBilled = (monthMessages * 0.17).toFixed(2);
+
+  // Filtered Message Log
+  const filteredMessages = useMemo(() => {
+    return messages.filter((msg) => {
+      // Date filter
+      if (dateFilter === 'TODAY') {
+        const msgDate = (msg.sent_at || msg.created_at || '').split('T')[0];
+        if (msgDate !== todayStr) return false;
+      } else if (dateFilter === '7DAYS') {
+        const msgTime = new Date(msg.sent_at || msg.created_at).getTime();
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        if (msgTime < sevenDaysAgo) return false;
+      }
+
+      // Status filter
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'SENT') {
+          if (msg.status !== 'SENT' && msg.status !== 'DELIVERED' && msg.status !== 'MOCK') return false;
+        } else if (statusFilter === 'QUEUED') {
+          if (msg.status !== 'QUEUED') return false;
+        } else if (statusFilter === 'FAILED') {
+          if (msg.status !== 'FAILED') return false;
+        }
+      }
+
+      // Event Type filter
+      if (eventTypeFilter !== 'ALL' && msg.event_type !== eventTypeFilter) {
+        return false;
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const phoneMatch = msg.recipient_phone?.toLowerCase().includes(q);
+        const nameMatch = msg.student?.name?.toLowerCase().includes(q);
+        const parentMatch = msg.student?.parent_name?.toLowerCase().includes(q);
+        const bodyMatch = msg.message_body?.toLowerCase().includes(q);
+        if (!phoneMatch && !nameMatch && !parentMatch && !bodyMatch) return false;
+      }
+
+      return true;
+    });
+  }, [messages, dateFilter, statusFilter, eventTypeFilter, searchQuery, todayStr]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -298,7 +427,7 @@ export const WhatsAppPage: React.FC = () => {
             <MessageSquare className="w-4 h-4 text-emerald-500" />
           </div>
           <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 block mt-1">
-            {whatsappStats.totalSent || 0}
+            {displayTotalSent}
           </span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">All-time count</span>
         </div>
@@ -312,7 +441,7 @@ export const WhatsAppPage: React.FC = () => {
             <Clock className="w-4 h-4 text-orange-400" />
           </div>
           <span className="text-2xl font-black text-slate-900 dark:text-white block mt-1">
-            {whatsappStats.sent || 0}
+            {displaySentToday}
           </span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Today's count</span>
         </div>
@@ -585,6 +714,348 @@ export const WhatsAppPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Message Outbox & Audit Log */}
+      <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-sm dark:shadow-xl space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/10">
+          <div>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-500" />
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                WhatsApp Outbox &amp; Message Audit Log
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                {displayTotalSent} Permanent Total
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Live audit trail of all automated fee reminders, roll call alerts, and parent notifications dispatched via Gurukul WhatsApp gateway.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchMessages}
+              disabled={loadingMessages}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingMessages ? 'animate-spin' : ''}`} />
+              <span>Refresh Log</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Controls Bar */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search phone, student, or parent name..."
+              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-orange-500 transition-colors"
+            />
+          </div>
+
+          {/* Date Filter Tabs */}
+          <div className="flex items-center rounded-lg bg-slate-100 dark:bg-[#0F172A] p-0.5 border border-slate-200 dark:border-white/10 text-xs">
+            <button
+              type="button"
+              onClick={() => setDateFilter('ALL')}
+              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                dateFilter === 'ALL'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateFilter('TODAY')}
+              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                dateFilter === 'TODAY'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Today ({displaySentToday})
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateFilter('7DAYS')}
+              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                dateFilter === '7DAYS'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Last 7 Days
+            </button>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+            >
+              <option value="ALL">All Status</option>
+              <option value="SENT">Sent / Delivered</option>
+              <option value="QUEUED">Queued (Pending)</option>
+              <option value="FAILED">Failed</option>
+            </select>
+          </div>
+
+          {/* Event Type Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">Event:</span>
+            <select
+              value={eventTypeFilter}
+              onChange={(e) => setEventTypeFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+            >
+              <option value="ALL">All Event Types</option>
+              <option value="FEE_OVERDUE">Fee Overdue Notice</option>
+              <option value="FEE_DUE">Fee Due Reminder</option>
+              <option value="FEE_UPCOMING">Advance Fee Courtesy</option>
+              <option value="ATTENDANCE_ABSENT">Student Absent Alert</option>
+              <option value="ATTENDANCE_PRESENT">Present Confirmation</option>
+              <option value="PAYMENT_SUCCESS">Payment Confirmation</option>
+              <option value="ANNOUNCEMENT">Announcement</option>
+              <option value="CUSTOM_NOTIFICATION">Custom Notification</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Counter Info & Table */}
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+          <span>
+            Showing <strong>{filteredMessages.length}</strong> of <strong>{messages.length}</strong> recorded messages
+          </span>
+          <span className="font-mono">
+            Today Sent: {displaySentToday} • All-Time: {displayTotalSent}
+          </span>
+        </div>
+
+        {loadingMessages ? (
+          <div className="py-12 text-center text-xs text-slate-500 animate-pulse flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-orange-400" />
+            <span>Loading WhatsApp outbox audit messages...</span>
+          </div>
+        ) : filteredMessages.length === 0 ? (
+          <div className="py-12 text-center rounded-xl bg-slate-50 dark:bg-[#0F172A]/50 border border-slate-200 dark:border-white/5 space-y-2">
+            <MessageSquare className="w-8 h-8 text-slate-400 mx-auto opacity-40" />
+            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">No WhatsApp messages match your filters</h3>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              {messages.length === 0
+                ? 'No messages have been dispatched yet. When attendance alerts or fee reminders are sent, they will appear here permanently.'
+                : 'Try clearing the search query or switching the date and status filters above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-[#0F172A] text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-white/10 text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Date &amp; Time</th>
+                  <th className="py-2.5 px-3">Recipient &amp; Student</th>
+                  <th className="py-2.5 px-3">Event Type</th>
+                  <th className="py-2.5 px-3">Message Content</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                {filteredMessages.map((msg) => {
+                  const timestamp = msg.sent_at || msg.created_at;
+                  const dateObj = new Date(timestamp);
+                  const formattedDate = dateObj.toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  });
+                  const formattedTime = dateObj.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+
+                  // Event badge styling
+                  const eventBadge = (() => {
+                    switch (msg.event_type) {
+                      case 'FEE_OVERDUE':
+                        return 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+                      case 'FEE_DUE':
+                        return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+                      case 'FEE_UPCOMING':
+                        return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+                      case 'ATTENDANCE_ABSENT':
+                        return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+                      case 'ATTENDANCE_PRESENT':
+                        return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                      case 'PAYMENT_SUCCESS':
+                        return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                      default:
+                        return 'bg-slate-500/15 text-slate-300 border-slate-500/30';
+                    }
+                  })();
+
+                  // Status badge styling
+                  const isSent = msg.status === 'SENT' || msg.status === 'DELIVERED' || msg.status === 'MOCK';
+                  const isQueued = msg.status === 'QUEUED';
+                  const isFailed = msg.status === 'FAILED';
+
+                  return (
+                    <tr
+                      key={msg.id}
+                      className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                    >
+                      {/* Date & Time */}
+                      <td className="py-3 px-3 whitespace-nowrap text-slate-700 dark:text-slate-300">
+                        <div className="font-semibold text-slate-900 dark:text-white text-[11px]">{formattedDate}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{formattedTime}</div>
+                      </td>
+
+                      {/* Recipient & Student */}
+                      <td className="py-3 px-3">
+                        <div className="font-semibold text-slate-900 dark:text-white text-xs">
+                          {msg.student?.name || 'Direct Recipient'}
+                        </div>
+                        {msg.student?.parent_name && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Parent: {msg.student.parent_name}
+                          </div>
+                        )}
+                        <div className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                          {msg.recipient_phone}
+                        </div>
+                      </td>
+
+                      {/* Event Type */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${eventBadge}`}
+                        >
+                          {msg.event_type.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+
+                      {/* Message Content Preview */}
+                      <td className="py-3 px-3 max-w-xs md:max-w-md">
+                        <p className="line-clamp-2 text-slate-600 dark:text-slate-300 text-[11px] font-sans leading-relaxed">
+                          {msg.message_body}
+                        </p>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {isSent ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20">
+                            <Check className="w-3 h-3" />
+                            SENT
+                          </span>
+                        ) : isQueued ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20">
+                            <Clock className="w-3 h-3" />
+                            QUEUED
+                          </span>
+                        ) : isFailed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20">
+                            <XCircle className="w-3 h-3" />
+                            FAILED
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">{msg.status}</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMessage(msg)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Message Detail Modal */}
+      {selectedMessage && (
+        <Modal
+          isOpen={!!selectedMessage}
+          onClose={() => setSelectedMessage(null)}
+          title="WhatsApp Message Audit Details"
+          maxWidth="lg"
+        >
+          <div className="p-6 space-y-4 text-xs font-sans">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 text-[11px]">
+              <div>
+                <span className="text-slate-500 block">Recipient Phone</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                  {selectedMessage.recipient_phone}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Student &amp; Parent</span>
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {selectedMessage.student?.name || 'General Recipient'}
+                  {selectedMessage.student?.parent_name ? ` (${selectedMessage.student.parent_name})` : ''}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Event Type</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {selectedMessage.event_type}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Timestamp</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">
+                  {new Date(selectedMessage.sent_at || selectedMessage.created_at).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            {/* Live WhatsApp Bubble Preview */}
+            <div className="p-4 rounded-2xl bg-[#0b141a] border border-[#222e35] text-slate-100">
+              <span className="text-[10px] uppercase font-bold text-[#8696a0] tracking-wider block mb-2">
+                Delivered WhatsApp Message Bubble:
+              </span>
+              <div className="bg-[#005c4b] text-[#e9edef] p-3.5 rounded-xl rounded-tr-none shadow-sm space-y-2">
+                <p className="whitespace-pre-wrap leading-relaxed text-[12px] font-sans">
+                  {selectedMessage.message_body}
+                </p>
+                <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
+                  <span>{new Date(selectedMessage.sent_at || selectedMessage.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[#53bdeb]">✓✓</span>
+                </div>
+              </div>
+            </div>
+
+            {selectedMessage.error_message && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px]">
+                <strong>Error:</strong> {selectedMessage.error_message}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

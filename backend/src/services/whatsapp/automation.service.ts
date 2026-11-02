@@ -78,11 +78,44 @@ export class WhatsAppAutomationService {
   // ============================================================================
   // TEMPLATE RENDERING (Supports all CRM & Razorpay Variables)
   // ============================================================================
+  // TEMPLATE RENDERING (Supports all CRM & Razorpay Variables)
+  // Supports both single {variable} and double {{variable}} braces
+  // ============================================================================
   renderTemplate(templateBody: string, variables: Record<string, string>): string {
     let rendered = templateBody;
+
+    // Apply smart fail-safe fallbacks for core variables upfront
+    const studentName = variables.student_name || variables.studentName || 'Student';
+    const parentName =
+      (variables.parent_name && variables.parent_name.trim()) ||
+      (variables.parentName && variables.parentName.trim()) ||
+      (studentName !== 'Student' ? `${studentName} Palak` : 'Palak');
+    const course = variables.course || variables.course_name || variables.courseName || 'Sports Training';
+    const amount = variables.pending_amount || variables.amount || variables.pendingAmount || '0';
+    const dueDate = variables.due_date || variables.dueDate || '5th of this month';
+    const paymentLink = variables.payment_link || variables.paymentLink || '';
+
+    const safeVars = {
+      ...variables,
+      parent_name: parentName,
+      parentName: parentName,
+      student_name: studentName,
+      studentName: studentName,
+      course: course,
+      course_name: course,
+      courseName: course,
+      amount: amount,
+      pending_amount: amount,
+      pendingAmount: amount,
+      due_date: dueDate,
+      dueDate: dueDate,
+      payment_link: paymentLink,
+      paymentLink: paymentLink,
+    };
+
     const expandedVars: Record<string, string> = {};
 
-    for (const [key, value] of Object.entries(variables)) {
+    for (const [key, value] of Object.entries(safeVars)) {
       const valStr = value !== undefined && value !== null ? String(value) : '';
       expandedVars[key] = valStr;
 
@@ -98,10 +131,21 @@ export class WhatsAppAutomationService {
       expandedVars[key.toLowerCase().replace(/_/g, '')] = valStr;
     }
 
+    // Replace both double {{var}} and single {var} braces
     for (const [key, value] of Object.entries(expandedVars)) {
-      const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
+      const regex = new RegExp(`(?:\\{\\{|\\{)\\s*${key}\\s*(?:\\}\\}|\\})`, 'gi');
       rendered = rendered.replace(regex, value);
     }
+
+    // Final safety pass for any unreplaced core tag variations
+    rendered = rendered
+      .replace(/(?:\{\{|\{)\s*(?:parent_name|parentName|parent)\s*(?:\}\}|\})/gi, parentName)
+      .replace(/(?:\{\{|\{)\s*(?:student_name|studentName|student)\s*(?:\}\}|\})/gi, studentName)
+      .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
+      .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, amount)
+      .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
+      .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink)\s*(?:\}\}|\})/gi, paymentLink);
+
     return rendered;
   }
 
@@ -132,10 +176,24 @@ export class WhatsAppAutomationService {
   }
 
   /**
-   * Intelligently formats message:
-   * Honors template exact text strictly without injecting unsolicited onboarding/save notes or links.
+   * Intelligently formats message with onboarding note:
+   * Only appends to the first 2 messages sent to new parents, formatted cleanly as:
+   * "📌 Please save this official contact number in your phone as Gurukul Sports Academy."
    */
-  async formatMessageWithOnboardingNote(baseBody: string, _phone: string, _academyName: string): Promise<string> {
+  async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
+    if (!phone) return baseBody;
+    try {
+      const priorCount = await this.getPriorMessageCount(phone);
+      if (priorCount < 2) {
+        const officialAcademyName = academyName || 'Gurukul Sports Academy';
+        const onboardingNote = `\n\n📌 Please save this official contact number in your phone as ${officialAcademyName}.`;
+        if (!baseBody.includes('Please save this official contact number')) {
+          return `${baseBody.trim()}${onboardingNote}`;
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
     return baseBody;
   }
 
@@ -380,40 +438,53 @@ export class WhatsAppAutomationService {
   // AUTOMATION: FEE DUE / OVERDUE REMINDER
   // ============================================================================
   async triggerFeeReminderAutomation(params: {
-    studentId: string;
+    studentId?: string;
     studentFeeId: string;
-    eventType?: 'FEE_DUE' | 'FEE_OVERDUE' | 'FEE_UPCOMING';
+    eventType?: 'FEE_DUE' | 'FEE_OVERDUE' | 'FEE_UPCOMING' | 'FEE_OVERDUE_ALERT' | 'FEE_DUE_REMINDER';
     customTemplate?: string;
   }) {
-    const eventType: WhatsAppEventType = (params.eventType as WhatsAppEventType) || 'FEE_DUE';
+    let eventType: WhatsAppEventType = 'FEE_DUE';
+    if (params.eventType === 'FEE_OVERDUE_ALERT' || params.eventType === 'FEE_OVERDUE') {
+      eventType = 'FEE_OVERDUE';
+    } else if (params.eventType === 'FEE_UPCOMING') {
+      eventType = 'FEE_UPCOMING';
+    } else {
+      eventType = 'FEE_DUE';
+    }
 
     const template = await templateService.getActiveTemplateForEvent(eventType);
     if (!template && !params.customTemplate) {
       throw new AppError(`No active template found for ${eventType}`, 400, 'TEMPLATE_NOT_FOUND');
     }
 
-    const [studentRes, feeRes] = await Promise.all([
-      this.supabase
-        .from('students')
-        .select('id, name, parent_name, parent_whatsapp, student_mobile, course')
-        .eq('id', params.studentId)
-        .single(),
-      this.supabase
-        .from('student_fees')
-        .select('id, amount_due, amount_paid, due_date, billing_period')
-        .eq('id', params.studentFeeId)
-        .single(),
-    ]);
+    // Resilient lookup: query student_fees first to guarantee valid fee & student association
+    const feeRes = await this.supabase
+      .from('student_fees')
+      .select('id, student_id, amount_due, amount_paid, due_date, billing_period')
+      .eq('id', params.studentFeeId)
+      .single();
 
-    if (studentRes.error || !studentRes.data) {
-      throw new AppError('Student not found', 404, 'RESOURCE_NOT_FOUND');
-    }
     if (feeRes.error || !feeRes.data) {
       throw new AppError('Student fee record not found', 404, 'RESOURCE_NOT_FOUND');
     }
 
-    const student = studentRes.data;
     const fee = feeRes.data;
+    const targetStudentId = params.studentId || fee.student_id;
+    if (!targetStudentId) {
+      throw new AppError('Student not associated with this fee record', 404, 'RESOURCE_NOT_FOUND');
+    }
+
+    const studentRes = await this.supabase
+      .from('students')
+      .select('id, name, parent_name, parent_whatsapp, student_mobile, course')
+      .eq('id', targetStudentId)
+      .single();
+
+    if (studentRes.error || !studentRes.data) {
+      throw new AppError('Student not found', 404, 'RESOURCE_NOT_FOUND');
+    }
+
+    const student = studentRes.data;
     const pendingAmount = Math.max(0, Number(fee.amount_due) - Number(fee.amount_paid));
 
     const recipientPhone = student.parent_whatsapp || student.student_mobile;
@@ -442,16 +513,26 @@ export class WhatsAppAutomationService {
     console.log(`[WhatsAppAutomation] Generating Zero-Cut Fee Reminder for student ${student.name} (Rs. ${pendingAmount}) with UPI Link: ${zeroCutUpiLink}`);
 
     const rawTemplateBody = (params.customTemplate && params.customTemplate.trim()) || template?.body || '';
+    const parentNameFallback =
+      student.parent_name?.trim() ||
+      (student.name ? `${student.name} Palak` : 'Palak');
+
     const baseBody = this.renderTemplate(rawTemplateBody, {
-      academy_name: upiDetails.academyName,
-      student_name: student.name,
-      parent_name: student.parent_name || 'Parent',
+      academy_name: upiDetails.academyName || 'Gurukul Sports Academy',
+      student_name: student.name || 'Student',
+      studentName: student.name || 'Student',
+      parent_name: parentNameFallback,
+      parentName: parentNameFallback,
       phone: recipientPhone,
-      course_name: student.course || 'Course',
+      course_name: student.course || 'Sports Training',
+      course: student.course || 'Sports Training',
       amount: pendingAmount.toString(),
       pending_amount: pendingAmount.toString(),
-      due_date: fee.due_date,
+      pendingAmount: pendingAmount.toString(),
+      due_date: fee.due_date || '5th of this month',
+      dueDate: fee.due_date || '5th of this month',
       payment_link: zeroCutUpiLink,
+      paymentLink: zeroCutUpiLink,
       upi_id: upiDetails.upiId,
       upi_payee_name: upiDetails.payeeName,
       razorpay_payment_link: zeroCutUpiLink,
@@ -464,7 +545,7 @@ export class WhatsAppAutomationService {
       recipientPhone,
       messageBody,
       studentId: student.id,
-      templateId: template.id,
+      templateId: template?.id,
       eventType,
     });
 
@@ -910,7 +991,7 @@ export class WhatsAppAutomationService {
       `)
       .order('created_at', { ascending: false });
 
-    if (filters.status) {
+    if (filters.status && filters.status !== 'QUEUED') {
       query = query.eq('status', filters.status);
     }
 
@@ -936,7 +1017,64 @@ export class WhatsAppAutomationService {
       throw new AppError(`Failed to list messages: ${error.message}`, 500);
     }
 
-    return data || [];
+    let allResults = data || [];
+
+    // If filtering for QUEUED or ALL, merge active items from whatsapp_queue
+    if (!filters.status || filters.status === 'QUEUED') {
+      try {
+        let queueQuery = this.supabase
+          .from('whatsapp_queue')
+          .select(`
+            *,
+            student:students(id, name, course, parent_name)
+          `)
+          .in('status', ['PENDING', 'PROCESSING'])
+          .order('created_at', { ascending: false });
+
+        if (filters.eventType) {
+          queueQuery = queueQuery.eq('event_type', filters.eventType);
+        }
+        if (filters.studentId) {
+          queueQuery = queueQuery.eq('student_id', filters.studentId);
+        }
+        if (filters.startDate) {
+          queueQuery = queueQuery.gte('created_at', filters.startDate);
+        }
+        if (filters.endDate) {
+          queueQuery = queueQuery.lte('created_at', filters.endDate);
+        }
+
+        const { data: queueItems } = await queueQuery;
+        if (queueItems && queueItems.length > 0) {
+          const mappedQueue = queueItems.map((q: any) => ({
+            id: q.id,
+            template_id: q.template_id,
+            student_id: q.student_id,
+            recipient_phone: q.recipient_phone,
+            event_type: q.event_type,
+            message_body: q.message_body,
+            provider_message_id: q.provider_message_id,
+            status: 'QUEUED',
+            error_message: q.failure_reason,
+            sent_at: null,
+            created_at: q.created_at,
+            student: q.student,
+          }));
+
+          if (filters.status === 'QUEUED') {
+            allResults = mappedQueue;
+          } else {
+            allResults = [...mappedQueue, ...allResults].sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+          }
+        }
+      } catch (err: any) {
+        console.warn('[WhatsAppAutomation.listMessages] Queue merge warning:', err.message);
+      }
+    }
+
+    return allResults;
   }
 
   // ============================================================================
