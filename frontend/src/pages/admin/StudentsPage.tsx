@@ -592,8 +592,12 @@ export const StudentsPage: React.FC = () => {
       toast.error('Student does not have a registered WhatsApp number.');
       return;
     }
+    const cleanParent = (s.parentName && s.parentName.trim() && !/^[\s.\-_,;:'"]+$/.test(s.parentName.trim()) && !/^(null|undefined|none|na|n\/a|\.)$/i.test(s.parentName.trim()))
+      ? s.parentName.trim().replace(/^[\s.\-_,;:'"]+|[\s.\-_,;:'"]+$/g, '')
+      : (s.name ? `${s.name} Palak` : 'Palak');
+
     setWaTargetStudent(s);
-    setWaCustomMessage(`Namaskar ${s.parentName || s.name} ji, this is an update regarding ${s.name}'s classes at Gurukul Sports Academy.`);
+    setWaCustomMessage(`Namaste ${cleanParent} Ji! 🙏 This is an official update regarding ${s.name}'s training at Gurukul Sports Academy.`);
     setIsWaModalOpen(true);
   };
 
@@ -2919,9 +2923,42 @@ export const StudentsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Message Body (Editable) *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Message Body (Editable) *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cleanParent = (waTargetStudent.parentName && waTargetStudent.parentName.trim() && !/^[\s.\-_,;:'"]+$/.test(waTargetStudent.parentName.trim()) && !/^(null|undefined|none|na|n\/a|\.)$/i.test(waTargetStudent.parentName.trim()))
+                      ? waTargetStudent.parentName.trim().replace(/^[\s.\-_,;:'"]+|[\s.\-_,;:'"]+$/g, '')
+                      : (waTargetStudent.name ? `${waTargetStudent.name} Palak` : 'Palak');
+                    const savedTpl = localStorage.getItem('gurukul_whatsapp_fee_template') ||
+                      'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- Gurukul Sports Academy';
+                    const amount = String(waTargetStudent.totalPendingAmount || waTargetStudent.monthlyFee || 700);
+                    const course = waTargetStudent.course || 'Athletics & Martial Arts';
+                    let rendered = savedTpl
+                      .replace(/(?:\{\{|\{)\s*(?:parent_name|parentName|parent)\s*(?:\}\}|\})/gi, cleanParent)
+                      .replace(/(?:\{\{|\{)\s*(?:student_name|studentName|student)\s*(?:\}\}|\})/gi, waTargetStudent.name)
+                      .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
+                      .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, amount)
+                      .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, '5th of this month')
+                      .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, '');
+                    rendered = rendered.replace(/Namaste\s*[\.\-_,\s]*\s*ji\s*!/gi, 'Namaste Ji! 🙏');
+                    rendered = rendered.replace(/Namaste\s*[\.\-_,\s]+!/gi, 'Namaste Ji! 🙏');
+                    rendered = rendered.replace(/Namaste\s+Palak\s+ji\s*!/gi, 'Namaste Palak Ji! 🙏');
+                    rendered = rendered.replace(/\b([a-zA-Z\u0900-\u097F]+)\s*[\.\-_,]+\s*ji\s*!/gi, '$1 Ji! 🙏');
+                    rendered = rendered.replace(/\s+([!?,;:])/g, '$1');
+                    rendered = rendered.replace(/!\s*🙏/g, '! 🙏');
+                    rendered = rendered.replace(/([^\s])\s*🙏/g, '$1 🙏');
+                    rendered = rendered.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+                    setWaCustomMessage(rendered);
+                  }}
+                  className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                >
+                  Load Fee Reminder Template
+                </button>
+              </div>
               <textarea
                 rows={5}
                 value={waCustomMessage}

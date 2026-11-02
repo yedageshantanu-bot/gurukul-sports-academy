@@ -70,6 +70,29 @@ function isBlockedOrDummyNumber(phone: string): boolean {
   return false;
 }
 
+function cleanParentName(name?: string | null, studentName?: string | null): string {
+  const sName = studentName && studentName.trim() && studentName.trim().toLowerCase() !== 'student'
+    ? studentName.trim()
+    : '';
+
+  if (!name) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  const trimmed = name.trim();
+  const isJunk = /^[\s.\-_,;:'"`]+$/.test(trimmed) || /^(null|undefined|none|na|n\/a|\.)$/i.test(trimmed);
+  if (isJunk) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  const cleaned = trimmed.replace(/^[\s.\-_,;:'"]+|[\s.\-_,;:'"]+$/g, '').trim();
+  if (!cleaned || /^[\s.\-_,;:'"`]+$/.test(cleaned) || /^(null|undefined|none|na|n\/a|\.)$/i.test(cleaned)) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  return cleaned;
+}
+
 async function dispatchWhatsApp(to: string, body: string, env: any) {
   if (!to || !body) return { ok: false, error: 'Missing phone or body' };
   if (isBlockedOrDummyNumber(to)) {
@@ -1676,9 +1699,22 @@ export async function onRequest(context: any) {
       } catch {}
 
       const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+      // Asia/Kolkata (IST = UTC + 5:30) date boundaries
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const istNow = new Date(now.getTime() + istOffsetMs);
+      const istYear = istNow.getUTCFullYear();
+      const istMonth = istNow.getUTCMonth();
+      const istDate = istNow.getUTCDate();
+
+      // 00:00:00 IST to 23:59:59.999 IST converted to UTC ISO strings
+      const todayStart = new Date(Date.UTC(istYear, istMonth, istDate, 0, 0, 0) - istOffsetMs).toISOString();
+      const todayEnd = new Date(Date.UTC(istYear, istMonth, istDate, 23, 59, 59, 999) - istOffsetMs).toISOString();
+
+      const startOfMonth = new Date(Date.UTC(istYear, istMonth, 1, 0, 0, 0) - istOffsetMs).toISOString();
+      const lastDayOfMonth = new Date(Date.UTC(istYear, istMonth + 1, 0)).getUTCDate();
+      const endOfMonth = new Date(Date.UTC(istYear, istMonth, lastDayOfMonth, 23, 59, 59, 999) - istOffsetMs).toISOString();
+
+      const validStatuses = ['SENT', 'DELIVERED', 'MOCK', 'OK', 'SENT_NOW'];
 
       let totalSent = 0;
       let monthSent = 0;
@@ -1687,16 +1723,16 @@ export async function onRequest(context: any) {
       let failed = 0;
 
       try {
-        const { count: totalMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT');
-        const { count: totalQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT');
+        const { count: totalMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses);
+        const { count: totalQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).in('status', ['SENT', 'MOCK', 'OK']);
         totalSent = Math.max(totalMsg || 0, totalQ || 0);
 
-        const { count: monthMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('created_at', startOfMonth).lte('created_at', endOfMonth);
-        const { count: monthQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('updated_at', startOfMonth).lte('updated_at', endOfMonth);
+        const { count: monthMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses).gte('created_at', startOfMonth).lte('created_at', endOfMonth);
+        const { count: monthQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).in('status', ['SENT', 'MOCK', 'OK']).gte('updated_at', startOfMonth).lte('updated_at', endOfMonth);
         monthSent = Math.max(monthMsg || 0, monthQ || 0);
 
-        const { count: todayMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('created_at', todayStr);
-        const { count: todayQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'SENT').gte('updated_at', todayStr);
+        const { count: todayMsg } = await supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses).gte('created_at', todayStart).lte('created_at', todayEnd);
+        const { count: todayQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).in('status', ['SENT', 'MOCK', 'OK']).gte('updated_at', todayStart).lte('updated_at', todayEnd);
         sentToday = Math.max(todayMsg || 0, todayQ || 0);
 
         const { count: pendingQ } = await supabase.from('whatsapp_queue').select('*', { count: 'exact', head: true }).eq('status', 'PENDING');
@@ -1708,11 +1744,10 @@ export async function onRequest(context: any) {
         // Fallback
       }
 
-      const startDay = String(new Date(now.getFullYear(), now.getMonth(), 1).getDate()).padStart(2, '0');
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const endDay = String(lastDay.getDate()).padStart(2, '0');
+      const startDay = String(1).padStart(2, '0');
+      const endDay = String(lastDayOfMonth).padStart(2, '0');
       const monthStr = now.toLocaleDateString('en-IN', { month: 'short' });
-      const yearNum = now.getFullYear();
+      const yearNum = istYear;
       const billingPeriod = `${startDay} ${monthStr} ${yearNum} – ${endDay} ${monthStr} ${yearNum}`;
       const ratePerMessage = 0.17;
       const monthBilled = Number((monthSent * ratePerMessage).toFixed(2));
@@ -1857,6 +1892,20 @@ export async function onRequest(context: any) {
         return jsonResponse({ success: false, message: res.error || 'Failed to dispatch via WhatsApp' }, 500);
       }
 
+      try {
+        await supabase.from('whatsapp_messages').insert({
+          student_id: body.studentId || null,
+          recipient_phone: phone,
+          event_type: body.eventType || 'CUSTOM_MESSAGE',
+          message_body: formatted,
+          status: 'SENT',
+          provider_message_id: res.data?.messageId || 'msg_' + Date.now(),
+          sent_at: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('Failed to insert into whatsapp_messages:', err);
+      }
+
       return jsonResponse({
         success: true,
         data: {
@@ -1891,8 +1940,8 @@ export async function onRequest(context: any) {
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const amount = (feeRecord ? Math.max(0, Number(feeRecord.amount_due || 0) - Number(feeRecord.amount_paid || 0)) : null) || student?.monthly_fee || '1,500';
       const dueDate = feeRecord?.due_date || '5th of this month';
-      const parentName = student?.parent_name?.trim() || (student?.name ? `${student.name} Palak` : 'Palak');
       const studentName = student?.name || 'Student';
+      const parentName = cleanParentName(student?.parent_name, studentName);
       const course = student?.course || 'Sports Coaching';
 
       let templateText = customTemplate;
@@ -1911,7 +1960,7 @@ export async function onRequest(context: any) {
         } catch {}
       }
 
-      let reminderText = `Dear ${parentName},\n\nThis is an official fee reminder from ${academyName}.\n\nTuition fee of ₹${amount} for ${studentName} is due on ${dueDate}.\n\nKindly clear dues at academy counter or contact Sensei.\n\nThank you,\n${academyName}`;
+      let reminderText = `Namaste ${parentName}! 🙏 Reminder from ${academyName}: Fee dues for ${studentName} (${course}) is ₹${amount}, scheduled due date: ${dueDate}. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- ${academyName}`;
 
       if (templateText && templateText.trim()) {
         reminderText = templateText
@@ -1923,9 +1972,23 @@ export async function onRequest(context: any) {
           .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, '');
       }
 
+      // Specific cleanup for parent greetings: never print isolated dots or punctuation before "ji" or "!"
+      reminderText = reminderText.replace(/Namaste\s*[\.\-_,\s]*\s*ji\s*!/gi, 'Namaste Ji! 🙏');
+      reminderText = reminderText.replace(/Namaste\s*[\.\-_,\s]+!/gi, 'Namaste Ji! 🙏');
+      reminderText = reminderText.replace(/Namaste\s+Palak\s+ji\s*!/gi, 'Namaste Palak Ji! 🙏');
+      reminderText = reminderText.replace(/\b([a-zA-Z\u0900-\u097F]+)\s*[\.\-_,]+\s*ji\s*!/gi, '$1 Ji! 🙏');
+      reminderText = reminderText.replace(/\bji\s*!/gi, 'Ji!');
+      reminderText = reminderText.replace(/\bji\b/g, 'Ji');
+      reminderText = reminderText.replace(/\s+([!?,;:])/g, '$1');
+      reminderText = reminderText.replace(/!\s*🙏/g, '! 🙏');
+      reminderText = reminderText.replace(/([^\s])\s*🙏/g, '$1 🙏');
+      reminderText = reminderText.replace(/(?:!\s*🙏\s*)+/g, '! 🙏');
+      reminderText = reminderText.replace(/🙏(?:\s*🙏)+/g, '🙏');
+
       // Strip any raw upi:// links or UPI pay instructions
       reminderText = reminderText.replace(/upi:\/\/pay[^\s\n]*/gi, '');
       reminderText = reminderText.replace(/(?:📱\s*\*?(?:Direct\s*(?:1-Tap|0%)\s*UPI|1-Tap\s*Pay|UPI\s*Pay)\*?:?)[^\n]*/gi, '');
+      reminderText = reminderText.replace(/[ \t]+\n/g, '\n');
       reminderText = reminderText.replace(/\n{3,}/g, '\n\n').trim();
 
       const res = await dispatchWhatsApp(phone, reminderText, context.env);
@@ -1961,8 +2024,22 @@ export async function onRequest(context: any) {
       for (const st of (students || []).slice(0, 5)) {
         const phone = st.parent_whatsapp || st.student_mobile;
         if (phone) {
-          const msg = `Dear Parent,\n\nMonthly tuition fee for ${st.name} (₹${st.monthly_fee || 1500}) is due at ${academyName}.\n\nKindly clear dues at the academy counter or contact academy administration.\n\nRegards,\n${academyName}`;
-          await dispatchWhatsApp(phone, msg, context.env);
+          const parentName = cleanParentName(st.parent_name, st.name);
+          const msg = `Namaste ${parentName}! 🙏 Reminder from ${academyName}: Fee dues for ${st.name} (${st.course || 'Sports Coaching'}) is ₹${st.monthly_fee || 1500}, scheduled due date: 5th of this month. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- ${academyName}`;
+          const res = await dispatchWhatsApp(phone, msg, context.env);
+          if (res.ok) {
+            try {
+              await supabase.from('whatsapp_messages').insert({
+                student_id: st.id,
+                recipient_phone: phone,
+                event_type: 'FEE_REMINDER',
+                message_body: msg,
+                status: 'SENT',
+                provider_message_id: res.data?.messageId || 'msg_' + Date.now(),
+                sent_at: new Date().toISOString(),
+              });
+            } catch {}
+          }
           sentCount++;
         }
       }
@@ -2247,7 +2324,17 @@ export async function onRequest(context: any) {
         for (let i = 0; i < recipients.length; i++) {
           const targetPhone = recipients[i];
           try {
-            await dispatchWhatsApp(targetPhone, broadcastMsg, context.env);
+            const res = await dispatchWhatsApp(targetPhone, broadcastMsg, context.env);
+            if (res.ok) {
+              await supabase.from('whatsapp_messages').insert({
+                recipient_phone: targetPhone,
+                event_type: 'ANNOUNCEMENT',
+                message_body: broadcastMsg,
+                status: 'SENT',
+                provider_message_id: res.data?.messageId || 'msg_' + Date.now(),
+                sent_at: new Date().toISOString(),
+              }).catch(() => {});
+            }
           } catch (err) {
             console.error(`[Announcement Broadcast Error] to ${targetPhone}:`, err);
           }

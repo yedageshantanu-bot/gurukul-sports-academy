@@ -160,6 +160,21 @@ export const AdminDashboard: React.FC = () => {
       if (waData?.stats) {
         setWhatsappStats(waData.stats);
       }
+
+      // Sync active fee template so the unified template is always active on dashboard
+      apiClient<any>('/whatsapp/templates?active=true')
+        .then((res: any) => {
+          const list = res?.data || (Array.isArray(res) ? res : []);
+          const feeTpl = list.find((t: any) =>
+            ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'].includes(t.event_type)
+          );
+          if (feeTpl?.body) {
+            try {
+              localStorage.setItem('gurukul_whatsapp_fee_template', feeTpl.body);
+            } catch {}
+          }
+        })
+        .catch(() => null);
     } catch (err: any) {
       console.error('Failed to load admin dashboard via API, falling back to direct Supabase:', err);
       try {

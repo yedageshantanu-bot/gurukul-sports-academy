@@ -225,13 +225,13 @@ export class TemplateService {
       {
         name: 'Fee Due Reminder',
         eventType: 'FEE_DUE',
-        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due on {{due_date}}. Kindly settle the dues at your earliest convenience.\n\n- {{academy_name}}',
+        body: 'Namaste {parent_name}! 🙏 Reminder from {{academy_name}}: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- {{academy_name}}',
         active: true,
       },
       {
         name: 'Fee Overdue Alert',
         eventType: 'FEE_OVERDUE',
-        body: 'Dear {{parent_name}}, training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is now OVERDUE since {{due_date}}. Please complete the payment to ensure uninterrupted coaching.\n\n- {{academy_name}}',
+        body: 'Namaste {parent_name}! 🙏 Urgent reminder from {{academy_name}}: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- {{academy_name}}',
         active: true,
       },
     ];

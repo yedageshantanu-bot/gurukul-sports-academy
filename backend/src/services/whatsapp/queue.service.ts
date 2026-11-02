@@ -1118,13 +1118,25 @@ export class WhatsAppQueueService {
     let processing = items.filter((i) => i.status === 'PROCESSING').length;
     let failedToday = items.filter((i) => i.status === 'FAILED' && i.updated_at.startsWith(today)).length;
 
-    let totalSentAllTime = items.filter((i) => i.status === 'SENT' || (i.status as string) === 'MOCK').length;
+    let totalSentAllTime = items.filter((i) => i.status === 'SENT' || (i.status as string) === 'MOCK' || (i.status as string) === 'OK' || (i.status as string) === 'DELIVERED').length;
     let monthSent = 0;
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
-    const todayStart = `${today}T00:00:00.000Z`;
-    const todayEnd = `${today}T23:59:59.999Z`;
+    // Asia/Kolkata (IST = UTC + 5:30) date boundaries
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffsetMs);
+    const istYear = istNow.getUTCFullYear();
+    const istMonth = istNow.getUTCMonth();
+    const istDate = istNow.getUTCDate();
+
+    // 00:00:00 IST to 23:59:59.999 IST converted to UTC ISO strings
+    const todayStart = new Date(Date.UTC(istYear, istMonth, istDate, 0, 0, 0) - istOffsetMs).toISOString();
+    const todayEnd = new Date(Date.UTC(istYear, istMonth, istDate, 23, 59, 59, 999) - istOffsetMs).toISOString();
+
+    const startOfMonth = new Date(Date.UTC(istYear, istMonth, 1, 0, 0, 0) - istOffsetMs).toISOString();
+    const lastDayOfMonth = new Date(Date.UTC(istYear, istMonth + 1, 0)).getUTCDate();
+    const endOfMonth = new Date(Date.UTC(istYear, istMonth, lastDayOfMonth, 23, 59, 59, 999) - istOffsetMs).toISOString();
+
+    const validStatuses = ['SENT', 'DELIVERED', 'MOCK', 'OK', 'SENT_NOW'];
 
     if (this.supabase) {
       try {
@@ -1142,33 +1154,33 @@ export class WhatsAppQueueService {
           this.supabase
             .from('whatsapp_messages')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'DELIVERED', 'MOCK']),
+            .in('status', validStatuses),
           this.supabase
             .from('whatsapp_queue')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'MOCK']),
+            .in('status', ['SENT', 'MOCK', 'OK']),
           this.supabase
             .from('whatsapp_messages')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'DELIVERED', 'MOCK'])
+            .in('status', validStatuses)
             .gte('created_at', todayStart)
             .lte('created_at', todayEnd),
           this.supabase
             .from('whatsapp_queue')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'MOCK'])
+            .in('status', ['SENT', 'MOCK', 'OK'])
             .gte('updated_at', todayStart)
             .lte('updated_at', todayEnd),
           this.supabase
             .from('whatsapp_messages')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'DELIVERED', 'MOCK'])
+            .in('status', validStatuses)
             .gte('created_at', startOfMonth)
             .lte('created_at', endOfMonth),
           this.supabase
             .from('whatsapp_queue')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['SENT', 'MOCK'])
+            .in('status', ['SENT', 'MOCK', 'OK'])
             .gte('updated_at', startOfMonth)
             .lte('updated_at', endOfMonth),
           this.supabase

@@ -128,6 +128,23 @@ export const PaymentsPage: React.FC = () => {
         const pData = await pubsRes.json();
         if (pData.success && Array.isArray(pData.data)) setPublications(pData.data);
       }
+
+      // Sync active fee reminder template from database so unified template is always active everywhere
+      fetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.success && Array.isArray(res.data)) {
+            const feeTpl = res.data.find((t: any) =>
+              ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'].includes(t.event_type)
+            );
+            if (feeTpl?.body) {
+              try {
+                localStorage.setItem('gurukul_whatsapp_fee_template', feeTpl.body);
+              } catch {}
+            }
+          }
+        })
+        .catch(() => null);
     } catch (err: any) {
       setError(err.message || 'Failed to load payments history');
     } finally {

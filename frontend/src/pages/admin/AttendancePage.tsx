@@ -229,6 +229,7 @@ export const AttendancePage: React.FC = () => {
           studentFeeId: feeInfo?.feeId,
           studentId: s.studentId,
           eventType: feeInfo?.status === 'OVERDUE' ? 'FEE_OVERDUE_ALERT' : 'FEE_DUE_REMINDER',
+          customTemplate: typeof window !== 'undefined' ? localStorage.getItem('gurukul_whatsapp_fee_template') || undefined : undefined,
         }),
       });
       toast.success(`Fee reminder sent to ${s.name}'s parent (${phone})!`);

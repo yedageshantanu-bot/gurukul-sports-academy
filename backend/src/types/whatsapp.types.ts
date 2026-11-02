@@ -95,8 +95,8 @@ export const sendCustomMessageSchema = z.object({
   phone: z.string().trim().optional(),
   messageBody: z.string().trim().optional(),
   message: z.string().trim().optional(),
-  studentId: z.string().uuid('Invalid student ID format').optional(),
-  templateId: z.string().uuid('Invalid template ID format').optional(),
+  studentId: z.string().trim().uuid('Invalid student ID format').optional().nullable().or(z.literal('')),
+  templateId: z.string().trim().uuid('Invalid template ID format').optional().nullable().or(z.literal('')),
   eventType: z.string().default('CUSTOM_NOTIFICATION'),
   scheduledAt: z.string().datetime().optional(),
 }).transform((data) => {
@@ -123,15 +123,20 @@ export const sendCustomMessageSchema = z.object({
     phone: formattedPhone,
     messageBody: body.trim(),
     message: body.trim(),
+    studentId: data.studentId && data.studentId.trim() ? data.studentId.trim() : undefined,
+    templateId: data.templateId && data.templateId.trim() ? data.templateId.trim() : undefined,
   };
 });
 
 export const triggerFeeReminderSchema = z.object({
   studentFeeId: z.string().uuid('Invalid student fee ID format'),
-  studentId: z.string().uuid('Invalid student ID format').optional(),
+  studentId: z.string().trim().uuid('Invalid student ID format').optional().nullable().or(z.literal('')),
   eventType: z.enum(['FEE_DUE', 'FEE_OVERDUE', 'FEE_UPCOMING', 'FEE_OVERDUE_ALERT', 'FEE_DUE_REMINDER']).optional(),
   customTemplate: z.string().optional(),
-});
+}).transform((data) => ({
+  ...data,
+  studentId: data.studentId && data.studentId.trim() ? data.studentId.trim() : undefined,
+}));
 
 // Settings & controls schemas
 export const updateWhatsAppSettingsSchema = z.object({

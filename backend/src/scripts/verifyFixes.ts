@@ -192,6 +192,61 @@ Please clear dues at counter.`;
   await supabaseAdmin!.from('whatsapp_queue').delete().eq('id', queueItem1.id);
 
   // ==========================================
+  // TEST 6: Parent Name & Greeting Sanitization
+  // ==========================================
+  console.log('\n--- 6. Parent Name & Greeting Sanitization ---');
+  const { cleanParentName } = await import('../services/whatsapp/automation.service.js');
+
+  assert(cleanParentName('.', 'Shantanu Yedage') === 'Shantanu Yedage Palak', 'Dot parent_name falls back to Student Palak');
+  assert(cleanParentName('..', 'Shantanu Yedage') === 'Shantanu Yedage Palak', 'Double dot parent_name falls back to Student Palak');
+  assert(cleanParentName('-', 'Shantanu Yedage') === 'Shantanu Yedage Palak', 'Dash parent_name falls back to Student Palak');
+  assert(cleanParentName(null, 'Shantanu Yedage') === 'Shantanu Yedage Palak', 'Null parent_name falls back to Student Palak');
+  assert(cleanParentName('Ramesh Yedage', 'Shantanu Yedage') === 'Ramesh Yedage', 'Valid parent_name preserved');
+  assert(cleanParentName('. Ramesh Yedage .', 'Shantanu Yedage') === 'Ramesh Yedage', 'Punctuation trimmed from valid parent_name');
+
+  // Verify renderTemplate never outputs "Namaste . ji !" or "Namaste .!"
+  const renderedDotJi = automationService.renderTemplate(
+    'Namaste {parent_name} ji ! 🙏 Fee dues for {student_name} is ₹{pending_amount}.',
+    { parent_name: '.', student_name: 'Shantanu Yedage', pending_amount: '1500' }
+  );
+  assert(!renderedDotJi.includes('Namaste .'), 'renderTemplate does not contain "Namaste ."');
+  assert(!renderedDotJi.includes('ji !'), 'renderTemplate removes space before exclamation in "ji !"');
+  assert(renderedDotJi.includes('Namaste Shantanu Yedage Palak Ji! 🙏'), 'renderTemplate produces clean greeting');
+
+  const renderedOnlyDot = automationService.renderTemplate(
+    'Namaste {parent_name}! 🙏 Fee dues for {student_name} is ₹{pending_amount}.',
+    { parent_name: '.', student_name: 'Shantanu Yedage', pending_amount: '1500' }
+  );
+  assert(!renderedOnlyDot.includes('Namaste .!'), 'renderTemplate does not contain "Namaste .!"');
+
+  // Verify whitespace and gaps
+  const renderedWithGaps = automationService.renderTemplate(
+    'Namaste {parent_name}! 🙏\n\n\n\nFee dues for {student_name} is ₹{pending_amount}.\n   \n- Gurukul',
+    { parent_name: 'Ramesh', student_name: 'Shantanu', pending_amount: '1500' }
+  );
+  assert(!renderedWithGaps.includes('\n\n\n'), 'Awkward gaps condensed to at most double newlines');
+
+  // ==========================================
+  // TEST 7: Background Automated Fee Cadence Paused
+  // ==========================================
+  console.log('\n--- 7. Automated Fee Cadence Pause Verification ---');
+  const cadenceAutoResult = await automationService.triggerMultiStageFeeCadenceAutomation();
+  assert(cadenceAutoResult.queuedCount === 0, 'Background cadence without forceAllUnpaid queued 0 messages');
+  assert(cadenceAutoResult.message?.includes('paused'), 'Background cadence returns paused notice');
+
+  // ==========================================
+  // TEST 8: WhatsApp Stats & Cost Tracker Verification
+  // ==========================================
+  console.log('\n--- 8. WhatsApp Stats & Rate Calculation ---');
+  const stats = await queueService.getTodayStats();
+  assert(typeof stats.sent === 'number', 'sent count is a valid number');
+  assert(typeof stats.totalSent === 'number', 'totalSent count is a valid number');
+  assert(typeof stats.monthSent === 'number', 'monthSent count is a valid number');
+  assert(stats.ratePerMessage === 0.17, 'ratePerMessage is strictly 0.17');
+  assert(stats.monthBilled === Number((stats.monthSent * 0.17).toFixed(2)), 'monthBilled correctly calculated as monthSent * 0.17');
+  assert(!!stats.billingPeriod, 'billingPeriod is populated');
+
+  // ==========================================
   // SUMMARY
   // ==========================================
   console.log(`\n============================================================`);

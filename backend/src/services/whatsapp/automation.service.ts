@@ -14,6 +14,30 @@ import { PdfReportService, StudentReportData } from '../pdfReport.service.js';
 import { prototypeLinkedDeviceSender } from './prototypeLinkedDeviceSender.js';
 import { whatsappProviderFactory } from './whatsappProvider.factory.js';
 import { normalizePhoneNumber } from '../../utils/phone.js';
+export function cleanParentName(name?: string | null, studentName?: string | null): string {
+  const sName = studentName && studentName.trim() && studentName.trim().toLowerCase() !== 'student'
+    ? studentName.trim()
+    : '';
+
+  if (!name) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  const trimmed = name.trim();
+  // Check if string is only punctuation or placeholder word (e.g. '.', '..', '-', 'null', 'none')
+  const isJunk = /^[\s.\-_,;:'"`]+$/.test(trimmed) || /^(null|undefined|none|na|n\/a|\.)$/i.test(trimmed);
+  if (isJunk) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  // Strip leading & trailing dots, dashes, commas, semicolons
+  const cleaned = trimmed.replace(/^[\s.\-_,;:'"]+|[\s.\-_,;:'"]+$/g, '').trim();
+  if (!cleaned || /^[\s.\-_,;:'"`]+$/.test(cleaned) || /^(null|undefined|none|na|n\/a|\.)$/i.test(cleaned)) {
+    return sName ? `${sName} Palak` : 'Palak';
+  }
+
+  return cleaned;
+}
 
 export class WhatsAppAutomationService {
   private get supabase() {
@@ -83,11 +107,9 @@ export class WhatsAppAutomationService {
     let rendered = templateBody;
 
     // Apply smart fail-safe fallbacks for core variables upfront
-    const studentName = variables.student_name || variables.studentName || 'Student';
-    const parentName =
-      (variables.parent_name && variables.parent_name.trim()) ||
-      (variables.parentName && variables.parentName.trim()) ||
-      (studentName !== 'Student' ? `${studentName} Palak` : 'Palak');
+    const studentName = (variables.student_name || variables.studentName || 'Student').trim();
+    const rawParent = variables.parent_name || variables.parentName || '';
+    const parentName = cleanParentName(rawParent, studentName);
     const course = variables.course || variables.course_name || variables.courseName || 'Sports Training';
     const amount = variables.pending_amount || variables.amount || variables.pendingAmount || '0';
     const dueDate = variables.due_date || variables.dueDate || '5th of this month';
@@ -144,11 +166,29 @@ export class WhatsAppAutomationService {
       .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
       .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, paymentLink);
 
+    // Specific cleanup for parent greetings: never print isolated dots or punctuation before "ji" or "!"
+    rendered = rendered.replace(/Namaste\s*[\.\-_,\s]*\s*ji\s*!/gi, 'Namaste Ji! 🙏');
+    rendered = rendered.replace(/Namaste\s*[\.\-_,\s]+!/gi, 'Namaste Ji! 🙏');
+    rendered = rendered.replace(/Namaste\s+Palak\s+ji\s*!/gi, 'Namaste Palak Ji! 🙏');
+    rendered = rendered.replace(/\b([a-zA-Z\u0900-\u097F]+)\s*[\.\-_,]+\s*ji\s*!/gi, '$1 Ji! 🙏');
+    rendered = rendered.replace(/\bji\s*!/gi, 'Ji!');
+    rendered = rendered.replace(/\bji\b/g, 'Ji');
+
+    // Clean up awkward spaces before punctuation
+    rendered = rendered.replace(/\s+([!?,;:])/g, '$1');
+    rendered = rendered.replace(/!\s*🙏/g, '! 🙏');
+    rendered = rendered.replace(/([^\s])\s*🙏/g, '$1 🙏');
+    rendered = rendered.replace(/(?:!\s*🙏\s*)+/g, '! 🙏');
+    rendered = rendered.replace(/🙏(?:\s*🙏)+/g, '🙏');
+
     // Strict safety filter: strip any raw upi:// deep links or raw UPI payment commands
     rendered = rendered.replace(/upi:\/\/pay[^\s\n]*/gi, '');
     rendered = rendered.replace(/(?:📱\s*\*?(?:Direct\s*(?:1-Tap|0%)\s*UPI|1-Tap\s*Pay|UPI\s*Pay)\*?:?)[^\n]*/gi, '');
     rendered = rendered.replace(/(?:(?:Or\s*)?pay\s*(?:via\s*(?:GPay\s*\/\s*PhonePe|UPI)\s*)?(?:to\s*)?UPI\s*ID\s*:\s*\*?[a-zA-Z0-9.\-_@]+\*?)/gi, '');
     rendered = rendered.replace(/UPI\s*ID\s*:\s*\*?[a-zA-Z0-9.\-_@]+\*?/gi, '');
+
+    // Clean up excessive blank lines & awkward gaps
+    rendered = rendered.replace(/[ \t]+\n/g, '\n');
     rendered = rendered.replace(/\n{3,}/g, '\n\n').trim();
 
     return rendered;
@@ -513,9 +553,7 @@ export class WhatsAppAutomationService {
     console.log(`[WhatsAppAutomation] Generating Fee Reminder for student ${student.name} (Rs. ${pendingAmount})`);
 
     const rawTemplateBody = (params.customTemplate && params.customTemplate.trim()) || template?.body || '';
-    const parentNameFallback =
-      student.parent_name?.trim() ||
-      (student.name ? `${student.name} Palak` : 'Palak');
+    const parentNameFallback = cleanParentName(student.parent_name, student.name);
 
     const baseBody = this.renderTemplate(rawTemplateBody, {
       academy_name: upiDetails.academyName || 'Gurukul Sports Academy',
@@ -581,6 +619,16 @@ export class WhatsAppAutomationService {
   // - Idempotency key per student, billing period, and cadence stage
   // ============================================================================
   async triggerMultiStageFeeCadenceAutomation(options?: { forceAllUnpaid?: boolean }) {
+    if (!options?.forceAllUnpaid) {
+      console.log('[WhatsAppAutomation] Automated background fee cadence is PAUSED per configuration until client review. Reminders can only be triggered explicitly by admin.');
+      return {
+        queuedCount: 0,
+        escalatedCount: 0,
+        skippedCount: 0,
+        message: 'Automated background fee cadence is paused until client review. Reminders can only be triggered explicitly by admin.',
+      };
+    }
+
     try {
       const upiDetails = await this.getAcademyUpiDetails();
 
@@ -711,7 +759,7 @@ export class WhatsAppAutomationService {
         const baseBody = this.renderTemplate(template.body, {
           academy_name: upiDetails.academyName,
           student_name: student.name,
-          parent_name: student.parent_name || 'Parent',
+          parent_name: cleanParentName(student.parent_name, student.name),
           phone: recipientPhone,
           course_name: student.course || 'Athletics & Martial Arts',
           amount: pendingAmount.toString(),

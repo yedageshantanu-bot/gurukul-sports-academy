@@ -38,7 +38,7 @@ export interface WhatsAppLogMessage {
   event_type: string;
   message_body: string;
   provider_message_id?: string;
-  status: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'MOCK';
+  status: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'MOCK' | 'OK';
   error_message?: string;
   sent_at?: string;
   created_at: string;
@@ -119,6 +119,39 @@ export const WhatsAppPage: React.FC = () => {
         console.warn('Direct Supabase log fetch note:', sbErr);
       }
     } finally {
+      // Direct count verification from Supabase to guarantee instantaneous counter sync
+      try {
+        const now = new Date();
+        const istOffsetMs = 5.5 * 60 * 60 * 1000;
+        const istNow = new Date(now.getTime() + istOffsetMs);
+        const istYear = istNow.getUTCFullYear();
+        const istMonth = istNow.getUTCMonth();
+        const istDate = istNow.getUTCDate();
+        const istTodayStartUTC = new Date(Date.UTC(istYear, istMonth, istDate, 0, 0, 0) - istOffsetMs).toISOString();
+        const istMonthStartUTC = new Date(Date.UTC(istYear, istMonth, 1, 0, 0, 0) - istOffsetMs).toISOString();
+        const validStatuses = ['SENT', 'DELIVERED', 'MOCK', 'OK', 'SENT_NOW'];
+
+        const [
+          { count: directTotal },
+          { count: directToday },
+          { count: directMonth },
+        ] = await Promise.all([
+          supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses),
+          supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses).gte('created_at', istTodayStartUTC),
+          supabase.from('whatsapp_messages').select('*', { count: 'exact', head: true }).in('status', validStatuses).gte('created_at', istMonthStartUTC),
+        ]);
+
+        if (typeof directTotal === 'number') {
+          setWhatsappStats((prev) => ({
+            ...prev,
+            totalSent: Math.max(prev.totalSent || 0, directTotal),
+            sent: Math.max(prev.sent || 0, directToday || 0),
+            monthSent: Math.max(prev.monthSent || 0, directMonth || 0),
+          }));
+        }
+      } catch (cntErr) {
+        console.warn('Direct count query note:', cntErr);
+      }
       setLoadingMessages(false);
     }
   }, []);
@@ -331,15 +364,18 @@ export const WhatsAppPage: React.FC = () => {
   // Synced Metrics: Guaranteed to match Outbox Table & Supabase
   const todayStr = new Date().toISOString().split('T')[0];
   const displayTotalSent = useMemo(() => {
-    const listSent = messages.filter((m) => m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK').length;
+    const listSent = messages.filter((m) => m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK' || m.status === 'OK').length;
     return Math.max(whatsappStats.totalSent || 0, listSent);
   }, [messages, whatsappStats.totalSent]);
 
   const displaySentToday = useMemo(() => {
+    const todayLocale = new Date().toLocaleDateString('en-IN');
     const listToday = messages.filter(
       (m) =>
-        (m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK') &&
-        (m.sent_at?.startsWith(todayStr) || m.created_at?.startsWith(todayStr))
+        (m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK' || m.status === 'OK') &&
+        ((m.sent_at && new Date(m.sent_at).toLocaleDateString('en-IN') === todayLocale) ||
+         (m.created_at && new Date(m.created_at).toLocaleDateString('en-IN') === todayLocale) ||
+         m.sent_at?.startsWith(todayStr) || m.created_at?.startsWith(todayStr))
     ).length;
     return Math.max(whatsappStats.sent || 0, listToday);
   }, [messages, whatsappStats.sent, todayStr]);
@@ -358,11 +394,17 @@ export const WhatsAppPage: React.FC = () => {
   })();
 
   const displayMonthSent = useMemo(() => {
+    const now = new Date();
+    const curMonth = now.getMonth();
+    const curYear = now.getFullYear();
     const currentYearMonth = todayStr.slice(0, 7); // "YYYY-MM"
     const listMonth = messages.filter(
-      (m) =>
-        (m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK') &&
-        (m.sent_at?.startsWith(currentYearMonth) || m.created_at?.startsWith(currentYearMonth))
+      (m) => {
+        if (m.status !== 'SENT' && m.status !== 'DELIVERED' && m.status !== 'MOCK' && m.status !== 'OK') return false;
+        const d = new Date(m.sent_at || m.created_at);
+        const matchesDate = !isNaN(d.getTime()) && d.getMonth() === curMonth && d.getFullYear() === curYear;
+        return matchesDate || m.sent_at?.startsWith(currentYearMonth) || m.created_at?.startsWith(currentYearMonth);
+      }
     ).length;
     return Math.max(whatsappStats.monthSent || 0, listMonth);
   }, [messages, whatsappStats.monthSent, todayStr]);
