@@ -8,14 +8,14 @@ import {
 export class MockWhatsAppProvider implements WhatsAppSender {
   readonly name = 'MOCK' as const;
 
-  private _connected = true;
+  private _connected = false;
   private _lastConnectedAt = new Date().toISOString();
 
   async getStatus(): Promise<WhatsAppDeviceStatus> {
     return {
       status: this._connected ? 'CONNECTED' : 'DISCONNECTED',
-      phoneNumber: '+919999999999',
-      lastConnectedAt: this._lastConnectedAt,
+      phoneNumber: undefined,
+      lastConnectedAt: this._connected ? this._lastConnectedAt : undefined,
       lastHeartbeatAt: this._connected ? new Date().toISOString() : undefined,
       sessionStatus: this._connected ? 'Mock development provider ready' : 'Mock provider disconnected',
       providerName: 'Mock Provider (Development & Testing)',
@@ -25,11 +25,10 @@ export class MockWhatsAppProvider implements WhatsAppSender {
   }
 
   async connect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    this._connected = true;
-    this._lastConnectedAt = new Date().toISOString();
+    this._connected = false;
     return {
       success: true,
-      message: 'Mock WhatsApp provider connected',
+      message: 'Mock WhatsApp provider disconnected. Please use OpenWA bridge for live device pairing.',
       status: await this.getStatus(),
     };
   }

@@ -7,7 +7,12 @@ const PING_INTERVAL_MS = 2.5 * 60 * 1000; // 2.5 minutes (Keeps Render free tier
 
 const TARGETS = [
   { name: 'Dedicated Gurukul Backend', url: 'https://gurukul-sports-backend-ll86.onrender.com/api/health' },
-  { name: 'Account 2 WhatsApp Bridge', url: 'https://gurukul-openwa-bridge-a0m4.onrender.com/health' }
+  { name: 'Account 2 WhatsApp Bridge Health', url: 'https://gurukul-openwa-bridge-a0m4.onrender.com/health' },
+  {
+    name: 'OpenWA WhatsApp Session Keep-Alive',
+    url: 'https://gurukul-openwa-bridge-a0m4.onrender.com/api/sessions',
+    headers: { 'x-api-key': 'gurukul_sports_openwa_bridge_secret_key_prod_2026' }
+  }
 ];
 
 async function pingAll() {
@@ -17,7 +22,10 @@ async function pingAll() {
   for (const target of TARGETS) {
     try {
       const start = Date.now();
-      const res = await fetch(target.url, { signal: AbortSignal.timeout(30000) });
+      const res = await fetch(target.url, {
+        headers: target.headers || {},
+        signal: AbortSignal.timeout(30000)
+      });
       const latency = Date.now() - start;
       console.log(`✅ [${res.status}] ${target.name} is AWAKE (${latency}ms)`);
     } catch (err) {

@@ -12,27 +12,28 @@ class WhatsAppProviderFactory {
   private openWaProvider = openWaProvider;
 
   getProvider(providerType?: 'mock' | 'prototype_linked_device' | 'meta' | 'openwa' | string): WhatsAppSender {
-    const selected = (providerType || env.WHATSAPP_PROVIDER || 'mock').toLowerCase().trim();
+    const selected = (providerType || env.WHATSAPP_PROVIDER || 'openwa').toLowerCase().trim();
 
-    if (selected === 'openwa' || selected === 'open-wa' || selected === 'open_wa') {
-      return this.openWaProvider;
+    if (selected === 'meta') {
+      if (this.metaProvider.isConfigured()) {
+        return this.metaProvider;
+      }
     }
 
     if (selected === 'prototype_linked_device' || selected === 'linked_device' || selected === 'prototype') {
       return this.prototypeSender;
     }
 
-    if (selected === 'meta') {
-      if (this.metaProvider.isConfigured()) {
-        return this.metaProvider;
-      }
-      console.warn(
-        '[WhatsAppProviderFactory] Meta WhatsApp requested but credentials are not configured. Falling back to MOCK provider.'
-      );
+    // Always prefer OpenWA bridge when available or configured
+    if (this.openWaProvider.isConfigured() || selected === 'openwa' || selected === 'open-wa' || selected === 'open_wa') {
+      return this.openWaProvider;
+    }
+
+    if (selected === 'mock') {
       return this.mockProvider;
     }
 
-    return this.mockProvider;
+    return this.openWaProvider;
   }
 
   getOpenWaProvider(): OpenWaProvider {

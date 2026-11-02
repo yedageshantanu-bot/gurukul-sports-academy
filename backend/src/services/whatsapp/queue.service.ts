@@ -775,8 +775,9 @@ export class WhatsAppQueueService {
 
         const status = await provider.getStatus();
         if (status.status === 'CONNECTED') {
+          const validPhone = (status.phoneNumber && !status.phoneNumber.includes('9999999999')) ? status.phoneNumber : undefined;
           // Keep bridge warm and update heartbeat in database
-          await whatsappSettingsService.updateDeviceStatus('CONNECTED', status.phoneNumber, {
+          await whatsappSettingsService.updateDeviceStatus('CONNECTED', validPhone, {
             lastHeartbeatAt: new Date().toISOString(),
           }).catch(() => {});
           return;

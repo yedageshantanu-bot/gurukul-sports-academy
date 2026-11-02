@@ -24,11 +24,11 @@ services:
       - key: WHATSAPP_PROVIDER
         value: openwa
       - key: OPENWA_API_URL
-        value: https://gurukul-openwa-bridge.onrender.com
+        value: https://gurukul-openwa-bridge-a0m4.onrender.com
       - key: OPENWA_API_KEY
         value: gurukul_sports_openwa_bridge_secret_key_prod_2026
       - key: WHATSAPP_LINKED_DEVICE_URL
-        value: https://gurukul-openwa-bridge.onrender.com
+        value: https://gurukul-openwa-bridge-a0m4.onrender.com
       - key: WHATSAPP_LINKED_DEVICE_TOKEN
         value: gurukul_sports_openwa_bridge_secret_key_prod_2026
       - key: WHATSAPP_DAILY_LIMIT

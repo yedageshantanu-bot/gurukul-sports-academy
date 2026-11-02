@@ -26,7 +26,7 @@ function jsonResponse(data: any, status = 200) {
 
 async function getActiveBridgeUrl(env: any): Promise<string> {
   if (env?.WA_BRIDGE_URL) return env.WA_BRIDGE_URL.replace(/\/+$/, '');
-  return 'https://gurukul-openwa-bridge.onrender.com';
+  return 'https://gurukul-openwa-bridge-a0m4.onrender.com';
 }
 
 function isBlockedOrDummyNumber(phone: string): boolean {
@@ -80,20 +80,50 @@ async function dispatchWhatsApp(to: string, body: string, env: any) {
     if (clean.length === 10) clean = '+91' + clean;
     else clean = '+' + clean;
   }
+  const digits = clean.replace(/\D/g, '');
+  const chatId = digits.includes('@') ? digits : `${digits}@c.us`;
+
   const bridgeUrl = await getActiveBridgeUrl(env);
   const bridgeToken = env?.WA_BRIDGE_TOKEN || 'gurukul_sports_openwa_bridge_secret_key_prod_2026';
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': bridgeToken,
+    Authorization: `Bearer ${bridgeToken}`,
+  };
 
   try {
-    const res = await fetch(`${bridgeUrl}/send`, {
+    // 1. Try OpenWA REST API
+    let sessionId = 'gurukul-session';
+    try {
+      const sessRes = await fetch(`${bridgeUrl}/api/sessions`, { headers });
+      if (sessRes.ok) {
+        const sessions = (await sessRes.json()) as any[];
+        if (Array.isArray(sessions) && sessions.length > 0) {
+          const readySession = sessions.find((s) => s.status === 'ready') || sessions[0];
+          sessionId = readySession.id;
+        }
+      }
+    } catch {}
+
+    const res = await fetch(`${bridgeUrl}/api/sessions/${sessionId}/messages/send-text`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${bridgeToken}`,
-      },
+      headers,
+      body: JSON.stringify({ chatId, text: body }),
+    });
+
+    if (res.ok) {
+      const data = (await res.json().catch(() => ({}))) as any;
+      return { ok: true, status: res.status, data };
+    }
+
+    // Fallback to legacy /send endpoint if present
+    const fallbackRes = await fetch(`${bridgeUrl}/send`, {
+      method: 'POST',
+      headers,
       body: JSON.stringify({ to: clean, body }),
     });
-    const data = (await res.json().catch(() => ({}))) as any;
-    return { ok: res.ok, status: res.status, data };
+    const fallbackData = (await fallbackRes.json().catch(() => ({}))) as any;
+    return { ok: fallbackRes.ok, status: fallbackRes.status, data: fallbackData };
   } catch (err: any) {
     console.error('[WhatsApp Bridge] Failed to send:', err);
     return { ok: false, error: err?.message };
@@ -1603,18 +1633,45 @@ export async function onRequest(context: any) {
     // ----------------------------------------------------
     if (route === 'whatsapp/status') {
       const bridgeUrl = await getActiveBridgeUrl(context.env);
-      const bridgeToken = context.env?.WA_BRIDGE_TOKEN || 'b5cd2fdbcb806334c3fd6e1141d2b947';
+      const bridgeToken = context.env?.WA_BRIDGE_TOKEN || 'gurukul_sports_openwa_bridge_secret_key_prod_2026';
+      const headers = {
+        'x-api-key': bridgeToken,
+        Authorization: `Bearer ${bridgeToken}`,
+      };
 
-      let bridgeStatus = 'CONNECTED';
-      let bridgePhone = '+919421248210';
+      let bridgeStatus = 'DISCONNECTED';
+      let bridgePhone: string | undefined = undefined;
+      let qrCode: string | undefined = undefined;
+
       try {
-        const res = await fetch(`${bridgeUrl}/status`, {
-          headers: { Authorization: `Bearer ${bridgeToken}` },
-        });
+        const res = await fetch(`${bridgeUrl}/api/sessions`, { headers });
         if (res.ok) {
-          const d = (await res.json().catch(() => ({}))) as any;
-          bridgeStatus = d.status || 'CONNECTED';
-          if (d.phone) bridgePhone = d.phone;
+          const sessions = (await res.json().catch(() => [])) as any[];
+          if (Array.isArray(sessions) && sessions.length > 0) {
+            const readySession = sessions.find((s) => s.status === 'ready');
+            const activeSession = readySession || sessions[0];
+
+            if (readySession) {
+              bridgeStatus = 'CONNECTED';
+              if (readySession.phone) {
+                bridgePhone = `+${readySession.phone.replace(/\D/g, '')}`;
+              }
+            } else {
+              // Fetch QR code for pairing
+              const qrRes = await fetch(`${bridgeUrl}/api/sessions/${activeSession.id}/qr`, { headers });
+              if (qrRes.ok) {
+                const qrData = (await qrRes.json().catch(() => ({}))) as any;
+                if (qrData.qrCode) {
+                  qrCode = qrData.qrCode;
+                  bridgeStatus = 'QR_READY';
+                } else {
+                  bridgeStatus = 'CONNECTING';
+                }
+              } else {
+                bridgeStatus = 'QR_READY';
+              }
+            }
+          }
         }
       } catch {}
 
@@ -1661,21 +1718,25 @@ export async function onRequest(context: any) {
       const monthBilled = Number((monthSent * ratePerMessage).toFixed(2));
 
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
+      const isReallyConnected = bridgeStatus === 'CONNECTED' && Boolean(bridgePhone) && !bridgePhone.includes('9999999999');
+
       return jsonResponse({
         success: true,
         data: {
-          isConnected: bridgeStatus === 'CONNECTED',
-          status: bridgeStatus,
+          isConnected: isReallyConnected,
+          status: isReallyConnected ? 'CONNECTED' : bridgeStatus,
           phoneNumber: bridgePhone,
+          qrCode,
           lastConnectedAt: new Date().toISOString(),
           lastHeartbeatAt: new Date().toISOString(),
           sessionStatus: `Linked and operational for ${academyName}`,
-          providerName: 'Prototype Linked-Device Bridge (Baileys Multi-Device)',
+          providerName: 'OpenWA Multi-Device Bridge',
           isConfigured: true,
           details: `WhatsApp messaging bridge is ${bridgeStatus.toLowerCase()}`,
           device: {
-            status: bridgeStatus,
+            status: isReallyConnected ? 'CONNECTED' : bridgeStatus,
             phoneNumber: bridgePhone,
+            qrCode,
           },
           todayStats: {
             sent: sentToday,
@@ -1696,6 +1757,83 @@ export async function onRequest(context: any) {
             ratePerMessage,
             monthBilled,
             billingPeriod,
+          },
+        },
+      });
+    }
+
+    if (route === 'whatsapp/connect' || route === 'whatsapp/reconnect') {
+      const bridgeUrl = await getActiveBridgeUrl(context.env);
+      const bridgeToken = context.env?.WA_BRIDGE_TOKEN || 'gurukul_sports_openwa_bridge_secret_key_prod_2026';
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': bridgeToken,
+        Authorization: `Bearer ${bridgeToken}`,
+      };
+
+      let qrCode: string | undefined = undefined;
+      let status = 'QR_READY';
+      let phone: string | undefined = undefined;
+
+      try {
+        const sessRes = await fetch(`${bridgeUrl}/api/sessions`, { headers });
+        let session: any = null;
+        if (sessRes.ok) {
+          const sessions = (await sessRes.json().catch(() => [])) as any[];
+          if (Array.isArray(sessions) && sessions.length > 0) {
+            session = sessions[0];
+          }
+        }
+
+        if (!session) {
+          const createRes = await fetch(`${bridgeUrl}/api/sessions`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ name: 'gurukul-session' }),
+          });
+          if (createRes.ok) {
+            session = await createRes.json();
+          }
+        }
+
+        if (session) {
+          await fetch(`${bridgeUrl}/api/sessions/${session.id}/start`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({}),
+          }).catch(() => {});
+
+          const qrRes = await fetch(`${bridgeUrl}/api/sessions/${session.id}/qr`, { headers });
+          if (qrRes.ok) {
+            const qrData = (await qrRes.json().catch(() => ({}))) as any;
+            if (qrData.qrCode) {
+              qrCode = qrData.qrCode;
+            }
+          }
+          if (session.status === 'ready' && session.phone) {
+            status = 'CONNECTED';
+            phone = `+${session.phone.replace(/\D/g, '')}`;
+          }
+        }
+      } catch (err: any) {
+        console.warn('Connect error:', err);
+      }
+
+      return jsonResponse({
+        success: true,
+        message: qrCode ? 'Fresh QR Code generated! Ready to scan.' : 'Session starting...',
+        qrCode,
+        data: {
+          success: true,
+          status: {
+            status,
+            phoneNumber: phone,
+            qrCode,
+          },
+          device: {
+            status,
+            phoneNumber: phone,
+            qrCode,
           },
         },
       });
@@ -1879,10 +2017,39 @@ export async function onRequest(context: any) {
     }
 
     if (route === 'whatsapp/disconnect' || route === 'whatsapp/logout') {
+      const bridgeUrl = await getActiveBridgeUrl(context.env);
+      const bridgeToken = context.env?.WA_BRIDGE_TOKEN || 'gurukul_sports_openwa_bridge_secret_key_prod_2026';
+      const headers = {
+        'x-api-key': bridgeToken,
+        Authorization: `Bearer ${bridgeToken}`,
+      };
+
+      try {
+        const sessRes = await fetch(`${bridgeUrl}/api/sessions`, { headers });
+        if (sessRes.ok) {
+          const sessions = (await sessRes.json().catch(() => [])) as any[];
+          for (const s of sessions) {
+            await fetch(`${bridgeUrl}/api/sessions/${s.id}/logout`, { method: 'POST', headers }).catch(() => {});
+            await fetch(`${bridgeUrl}/api/sessions/${s.id}/stop`, { method: 'POST', headers }).catch(() => {});
+          }
+        }
+      } catch {}
+
+      try {
+        await supabase
+          .from('whatsapp_settings')
+          .update({ device_status: 'DISCONNECTED', device_phone_number: null, session_metadata: {} })
+          .match({});
+      } catch {}
+
       return jsonResponse({
-        success: false,
-        message: 'WhatsApp device session is protected and permanently active. Disconnection is disabled in demo mode.',
-      }, 403);
+        success: true,
+        message: 'WhatsApp session disconnected successfully.',
+        data: {
+          status: { status: 'DISCONNECTED' },
+          device: { status: 'DISCONNECTED' },
+        },
+      });
     }
 
     if (route === 'whatsapp/settings') {

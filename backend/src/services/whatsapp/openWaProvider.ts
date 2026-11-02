@@ -22,7 +22,7 @@ export class OpenWaProvider implements WhatsAppSender {
   private lastQrCode: string | null = null;
 
   private getBaseUrl(): string {
-    return (env.OPENWA_API_URL || process.env.OPENWA_API_URL || env.WHATSAPP_LINKED_DEVICE_URL || 'https://gurukul-openwa-bridge.onrender.com').replace(/\/+$/, '');
+    return (env.OPENWA_API_URL || process.env.OPENWA_API_URL || env.WHATSAPP_LINKED_DEVICE_URL || 'https://gurukul-openwa-bridge-a0m4.onrender.com').replace(/\/+$/, '');
   }
 
   private getApiKey(): string {

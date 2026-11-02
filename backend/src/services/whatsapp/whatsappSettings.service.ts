@@ -14,9 +14,9 @@ export class WhatsAppSettingsService {
     global_automation_enabled: true,
     emergency_stop: false,
     daily_limit: env.WHATSAPP_DAILY_LIMIT || 40,
-    provider_type: (env.WHATSAPP_PROVIDER as WhatsAppProviderType) || 'mock',
+    provider_type: 'openwa',
     device_phone_number: null,
-    device_status: 'NOT_CONFIGURED',
+    device_status: 'DISCONNECTED',
     last_connected_at: null,
     last_heartbeat_at: null,
     session_metadata: {},
@@ -42,6 +42,16 @@ export class WhatsAppSettingsService {
           .maybeSingle();
 
         if (!error && data) {
+          // Never allow mock provider or fake 9999999999 numbers to taint live status
+          if (data.provider_type === 'mock') {
+            data.provider_type = 'openwa';
+          }
+          if (data.device_phone_number && data.device_phone_number.includes('9999999999')) {
+            data.device_phone_number = null;
+            if (data.device_status === 'CONNECTED') {
+              data.device_status = 'QR_READY';
+            }
+          }
           // Keep in-memory cache updated with DB
           this.inMemorySettings = {
             ...this.inMemorySettings,
@@ -111,10 +121,11 @@ export class WhatsAppSettingsService {
     sessionMetadata?: Record<string, any>
   ): Promise<WhatsAppSettings> {
     const current = await this.getSettings();
+    const cleanPhone = (phoneNumber && !phoneNumber.includes('9999999999')) ? phoneNumber : (status === 'CONNECTED' ? null : null);
     const updated: WhatsAppSettings = {
       ...current,
       device_status: status,
-      device_phone_number: phoneNumber !== undefined ? phoneNumber : current.device_phone_number,
+      device_phone_number: cleanPhone,
       last_connected_at: status === 'CONNECTED' ? new Date().toISOString() : current.last_connected_at,
       last_heartbeat_at: status === 'CONNECTED' ? new Date().toISOString() : current.last_heartbeat_at,
       session_metadata: sessionMetadata ? { ...current.session_metadata, ...sessionMetadata } : current.session_metadata,

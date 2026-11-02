@@ -130,8 +130,16 @@ export const WhatsAppPage: React.FC = () => {
       const payload = res?.data !== undefined ? res.data : res;
       const deviceData = payload?.device;
       if (deviceData) {
-        setDevice((prev) => {
+        // Strip out any fake mock numbers
+        if (deviceData.phoneNumber && deviceData.phoneNumber.includes('9999999999')) {
+          deviceData.phoneNumber = undefined;
           if (deviceData.status === 'CONNECTED') {
+            deviceData.status = deviceData.qrCode ? 'QR_READY' : 'DISCONNECTED';
+          }
+        }
+
+        setDevice((prev) => {
+          if (deviceData.status === 'CONNECTED' && deviceData.phoneNumber) {
             return deviceData;
           }
           if (deviceData.qrCode) {
@@ -147,8 +155,9 @@ export const WhatsAppPage: React.FC = () => {
 
       const statsObj = payload?.todayStats || payload?.stats;
       if (statsObj) {
+        const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && Boolean(deviceData?.phoneNumber) && !deviceData?.phoneNumber?.includes('9999999999');
         setWhatsappStats({
-          isConnected: deviceData?.status === 'CONNECTED' || !!payload?.isConnected,
+          isConnected: isDeviceReallyConnected || !!payload?.isConnected,
           sent: statsObj.sent || 0,
           monthSent: statsObj.monthSent || 0,
           totalSent: statsObj.totalSent || 0,
@@ -170,7 +179,7 @@ export const WhatsAppPage: React.FC = () => {
     fetchMessages();
   }, [fetchStatus, fetchMessages]);
 
-  // Auto-refresh when waiting for scan, connecting, or refreshing
+  // Auto-refresh when waiting for scan, connecting, or waiting for QR
   useEffect(() => {
     if (device.status === 'QR_READY' || device.status === 'CONNECTING') {
       const interval = setInterval(() => {
@@ -197,10 +206,14 @@ export const WhatsAppPage: React.FC = () => {
       const returnedQr = payload?.qrCode || updatedStatus?.qrCode;
 
       if (updatedStatus && updatedStatus.status) {
+        const isMock = updatedStatus.phoneNumber?.includes('9999999999');
+        const safePhone = isMock ? undefined : updatedStatus.phoneNumber;
+        const safeStatus = isMock ? (returnedQr ? 'QR_READY' : 'DISCONNECTED') : updatedStatus.status;
         setDevice({
           ...updatedStatus,
+          phoneNumber: safePhone,
           qrCode: returnedQr || updatedStatus.qrCode,
-          status: updatedStatus.status === 'CONNECTED' ? 'CONNECTED' : (returnedQr ? 'QR_READY' : updatedStatus.status),
+          status: safeStatus === 'CONNECTED' && safePhone ? 'CONNECTED' : (returnedQr ? 'QR_READY' : safeStatus),
         });
       } else if (returnedQr) {
         setDevice((prev) => ({ ...prev, status: 'QR_READY', qrCode: returnedQr }));
@@ -228,7 +241,7 @@ export const WhatsAppPage: React.FC = () => {
         method: 'POST',
       });
 
-      setDevice({ status: 'DISCONNECTED' });
+      setDevice({ status: 'DISCONNECTED', phoneNumber: undefined, qrCode: undefined });
       setSuccess('Device disconnected successfully.');
       toast.success('WhatsApp session disconnected successfully.');
     } catch (err: any) {
@@ -284,7 +297,11 @@ export const WhatsAppPage: React.FC = () => {
     }
   };
 
-  const isConnected = device.status === 'CONNECTED';
+  const isConnected = Boolean(
+    device.status === 'CONNECTED' &&
+    device.phoneNumber &&
+    !device.phoneNumber.includes('9999999999')
+  );
 
   // Synced Metrics: Guaranteed to match Outbox Table & Supabase
   const todayStr = new Date().toISOString().split('T')[0];
