@@ -46,7 +46,9 @@ export class WhatsAppSettingsService {
           if (data.provider_type === 'mock') {
             data.provider_type = 'openwa';
           }
-          if (data.device_phone_number && data.device_phone_number.includes('9999999999')) {
+          const rawDigits = (data.device_phone_number || '').replace(/\D/g, '');
+          const isRealPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999') && !rawDigits.includes('9421248210');
+          if (!isRealPhone) {
             data.device_phone_number = null;
             if (data.device_status === 'CONNECTED') {
               data.device_status = 'QR_READY';
@@ -121,13 +123,17 @@ export class WhatsAppSettingsService {
     sessionMetadata?: Record<string, any>
   ): Promise<WhatsAppSettings> {
     const current = await this.getSettings();
-    const cleanPhone = (phoneNumber && !phoneNumber.includes('9999999999')) ? phoneNumber : (status === 'CONNECTED' ? null : null);
+    const rawDigits = (phoneNumber || '').replace(/\D/g, '');
+    const isRealPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999') && !rawDigits.includes('9421248210');
+    const cleanPhone: string | null = (isRealPhone && phoneNumber) ? phoneNumber : null;
+    const effectiveStatus = (status === 'CONNECTED' && !cleanPhone) ? 'QR_READY' : status;
+
     const updated: WhatsAppSettings = {
       ...current,
-      device_status: status,
+      device_status: effectiveStatus,
       device_phone_number: cleanPhone,
-      last_connected_at: status === 'CONNECTED' ? new Date().toISOString() : current.last_connected_at,
-      last_heartbeat_at: status === 'CONNECTED' ? new Date().toISOString() : current.last_heartbeat_at,
+      last_connected_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : current.last_connected_at,
+      last_heartbeat_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : current.last_heartbeat_at,
       session_metadata: sessionMetadata ? { ...current.session_metadata, ...sessionMetadata } : current.session_metadata,
       updated_at: new Date().toISOString(),
     };

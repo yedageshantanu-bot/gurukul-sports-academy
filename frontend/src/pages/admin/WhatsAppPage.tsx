@@ -124,14 +124,17 @@ export const WhatsAppPage: React.FC = () => {
   }, []);
 
   // Fetch status from backend via apiClient (handles token refresh & prod URL)
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (autoTriggerConnect = false) => {
     try {
       const res = await apiClient<any>('/whatsapp/status');
       const payload = res?.data !== undefined ? res.data : res;
       const deviceData = payload?.device;
       if (deviceData) {
         // Strip out any fake mock numbers
-        if (deviceData.phoneNumber && deviceData.phoneNumber.includes('9999999999')) {
+        const rawPhone = deviceData.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
+        const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
+
+        if (!isValidPhone) {
           deviceData.phoneNumber = undefined;
           if (deviceData.status === 'CONNECTED') {
             deviceData.status = deviceData.qrCode ? 'QR_READY' : 'DISCONNECTED';
@@ -139,33 +142,48 @@ export const WhatsAppPage: React.FC = () => {
         }
 
         setDevice((prev) => {
-          if (deviceData.status === 'CONNECTED' && deviceData.phoneNumber) {
+          if (deviceData.status === 'CONNECTED' && isValidPhone) {
             return deviceData;
           }
           if (deviceData.qrCode) {
-            return deviceData;
+            return { ...deviceData, status: 'QR_READY' };
           }
           // Retain QR code if backend temporarily returns empty qrCode while still in QR_READY
-          if (prev.qrCode && (deviceData.status === 'QR_READY' || deviceData.status === 'CONNECTING')) {
+          if (prev.qrCode && deviceData.status !== 'CONNECTED') {
             return { ...deviceData, qrCode: prev.qrCode, status: 'QR_READY' };
           }
           return deviceData;
         });
+
+        // If not connected and no QR code, automatically initiate connect to get fresh QR
+        if (autoTriggerConnect && !isValidPhone && !deviceData.qrCode) {
+          apiClient<any>('/whatsapp/connect', { method: 'POST' }).then((cRes) => {
+            const cPayload = cRes?.data !== undefined ? cRes.data : cRes;
+            const cQr = cPayload?.qrCode || cPayload?.status?.qrCode;
+            if (cQr) {
+              setDevice((prev) => ({
+                ...prev,
+                status: 'QR_READY',
+                qrCode: cQr,
+              }));
+            }
+          }).catch(() => {});
+        }
       }
 
       const statsObj = payload?.todayStats || payload?.stats;
-      if (statsObj) {
-        const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && Boolean(deviceData?.phoneNumber) && !deviceData?.phoneNumber?.includes('9999999999');
-        setWhatsappStats({
-          isConnected: isDeviceReallyConnected || !!payload?.isConnected,
-          sent: statsObj.sent || 0,
-          monthSent: statsObj.monthSent || 0,
-          totalSent: statsObj.totalSent || 0,
-          queued: statsObj.queued ?? statsObj.pending ?? 0,
-          failed: statsObj.failed || 0,
-          billingPeriod: statsObj.billingPeriod,
-        });
-      }
+      const rawPhone = deviceData?.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
+      const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
+
+      setWhatsappStats({
+        isConnected: Boolean(isDeviceReallyConnected),
+        sent: statsObj?.sent || 0,
+        monthSent: statsObj?.monthSent || 0,
+        totalSent: statsObj?.totalSent || 0,
+        queued: statsObj?.queued ?? statsObj?.pending ?? 0,
+        failed: statsObj?.failed || 0,
+        billingPeriod: statsObj?.billingPeriod,
+      });
     } catch (err: any) {
       console.warn('Failed to load WhatsApp status:', err);
     } finally {
@@ -175,19 +193,9 @@ export const WhatsAppPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    fetchStatus(true);
     fetchMessages();
   }, [fetchStatus, fetchMessages]);
-
-  // Auto-refresh when waiting for scan, connecting, or waiting for QR
-  useEffect(() => {
-    if (device.status === 'QR_READY' || device.status === 'CONNECTING') {
-      const interval = setInterval(() => {
-        fetchStatus();
-      }, 3500);
-      return () => clearInterval(interval);
-    }
-  }, [device.status, fetchStatus]);
 
   // Connect or Regenerate QR code
   const handleConnectOrRefresh = async () => {
@@ -205,22 +213,23 @@ export const WhatsAppPage: React.FC = () => {
       const updatedStatus = payload?.status || payload?.device || payload;
       const returnedQr = payload?.qrCode || updatedStatus?.qrCode;
 
-      if (updatedStatus && updatedStatus.status) {
-        const isMock = updatedStatus.phoneNumber?.includes('9999999999');
-        const safePhone = isMock ? undefined : updatedStatus.phoneNumber;
-        const safeStatus = isMock ? (returnedQr ? 'QR_READY' : 'DISCONNECTED') : updatedStatus.status;
-        setDevice({
-          ...updatedStatus,
-          phoneNumber: safePhone,
-          qrCode: returnedQr || updatedStatus.qrCode,
-          status: safeStatus === 'CONNECTED' && safePhone ? 'CONNECTED' : (returnedQr ? 'QR_READY' : safeStatus),
-        });
-      } else if (returnedQr) {
-        setDevice((prev) => ({ ...prev, status: 'QR_READY', qrCode: returnedQr }));
-      }
+      const rawPhone = updatedStatus?.phoneNumber ? String(updatedStatus.phoneNumber).replace(/\D/g, '') : '';
+      const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
 
-      setSuccess('Fresh QR Code generated! Please scan from WhatsApp on your smartphone.');
-      toast.success('Fresh QR Code generated! Ready to scan.');
+      if (returnedQr) {
+        setDevice((prev) => ({
+          ...prev,
+          status: 'QR_READY',
+          qrCode: returnedQr,
+          phoneNumber: isValidPhone ? updatedStatus.phoneNumber : undefined,
+        }));
+        setSuccess('Fresh QR Code generated! Please scan from WhatsApp on your smartphone.');
+        toast.success('Fresh QR Code generated! Ready to scan.');
+      } else if (updatedStatus && updatedStatus.status === 'CONNECTED' && isValidPhone) {
+        setDevice(updatedStatus);
+      } else {
+        await fetchStatus(true);
+      }
     } catch (err: any) {
       const errMsg = err.message || 'Error communicating with WhatsApp gateway';
       setError(errMsg);
@@ -242,8 +251,13 @@ export const WhatsAppPage: React.FC = () => {
       });
 
       setDevice({ status: 'DISCONNECTED', phoneNumber: undefined, qrCode: undefined });
-      setSuccess('Device disconnected successfully.');
+      setSuccess('WhatsApp session disconnected successfully.');
       toast.success('WhatsApp session disconnected successfully.');
+
+      // Automatically generate a fresh QR code so the user is immediately ready to scan!
+      setTimeout(() => {
+        handleConnectOrRefresh();
+      }, 500);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to disconnect session';
       setError(errMsg);
@@ -300,8 +314,19 @@ export const WhatsAppPage: React.FC = () => {
   const isConnected = Boolean(
     device.status === 'CONNECTED' &&
     device.phoneNumber &&
-    !device.phoneNumber.includes('9999999999')
+    device.phoneNumber.replace(/\D/g, '').length >= 10 &&
+    !device.phoneNumber.includes('9999999999') &&
+    !device.phoneNumber.includes('9421248210')
   );
+
+  // Real-time polling: runs every 3.5 seconds while waiting for QR scan, slows down once paired
+  useEffect(() => {
+    const pollIntervalMs = isConnected ? 30000 : 3500;
+    const interval = setInterval(() => {
+      fetchStatus(false);
+    }, pollIntervalMs);
+    return () => clearInterval(interval);
+  }, [isConnected, fetchStatus]);
 
   // Synced Metrics: Guaranteed to match Outbox Table & Supabase
   const todayStr = new Date().toISOString().split('T')[0];
@@ -418,7 +443,7 @@ export const WhatsAppPage: React.FC = () => {
           )}
           <button
             type="button"
-            onClick={fetchStatus}
+            onClick={() => fetchStatus(false)}
             disabled={refreshing || loading}
             className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-[#1E293B] hover:bg-slate-100 dark:hover:bg-[#334155] border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer shadow-xs"
           >

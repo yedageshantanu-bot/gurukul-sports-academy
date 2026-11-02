@@ -193,15 +193,19 @@ export class OpenWaProvider implements WhatsAppSender {
     }
 
     const effectiveQr = isConnected ? undefined : (qrCode || this.lastQrCode || undefined);
+    const sessionPhone = session.phone ? String(session.phone).replace(/\D/g, '') : '';
+    const hasValidPhone = sessionPhone.length >= 10 && !sessionPhone.includes('9999999999') && !sessionPhone.includes('9421248210');
+    const isReallyConnected = session.status === 'ready' && hasValidPhone;
+    const formattedPhone = hasValidPhone ? `+${sessionPhone}` : undefined;
 
     const deviceStatus: WhatsAppDeviceStatus = {
-      status: isConnected ? 'CONNECTED' : effectiveQr ? 'QR_READY' : 'CONNECTING',
-      phoneNumber: session.phone ? `+${session.phone}` : undefined,
+      status: isReallyConnected ? 'CONNECTED' : effectiveQr ? 'QR_READY' : 'CONNECTING',
+      phoneNumber: formattedPhone,
       providerName: `OpenWA Gateway (${session.name || 'gurukul'})`,
       isConfigured: true,
-      qrCode: effectiveQr,
+      qrCode: isReallyConnected ? undefined : effectiveQr,
       sessionStatus: `Session ${session.name} is ${session.status}`,
-      details: `Active on ${baseUrl} via ${session.phone || 'WhatsApp'}`,
+      details: isReallyConnected ? `Active on ${baseUrl} via ${formattedPhone}` : `Waiting for WhatsApp companion scan on ${baseUrl}`,
     };
 
     this.lastStatusResult = {

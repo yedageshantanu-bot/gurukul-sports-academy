@@ -774,13 +774,19 @@ export class WhatsAppQueueService {
         if (!provider || typeof provider.getStatus !== 'function') return;
 
         const status = await provider.getStatus();
-        if (status.status === 'CONNECTED') {
-          const validPhone = (status.phoneNumber && !status.phoneNumber.includes('9999999999')) ? status.phoneNumber : undefined;
+        const rawDigits = (status.phoneNumber || '').replace(/\D/g, '');
+        const isValidPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999') && !rawDigits.includes('9421248210');
+
+        if (status.status === 'CONNECTED' && isValidPhone) {
           // Keep bridge warm and update heartbeat in database
-          await whatsappSettingsService.updateDeviceStatus('CONNECTED', validPhone, {
+          await whatsappSettingsService.updateDeviceStatus('CONNECTED', status.phoneNumber, {
             lastHeartbeatAt: new Date().toISOString(),
           }).catch(() => {});
           return;
+        } else if (status.status === 'CONNECTED' && !isValidPhone) {
+          await whatsappSettingsService.updateDeviceStatus('QR_READY', undefined, {
+            sessionStatus: status.sessionStatus || 'Waiting for phone companion scan',
+          }).catch(() => {});
         }
 
         // If disconnected or session dropped, attempt auto-reconnect with 3-minute backoff

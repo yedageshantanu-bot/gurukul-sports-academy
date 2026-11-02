@@ -43,11 +43,11 @@ export class MockWhatsAppProvider implements WhatsAppSender {
   }
 
   async reconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    this._connected = true;
+    this._connected = false;
     this._lastConnectedAt = new Date().toISOString();
     return {
       success: true,
-      message: 'Mock WhatsApp provider reconnected',
+      message: 'Mock WhatsApp provider disconnected. Live device pairing requires OpenWA gateway.',
       status: await this.getStatus(),
     };
   }

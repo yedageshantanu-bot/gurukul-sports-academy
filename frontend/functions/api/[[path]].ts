@@ -1718,24 +1718,25 @@ export async function onRequest(context: any) {
       const monthBilled = Number((monthSent * ratePerMessage).toFixed(2));
 
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
-      const isReallyConnected = bridgeStatus === 'CONNECTED' && Boolean(bridgePhone) && !bridgePhone.includes('9999999999');
+      const cleanPhoneDigits = (bridgePhone || '').replace(/\D/g, '');
+      const isReallyConnected = bridgeStatus === 'CONNECTED' && cleanPhoneDigits.length >= 10 && !cleanPhoneDigits.includes('9999999999') && !cleanPhoneDigits.includes('9421248210');
 
       return jsonResponse({
         success: true,
         data: {
           isConnected: isReallyConnected,
-          status: isReallyConnected ? 'CONNECTED' : bridgeStatus,
-          phoneNumber: bridgePhone,
+          status: isReallyConnected ? 'CONNECTED' : (qrCode ? 'QR_READY' : bridgeStatus),
+          phoneNumber: isReallyConnected ? bridgePhone : undefined,
           qrCode,
           lastConnectedAt: new Date().toISOString(),
           lastHeartbeatAt: new Date().toISOString(),
-          sessionStatus: `Linked and operational for ${academyName}`,
+          sessionStatus: isReallyConnected ? `Linked and operational for ${academyName}` : `Waiting for QR code scan on ${bridgeUrl}`,
           providerName: 'OpenWA Multi-Device Bridge',
           isConfigured: true,
           details: `WhatsApp messaging bridge is ${bridgeStatus.toLowerCase()}`,
           device: {
-            status: isReallyConnected ? 'CONNECTED' : bridgeStatus,
-            phoneNumber: bridgePhone,
+            status: isReallyConnected ? 'CONNECTED' : (qrCode ? 'QR_READY' : bridgeStatus),
+            phoneNumber: isReallyConnected ? bridgePhone : undefined,
             qrCode,
           },
           todayStats: {

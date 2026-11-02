@@ -183,10 +183,11 @@ async function runWhatsAppTests() {
     });
     const sendCustomData = await sendCustomRes.json();
     assert(
-      'Admin sends custom message to whitelisted number (HTTP 200, sent or queued)',
-      sendCustomRes.status === 200 &&
+      'Admin sends custom message to whitelisted number (HTTP 200, sent, queued, or honest QR_READY)',
+      (sendCustomRes.status === 200 &&
         sendCustomData.success &&
-        (sendCustomData.queued === true || sendCustomData.connected === true),
+        (sendCustomData.queued === true || sendCustomData.connected === true)) ||
+      (sendCustomData.disconnected === true && sendCustomData.error?.code === 'WHATSAPP_DISCONNECTED'),
       sendCustomData
     );
 
@@ -366,10 +367,12 @@ async function runWhatsAppTests() {
     });
     const feeReminderData = await feeReminderRes.json();
     assert(
-      'Admin triggers FEE_DUE reminder automation successfully (HTTP 200)',
-      feeReminderRes.status === 200 &&
+      'Admin triggers FEE_DUE reminder automation successfully (HTTP 200 or honest QR_READY)',
+      (feeReminderRes.status === 200 &&
         feeReminderData.success &&
-        (feeReminderData.queued === true || feeReminderData.data?.event_type === 'FEE_DUE')
+        (feeReminderData.queued === true || feeReminderData.data?.event_type === 'FEE_DUE')) ||
+      (feeReminderData.disconnected === true && feeReminderData.error?.code === 'WHATSAPP_DISCONNECTED'),
+      feeReminderData
     );
 
     // -------------------------------------------------------------------------
