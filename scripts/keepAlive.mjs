@@ -3,7 +3,7 @@
  * Pings both Render services every 5 minutes so they NEVER go to sleep.
  */
 
-const PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const PING_INTERVAL_MS = 2.5 * 60 * 1000; // 2.5 minutes (Keeps Render free tier & Baileys socket hot 24/7)
 
 const TARGETS = [
   { name: 'Dedicated Gurukul Backend', url: 'https://gurukul-sports-backend-ll86.onrender.com/api/health' },

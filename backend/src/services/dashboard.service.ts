@@ -29,7 +29,7 @@ export class DashboardService {
   /**
    * Get Admin dashboard KPIs and actionable business views from live database
    */
-  static async getAdminKPIs(requestingUser?: AuthenticatedUser) {
+  static async getAdminKPIs(requestingUser?: AuthenticatedUser, bypassCache: boolean = false) {
     const isDemo =
       env.DEMO_MODE ||
       env.APP_ENV === 'demo' ||
@@ -39,9 +39,11 @@ export class DashboardService {
       requestContext.getStore()?.user?.isTrial;
 
     const cacheKey = `dashboard:admin:${isDemo ? 'demo' : 'public'}`;
-    const cached = memoryCache.get<any>(cacheKey);
-    if (cached) {
-      return cached;
+    if (!bypassCache) {
+      const cached = memoryCache.get<any>(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
 
     const db = getDb(requestingUser);
@@ -72,6 +74,8 @@ export class DashboardService {
       attendanceRangeRes,
       allBatchesRes,
       allUnpaidFeesRes,
+      allPaymentsRes,
+      allFeesRes,
       recentPaymentsRes,
       recentStudentsRes,
     ] = await Promise.all([
@@ -144,6 +148,8 @@ export class DashboardService {
         `)
         .neq('status', 'PAID')
         .order('due_date', { ascending: true }),
+      db.from('payments').select('amount'),
+      db.from('student_fees').select('student_id, amount_due, amount_paid, billing_period, status, due_date'),
       db.from('payments')
         .select('id, amount, payment_date, payment_method, student_id, students(name)')
         .order('created_at', { ascending: false })
@@ -164,6 +170,8 @@ export class DashboardService {
     const attendanceRows = attendanceRangeRes.data || [];
     const allBatches = allBatchesRes.data || [];
     const allUnpaidFees = allUnpaidFeesRes.data || [];
+    const allPayments = allPaymentsRes.data || [];
+    const allFees = allFeesRes.data || [];
     const recentPayments = recentPaymentsRes.data || [];
     const recentStudents = recentStudentsRes.data || [];
 
@@ -185,8 +193,34 @@ export class DashboardService {
       }
     });
 
+    // Calculate total cohort outstanding metrics across all unpaid fees
+    let totalPendingCohort = 0;
+    let totalOverdueCohort = 0;
+    allUnpaidFees.forEach((f: any) => {
+      const due = Number(f.amount_due || 0);
+      const paid = Number(f.amount_paid || 0);
+      const pending = Math.max(0, due - paid);
+      totalPendingCohort += pending;
+      const isPastDue = f.due_date ? new Date(f.due_date) < today : false;
+      if (f.status === 'OVERDUE' || isPastDue) {
+        totalOverdueCohort += pending;
+      }
+    });
+
+    const totalCollectedCohort = allPayments.reduce(
+      (acc: number, p: any) => acc + Number(p.amount || 0),
+      0
+    );
+    const totalExpectedCohort = totalCollectedCohort + totalPendingCohort;
+
+    // If current billing period has no fee entries yet, fallback to cohort totals so metrics are never empty/0
+    const effectivePending = currentPending > 0 ? currentPending : totalPendingCohort;
+    const effectiveCollected = currentCollected > 0 ? currentCollected : totalCollectedCohort;
+    const effectiveExpected = currentExpected > 0 ? currentExpected : totalExpectedCohort;
+    const effectiveOverdue = overdueFees > 0 ? overdueFees : totalOverdueCohort;
+
     const collectionPercentage =
-      currentExpected > 0 ? Math.round((currentCollected / currentExpected) * 100) : 0;
+      effectiveExpected > 0 ? Math.round((effectiveCollected / effectiveExpected) * 100) : 0;
 
     // Real Today Attendance processed in-memory
     const todayAttendanceRows = attendanceRows.filter((r: any) => r.date === todayDateStr);
@@ -255,7 +289,8 @@ export class DashboardService {
       });
     });
 
-    currentMonthFees.forEach((f: any) => {
+    const feeRecordsForBatches = currentMonthFees.length > 0 ? currentMonthFees : allFees;
+    feeRecordsForBatches.forEach((f: any) => {
       const bInfo = studentToBatchMap.get(f.student_id);
       if (bInfo && batchSummaryMap.has(bInfo.id)) {
         const item = batchSummaryMap.get(bInfo.id)!;
@@ -425,10 +460,14 @@ export class DashboardService {
         todayPresent,
         todayTotal,
         todayRate,
-        feesCollectedThisMonth: currentCollected,
-        feesPendingThisMonth: currentPending,
-        feesExpectedThisMonth: currentExpected,
-        feesOverdueThisMonth: overdueFees,
+        feesCollectedThisMonth: effectiveCollected,
+        feesPendingThisMonth: effectivePending,
+        feesExpectedThisMonth: effectiveExpected,
+        feesOverdueThisMonth: effectiveOverdue,
+        totalPendingFees: totalPendingCohort,
+        totalCollectedFees: totalCollectedCohort,
+        totalExpectedFees: totalExpectedCohort,
+        totalOverdueFees: totalOverdueCohort,
       },
       attendance: {
         todayPresent,
@@ -438,13 +477,15 @@ export class DashboardService {
       },
       currentMonth: {
         billingPeriod: currentBillingPeriod,
-        formatted: DashboardService.formatBillingPeriod(currentBillingPeriod),
+        formatted: currentMonthFees.length > 0
+          ? DashboardService.formatBillingPeriod(currentBillingPeriod)
+          : `${DashboardService.formatBillingPeriod(currentBillingPeriod)} (Academic Year 2026-27)`,
       },
       monthlyFeeSummary: {
-        expected: currentExpected,
-        collected: currentCollected,
-        pending: currentPending,
-        overdue: overdueFees,
+        expected: effectiveExpected,
+        collected: effectiveCollected,
+        pending: effectivePending,
+        overdue: effectiveOverdue,
         collectionPercentage,
       },
       batchFeeSummary,

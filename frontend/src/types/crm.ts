@@ -171,12 +171,17 @@ export interface AdminKPIs {
   feesPendingThisMonth?: number;
   feesExpectedThisMonth?: number;
   feesOverdueThisMonth?: number;
+  totalPendingFees?: number;
+  totalCollectedFees?: number;
+  totalExpectedFees?: number;
+  totalOverdueFees?: number;
 }
 
 export interface MonthlyFeeSummary {
   expected: number;
   collected: number;
   pending: number;
+  overdue?: number;
   collectionPercentage: number;
 }
 

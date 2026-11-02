@@ -155,6 +155,17 @@ async function runTests() {
     studentScenario7 = await createTestStudent('Student Scen7 Partial');
     studentScenario8 = await createTestStudent('Student Scen8 OptOut', false); // opted-out
 
+    // Clear auto-generated admission fees so test scenarios have strictly isolated fixtures
+    await supabaseAdmin!.from('student_fees').delete().in('student_id', [
+      studentScenario1.id,
+      studentScenario23.id,
+      studentScenario4.id,
+      studentScenario5.id,
+      studentScenario6.id,
+      studentScenario7.id,
+      studentScenario8.id,
+    ]);
+
     const currentYear = new Date().getFullYear();
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
     const currentPeriod = `${currentYear}-${currentMonth}`;
@@ -231,8 +242,8 @@ async function runTests() {
       billing_period: currentPeriod,
     });
 
-    // Now fetch Admin Dashboard KPIs and Fee Follow-ups
-    const adminKPIs = await DashboardService.getAdminKPIs();
+    // Now fetch Admin Dashboard KPIs and Fee Follow-ups (bypassCache = true)
+    const adminKPIs = await DashboardService.getAdminKPIs(undefined, true);
     const followups = adminKPIs.feeFollowups;
 
     // Check Scenario 1: studentScenario1 must NOT be in follow-up

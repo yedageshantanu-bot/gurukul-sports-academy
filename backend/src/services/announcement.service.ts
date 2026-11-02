@@ -376,7 +376,23 @@ export class AnnouncementService {
       }
     }
 
-    // 3. Dispatch to all recipient phones with randomized anti-ban throttle
+    // Verify WhatsApp gateway connectivity if broadcasting immediately
+    const isScheduledFuture = startTimestamp > Date.now() + 30000;
+    if (!isScheduledFuture) {
+      const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
+      const settings = await whatsappSettingsService.getSettings();
+      const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+      const status = await provider.getStatus();
+      if (status.status !== 'CONNECTED') {
+        throw new AppError(
+          `WhatsApp Gateway is currently ${status.status}. Please scan QR code in WhatsApp settings before broadcasting announcements.`,
+          400,
+          'WHATSAPP_DISCONNECTED'
+        );
+      }
+    }
+
+    // 3. Dispatch to all recipient phones with randomized anti-ban throttle (3.8s base + jitter)
     const rawTemplate = options?.customTemplate || meta.customTemplate;
     const defaultBody = `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`;
     const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -409,7 +425,7 @@ export class AnnouncementService {
       })
       .filter(Boolean) as any[];
 
-    const queuedItems = await queueService.enqueueBatchStaggered(items, 2800, startTimestamp);
+    const queuedItems = await queueService.enqueueBatchStaggered(items, 3800, startTimestamp);
 
     // If scheduled for immediately (now), trigger queue processor in background
     if (startTimestamp <= Date.now() + 30000) {
@@ -425,7 +441,6 @@ export class AnnouncementService {
     }
 
     // 5. Update announcement timestamp & metadata
-    const isScheduledFuture = startTimestamp > Date.now() + 30000;
     const nowIso = new Date().toISOString();
     const existingMeta = (announcement.metadata as any) || {};
     const updatedMeta = {

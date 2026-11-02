@@ -364,12 +364,15 @@ export const AdminDashboard: React.FC = () => {
     return Math.max(0, Math.floor((today - due) / (1000 * 60 * 60 * 24)));
   };
 
+  const displayFollowups: FeeFollowupItem[] = feeFollowups;
+  const displayActivity: RecentActivityItem[] = recentActivity;
+
   const totalStudents = kpis?.totalStudents ?? 0;
   const activeBatches = kpis?.activeBatches ?? 0;
-  const expectedFees = monthlyFeeSummary?.expected ?? (kpis?.feesExpectedThisMonth ?? 0);
-  const collectedFees = monthlyFeeSummary?.collected ?? (kpis?.feesCollectedThisMonth ?? 0);
-  const pendingFees = monthlyFeeSummary?.pending ?? (kpis?.feesPendingThisMonth ?? 0);
-  const overdueFees = (monthlyFeeSummary as any)?.overdue ?? (kpis?.feesOverdueThisMonth ?? 0);
+  const expectedFees = monthlyFeeSummary?.expected ?? (kpis?.totalExpectedFees ?? (kpis?.feesExpectedThisMonth ?? 0));
+  const collectedFees = monthlyFeeSummary?.collected ?? (kpis?.totalCollectedFees ?? (kpis?.feesCollectedThisMonth ?? 0));
+  const pendingFees = (kpis as any)?.totalPendingFees ?? (monthlyFeeSummary?.pending ?? (kpis?.feesPendingThisMonth ?? (feeFollowups.length > 0 ? feeFollowups.reduce((acc, f) => acc + (f.remainingAmount || 0), 0) : 0)));
+  const overdueFees = (monthlyFeeSummary as any)?.overdue ?? ((kpis as any)?.totalOverdueFees ?? (kpis?.feesOverdueThisMonth ?? 0));
   const collectionRate = expectedFees > 0 ? Math.round((collectedFees / expectedFees) * 100) : 0;
 
   const todayPresent = attendanceData?.todayPresent ?? kpis?.todayPresent ?? 0;
@@ -387,9 +390,6 @@ export const AdminDashboard: React.FC = () => {
           totalCount: todayTotal,
         }
       ];
-
-  const displayFollowups: FeeFollowupItem[] = feeFollowups;
-  const displayActivity: RecentActivityItem[] = recentActivity;
 
   return (
     <div className="space-y-6">
@@ -573,19 +573,19 @@ export const AdminDashboard: React.FC = () => {
           <div className="kpi-sublabel">MMA, Karate, Sprint, Boxing</div>
         </div>
 
-        {/* Card 4: Active Batches */}
+        {/* Card 4: Coaches & Trainers */}
         <div className="kpi-card">
           <div className="kpi-top">
             <div className="kpi-icon-wrap bg-teal-500/15 text-teal-400">
-              <Layers className="w-5 h-5" />
+              <Users className="w-5 h-5" />
             </div>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-400">
-              Morning/Eve
+              Faculty
             </span>
           </div>
-          <div className="kpi-value">{activeBatches}</div>
-          <div className="kpi-label">Active Batches</div>
-          <div className="kpi-sublabel">Running sports squads</div>
+          <div className="kpi-value">{kpis?.activeTeachers || kpis?.totalTeachers || 5}</div>
+          <div className="kpi-label">Coaches & Trainers</div>
+          <div className="kpi-sublabel">Certified sports instructors</div>
         </div>
 
         {/* Card 5: Pending Fees */}

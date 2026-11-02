@@ -28,10 +28,42 @@ export class WhatsAppQueueService {
   private inMemoryQueue: Map<string, WhatsAppQueueItem> = new Map();
   private processingRecipients: Set<string> = new Set();
   private lastDispatchedAt: number = 0;
-  public readonly MIN_DISPATCH_INTERVAL_MS = 2500; // Safe anti-ban humanized throttle (2.5s - 4.5s)
+  public readonly MIN_DISPATCH_INTERVAL_MS = 3500; // Anti-ban humanized throttle (3.5s - 5.5s)
 
   private get supabase() {
     return supabaseAdmin;
+  }
+
+  /**
+   * Block dummy, placeholder, and demo numbers from ever reaching live WhatsApp.
+   * Protects real mobile subscribers from unintended messages.
+   * Whitelists the verified admin testing phone (+919404849500).
+   */
+  isBlockedOrDummyNumber(phone: string): boolean {
+    if (!phone) return true;
+    const digits = phone.replace(/[^\d]/g, '');
+    const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+
+    // Always allow the admin's verified testing number
+    if (last10 === '9404849500' || digits === '919404849500') {
+      return false;
+    }
+
+    // Block common demo and test numbers from sample seeds
+    const knownDummies = [
+      '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
+      '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
+      '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
+    ];
+    if (knownDummies.includes(last10)) return true;
+
+    // Block repeating digits (e.g. 0000000000, 9999999999)
+    if (/^(\d)\1{9}$/.test(last10)) return true;
+
+    // Block sequential ascending / descending
+    if (last10 === '1234567890' || last10 === '9876543210') return true;
+
+    return false;
   }
 
   // Normalize phone number to standard format (handles Indian numbers, leading zeros, +91)
@@ -232,6 +264,15 @@ export class WhatsAppQueueService {
       return { success: false, reason, status: 'FAILED' };
     }
 
+    // --- SAFETY CHECK 4b: Is this a dummy, placeholder, or demo test number? ---
+    if (this.isBlockedOrDummyNumber(item.recipient_phone)) {
+      const reason = `Blocked delivery: ${item.recipient_phone} is a dummy/placeholder test number. Live dispatch cancelled to protect real subscribers.`;
+      console.warn(`[QueueService] 🛑 ${reason}`);
+      await this.markItemFailed(item.id, reason, true);
+      await this.updateItemStatus(item.id, 'CANCELLED');
+      return { success: false, reason, status: 'CANCELLED' };
+    }
+
     // --- SAFETY CHECK 5: Is Message Still Valid? ---
     if (item.status === 'CANCELLED') {
       return { success: false, reason: 'Message was cancelled', status: 'CANCELLED' };
@@ -276,10 +317,10 @@ export class WhatsAppQueueService {
     await this.updateItemStatus(item.id, 'PROCESSING');
 
     try {
-      // Anti-Ban Rate Limiting: Humanized 2.5 - 4.0 seconds randomized gap between consecutive WhatsApp deliveries
+      // Anti-Ban Rate Limiting: Humanized 3.5 - 5.5 seconds randomized gap between consecutive WhatsApp deliveries
       if ((provider.name === 'PROTOTYPE_LINKED_DEVICE' || provider.name === 'OPENWA') && this.lastDispatchedAt > 0) {
         const elapsed = Date.now() - this.lastDispatchedAt;
-        const dynamicDelay = this.MIN_DISPATCH_INTERVAL_MS + Math.floor(Math.random() * 1500); // 2.5s to 4.0s
+        const dynamicDelay = this.MIN_DISPATCH_INTERVAL_MS + Math.floor(Math.random() * 2000); // 3.5s to 5.5s
         if (elapsed < dynamicDelay) {
           const waitMs = dynamicDelay - elapsed;
           console.log(
@@ -594,30 +635,66 @@ export class WhatsAppQueueService {
 
   /**
    * Continuous WhatsApp Queue & Schedule Runner.
-   * Regularly polls Supabase and dispatches messages whose scheduled_at timestamp has arrived.
+   * Auto-flush on connect is strictly DISARMED to protect against queue blasting.
+   * Only processes explicitly scheduled future announcements whose delivery time has arrived.
    */
-  startQueueScheduler(intervalMs = 5000): void {
+  startQueueScheduler(intervalMs = 30000): void {
     if (this.schedulerInterval) return;
-    console.log(`[QueueService] 🚀 Active WhatsApp Queue Scheduler started (checking every ${intervalMs / 1000}s)`);
-
-    // Run first check after 2 seconds
-    setTimeout(() => {
-      this.triggerBackgroundProcessing();
-    }, 2000);
+    console.log(`[QueueService] 🛡️ Scheduled Announcements Runner active (auto-flush disarmed, checking every ${intervalMs / 1000}s)`);
 
     this.schedulerInterval = setInterval(() => {
-      this.triggerBackgroundProcessing();
+      this.processScheduledAnnouncementsOnly().catch((err) => {
+        console.warn('[QueueService] Scheduled runner notice:', err.message);
+      });
     }, intervalMs);
 
     if (this.schedulerInterval.unref) {
       this.schedulerInterval.unref();
     }
 
-    // Start 2.5-minute WhatsApp Keep-Alive & Auto-Reconnect Watchdog
-    this.startWatchdog();
+    // Start 60-second WhatsApp 24/7 Keep-Alive & Auto-Reconnect Watchdog
+    this.startWatchdog(60000);
   }
 
-  startWatchdog(intervalMs = 150000): void {
+  /**
+   * Safe scheduled announcement checker: ONLY processes items that were explicitly scheduled for a future time
+   * that has now arrived. NEVER touches general offline queues or blasts unannounced messages.
+   */
+  async processScheduledAnnouncementsOnly(): Promise<void> {
+    try {
+      const settings = await whatsappSettingsService.getSettings();
+      if (!settings.global_automation_enabled || settings.emergency_stop) return;
+
+      const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+      const deviceStatus = await provider.getStatus();
+      if (deviceStatus.status !== 'CONNECTED') return;
+
+      const now = new Date().toISOString();
+      if (this.supabase) {
+        const { data: scheduledItems } = await this.supabase
+          .from('whatsapp_queue')
+          .select('*')
+          .eq('status', 'PENDING')
+          .eq('event_type', 'ANNOUNCEMENT')
+          .lte('scheduled_at', now)
+          .limit(10);
+
+        if (scheduledItems && scheduledItems.length > 0) {
+          for (const item of scheduledItems) {
+            // Verify this was explicitly scheduled for the future
+            const isExplicitlyScheduled = Boolean((item.metadata as any)?.scheduledTime);
+            if (isExplicitlyScheduled) {
+              await this.processItem(item as WhatsAppQueueItem);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('[QueueService] Scheduled announcement check notice:', err.message);
+    }
+  }
+
+  startWatchdog(intervalMs = 60000): void {
     if (this.watchdogInterval) return;
     console.log(`[WhatsApp Watchdog] 🛡️ 24/7 Keep-Alive & Auto-Reconnect Watchdog active (pinging every ${intervalMs / 1000}s)`);
 
@@ -631,6 +708,10 @@ export class WhatsAppQueueService {
 
         const status = await provider.getStatus();
         if (status.status === 'CONNECTED') {
+          // Keep bridge warm and update heartbeat in database
+          await whatsappSettingsService.updateDeviceStatus('CONNECTED', status.phoneNumber, {
+            lastHeartbeatAt: new Date().toISOString(),
+          }).catch(() => {});
           return;
         }
 
@@ -653,7 +734,7 @@ export class WhatsAppQueueService {
       }
     };
 
-    setTimeout(runWatchdogPing, 10000);
+    setTimeout(runWatchdogPing, 5000);
 
     this.watchdogInterval = setInterval(runWatchdogPing, intervalMs);
     if (this.watchdogInterval.unref) {

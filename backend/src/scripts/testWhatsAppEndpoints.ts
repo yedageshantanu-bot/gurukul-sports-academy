@@ -167,7 +167,7 @@ async function runWhatsAppTests() {
     );
 
     // -------------------------------------------------------------------------
-    // TEST 8: Mock WhatsApp provider sends custom message (HTTP 200, status MOCK)
+    // TEST 8: Whitelisted Admin Number sends custom message (HTTP 200, status SENT/MOCK)
     // -------------------------------------------------------------------------
     const sendCustomRes = await fetch(`${BASE_URL}/whatsapp/send`, {
       method: 'POST',
@@ -176,22 +176,22 @@ async function runWhatsAppTests() {
         Authorization: `Bearer ${adminToken}`,
       },
       body: JSON.stringify({
-        recipientPhone: '919876543210',
-        messageBody: 'Hello from Apex Academy automated WhatsApp system test.',
+        recipientPhone: '+919404849500',
+        messageBody: 'Hello from Gurukul Academy automated WhatsApp system test.',
         eventType: 'TEST_DIRECT',
       }),
     });
     const sendCustomData = await sendCustomRes.json();
     assert(
-      'Admin sends custom message (HTTP 200, sent or queued)',
+      'Admin sends custom message to whitelisted number (HTTP 200, sent or queued)',
       sendCustomRes.status === 200 &&
         sendCustomData.success &&
-        (sendCustomData.queued === true || sendCustomData.data?.message?.status === 'MOCK' || sendCustomData.connected === true),
+        (sendCustomData.queued === true || sendCustomData.connected === true),
       sendCustomData
     );
 
     // -------------------------------------------------------------------------
-    // TEST 9: Simulated delivery failure or queue handling without crash
+    // TEST 9: Dummy number is safely blocked from live delivery to protect real users
     // -------------------------------------------------------------------------
     const sendFailRes = await fetch(`${BASE_URL}/whatsapp/send`, {
       method: 'POST',
@@ -201,15 +201,14 @@ async function runWhatsAppTests() {
       },
       body: JSON.stringify({
         recipientPhone: '0000000000',
-        messageBody: 'This message should trigger simulated failure.',
+        messageBody: 'This dummy message should be blocked from reaching live users.',
         eventType: 'FAILURE_TEST',
       }),
     });
     const sendFailData = await sendFailRes.json();
     assert(
-      'Admin sends or queues custom message safely (HTTP 200)',
-      sendFailRes.status === 200 &&
-        (sendFailData.queued === true || sendFailData.data?.message?.status === 'FAILED'),
+      'Dummy number is safely blocked or failed without crashing server',
+      sendFailRes.status === 400 || sendFailData.success === false || sendFailData.error?.code === 'DELIVERY_FAILED',
       sendFailData
     );
 
