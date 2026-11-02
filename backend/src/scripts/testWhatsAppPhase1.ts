@@ -400,10 +400,15 @@ async function runWhatsAppPhase1Tests() {
     const queueData6 = await queueRes6.json();
     const queueId6 = queueData6.data?.id;
 
-    // Wait briefly for background processor to process the failed item
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    let updatedItem6 = (await queueService.listQueue()).find((i) => i.id === queueId6);
+    // Wait for background processor to finish processing the failed item
+    let updatedItem6: WhatsAppQueueItem | undefined;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      updatedItem6 = (await queueService.listQueue()).find((i) => i.id === queueId6);
+      if (updatedItem6 && updatedItem6.status !== 'PROCESSING' && updatedItem6.status !== 'PENDING') {
+        break;
+      }
+    }
     if (updatedItem6 && updatedItem6.status === 'PENDING') {
       await queueService.processItem(updatedItem6);
       updatedItem6 = (await queueService.listQueue()).find((i) => i.id === queueId6);
