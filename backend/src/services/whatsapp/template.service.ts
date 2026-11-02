@@ -67,19 +67,34 @@ export class TemplateService {
     return data;
   }
 
-  async getActiveTemplateForEvent(eventType: WhatsAppEventType) {
+  async getActiveTemplateForEvent(eventType: WhatsAppEventType | string) {
     try {
-      const { data, error } = await this.supabase
-        .from('whatsapp_templates')
-        .select('*')
-        .eq('event_type', eventType)
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      if (['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER', 'FEE_UPCOMING'].includes(eventType)) {
+        // Query for active fee templates, prioritizing the specific eventType, then any active fee template
+        const { data: feeTemplates } = await this.supabase
+          .from('whatsapp_templates')
+          .select('*')
+          .in('event_type', [eventType, 'FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'])
+          .eq('active', true)
+          .order('updated_at', { ascending: false });
 
-      if (!error && data) {
-        return data;
+        if (feeTemplates && feeTemplates.length > 0) {
+          const exact = feeTemplates.find((t) => t.event_type === eventType);
+          return exact || feeTemplates[0];
+        }
+      } else {
+        const { data, error } = await this.supabase
+          .from('whatsapp_templates')
+          .select('*')
+          .eq('event_type', eventType)
+          .eq('active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) {
+          return data;
+        }
       }
     } catch {
       // Fall through to in-memory templates
@@ -111,21 +126,28 @@ export class TemplateService {
         id: 'default-fee-upcoming',
         name: 'Advance Fee Courtesy Reminder',
         event_type: 'FEE_UPCOMING',
-        body: 'Dear {{parent_name}}, this is an advance reminder that the monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due on {{due_date}}.\n\n📱 *Direct 1-Tap UPI (0% Fee):*\n{{payment_link}}\nUPI ID: {{upi_id}}\n\n- {{academy_name}}',
+        body: 'Dear {{parent_name}}, this is an advance reminder that the monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due on {{due_date}}.\n\nKindly clear dues at the academy counter or contact administration.\n\n- {{academy_name}}',
         active: true,
       },
       FEE_DUE: {
         id: 'default-fee-due',
         name: 'Fee Due Reminder',
         event_type: 'FEE_DUE',
-        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due today ({{due_date}}).\n\n📱 *Direct 1-Tap UPI (0% Gateway Fee):*\n{{payment_link}}\nOr pay via GPay / PhonePe to UPI ID: *{{upi_id}}*\n\nKindly complete payment to maintain active enrollment.\n- {{academy_name}}',
+        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due today ({{due_date}}).\n\nKindly complete payment at the academy counter or contact administration to maintain active enrollment.\n\n- {{academy_name}}',
         active: true,
       },
       FEE_OVERDUE: {
         id: 'default-fee-overdue',
         name: 'Fee Overdue Alert',
         event_type: 'FEE_OVERDUE',
-        body: 'Dear {{parent_name}}, training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is OVERDUE since {{due_date}}.\n\n📱 *Direct 1-Tap UPI (0% Gateway Fee):*\n{{payment_link}}\nUPI ID: *{{upi_id}}*\n\nPlease complete payment to prevent training interruptions.\n- {{academy_name}}',
+        body: 'Dear {{parent_name}}, training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is OVERDUE since {{due_date}}.\n\nPlease complete payment at the academy counter or contact administration to prevent training interruptions.\n\n- {{academy_name}}',
+        active: true,
+      },
+      FEE_REMINDER: {
+        id: 'default-fee-reminder',
+        name: 'Fee Reminder',
+        event_type: 'FEE_REMINDER',
+        body: 'Dear {{parent_name}}, monthly training fee of ₹{{amount}} for {{student_name}} at {{academy_name}} is due ({{due_date}}).\n\nKindly complete payment at the academy counter or contact administration.\n\n- {{academy_name}}',
         active: true,
       },
       PAYMENT_SUCCESS: {
@@ -137,7 +159,7 @@ export class TemplateService {
       },
     };
 
-    return defaultTemplates[eventType] || null;
+    return defaultTemplates[eventType] || defaultTemplates['FEE_DUE'] || null;
   }
 
   async updateTemplate(id: string, dto: UpdateTemplateDTO) {

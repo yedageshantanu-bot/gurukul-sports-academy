@@ -346,12 +346,13 @@ export class PdfReportService {
 
         currentY += 15;
 
-        if (data.batches.length === 0) {
+        const batches = data.batches || [];
+        if (batches.length === 0) {
           doc.roundedRect(36, currentY, contentWidth, 36, 6).fillAndStroke(lightBg, borderLight);
           doc.fillColor(textMuted).fontSize(8.5).font('Helvetica').text('Active training sessions assigned per coach schedule.', 48, currentY + 13);
           currentY += 46;
         } else {
-          for (const batch of data.batches.slice(0, 2)) {
+          for (const batch of batches.slice(0, 2)) {
             doc.roundedRect(36, currentY, contentWidth, 40, 6).fillAndStroke(lightBg, borderLight);
             doc.fillColor(textDark).font('Helvetica-Bold').fontSize(10).text(batch.name, 48, currentY + 9);
             doc.font('Helvetica').fontSize(8).fillColor(textMuted).text(batch.subject ? `Curriculum: ${batch.subject}` : 'Martial Arts Regular Dojo', 48, currentY + 23);
@@ -412,8 +413,8 @@ export class PdfReportService {
 
         if (data.fees.pendingAmount > 0) {
           doc.fillColor('#BE123C').fontSize(8.5).font('Helvetica-Bold').text(`Pending Balance: Rs. ${Number(data.fees.pendingAmount).toLocaleString('en-IN')}`, feePillX, currentY + 40, { width: 215, align: 'center' });
-          const upiInstruction = data.fees.upiId ? `Pay Direct UPI: ${data.fees.upiId} (0% Fee)` : 'Scan & Pay via GPay / PhonePe (0% Fee)';
-          doc.fillColor('#047857').fontSize(7.5).font('Helvetica-Bold').text(upiInstruction, feePillX, currentY + 54, { width: 215, align: 'center' });
+          const paymentInstruction = 'Please clear pending dues at Academy Counter or contact Sensei.';
+          doc.fillColor('#047857').fontSize(7.5).font('Helvetica-Bold').text(paymentInstruction, feePillX, currentY + 54, { width: 215, align: 'center' });
         } else {
           doc.fillColor('#15803D').fontSize(8.5).font('Helvetica-Bold').text('✓ All dues fully cleared for this cycle', feePillX, currentY + 44, { width: 215, align: 'center' });
         }

@@ -1895,33 +1895,38 @@ export async function onRequest(context: any) {
       const studentName = student?.name || 'Student';
       const course = student?.course || 'Sports Coaching';
 
-      let reminderText = `Dear ${parentName},\n\nThis is an official fee reminder from ${academyName}.\n\nTuition fee of ₹${amount} for ${studentName} is due on ${dueDate}.\n\nKindly complete the payment at your earliest convenience to avoid interruption.\n\nThank you,\n${academyName}`;
+      let templateText = customTemplate;
+      if (!templateText || !templateText.trim()) {
+        try {
+          const { data: dbTpls } = await supabase
+            .from('whatsapp_templates')
+            .select('body')
+            .in('event_type', ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'])
+            .eq('active', true)
+            .order('updated_at', { ascending: false })
+            .limit(1);
+          if (dbTpls && dbTpls.length > 0 && dbTpls[0].body) {
+            templateText = dbTpls[0].body;
+          }
+        } catch {}
+      }
 
-      if (customTemplate && customTemplate.trim()) {
-        reminderText = customTemplate
+      let reminderText = `Dear ${parentName},\n\nThis is an official fee reminder from ${academyName}.\n\nTuition fee of ₹${amount} for ${studentName} is due on ${dueDate}.\n\nKindly clear dues at academy counter or contact Sensei.\n\nThank you,\n${academyName}`;
+
+      if (templateText && templateText.trim()) {
+        reminderText = templateText
           .replace(/(?:\{\{|\{)\s*(?:parent_name|parentName|parent)\s*(?:\}\}|\})/gi, parentName)
           .replace(/(?:\{\{|\{)\s*(?:student_name|studentName|student)\s*(?:\}\}|\})/gi, studentName)
           .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
           .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, String(amount))
           .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
-          .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink)\s*(?:\}\}|\})/gi, '');
+          .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, '');
       }
 
-      // Check prior message count for onboarding note (only first 2 messages)
-      try {
-        const last10Digits = phone.replace(/\D/g, '').slice(-10);
-        const { count } = await supabase
-          .from('whatsapp_messages')
-          .select('id', { count: 'exact', head: true })
-          .or(`recipient_phone.eq.${phone},recipient_phone.ilike.%${last10Digits}`);
-
-        if ((count || 0) < 2) {
-          const onboardingNote = `\n\n📌 Please save this official contact number in your phone as ${academyName}.`;
-          if (!reminderText.includes('Please save this official contact number')) {
-            reminderText = `${reminderText.trim()}${onboardingNote}`;
-          }
-        }
-      } catch {}
+      // Strip any raw upi:// links or UPI pay instructions
+      reminderText = reminderText.replace(/upi:\/\/pay[^\s\n]*/gi, '');
+      reminderText = reminderText.replace(/(?:📱\s*\*?(?:Direct\s*(?:1-Tap|0%)\s*UPI|1-Tap\s*Pay|UPI\s*Pay)\*?:?)[^\n]*/gi, '');
+      reminderText = reminderText.replace(/\n{3,}/g, '\n\n').trim();
 
       const res = await dispatchWhatsApp(phone, reminderText, context.env);
 
@@ -1956,7 +1961,7 @@ export async function onRequest(context: any) {
       for (const st of (students || []).slice(0, 5)) {
         const phone = st.parent_whatsapp || st.student_mobile;
         if (phone) {
-          const msg = `Dear Parent,\n\nMonthly tuition fee for ${st.name} (₹${st.monthly_fee || 1500}) is due at ${academyName}.\n\nKindly clear dues via UPI or cash at front desk.\n\nRegards,\n${academyName}`;
+          const msg = `Dear Parent,\n\nMonthly tuition fee for ${st.name} (₹${st.monthly_fee || 1500}) is due at ${academyName}.\n\nKindly clear dues at the academy counter or contact academy administration.\n\nRegards,\n${academyName}`;
           await dispatchWhatsApp(phone, msg, context.env);
           sentCount++;
         }

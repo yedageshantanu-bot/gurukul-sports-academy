@@ -143,6 +143,9 @@ export const TeamMessagingPage: React.FC = () => {
       localStorage.removeItem('gurukul_custom_team_contacts');
       localStorage.removeItem('gurukul_team_contacts');
       localStorage.removeItem('custom_team_contacts');
+      sessionStorage.removeItem('gurukul_custom_team_contacts');
+      sessionStorage.removeItem('gurukul_team_contacts');
+      sessionStorage.removeItem('custom_team_contacts');
     } catch {
       // ignored
     }
@@ -169,8 +172,13 @@ export const TeamMessagingPage: React.FC = () => {
   // Primary and sole source of truth: enrolled team members from the database
   const allDirectoryContacts = useMemo(() => {
     const seenPhones = new Map<string, TeamContact>();
+    const validTeamCodes = new Set(teams.map((t) => t.code));
 
     for (const m of teamMembers) {
+      // Filter out any orphaned members whose team_code is invalid or no longer exists in teams
+      if (!m.team_code || (teams.length > 0 && !validTeamCodes.has(m.team_code))) {
+        continue;
+      }
       const digits = m.phone ? m.phone.replace(/[^0-9]/g, '') : '';
       const clean10 = digits.length >= 10 ? digits.slice(-10) : digits;
       if (!clean10) continue;
@@ -197,13 +205,16 @@ export const TeamMessagingPage: React.FC = () => {
     return Array.from(seenPhones.values()).map((c) => {
       const digits = c.phone.replace(/[^0-9]/g, '');
       const clean10 = digits.length >= 10 ? digits.slice(-10) : digits;
-      const memberTeams = contactTeamsMap.get(clean10) || [];
+      const rawMemberTeams = contactTeamsMap.get(clean10) || [];
+      const memberTeams = rawMemberTeams.filter(
+        (code) => validTeamCodes.size === 0 || validTeamCodes.has(code)
+      );
       return {
         ...c,
         memberTeams,
       };
     });
-  }, [teamMembers, contactTeamsMap]);
+  }, [teamMembers, contactTeamsMap, teams]);
 
   // Exact count of unique individual contacts
   const uniqueContactsCount = allDirectoryContacts.length;
@@ -351,22 +362,70 @@ export const TeamMessagingPage: React.FC = () => {
     }
   };
 
-  // Delete Member
-  const handleDeleteMember = async (member: TeamMember) => {
+  // Delete Member from squad or permanently from all squads
+  const handleDeleteMember = async (member: TeamMember, forceAllTeams = false) => {
+    const isAllTab = selectedTeamFilter === 'ALL' || forceAllTeams;
     const teamName = teams.find((t) => t.code === member.team_code)?.name || member.team_code;
-    if (!window.confirm(`Remove ${member.name || 'this member'} from "${teamName}"?`)) {
+    const clean10 = member.phone ? member.phone.replace(/[^0-9]/g, '').slice(-10) : '';
+
+    const confirmMsg = isAllTab
+      ? `Permanently delete "${member.name || 'this member'}" from directory and all squads? This cannot be undone.`
+      : `Remove "${member.name || 'this member'}" from "${teamName}"?`;
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
     try {
-      await apiClient(`/team-messages/members/${member.id}`, {
-        method: 'DELETE',
-      });
-      setTeamMembers((prev) => prev.filter((m) => m.id !== member.id));
-      toast.success('Member removed from team.');
+      const url = isAllTab
+        ? `/team-messages/members/${member.id}?allTeams=true`
+        : `/team-messages/members/${member.id}`;
+
+      await apiClient(url, { method: 'DELETE' });
+
+      if (isAllTab && clean10) {
+        setTeamMembers((prev) =>
+          prev.filter((m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) !== clean10)
+        );
+        toast.success(`"${member.name || 'Member'}" permanently deleted from all squads.`);
+      } else {
+        setTeamMembers((prev) => prev.filter((m) => m.id !== member.id));
+        toast.success('Member removed from squad.');
+      }
     } catch (err: any) {
       console.error('Failed to remove member:', err);
       toast.error('Could not remove member.');
+    }
+  };
+
+  // Permanently delete a contact from directory and all enrolled teams
+  const handlePermanentDeleteContact = async (contact: TeamContact) => {
+    const clean10 = contact.phone ? contact.phone.replace(/[^0-9]/g, '').slice(-10) : '';
+    if (
+      !window.confirm(
+        `Permanently delete contact "${contact.name}" (${contact.phone}) from directory and all teams?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await apiClient(`/team-messages/members/${contact.id}?allTeams=true`, {
+        method: 'DELETE',
+      });
+      if (clean10) {
+        setTeamMembers((prev) =>
+          prev.filter((m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) !== clean10)
+        );
+      }
+      if (selectedContactId === contact.id) {
+        setSelectedContactId(null);
+        setMemberForm((prev) => ({ ...prev, name: '', phone: '', position: '', district: '', notes: '' }));
+      }
+      toast.success(`Contact "${contact.name}" permanently deleted.`);
+    } catch (err: any) {
+      console.error('Failed to delete contact:', err);
+      toast.error('Could not delete contact.');
     }
   };
 
@@ -1128,14 +1187,24 @@ export const TeamMessagingPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleSelectDirectoryContact(contact)}
-                          className="text-[11px] font-bold py-1 px-2.5 h-auto shrink-0 cursor-pointer bg-amber-500 hover:bg-amber-600 text-slate-950"
-                        >
-                          Pick +
-                        </Button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSelectDirectoryContact(contact)}
+                            className="text-[11px] font-bold py-1 px-2.5 h-auto cursor-pointer bg-amber-500 hover:bg-amber-600 text-slate-950"
+                          >
+                            Pick +
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => handlePermanentDeleteContact(contact)}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer"
+                            title="Permanently delete contact from all teams and directory"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}

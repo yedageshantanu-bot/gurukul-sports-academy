@@ -231,6 +231,22 @@ export class TeamMessageController {
   async deleteTeam(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      // 1. Look up team code before deletion to clean up enrolled members
+      const { data: team } = await supabaseAdmin
+        .from('teams')
+        .select('code')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (team?.code) {
+        // Cascade remove all team members belonging to this deleted team
+        await supabaseAdmin
+          .from('team_members')
+          .delete()
+          .eq('team_code', team.code);
+      }
+
       const { error } = await supabaseAdmin
         .from('teams')
         .delete()
@@ -240,7 +256,7 @@ export class TeamMessageController {
 
       res.status(200).json({
         success: true,
-        message: 'Team removed successfully',
+        message: 'Team and all enrolled members removed successfully',
       });
     } catch (err) {
       next(err);
@@ -338,6 +354,45 @@ export class TeamMessageController {
   async deleteTeamMember(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+      const allTeams = req.query.allTeams === 'true' || req.query.byPhone === 'true';
+
+      if (allTeams) {
+        // Look up member's phone number to wipe contact across all teams
+        const { data: member } = await supabaseAdmin
+          .from('team_members')
+          .select('id, phone')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (member?.phone) {
+          const clean10 = member.phone.replace(/[^0-9]/g, '').slice(-10);
+          const { data: allMembers } = await supabaseAdmin
+            .from('team_members')
+            .select('id, phone');
+
+          const idsToDelete = (allMembers || [])
+            .filter((m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10)
+            .map((m) => m.id);
+
+          if (!idsToDelete.includes(id)) {
+            idsToDelete.push(id);
+          }
+
+          const { error } = await supabaseAdmin
+            .from('team_members')
+            .delete()
+            .in('id', idsToDelete);
+
+          if (error) throw error;
+
+          res.status(200).json({
+            success: true,
+            message: 'Contact permanently removed from all teams and directory',
+          });
+          return;
+        }
+      }
+
       const { error } = await supabaseAdmin
         .from('team_members')
         .delete()

@@ -115,7 +115,7 @@ export const FeesPage: React.FC = () => {
 
   // WhatsApp Fee Reminder Template & Rules
   const DEFAULT_FEE_TEMPLATE =
-    'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues. Thank you!\n- Gurukul Sports Academy';
+    'Namaste {parent_name}! 🙏 Reminder from Gurukul Sports Academy: Fee dues for {student_name} ({course}) is ₹{pending_amount}, scheduled due date: {due_date}. Kindly clear the dues at academy counter or contact Sensei. Thank you!\n- Gurukul Sports Academy';
 
   const [feeWhatsappTemplate, setFeeWhatsappTemplate] = useState<string>(() => {
     try {
@@ -277,6 +277,24 @@ export const FeesPage: React.FC = () => {
           setPaymentsList(paymentsData);
         }
       }
+
+      // Sync active fee reminder template from database
+      fetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.success && Array.isArray(res.data)) {
+            const feeTpl = res.data.find((t: any) =>
+              ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'].includes(t.event_type)
+            );
+            if (feeTpl?.body) {
+              setFeeWhatsappTemplate(feeTpl.body);
+              try {
+                localStorage.setItem('gurukul_whatsapp_fee_template', feeTpl.body);
+              } catch {}
+            }
+          }
+        })
+        .catch(() => null);
     } catch (err: any) {
       setError(err.message || 'Failed to load fee information');
     } finally {
@@ -722,12 +740,58 @@ export const FeesPage: React.FC = () => {
     }
   };
 
-  const handleSaveFeeTemplate = () => {
+  const handleSaveFeeTemplate = async () => {
     try {
       localStorage.setItem('gurukul_whatsapp_fee_template', feeWhatsappTemplate);
+
+      if (token) {
+        // Sync to Supabase whatsapp_templates table via API
+        try {
+          const tplsRes = await fetch(`${API_BASE}/whatsapp/templates?active=true`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const tplsJson = await tplsRes.json().catch(() => null);
+          const tpls = tplsJson?.data || [];
+          const existingTpl = tpls.find((t: any) =>
+            ['FEE_DUE', 'FEE_OVERDUE', 'FEE_REMINDER'].includes(t.event_type)
+          );
+
+          if (existingTpl?.id) {
+            await fetch(`${API_BASE}/whatsapp/templates/${existingTpl.id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                body: feeWhatsappTemplate,
+                name: existingTpl.name || 'Fee Due Reminder',
+                active: true,
+              }),
+            });
+          } else {
+            await fetch(`${API_BASE}/whatsapp/templates`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name: 'Fee Due Reminder',
+                eventType: 'FEE_DUE',
+                body: feeWhatsappTemplate,
+                active: true,
+              }),
+            });
+          }
+        } catch (dbErr) {
+          console.warn('Could not sync fee template to backend DB:', dbErr);
+        }
+      }
+
       setIsFeeTemplateOpen(false);
       setReminderSuccessMessage('WhatsApp Fee Reminder template saved successfully!');
-      toast.success('WhatsApp Fee Reminder template saved!');
+      toast.success('WhatsApp Fee Reminder template saved to database!');
       setTimeout(() => setReminderSuccessMessage(null), 4000);
     } catch (err) {
       console.error(err);
@@ -1166,7 +1230,6 @@ export const FeesPage: React.FC = () => {
                     '{course}',
                     '{pending_amount}',
                     '{due_date}',
-                    '{payment_link}',
                   ].map((tag) => (
                     <button
                       key={tag}
@@ -1216,7 +1279,7 @@ export const FeesPage: React.FC = () => {
                         .replace(/(?:\{\{|\{)\s*course\s*(?:\}\}|\})/gi, 'Kalarippayattu')
                         .replace(/(?:\{\{|\{)\s*pending_amount\s*(?:\}\}|\})/gi, '10,000')
                         .replace(/(?:\{\{|\{)\s*due_date\s*(?:\}\}|\})/gi, '10 Nov 2026')
-                        .replace(/(?:\{\{|\{)\s*payment_link\s*(?:\}\}|\})/gi, 'https://pay.upi/gurukul')}
+                        .replace(/(?:\{\{|\{)\s*payment_link\s*(?:\}\}|\})/gi, '')}
                     </p>
                     <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0]">
                       <span>10:30 AM</span>

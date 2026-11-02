@@ -65,20 +65,18 @@ export class WhatsAppAutomationService {
     }
   }
 
-  generateUpiPaymentLink(params: {
+  generateUpiPaymentLink(_params: {
     upiId: string;
     payeeName: string;
     amount: number;
     transactionNote?: string;
   }): string {
-    const { upiId, payeeName, amount, transactionNote = 'Gurukul Sports Academy Monthly Training Fee' } = params;
-    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+    // Strictly return empty string: raw upi:// deep links are disabled per academy policy
+    return '';
   }
 
   // ============================================================================
-  // TEMPLATE RENDERING (Supports all CRM & Razorpay Variables)
-  // ============================================================================
-  // TEMPLATE RENDERING (Supports all CRM & Razorpay Variables)
+  // TEMPLATE RENDERING (Supports all CRM Variables)
   // Supports both single {variable} and double {{variable}} braces
   // ============================================================================
   renderTemplate(templateBody: string, variables: Record<string, string>): string {
@@ -144,7 +142,14 @@ export class WhatsAppAutomationService {
       .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
       .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, amount)
       .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
-      .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink)\s*(?:\}\}|\})/gi, paymentLink);
+      .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, paymentLink);
+
+    // Strict safety filter: strip any raw upi:// deep links or raw UPI payment commands
+    rendered = rendered.replace(/upi:\/\/pay[^\s\n]*/gi, '');
+    rendered = rendered.replace(/(?:📱\s*\*?(?:Direct\s*(?:1-Tap|0%)\s*UPI|1-Tap\s*Pay|UPI\s*Pay)\*?:?)[^\n]*/gi, '');
+    rendered = rendered.replace(/(?:(?:Or\s*)?pay\s*(?:via\s*(?:GPay\s*\/\s*PhonePe|UPI)\s*)?(?:to\s*)?UPI\s*ID\s*:\s*\*?[a-zA-Z0-9.\-_@]+\*?)/gi, '');
+    rendered = rendered.replace(/UPI\s*ID\s*:\s*\*?[a-zA-Z0-9.\-_@]+\*?/gi, '');
+    rendered = rendered.replace(/\n{3,}/g, '\n\n').trim();
 
     return rendered;
   }
@@ -504,15 +509,8 @@ export class WhatsAppAutomationService {
       }
     }
 
-    // Zero-Cut Direct UPI Payment Link (0.00% gateway charges)
     const upiDetails = await this.getAcademyUpiDetails();
-    const zeroCutUpiLink = this.generateUpiPaymentLink({
-      upiId: upiDetails.upiId,
-      payeeName: upiDetails.payeeName,
-      amount: pendingAmount,
-      transactionNote: `Gurukul Academy Training Fee - ${student.name}`,
-    });
-    console.log(`[WhatsAppAutomation] Generating Zero-Cut Fee Reminder for student ${student.name} (Rs. ${pendingAmount}) with UPI Link: ${zeroCutUpiLink}`);
+    console.log(`[WhatsAppAutomation] Generating Fee Reminder for student ${student.name} (Rs. ${pendingAmount})`);
 
     const rawTemplateBody = (params.customTemplate && params.customTemplate.trim()) || template?.body || '';
     const parentNameFallback =
@@ -533,15 +531,16 @@ export class WhatsAppAutomationService {
       pendingAmount: pendingAmount.toString(),
       due_date: fee.due_date || '5th of this month',
       dueDate: fee.due_date || '5th of this month',
-      payment_link: zeroCutUpiLink,
-      paymentLink: zeroCutUpiLink,
-      upi_id: upiDetails.upiId,
-      upi_payee_name: upiDetails.payeeName,
-      razorpay_payment_link: zeroCutUpiLink,
+      payment_link: '',
+      paymentLink: '',
+      upi_id: '',
+      upi_payee_name: '',
+      razorpay_payment_link: '',
       date: new Date().toISOString().split('T')[0],
     });
 
-    const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, upiDetails.academyName);
+    // Deliver exact configured fee template text without appending activation/onboarding notes
+    const messageBody = baseBody;
 
     const queued = await queueService.enqueueMessage({
       recipientPhone,
@@ -709,14 +708,6 @@ export class WhatsAppAutomationService {
           continue;
         }
 
-        // Generate 0-cut direct UPI deep-link
-        const zeroCutUpiLink = this.generateUpiPaymentLink({
-          upiId: upiDetails.upiId,
-          payeeName: upiDetails.payeeName,
-          amount: pendingAmount,
-          transactionNote: `Gurukul Fee ${currentBillingPeriod} - ${student.name}`,
-        });
-
         const baseBody = this.renderTemplate(template.body, {
           academy_name: upiDetails.academyName,
           student_name: student.name,
@@ -726,14 +717,14 @@ export class WhatsAppAutomationService {
           amount: pendingAmount.toString(),
           pending_amount: pendingAmount.toString(),
           due_date: dueDateFormatted,
-          payment_link: zeroCutUpiLink,
-          upi_id: upiDetails.upiId,
-          upi_payee_name: upiDetails.payeeName,
-          razorpay_payment_link: zeroCutUpiLink,
+          payment_link: '',
+          upi_id: '',
+          upi_payee_name: '',
+          razorpay_payment_link: '',
           date: todayStr,
         });
 
-        const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, upiDetails.academyName);
+        const messageBody = baseBody;
 
         // Strict Idempotency Key: guarantees no duplicate send per student per billingPeriod per cadenceStage
         const idempotencyKey = `FEE_CADENCE:${student.id}:${currentBillingPeriod}:${cadenceStage}:${todayStr}`;
@@ -1272,10 +1263,10 @@ export class WhatsAppAutomationService {
     const academyName = reportData.academyName || (await this.getAcademyName());
 
     const feeStatus = reportData.fees.pendingAmount > 0 ? `Pending: Rs. ${reportData.fees.pendingAmount}` : 'All Clear';
-    const upiPayNote = reportData.fees.pendingAmount > 0 && reportData.fees.upiId
-      ? `\n\n💳 *Direct 0% Cut UPI Pay:* ${reportData.fees.upiId}\n📱 *1-Tap Pay:* upi://pay?pa=${encodeURIComponent(reportData.fees.upiId)}&pn=${encodeURIComponent(academyName)}&am=${reportData.fees.pendingAmount}&cu=INR&tn=${encodeURIComponent(`Monthly Fee - ${reportData.studentName}`)}`
+    const feeInstruction = reportData.fees.pendingAmount > 0
+      ? `\n\n*Pending Dues:* Rs. ${reportData.fees.pendingAmount}\n*Payment Instructions:* Kindly settle dues via Academy Cash / Counter or contact Sensei.`
       : '';
-    const caption = `*Monthly Progress & Attendance Report: ${academyName}*\n\nDear Parent,\nPlease find attached the official monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${feeStatus}${upiPayNote}\n\nPlease review the attached document for detailed session breakdown.\n\n- ${academyName} Administration`;
+    const caption = `*Monthly Progress & Attendance Report: ${academyName}*\n\nDear Parent,\nPlease find attached the official monthly progress report for *${reportData.studentName}* for the month of *${reportData.fees.billingPeriod}*.\n\n*Attendance Rate:* ${reportData.attendance.attendanceRate}% (${reportData.attendance.presentCount}/${reportData.attendance.totalSessions} Sessions)\n*Fee Status:* ${feeStatus}${feeInstruction}\n\nPlease review the attached document for detailed session breakdown.\n\n- ${academyName} Administration`;
 
     // Dispatch via active connected provider
     const provider = whatsappProviderFactory.getProvider();

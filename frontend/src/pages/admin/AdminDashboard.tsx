@@ -256,12 +256,14 @@ export const AdminDashboard: React.FC = () => {
         throw new Error('WhatsApp Gateway is currently disconnected. Please scan QR code in WhatsApp settings first.');
       }
 
+      const customTemplate = typeof window !== 'undefined' ? localStorage.getItem('gurukul_whatsapp_fee_template') || undefined : undefined;
       const res = await apiClient<any>('/whatsapp/trigger-fee-reminder', {
         method: 'POST',
         body: JSON.stringify({
           studentFeeId: item.feeId,
           studentId: item.studentId,
-          eventType: item.status === 'OVERDUE' ? 'FEE_OVERDUE_ALERT' : 'FEE_DUE_REMINDER',
+          eventType: item.status === 'OVERDUE' ? 'FEE_OVERDUE' : 'FEE_DUE',
+          customTemplate,
         }),
       });
 
