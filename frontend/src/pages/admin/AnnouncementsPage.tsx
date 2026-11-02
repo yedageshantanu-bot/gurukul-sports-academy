@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -136,6 +136,27 @@ export const AnnouncementsPage: React.FC = () => {
     }
   });
   const [isAnnouncementTemplateOpen, setIsAnnouncementTemplateOpen] = useState(false);
+  const announcementTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInsertAnnouncementTagAtCursor = (tag: string) => {
+    const textarea = announcementTextareaRef.current;
+    if (!textarea) {
+      setAnnouncementWhatsappTemplate((prev) => `${prev} ${tag}`);
+      return;
+    }
+    const currentVal = textarea.value;
+    const start = textarea.selectionStart ?? currentVal.length;
+    const end = textarea.selectionEnd ?? currentVal.length;
+    const before = currentVal.substring(0, start);
+    const after = currentVal.substring(end);
+    const updated = `${before}${tag}${after}`;
+    setAnnouncementWhatsappTemplate(updated);
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + tag.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -704,6 +725,7 @@ export const AnnouncementsPage: React.FC = () => {
                   Template Message Text
                 </label>
                 <textarea
+                  ref={announcementTextareaRef}
                   value={announcementWhatsappTemplate}
                   onChange={(e) => setAnnouncementWhatsappTemplate(e.target.value)}
                   rows={4}
@@ -718,7 +740,8 @@ export const AnnouncementsPage: React.FC = () => {
                     <button
                       key={tag}
                       type="button"
-                      onClick={() => setAnnouncementWhatsappTemplate((prev) => `${prev} ${tag}`)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleInsertAnnouncementTagAtCursor(tag)}
                       className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
                     >
                       + {tag}

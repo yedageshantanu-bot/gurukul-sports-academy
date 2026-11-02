@@ -5,6 +5,7 @@ import {
   SendMessageResult,
   WhatsAppDeviceStatus,
 } from './whatsappProvider.interface.js';
+import { isBlockedOrDummyNumber } from './queue.service.js';
 
 /**
  * PrototypeLinkedDeviceSender
@@ -277,6 +278,15 @@ export class PrototypeLinkedDeviceSender implements WhatsAppSender {
       };
     }
 
+    if (isBlockedOrDummyNumber(cleanedTo)) {
+      return {
+        success: false,
+        provider: 'PROTOTYPE_LINKED_DEVICE',
+        status: 'FAILED',
+        errorMessage: `Blocked delivery: ${cleanedTo} is a dummy/test number. Live dispatch cancelled to protect real subscribers.`,
+      };
+    }
+
     // If external bridge URL is configured, dispatch HTTP POST
     const baseUrl = await this.getBridgeBaseUrl();
     if (baseUrl) {
@@ -374,6 +384,14 @@ export class PrototypeLinkedDeviceSender implements WhatsAppSender {
     }
 
     const cleanedTo = to.replace(/[^\d+]/g, '');
+    if (isBlockedOrDummyNumber(cleanedTo)) {
+      return {
+        success: false,
+        provider: 'PROTOTYPE_LINKED_DEVICE',
+        status: 'FAILED',
+        errorMessage: `Blocked delivery: ${cleanedTo} is a dummy/test number. Live dispatch cancelled to protect real subscribers.`,
+      };
+    }
     const baseUrl = await this.getBridgeBaseUrl();
     if (baseUrl) {
       try {

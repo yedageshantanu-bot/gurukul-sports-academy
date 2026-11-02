@@ -134,10 +134,11 @@ export const FeesPage: React.FC = () => {
       setFeeWhatsappTemplate((prev) => `${prev} ${tag}`);
       return;
     }
-    const start = textarea.selectionStart ?? feeWhatsappTemplate.length;
-    const end = textarea.selectionEnd ?? feeWhatsappTemplate.length;
-    const before = feeWhatsappTemplate.substring(0, start);
-    const after = feeWhatsappTemplate.substring(end);
+    const currentVal = textarea.value;
+    const start = textarea.selectionStart ?? currentVal.length;
+    const end = textarea.selectionEnd ?? currentVal.length;
+    const before = currentVal.substring(0, start);
+    const after = currentVal.substring(end);
     const updated = `${before}${tag}${after}`;
     setFeeWhatsappTemplate(updated);
     setTimeout(() => {
@@ -1170,6 +1171,7 @@ export const FeesPage: React.FC = () => {
                     <button
                       key={tag}
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleInsertTagAtCursor(tag)}
                       className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-800 hover:bg-slate-700 border border-slate-600 text-indigo-300 transition-colors"
                     >

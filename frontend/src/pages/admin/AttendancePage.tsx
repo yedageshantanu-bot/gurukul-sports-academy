@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -41,6 +41,7 @@ export const AttendancePage: React.FC = () => {
   });
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [templateSavedMsg, setTemplateSavedMsg] = useState(false);
+  const attendanceTemplateRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSaveTemplate = () => {
     localStorage.setItem('gurukul_attendance_wa_template', customWaTemplate);
@@ -57,7 +58,23 @@ export const AttendancePage: React.FC = () => {
   };
 
   const handleInsertTag = (tag: string) => {
-    setCustomWaTemplate((prev) => `${prev} ${tag}`);
+    const textarea = attendanceTemplateRef.current;
+    if (!textarea) {
+      setCustomWaTemplate((prev) => `${prev} ${tag}`);
+      return;
+    }
+    const currentVal = textarea.value;
+    const start = textarea.selectionStart ?? currentVal.length;
+    const end = textarea.selectionEnd ?? currentVal.length;
+    const before = currentVal.substring(0, start);
+    const after = currentVal.substring(end);
+    const updated = `${before}${tag}${after}`;
+    setCustomWaTemplate(updated);
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + tag.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
   };
 
   const handleSendDirectWhatsApp = async (s: AttendanceSheetStudentRow) => {
@@ -450,6 +467,7 @@ export const AttendancePage: React.FC = () => {
 
           <div className="mt-3.5 space-y-2.5">
             <textarea
+              ref={attendanceTemplateRef}
               rows={2}
               value={customWaTemplate}
               onChange={(e) => setCustomWaTemplate(e.target.value)}
@@ -469,6 +487,7 @@ export const AttendancePage: React.FC = () => {
                 <button
                   key={item.tag}
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleInsertTag(item.tag)}
                   className="px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white/10 hover:bg-white/20 text-emerald-300 border border-white/10 transition-colors cursor-pointer"
                   title={`Insert ${item.tag}`}

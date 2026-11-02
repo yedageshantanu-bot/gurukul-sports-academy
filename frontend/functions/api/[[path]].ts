@@ -29,8 +29,52 @@ async function getActiveBridgeUrl(env: any): Promise<string> {
   return 'https://gurukul-openwa-bridge.onrender.com';
 }
 
+function isBlockedOrDummyNumber(phone: string): boolean {
+  if (!phone) return true;
+  const digits = phone.replace(/[^\d]/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+
+  if (digits.length < 10 || digits.length > 15) return true;
+  if (last10 === '9404849500' || digits === '919404849500') return false;
+
+  const isIndian =
+    digits.length === 10 ||
+    (digits.length === 11 && digits.startsWith('0')) ||
+    (digits.length === 12 && digits.startsWith('91')) ||
+    (digits.length === 13 && digits.startsWith('910')) ||
+    phone.trim().startsWith('+91');
+
+  if (isIndian) {
+    if (!/^[6-9]\d{9}$/.test(last10)) return true;
+  }
+
+  const knownDummies = [
+    '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
+    '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
+    '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
+    '9100000000', '9111122222',
+  ];
+  if (knownDummies.includes(last10)) return true;
+  if (/^(\d)\1{9}$/.test(last10)) return true;
+  if (last10 === '1234567890' || last10 === '0123456789' || last10 === '9876543210' || last10 === '8765432109') return true;
+  if (
+    last10.startsWith('987650') ||
+    last10.startsWith('98888') ||
+    last10.startsWith('000000') ||
+    last10.startsWith('910000') ||
+    last10.startsWith('900000')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 async function dispatchWhatsApp(to: string, body: string, env: any) {
   if (!to || !body) return { ok: false, error: 'Missing phone or body' };
+  if (isBlockedOrDummyNumber(to)) {
+    return { ok: false, error: `Blocked delivery: ${to} is a dummy/test number. Live dispatch cancelled to protect real subscribers.` };
+  }
   let clean = to.replace(/[^0-9+]/g, '');
   if (!clean.startsWith('+')) {
     if (clean.length === 10) clean = '+91' + clean;
@@ -1716,13 +1760,29 @@ export async function onRequest(context: any) {
 
       if (customTemplate && customTemplate.trim()) {
         reminderText = customTemplate
-          .replace(/(?:\{\{|\{)\s*parent_name\s*(?:\}\}|\})/gi, parentName)
-          .replace(/(?:\{\{|\{)\s*student_name\s*(?:\}\}|\})/gi, studentName)
-          .replace(/(?:\{\{|\{)\s*course\s*(?:\}\}|\})/gi, course)
-          .replace(/(?:\{\{|\{)\s*pending_amount\s*(?:\}\}|\})/gi, String(amount))
-          .replace(/(?:\{\{|\{)\s*due_date\s*(?:\}\}|\})/gi, dueDate)
-          .replace(/(?:\{\{|\{)\s*payment_link\s*(?:\}\}|\})/gi, '');
+          .replace(/(?:\{\{|\{)\s*(?:parent_name|parentName|parent)\s*(?:\}\}|\})/gi, parentName)
+          .replace(/(?:\{\{|\{)\s*(?:student_name|studentName|student)\s*(?:\}\}|\})/gi, studentName)
+          .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
+          .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, String(amount))
+          .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
+          .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink)\s*(?:\}\}|\})/gi, '');
       }
+
+      // Check prior message count for onboarding note (only first 2 messages)
+      try {
+        const last10Digits = phone.replace(/\D/g, '').slice(-10);
+        const { count } = await supabase
+          .from('whatsapp_messages')
+          .select('id', { count: 'exact', head: true })
+          .or(`recipient_phone.eq.${phone},recipient_phone.ilike.%${last10Digits}`);
+
+        if ((count || 0) < 2) {
+          const onboardingNote = `\n\n📌 Please save this official contact number in your phone as ${academyName}.`;
+          if (!reminderText.includes('Please save this official contact number')) {
+            reminderText = `${reminderText.trim()}${onboardingNote}`;
+          }
+        }
+      } catch {}
 
       const res = await dispatchWhatsApp(phone, reminderText, context.env);
 

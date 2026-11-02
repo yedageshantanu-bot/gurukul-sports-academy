@@ -24,6 +24,68 @@ export interface EnqueueMessageParams {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Block dummy, placeholder, and demo numbers from ever reaching live WhatsApp.
+ * Protects real mobile subscribers from unintended messages.
+ * Whitelists the verified admin testing phone (+919404849500).
+ */
+export function isBlockedOrDummyNumber(phone: string): boolean {
+  if (!phone) return true;
+  const digits = phone.replace(/[^\d]/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+
+  // Reject numbers with less than 10 digits or more than 15 digits (E.164 boundary)
+  if (digits.length < 10 || digits.length > 15) return true;
+
+  // Always allow verified admin testing phone
+  if (last10 === '9404849500' || digits === '919404849500') {
+    return false;
+  }
+
+  // Identify Indian phone numbers (10 digits, or prefixed with 91, 0, or +91)
+  const isIndian =
+    digits.length === 10 ||
+    (digits.length === 11 && digits.startsWith('0')) ||
+    (digits.length === 12 && digits.startsWith('91')) ||
+    (digits.length === 13 && digits.startsWith('910')) ||
+    phone.trim().startsWith('+91');
+
+  if (isIndian) {
+    // Valid Indian mobile numbers MUST begin with 6, 7, 8, or 9
+    if (!/^[6-9]\d{9}$/.test(last10)) {
+      return true;
+    }
+  }
+
+  // Block common demo and test numbers from sample seeds
+  const knownDummies = [
+    '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
+    '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
+    '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
+    '9100000000', '9111122222',
+  ];
+  if (knownDummies.includes(last10)) return true;
+
+  // Block repeating digits (e.g. 0000000000, 9999999999, 8888888888)
+  if (/^(\d)\1{9}$/.test(last10)) return true;
+
+  // Block sequential ascending / descending
+  if (last10 === '1234567890' || last10 === '0123456789' || last10 === '9876543210' || last10 === '8765432109') return true;
+
+  // Block common demo/test prefixes and patterns
+  if (
+    last10.startsWith('987650') ||
+    last10.startsWith('98888') ||
+    last10.startsWith('000000') ||
+    last10.startsWith('910000') ||
+    last10.startsWith('900000')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export class WhatsAppQueueService {
   private inMemoryQueue: Map<string, WhatsAppQueueItem> = new Map();
   private processingRecipients: Set<string> = new Set();
@@ -40,44 +102,7 @@ export class WhatsAppQueueService {
    * Whitelists the verified admin testing phone (+919404849500).
    */
   isBlockedOrDummyNumber(phone: string): boolean {
-    if (!phone) return true;
-    const digits = phone.replace(/[^\d]/g, '');
-    const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
-
-    // Reject numbers with less than 10 digits
-    if (digits.length < 10) return true;
-
-    // Always allow verified admin testing phone
-    if (last10 === '9404849500' || digits === '919404849500') {
-      return false;
-    }
-
-    // For Indian phone numbers (10 digits or 12 digits with 91), must begin with valid mobile series [6-9]
-    if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
-      if (!/^[6-9]\d{9}$/.test(last10)) {
-        return true;
-      }
-    }
-
-    // Block common demo and test numbers from sample seeds
-    const knownDummies = [
-      '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
-      '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
-      '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
-      '9100000000',
-    ];
-    if (knownDummies.includes(last10)) return true;
-
-    // Block repeating digits (e.g. 0000000000, 9999999999)
-    if (/^(\d)\1{9}$/.test(last10)) return true;
-
-    // Block sequential ascending / descending
-    if (last10 === '1234567890' || last10 === '9876543210') return true;
-
-    // Block common demo/test prefixes
-    if (last10.startsWith('987650') || last10.startsWith('98888') || last10.startsWith('000000')) return true;
-
-    return false;
+    return isBlockedOrDummyNumber(phone);
   }
 
   // Normalize phone number to standard format (handles Indian numbers, leading zeros, +91)
@@ -160,13 +185,28 @@ export class WhatsAppQueueService {
     const idempotencyKey =
       params.idempotencyKey || this.generateIdempotencyKey(normalizedPhone, eventType, params.messageBody);
 
-    // Rapid double-click guard: only reuse if the exact same message is currently waiting in PENDING or PROCESSING
+    // Duplicate guard: reject duplicate send if the exact same message is already queued or recorded
     for (const item of this.inMemoryQueue.values()) {
       if (item.idempotency_key === idempotencyKey) {
-        if (item.status === 'PENDING' || item.status === 'PROCESSING') {
-          console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Reusing queued item.`);
-          return item;
+        console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Halting duplicate.`);
+        throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+      }
+    }
+
+    if (this.supabase) {
+      try {
+        const { data: existing } = await this.supabase
+          .from('whatsapp_queue')
+          .select('id, status')
+          .eq('idempotency_key', idempotencyKey)
+          .maybeSingle();
+
+        if (existing) {
+          console.log(`[QueueService] Message with idempotency key ${idempotencyKey} already exists in DB. Halting duplicate.`);
+          throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
         }
+      } catch (err: any) {
+        if (err instanceof AppError) throw err;
       }
     }
 
@@ -217,6 +257,12 @@ export class WhatsAppQueueService {
           .select()
           .single();
 
+        if (error) {
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+          }
+        }
+
         if (!error && data) {
           this.inMemoryQueue.set(queueId, { ...newItem, ...data });
           // If scheduled for now, trigger worker immediately
@@ -225,8 +271,8 @@ export class WhatsAppQueueService {
           }
           return data as WhatsAppQueueItem;
         }
-      } catch {
-        // Ignored if table not in schema
+      } catch (err: any) {
+        if (err instanceof AppError) throw err;
       }
     }
 
@@ -359,9 +405,9 @@ export class WhatsAppQueueService {
       this.lastDispatchedAt = Date.now();
 
       if (result.success) {
-        const finalStatus = result.status === 'MOCK' ? 'MOCK' : 'SENT';
-        await this.markItemSent(item.id, result.messageId || `msg_${Date.now()}`, finalStatus as any);
-        return { success: true, status: finalStatus as any, result };
+        const queueStatus: WhatsAppQueueStatus = 'SENT';
+        await this.markItemSent(item.id, result.messageId || `msg_${Date.now()}`, queueStatus);
+        return { success: true, status: queueStatus, result };
       } else {
         await this.markItemFailed(item.id, result.errorMessage || 'Provider delivery error', true);
         return { success: false, reason: result.errorMessage, status: 'FAILED', result };
@@ -865,33 +911,37 @@ export class WhatsAppQueueService {
     // Update in Supabase queue table if present
     if (this.supabase) {
       try {
-        await this.supabase
+        const { error: updateErr } = await this.supabase
           .from('whatsapp_queue')
           .update({
             status: finalStatus,
             sent_at: now,
-            provider_message_id: providerMessageId,
             attempts: item ? item.attempts : 1,
             updated_at: now,
           })
           .eq('id', id);
-      } catch {
-        // Ignored
+        if (updateErr) {
+          console.warn('[QueueService] Error updating sent item in Supabase:', updateErr.message);
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] Error updating sent item in Supabase:', err.message);
       }
 
       // Record in whatsapp_messages audit outbox log
       if (item) {
         try {
-          await this.supabase.from('whatsapp_messages').insert({
-            template_id: item.template_id,
+          const isMock = providerMessageId.startsWith('mock_') || (item.metadata as any)?.provider === 'mock';
+          const { error: insertErr } = await this.supabase.from('whatsapp_messages').insert({
             student_id: item.student_id,
             recipient_phone: item.recipient_phone,
             event_type: item.event_type,
             message_body: item.message_body,
-            provider_message_id: providerMessageId,
-            status: (finalStatus as string) === 'MOCK' ? 'MOCK' : 'SENT',
+            status: isMock ? 'MOCK' : 'SENT',
             sent_at: now,
           });
+          if (insertErr) {
+            console.warn('[QueueService] Notice: could not insert into whatsapp_messages:', insertErr.message);
+          }
         } catch (e: any) {
           console.warn('[QueueService] Notice: could not insert into whatsapp_messages:', e.message);
         }
@@ -932,15 +982,17 @@ export class WhatsAppQueueService {
       // Record in whatsapp_messages log on permanent failure
       if (item && item.status === 'FAILED') {
         try {
-          await this.supabase.from('whatsapp_messages').insert({
-            template_id: item.template_id,
+          const { error: failInsertErr } = await this.supabase.from('whatsapp_messages').insert({
             student_id: item.student_id,
             recipient_phone: item.recipient_phone,
             event_type: item.event_type,
             message_body: item.message_body,
             status: 'FAILED',
-            error_message: reason,
+            sent_at: now,
           });
+          if (failInsertErr) {
+            console.warn('[QueueService] Notice: could not log failure to whatsapp_messages:', failInsertErr.message);
+          }
         } catch {
           // Ignored
         }

@@ -4,7 +4,7 @@ import { env } from '../../config/env.js';
 import { requestContext } from '../../config/requestContext.js';
 import { ROLES } from '../../constants/index.js';
 import { templateService } from './template.service.js';
-import { queueService } from './queue.service.js';
+import { queueService, isBlockedOrDummyNumber } from './queue.service.js';
 import {
   SendCustomMessageDTO,
   MessageFilterQuery,
@@ -155,11 +155,13 @@ export class WhatsAppAutomationService {
    */
   async getPriorMessageCount(phone: string): Promise<number> {
     try {
-      const normalized = phone.replace(/[^\d+]/g, '');
+      const digits = phone.replace(/\D/g, '');
+      const last10 = digits.slice(-10);
+      const e164 = `+91${last10}`;
       const { count, error } = await this.supabase
         .from('whatsapp_messages')
         .select('id', { count: 'exact', head: true })
-        .eq('recipient_phone', normalized);
+        .or(`recipient_phone.eq.${e164},recipient_phone.eq.${digits},recipient_phone.ilike.%${last10}`);
 
       if (!error && typeof count === 'number') {
         return count;
@@ -1505,6 +1507,11 @@ export class WhatsAppAutomationService {
       `- ${academyName}`,
     ].join('\n');
 
+    if (isBlockedOrDummyNumber(recipientPhone)) {
+      console.warn(`[StudentInvite] Blocked delivery to dummy/test phone: ${recipientPhone}`);
+      return { success: false, reason: 'Dummy or test phone number blocked' };
+    }
+
     const provider = await whatsappProviderFactory.getProvider();
     const sendResult = await provider.sendMessage({
       to: recipientPhone,
@@ -1602,6 +1609,11 @@ export class WhatsAppAutomationService {
         ``,
         `- ${academyName}`,
       ].join('\n');
+
+      if (isBlockedOrDummyNumber(recipientPhone)) {
+        console.warn(`[StudentReminder] Blocked delivery to dummy/test phone: ${recipientPhone}`);
+        continue;
+      }
 
       const sendResult = await provider.sendMessage({
         to: recipientPhone,

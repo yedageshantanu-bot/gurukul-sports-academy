@@ -315,7 +315,17 @@ export const WhatsAppPage: React.FC = () => {
     return `${startDay} ${month} ${year} – ${endDay} ${month} ${year}`;
   })();
 
-  const monthMessages = Math.max(whatsappStats.monthSent || 0, displayTotalSent);
+  const displayMonthSent = useMemo(() => {
+    const currentYearMonth = todayStr.slice(0, 7); // "YYYY-MM"
+    const listMonth = messages.filter(
+      (m) =>
+        (m.status === 'SENT' || m.status === 'DELIVERED' || m.status === 'MOCK') &&
+        (m.sent_at?.startsWith(currentYearMonth) || m.created_at?.startsWith(currentYearMonth))
+    ).length;
+    return Math.max(whatsappStats.monthSent || 0, listMonth);
+  }, [messages, whatsappStats.monthSent, todayStr]);
+
+  const monthMessages = displayMonthSent;
   const totalBilled = (monthMessages * 0.17).toFixed(2);
 
   // Filtered Message Log

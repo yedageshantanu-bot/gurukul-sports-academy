@@ -6,6 +6,7 @@ import {
   SendMessageResult,
   WhatsAppDeviceStatus,
 } from './whatsappProvider.interface.js';
+import { isBlockedOrDummyNumber } from './queue.service.js';
 
 /**
  * OpenWaProvider
@@ -328,6 +329,15 @@ export class OpenWaProvider implements WhatsAppSender {
   }
 
   async sendMessage(params: SendMessageParams): Promise<SendMessageResult> {
+    if (isBlockedOrDummyNumber(params.to)) {
+      return {
+        success: false,
+        provider: 'OPENWA',
+        status: 'FAILED',
+        errorMessage: `Blocked delivery: ${params.to} is a dummy/test number. Live dispatch cancelled to protect real subscribers.`,
+      };
+    }
+
     const baseUrl = this.getBaseUrl();
     const session = await this.getActiveSession();
 
@@ -399,6 +409,15 @@ export class OpenWaProvider implements WhatsAppSender {
   }
 
   async sendDocument(params: SendDocumentParams): Promise<SendMessageResult> {
+    if (isBlockedOrDummyNumber(params.to)) {
+      return {
+        success: false,
+        provider: 'OPENWA',
+        status: 'FAILED',
+        errorMessage: `Blocked delivery: ${params.to} is a dummy/test number. Live dispatch cancelled to protect real subscribers.`,
+      };
+    }
+
     const baseUrl = this.getBaseUrl();
     const session = await this.getActiveSession();
 

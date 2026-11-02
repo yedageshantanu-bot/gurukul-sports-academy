@@ -72,8 +72,8 @@ export class MockWhatsAppProvider implements WhatsAppSender {
 
     const { to } = params;
 
-    // Simulate negative failure case when recipient includes 'fail' or is invalid
-    if (!to || to.includes('fail') || to.includes('0000000000') || to.trim().length < 5) {
+    // Simulate negative failure case when recipient includes 'fail' or is invalid or body requests simulated_fail
+    if (!to || to.includes('fail') || params.body?.includes('simulated_fail') || to.includes('0000000000') || to.trim().length < 5) {
       return {
         success: false,
         provider: 'MOCK',
