@@ -287,6 +287,11 @@ export const PaymentsPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
 
+      // Optimistic update: mark payment as REFUNDED immediately
+      setPayments((prev) =>
+        prev.map((p) => (p.id === paymentId ? { ...p, status: 'REFUNDED' } : p))
+      );
+
       setSuccessToast(`✓ Payment of ₹${Number(amount).toLocaleString('en-IN')} reverted! Balance restored for ${studentName}.`);
       toast.success(`Payment reverted! Balance restored for ${studentName}.`);
       setTimeout(() => setSuccessToast(null), 6000);
@@ -338,6 +343,18 @@ export const PaymentsPage: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
+
+      // Optimistic update: mark student's latest payment as REFUNDED immediately
+      setPayments((prev) => {
+        let refundedOnce = false;
+        return prev.map((p) => {
+          if (!refundedOnce && (p.student_id === account.studentId || p.student?.id === account.studentId) && p.status === 'SUCCESS') {
+            refundedOnce = true;
+            return { ...p, status: 'REFUNDED' };
+          }
+          return p;
+        });
+      });
 
       setSuccessToast(`✓ Payment reverted! Balance for ${account.studentName} restored to Pending.`);
       toast.success(`Payment reverted! Balance restored to Pending.`);

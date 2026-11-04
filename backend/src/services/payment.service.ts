@@ -253,7 +253,10 @@ export class PaymentService {
       }
     }
 
-    const paidAt = dto.paidAt ? new Date(dto.paidAt).toISOString() : new Date().toISOString();
+    const paymentDateStr = (dto.paymentDate || dto.paidAt || new Date().toISOString()).split('T')[0];
+    const paidAt = dto.paidAt
+      ? (dto.paidAt.includes('T') ? new Date(dto.paidAt).toISOString() : `${paymentDateStr}T12:00:00.000Z`)
+      : new Date().toISOString();
 
     // 3. Insert payment record with SUCCESS status
     const { data: payment, error: insertError } = await this.supabase
@@ -266,9 +269,14 @@ export class PaymentService {
         provider_payment_id: `man_pay_${Date.now()}`,
         status: 'SUCCESS',
         paid_at: paidAt,
+        payment_date: paymentDateStr,
+        payment_method: dto.paymentMethod || 'CASH',
+        notes: dto.notes || '',
         metadata: {
           paymentMethod: dto.paymentMethod || 'CASH',
           notes: dto.notes || '',
+          paidAt: paidAt,
+          paymentDate: paymentDateStr,
         },
       })
       .select()

@@ -99,14 +99,16 @@ export const verifyPaymentSchema = z.object({
 
 export const recordManualPaymentSchema = z.preprocess((val: any) => {
   if (typeof val === 'object' && val !== null) {
+    const rawPaidAt = val.paidAt || val.paid_at || val.paymentDate || val.payment_date;
     return {
       ...val,
       studentId: val.studentId || val.student_id,
       studentFeeId: val.studentFeeId || val.student_fee_id,
-      amount: val.amount,
+      amount: typeof val.amount === 'string' ? parseFloat(val.amount) : val.amount,
       paymentMethod: val.paymentMethod || val.payment_method || 'CASH',
       notes: val.notes,
-      paidAt: val.paidAt || val.paid_at,
+      paidAt: rawPaidAt ? String(rawPaidAt).split('T')[0] : undefined,
+      paymentDate: rawPaidAt ? String(rawPaidAt).split('T')[0] : undefined,
       nextDueDate: val.nextDueDate || val.next_due_date,
     };
   }
@@ -117,7 +119,8 @@ export const recordManualPaymentSchema = z.preprocess((val: any) => {
   amount: z.number().positive('Payment amount must be greater than 0'),
   paymentMethod: z.string().default('CASH'),
   notes: z.string().optional(),
-  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Paid date must be YYYY-MM-DD').optional(),
+  paidAt: z.string().optional(),
+  paymentDate: z.string().optional(),
   nextDueDate: z.string().optional(),
 }));
 

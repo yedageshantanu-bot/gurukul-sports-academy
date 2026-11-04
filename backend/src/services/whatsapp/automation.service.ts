@@ -110,10 +110,12 @@ export class WhatsAppAutomationService {
     const studentName = (variables.student_name || variables.studentName || 'Student').trim();
     const rawParent = variables.parent_name || variables.parentName || '';
     const parentName = cleanParentName(rawParent, studentName);
+    const recipientName = (variables.name || variables.recipient_name || variables.recipientName || variables.user_name || variables.userName || studentName).trim();
     const course = variables.course || variables.course_name || variables.courseName || 'Sports Training';
     const amount = variables.pending_amount || variables.amount || variables.pendingAmount || '0';
     const dueDate = variables.due_date || variables.dueDate || '5th of this month';
     const paymentLink = variables.payment_link || variables.paymentLink || '';
+    const status = variables.status || variables.attendance_status || variables.status_text || 'ABSENT';
 
     const safeVars = {
       ...variables,
@@ -121,6 +123,11 @@ export class WhatsAppAutomationService {
       parentName: parentName,
       student_name: studentName,
       studentName: studentName,
+      name: recipientName,
+      user_name: recipientName,
+      userName: recipientName,
+      recipient_name: recipientName,
+      recipientName: recipientName,
       course: course,
       course_name: course,
       courseName: course,
@@ -131,6 +138,8 @@ export class WhatsAppAutomationService {
       dueDate: dueDate,
       payment_link: paymentLink,
       paymentLink: paymentLink,
+      status: status,
+      attendance_status: status,
     };
 
     const expandedVars: Record<string, string> = {};
@@ -161,10 +170,15 @@ export class WhatsAppAutomationService {
     rendered = rendered
       .replace(/(?:\{\{|\{)\s*(?:parent_name|parentName|parent)\s*(?:\}\}|\})/gi, parentName)
       .replace(/(?:\{\{|\{)\s*(?:student_name|studentName|student)\s*(?:\}\}|\})/gi, studentName)
+      .replace(/(?:\{\{|\{)\s*(?:name|user_name|userName|recipient_name|recipientName|recipient|user)\s*(?:\}\}|\})/gi, recipientName)
       .replace(/(?:\{\{|\{)\s*(?:course|course_name|courseName)\s*(?:\}\}|\})/gi, course)
       .replace(/(?:\{\{|\{)\s*(?:pending_amount|pendingAmount|amount)\s*(?:\}\}|\})/gi, amount)
       .replace(/(?:\{\{|\{)\s*(?:due_date|dueDate)\s*(?:\}\}|\})/gi, dueDate)
+      .replace(/(?:\{\{|\{)\s*(?:status|attendance_status)\s*(?:\}\}|\})/gi, status)
       .replace(/(?:\{\{|\{)\s*(?:payment_link|paymentLink|razorpay_payment_link)\s*(?:\}\}|\})/gi, paymentLink);
+
+    // Safeguard: replace any inadvertent "unknown user" or "unknown student" with actual student/recipient name
+    rendered = rendered.replace(/\b(?:unknown\s*user|unknown\s*student|unknown\s*member)\b/gi, studentName || 'Athlete');
 
     // Specific cleanup for parent greetings: never print isolated dots or punctuation before "ji" or "!"
     rendered = rendered.replace(/Namaste\s*[\.\-_,\s]*\s*ji\s*!/gi, 'Namaste Ji! 🙏');
@@ -192,6 +206,36 @@ export class WhatsAppAutomationService {
     rendered = rendered.replace(/\n{3,}/g, '\n\n').trim();
 
     return rendered;
+  }
+
+  /**
+   * Checks how many times the onboarding "save contact" note was sent to this phone.
+   */
+  async getSaveNoteCount(phone: string): Promise<number> {
+    if (!phone) return 999;
+    try {
+      const digits = phone.replace(/\D/g, '');
+      const last10 = digits.slice(-10);
+      if (!last10) return 999;
+      const e164 = `+91${last10}`;
+
+      const [msgRes, queueRes] = await Promise.all([
+        this.supabase
+          .from('whatsapp_messages')
+          .select('id', { count: 'exact', head: true })
+          .or(`recipient_phone.eq.${e164},recipient_phone.eq.${digits},recipient_phone.ilike.%${last10}`)
+          .ilike('message_body', '%save this official contact number%'),
+        this.supabase
+          .from('whatsapp_queue')
+          .select('id', { count: 'exact', head: true })
+          .or(`recipient_phone.eq.${e164},recipient_phone.eq.${digits},recipient_phone.ilike.%${last10}`)
+          .ilike('message_body', '%save this official contact number%'),
+      ]);
+
+      return (msgRes.count || 0) + (queueRes.count || 0);
+    } catch {
+      return 0;
+    }
   }
 
   /**
@@ -224,14 +268,14 @@ export class WhatsAppAutomationService {
 
   /**
    * Intelligently formats message with onboarding note:
-   * Only appends to the first 2 messages sent to new parents, formatted cleanly as:
+   * STRICTLY ONLY appends to maximum 2 messages sent to any phone number.
    * "📌 Please save this official contact number in your phone as Gurukul Sports Academy."
    */
   async formatMessageWithOnboardingNote(baseBody: string, phone: string, academyName: string): Promise<string> {
     if (!phone) return baseBody;
     try {
-      const priorCount = await this.getPriorMessageCount(phone);
-      if (priorCount < 2) {
+      const noteCount = await this.getSaveNoteCount(phone);
+      if (noteCount < 2) {
         const officialAcademyName = academyName || 'Gurukul Sports Academy';
         const onboardingNote = `\n\n📌 Please save this official contact number in your phone as ${officialAcademyName}.`;
         if (!baseBody.includes('Please save this official contact number')) {
@@ -296,6 +340,8 @@ export class WhatsAppAutomationService {
         course_name: student.course || 'Course',
         batch_name: batchName,
         date: params.date,
+        status: 'ABSENT',
+        attendance_status: 'ABSENT',
       });
 
       const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
@@ -396,6 +442,8 @@ export class WhatsAppAutomationService {
         course_name: student.course || 'Course',
         batch_name: batchName,
         date: params.date,
+        status: 'PRESENT',
+        attendance_status: 'PRESENT',
       });
 
       // 5. Enqueue with strict idempotency key: one correction per student per date
@@ -435,6 +483,12 @@ export class WhatsAppAutomationService {
     studentFeeId?: string;
   }) {
     try {
+      // Guard against accidental 0 or negative fee alert blasts
+      if (!params.amount || Number(params.amount) <= 0) {
+        console.log('[WhatsAppAutomation] Payment amount is 0 or invalid. Skipping payment confirmation alert.');
+        return null;
+      }
+
       const template = await templateService.getActiveTemplateForEvent('PAYMENT_SUCCESS');
       if (!template) {
         console.log('[WhatsAppAutomation] No active template for PAYMENT_SUCCESS. Skipping.');

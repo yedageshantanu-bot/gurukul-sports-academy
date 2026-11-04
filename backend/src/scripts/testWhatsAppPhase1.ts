@@ -485,7 +485,7 @@ async function runWhatsAppPhase1Tests() {
     // -------------------------------------------------------------------------
     await whatsappProviderFactory.getMockProvider().disconnect();
     const disconnectedQueue = await queueService.enqueueMessage({
-      recipientPhone: '+919404849500',
+      recipientPhone: '+919999999999',
       messageBody: 'Disconnected test message',
       eventType: 'DISCONNECTED_TEST',
     });
@@ -504,7 +504,7 @@ async function runWhatsAppPhase1Tests() {
     // -------------------------------------------------------------------------
     await whatsappSettingsService.updateSettings({ dailyLimit: 1 });
     const limitQueueItem = await queueService.enqueueMessage({
-      recipientPhone: '+919404849500',
+      recipientPhone: '+919999999999',
       messageBody: 'Daily limit test message',
       eventType: 'DAILY_LIMIT_TEST',
     });

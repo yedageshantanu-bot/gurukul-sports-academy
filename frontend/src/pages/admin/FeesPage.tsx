@@ -205,7 +205,7 @@ export const FeesPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
 
-      // Optimistic update: mark latest payment refunded and restore balance
+      // Optimistic update: mark latest payment refunded and restore fee row balance immediately
       setPaymentsList((prev) => {
         let refundedOnce = false;
         return prev.map((p) => {
@@ -216,6 +216,21 @@ export const FeesPage: React.FC = () => {
           return p;
         });
       });
+
+      setStudentFees((prev) =>
+        prev.map((f) => {
+          if (f.id === fee.id) {
+            const restoredPending = Number(f.amount_due || 0);
+            return {
+              ...f,
+              amount_paid: 0,
+              pending_amount: restoredPending,
+              status: 'OVERDUE' as any,
+            };
+          }
+          return f;
+        })
+      );
 
       setReminderSuccessMessage(`✓ Payment reverted! Balance for ${studentName} has been restored.`);
       setTimeout(() => setReminderSuccessMessage(null), 4000);
@@ -259,6 +274,7 @@ export const FeesPage: React.FC = () => {
     provider: 'MANUAL',
     notes: 'Cash payment received at front desk',
     nextDueDate: '',
+    paymentDate: new Date().toISOString().split('T')[0],
   });
 
   // Fetch data
@@ -456,71 +472,27 @@ export const FeesPage: React.FC = () => {
     }));
   };
 
-  // Open pay modal
-  const handleOpenPay = (fee: StudentFee, defaultMode: 'CASH' | 'MOCK' = 'CASH') => {
+  // Open pay modal (supports custom amount & custom payment date)
+  const handleOpenPay = (fee: StudentFee, defaultMode: 'CASH' | 'MOCK' = 'CASH', customAmount?: string) => {
     setSelectedFee(fee);
+    const pendingVal = fee.pending_amount !== undefined && fee.pending_amount !== null
+      ? Number(fee.pending_amount)
+      : Math.max(0, Number(fee.amount_due || 0) - Number(fee.amount_paid || 0));
+
+    const chosenAmount = customAmount !== undefined
+      ? customAmount
+      : String(pendingVal > 0 ? pendingVal : fee.amount_due || '');
+
     setPayForm({
-      amount: String(fee.pending_amount),
+      amount: chosenAmount,
       paymentMethod: 'CASH',
       provider: defaultMode === 'CASH' ? 'MANUAL' : 'MOCK',
       notes: defaultMode === 'CASH' ? 'Cash payment received at front desk' : '',
       nextDueDate: '',
+      paymentDate: new Date().toISOString().split('T')[0],
     });
     setModalSuccessMessage(null);
     setIsPayModalOpen(true);
-  };
-
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
-
-  // 1-Click Direct Settlement ("Tick" Action) requested by user
-  const handleQuickMarkPaid = async (fee: StudentFee) => {
-    if (!token) return;
-    const pending = Number(fee.pending_amount) || Number(fee.amount_due) || 0;
-    if (pending <= 0) return;
-
-    setMarkingPaidId(fee.id);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/payments/manual`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentId: fee.student_id,
-          studentFeeId: fee.id,
-          amount: pending,
-          paymentMethod: 'CASH',
-          notes: 'Full fee cleared via 1-click admin settlement',
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Quick settlement failed');
-
-      // Optimistic in-place state update
-      setStudentFees((prev) =>
-        prev.map((f) =>
-          f.id === fee.id
-            ? {
-                ...f,
-                status: 'PAID',
-                amount_paid: Number(f.amount_due),
-                pending_amount: 0,
-              }
-            : f
-        )
-      );
-
-      setReminderSuccessMessage(`✓ Fee for ${fee.student?.name || 'student'} marked FULLY PAID!`);
-      setTimeout(() => setReminderSuccessMessage(null), 4000);
-      await fetchData();
-    } catch (err: any) {
-      setError(err.message || 'Error marking fee as paid');
-    } finally {
-      setMarkingPaidId(null);
-    }
   };
 
   // Handle payment record submission
@@ -546,12 +518,33 @@ export const FeesPage: React.FC = () => {
             studentFeeId: selectedFee.id,
             amount: amountNum,
             paymentMethod: payForm.paymentMethod,
+            paidAt: payForm.paymentDate,
+            paymentDate: payForm.paymentDate,
             notes: payForm.notes || 'Cash payment received at front desk',
             nextDueDate: payForm.nextDueDate || undefined,
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || 'Payment recording failed');
+
+        // Optimistic state update for instantaneous feedback
+        setStudentFees((prev) =>
+          prev.map((f) => {
+            if (f.id === selectedFee.id) {
+              const newPaid = Number(f.amount_paid || 0) + amountNum;
+              const newPending = Math.max(0, Number(f.amount_due || 0) - newPaid);
+              const newStatus = newPending <= 0 ? 'PAID' : 'PARTIAL';
+              return {
+                ...f,
+                amount_paid: newPaid,
+                pending_amount: newPending,
+                status: newStatus as any,
+                due_date: payForm.nextDueDate || f.due_date,
+              };
+            }
+            return f;
+          })
+        );
 
         const receiptNo = data.data?.receipt?.receipt_number || 'Issued';
         setModalSuccessMessage(`Payment recorded successfully! Receipt: ${receiptNo}`);
@@ -1655,16 +1648,15 @@ export const FeesPage: React.FC = () => {
                               </div>
                             ) : (
                               <>
-                                {/* 1-Click Instant Mark Paid Checkmark Button */}
+                                {/* Mark Paid with Date & Receipt Confirmation Modal */}
                                 <button
                                   type="button"
-                                  onClick={() => handleQuickMarkPaid(fee)}
-                                  disabled={markingPaidId === fee.id}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                                  title="1-Click Mark Fully Paid"
+                                  onClick={() => handleOpenPay(fee, 'CASH', String(fee.pending_amount || fee.amount_due || ''))}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer"
+                                  title="Mark Paid with custom payment date & receipt"
                                 >
-                                  <Check className={`w-3.5 h-3.5 ${markingPaidId === fee.id ? 'animate-spin' : ''}`} />
-                                  <span>{markingPaidId === fee.id ? 'Settling...' : 'Mark Paid'}</span>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Mark Paid</span>
                                 </button>
 
                                 {/* Installment / Partial Payment Collector */}
@@ -2094,6 +2086,23 @@ export const FeesPage: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Payment Date Input */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              📅 Payment Date (पावती / भरणा तारीख) *
+            </label>
+            <input
+              type="date"
+              required
+              value={payForm.paymentDate}
+              onChange={(e) => setPayForm({ ...payForm, paymentDate: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              या तारखेनुसार पावती व लेजरमध्ये एन्ट्री नोंदवली जाईल.
+            </p>
           </div>
 
           {/* Payment Mode Selector - Real Cash & UPI only */}
