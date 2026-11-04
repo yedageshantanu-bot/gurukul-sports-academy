@@ -121,4 +121,24 @@ export class RankController {
       next(err);
     }
   }
+
+  static async updatePromotion(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await RankService.updatePromotion(id, req.body);
+      res.status(200).json({ success: true, message: 'Promotion exam record updated successfully', data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateStudentRank(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { studentId, disciplineCode } = req.body;
+      const data = await RankService.updateStudentRankRecord(studentId, disciplineCode, req.body);
+      res.status(200).json({ success: true, message: 'Student rank updated successfully', data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

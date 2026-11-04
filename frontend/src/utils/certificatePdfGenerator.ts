@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 
 export interface CertificateData {
   id?: string;
@@ -25,20 +26,28 @@ export interface CertificateData {
   promotedBy?: string;
   represented_from?: string;
   representedFrom?: string;
-  // Printing calibration & Plain Paper / Stationery Overprint Mode
+  dojoLocation?: string;
+
+  // Printing calibration & Field Position adjustments (in mm or points)
   printMode?: 'FULL_COLOR' | 'PLAIN_PAPER';
-  offsetY?: number; // In millimeters (+/- vertical shift)
-  offsetX?: number; // In millimeters (+/- horizontal shift)
+  offsetY?: number; // In millimeters (+/- global vertical shift)
+  offsetX?: number; // In millimeters (+/- global horizontal shift)
+  nameOffsetX?: number;
+  nameOffsetY?: number;
+  beltOffsetX?: number;
+  beltOffsetY?: number;
+  metaOffsetX?: number;
+  metaOffsetY?: number;
+  nameFontSize?: number;
+  beltFontSize?: number;
   hideBorder?: boolean;
   hideHeader?: boolean;
   hideSeal?: boolean;
-  hideCommendation?: boolean;
   hideBadgeBox?: boolean;
 }
 
 /**
- * Sanitizes input strings so they strictly conform to standard PDF WinAnsi / Latin-1 encoding,
- * replacing unicode bullets, em-dashes, and stars with clean ASCII equivalents.
+ * Sanitizes input strings so they strictly conform to standard PDF WinAnsi / Latin-1 encoding.
  */
 export function cleanPdfText(text: string): string {
   if (!text) return '';
@@ -53,37 +62,51 @@ export function cleanPdfText(text: string): string {
 }
 
 /**
- * Generates an official, publication-grade A4 Landscape Martial Arts Promotion Certificate PDF
- * using pure vector graphics, ornate multi-tier borders, gold seals, and typography.
+ * Generates official Martial Arts Promotion Certificate PDF according to user specifications:
+ * - Keeps ONLY: Student Name (in Old English font), Single Passed Belt, Player Reg No, Date of Birth, Actual Examination Date, Serial Number.
+ * - Strips: Level, From/To rank, discipline, Certificate of Rank Promotion, This is to certify, signatures, lines/commendations below name, and "Certificate Serial" label.
+ * - Supports customizable field positioning and Dojo/location changes.
  */
 export async function generateMartialArtsCertificatePdf(cert: CertificateData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
 
   // A4 Landscape dimensions in PDF points (72 points per inch)
   const width = 841.89;
   const height = 595.28;
   const page = doc.addPage([width, height]);
 
-  // Embed core PDF fonts
+  // Embed standard fallback fonts
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
-  const fontItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
+  const fontTimesBold = await doc.embedFont(StandardFonts.TimesRomanBold);
 
-  // Normalize data fields with safe fallbacks and WinAnsi sanitization
-  const studentFirstName = cleanPdfText(cert.student_name || cert.playerName || 'Athletic Trainee');
+  // Attempt to load and embed Old English Text font for the student name
+  let fontOldEnglish: any = null;
+  try {
+    const fontUrl = '/fonts/OldEnglish.ttf';
+    const response = await fetch(fontUrl);
+    if (response.ok) {
+      const fontBytes = await response.arrayBuffer();
+      fontOldEnglish = await doc.embedFont(fontBytes);
+    }
+  } catch (e) {
+    console.warn('[PDF] Could not load OldEnglish font via fetch, using TimesRomanBold fallback:', e);
+  }
+
+  const nameFont = fontOldEnglish || fontTimesBold;
+
+  // Normalize data fields
+  const studentFirstName = cleanPdfText(cert.student_name || cert.playerName || 'Student Athlete');
   const fatherName = cleanPdfText(cert.fatherName || cert.parentName || cert.father_name || cert.parent_name || '');
 
-  // Format student name according to Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
-  // Split student name into first and surname
+  // Format student name: First [Father] Surname
   const studentParts = studentFirstName.trim().split(/\s+/);
   const studentFirst = studentParts[0] || '';
   const studentSurname = studentParts.length > 1 ? studentParts[studentParts.length - 1] : '';
 
-  // Get just the father's first name
   const fatherParts = fatherName.trim().split(/\s+/);
   const fatherFirst = fatherParts[0] || '';
 
-  // Build the new Indian naming convention: STUDENT_FIRST FATHER_FIRST STUDENT_SURNAME
   let formattedStudentName: string;
   if (fatherFirst) {
     if (studentSurname && studentSurname !== studentFirst) {
@@ -92,16 +115,19 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
       formattedStudentName = `${studentFirst} ${fatherFirst}`;
     }
   } else {
-    formattedStudentName = studentFirstName; // fallback
+    formattedStudentName = studentFirstName;
   }
+
   const regNo = cleanPdfText(cert.student_code || cert.regNumber || 'ATH-2026');
-  const discipline = cleanPdfText(cert.discipline_name || cert.disciplineName || 'Martial Arts & Combat Sports');
-  const rankName = cleanPdfText(cert.to_rank_name || cert.rankSecured || 'Advanced Grade');
-  const beltColor = cleanPdfText(cert.belt_color || cert.beltColor || 'Yellow');
   
-  // Format dates safely
+  // Single passed belt only (e.g. "YELLOW BELT")
+  const rawBelt = cleanPdfText(cert.belt_color || cert.beltColor || cert.to_rank_name || cert.rankSecured || 'Yellow');
+  const beltClean = rawBelt.replace(/belt/gi, '').trim();
+  const passedBelt = `${beltClean.toUpperCase()} BELT`;
+
+  // Actual Examination Date (strictly the recorded exam date)
   const rawDate = cert.promoted_at || cert.promotionDate;
-  let formattedExamDate = 'Current Session 2026';
+  let formattedExamDate = 'Current Session';
   if (rawDate && !isNaN(new Date(rawDate).getTime())) {
     formattedExamDate = new Date(rawDate).toLocaleDateString('en-IN', {
       day: '2-digit',
@@ -120,10 +146,9 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   }
 
   const certNumber = cleanPdfText(cert.certificate_number || cert.certificateNumber || `CERT-${Math.floor(100000 + Math.random() * 900000)}`);
-  const examiner = cleanPdfText(cert.examiner_name || cert.promotedBy || 'Chief Master & Technical Director');
-  const dojo = cleanPdfText(cert.represented_from || cert.representedFrom || 'Gurukul Sports Academy Central Dojo');
+  const dojo = cleanPdfText(cert.dojoLocation || cert.represented_from || cert.representedFrom || 'Central Dojo');
 
-  // Print mode and alignment calibrations
+  // Print mode and calibrations
   const isPlainPaper = cert.printMode === 'PLAIN_PAPER';
   const hideBorder = cert.hideBorder ?? isPlainPaper;
   const hideHeader = cert.hideHeader ?? isPlainPaper;
@@ -131,11 +156,20 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
   const hideBackground = isPlainPaper;
   const hideBadgeBox = cert.hideBadgeBox ?? isPlainPaper;
 
-  // 1 millimeter = 2.83465 PDF points
+  // 1 mm = 2.83465 PDF points
   const dx = (cert.offsetX || 0) * 2.83465;
   const dy = (cert.offsetY || 0) * 2.83465;
 
-  // 1. Background Fill (Delicate Parchment Cream) - skipped in plain paper mode
+  const nameDx = (cert.nameOffsetX || 0) * 2.83465 + dx;
+  const nameDy = (cert.nameOffsetY || 0) * 2.83465 + dy;
+
+  const beltDx = (cert.beltOffsetX || 0) * 2.83465 + dx;
+  const beltDy = (cert.beltOffsetY || 0) * 2.83465 + dy;
+
+  const metaDx = (cert.metaOffsetX || 0) * 2.83465 + dx;
+  const metaDy = (cert.metaOffsetY || 0) * 2.83465 + dy;
+
+  // 1. Background Fill (Delicate Parchment Cream)
   if (!hideBackground) {
     page.drawRectangle({
       x: 0,
@@ -146,7 +180,7 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   }
 
-  // 2. Multi-tier Borders & Corner Flourishes - skipped in plain paper mode
+  // 2. Multi-tier Borders & Corner Flourishes
   if (!hideBorder) {
     page.drawRectangle({
       x: 18,
@@ -197,11 +231,10 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     drawCornerFlourish(width - 26, height - 26);
   }
 
-  // Helper to center text horizontally with offset calibration
-  const drawCenteredText = (text: string, y: number, size: number, font: any, color: any) => {
+  const drawCenteredText = (text: string, y: number, size: number, font: any, color: any, offsetX = dx) => {
     const textWidth = font.widthOfTextAtSize(text, size);
     page.drawText(text, {
-      x: (width - textWidth) / 2 + dx,
+      x: (width - textWidth) / 2 + offsetX,
       y,
       size,
       font,
@@ -209,16 +242,16 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   };
 
-  // 6. Header: Academy Name & Affiliation (or align on pre-printed stationery)
-  let currentY = height - 64 + dy;
+  // 3. Header: Academy Name & Dojo / Location
+  let currentY = height - 66 + dy;
   if (!hideHeader) {
-    drawCenteredText('GURUKUL SPORTS & MARTIAL ARTS ACADEMY', currentY, 21, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
+    drawCenteredText('GURUKUL SPORTS & MARTIAL ARTS ACADEMY', currentY, 22, fontBold, rgb(10 / 255, 17 / 255, 32 / 255));
     
-    currentY -= 14;
-    drawCenteredText('CENTRAL DOJO - COUNCIL OF TRADITIONAL KALARIPPAYATTU & COMBAT SPORTS', currentY, 8.5, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
+    currentY -= 16;
+    drawCenteredText(`${dojo.toUpperCase()} - COUNCIL OF MARTIAL ARTS`, currentY, 9, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
 
-    // Decorative Golden Divider Line with Center Diamond
-    currentY -= 14;
+    // Golden Divider Line
+    currentY -= 16;
     const dividerHalfWidth = 260;
     const centerX = width / 2 + dx;
     page.drawLine({
@@ -241,108 +274,37 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
       color: rgb(217 / 255, 119 / 255, 6 / 255),
     });
   } else {
-    currentY -= 42;
+    currentY -= 60;
   }
 
-  // 7. Certificate Title
-  currentY -= 26;
-  drawCenteredText('CERTIFICATE OF RANK PROMOTION', currentY, 17, fontBold, rgb(180 / 255, 83 / 255, 9 / 255));
+  // 4. Student Name in OLD ENGLISH FONT (No underline, no extra commendation text)
+  currentY -= 70;
+  let customNameSize = cert.nameFontSize || 38;
+  const nameDisplay = formattedStudentName;
 
-  // 8. "This is proudly presented to"
-  currentY -= 18;
-  drawCenteredText('This is to certify that athlete / martial artist', currentY, 11, fontItalic, rgb(71 / 255, 85 / 255, 105 / 255));
-
-  // 9. Student Name in Majestic Headline Typography
-  currentY -= 38;
-  const displayStudentName = formattedStudentName.toUpperCase();
-
-  // Dynamic font sizing: size 32 for standard names, gracefully stepping down for long names
-  let nameFontSize = 32;
-  if (displayStudentName.length > 28) {
-    nameFontSize = 24;
-  } else if (displayStudentName.length > 22) {
-    nameFontSize = 28;
+  while (nameFont.widthOfTextAtSize(nameDisplay, customNameSize) > 640 && customNameSize > 20) {
+    customNameSize -= 1;
   }
 
-  // Safety guard: ensure the name fits comfortably within printable margins
-  while (fontBold.widthOfTextAtSize(displayStudentName, nameFontSize) > 560 && nameFontSize > 18) {
-    nameFontSize -= 1;
-  }
+  const nameTextWidth = nameFont.widthOfTextAtSize(nameDisplay, customNameSize);
+  const finalNameX = (width - nameTextWidth) / 2 + nameDx;
+  const finalNameY = currentY + nameDy;
 
-  const nameWidth = fontBold.widthOfTextAtSize(displayStudentName, nameFontSize);
-  const nameX = (width - nameWidth) / 2 + dx;
-  const nameNavyColor = rgb(10 / 255, 17 / 255, 32 / 255);
-
-  // Subtle soft depth shadow behind the name to create a premium elevated effect
-  page.drawText(displayStudentName, {
-    x: nameX + 0.8,
-    y: currentY - 0.8,
-    size: nameFontSize,
-    font: fontBold,
+  page.drawText(nameDisplay, {
+    x: finalNameX,
+    y: finalNameY,
+    size: customNameSize,
+    font: nameFont,
     color: rgb(15 / 255, 23 / 255, 42 / 255),
-    opacity: 0.22,
   });
 
-  // Visually simulate extra-bold / heavy typeface weight by multi-drawing with horizontal and vertical micro-offsets
-  const microOffsets = [
-    { dx: -0.3, dy: 0 },
-    { dx: 0.3, dy: 0 },
-    { dx: -0.15, dy: 0 },
-    { dx: 0.15, dy: 0 },
-    { dx: 0, dy: -0.15 },
-    { dx: 0, dy: 0.15 },
-  ];
-  for (const offset of microOffsets) {
-    page.drawText(displayStudentName, {
-      x: nameX + offset.dx,
-      y: currentY + offset.dy,
-      size: nameFontSize,
-      font: fontBold,
-      color: nameNavyColor,
-    });
-  }
+  // 5. Single Passed Belt (No "Level", no "From/To rank", no "Discipline")
+  currentY -= 72;
+  const badgeWidth = 380;
+  const badgeHeight = 46;
+  const badgeX = (width - badgeWidth) / 2 + beltDx;
+  const badgeY = currentY + beltDy;
 
-  // Primary crisp center text
-  page.drawText(displayStudentName, {
-    x: nameX,
-    y: currentY,
-    size: nameFontSize,
-    font: fontBold,
-    color: nameNavyColor,
-  });
-
-  // Double underline under student name (accurately computed from nameFontSize)
-  const nameUnderlineStart = (width - nameWidth) / 2 - 12;
-  const nameUnderlineWidth = nameWidth + 24;
-  page.drawLine({
-    start: { x: nameUnderlineStart, y: currentY - 5 },
-    end: { x: nameUnderlineStart + nameUnderlineWidth, y: currentY - 5 },
-    thickness: 1.4,
-    color: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
-  page.drawLine({
-    start: { x: nameUnderlineStart + 22, y: currentY - 8.5 },
-    end: { x: nameUnderlineStart + nameUnderlineWidth - 22, y: currentY - 8.5 },
-    thickness: 0.7,
-    color: rgb(245 / 255, 158 / 255, 11 / 255),
-  });
-
-  // 10. Commendation / Syllabus Text
-  currentY -= 26;
-  const commendationP1 = 'has demonstrated exemplary technical proficiency, combat readiness, syllabus mastery,';
-  const commendationP2 = 'and honorable athletic sportsmanship, and is hereby promoted to the prestigious rank of';
-  drawCenteredText(commendationP1, currentY, 10, fontRegular, rgb(51 / 255, 65 / 255, 85 / 255));
-  currentY -= 13;
-  drawCenteredText(commendationP2, currentY, 10, fontRegular, rgb(51 / 255, 65 / 255, 85 / 255));
-
-  // 11. Prominent Rank & Belt Highlight Badge
-  currentY -= 48;
-  const badgeWidth = 440;
-  const badgeHeight = 44;
-  const badgeX = (width - badgeWidth) / 2 + dx;
-  const badgeY = currentY;
-
-  // Badge background with soft warm amber tint (hidden on pre-printed stationery)
   if (!hideBadgeBox) {
     page.drawRectangle({
       x: badgeX,
@@ -355,184 +317,118 @@ export async function generateMartialArtsCertificatePdf(cert: CertificateData): 
     });
   }
 
-  // Badge Text: Rank Name + Belt Color
-  const rankText = cleanPdfText(`${rankName.toUpperCase()} - ${beltColor.toUpperCase()} BELT`);
-  const discText = `Discipline: ${discipline}`;
-  const rankTextWidth = fontBold.widthOfTextAtSize(rankText, 14);
-  page.drawText(rankText, {
-    x: (width - rankTextWidth) / 2 + dx,
-    y: badgeY + 24,
-    size: 14,
+  const beltSize = cert.beltFontSize || 17;
+  const beltTextWidth = fontBold.widthOfTextAtSize(passedBelt, beltSize);
+  page.drawText(passedBelt, {
+    x: (width - beltTextWidth) / 2 + beltDx,
+    y: badgeY + (badgeHeight - beltSize) / 2 + 1,
+    size: beltSize,
     font: fontBold,
     color: rgb(180 / 255, 83 / 255, 9 / 255),
   });
 
-  const discTextWidth = fontBold.widthOfTextAtSize(discText, 9.5);
-  page.drawText(discText, {
-    x: (width - discTextWidth) / 2 + dx,
-    y: badgeY + 10,
-    size: 9.5,
-    font: fontBold,
-    color: rgb(15 / 255, 23 / 255, 42 / 255),
-  });
-
-  // 12. Official Metadata Cards (4 Columns)
-  currentY -= 36;
-  const colY = currentY;
+  // 6. Metadata Cards (4 Columns: Reg No, DOB, Actual Exam Date, Serial Number without label)
+  currentY -= 70;
+  const colY = currentY + metaDy;
   const metadata = [
     { label: 'PLAYER REG NO', value: regNo },
     { label: 'DATE OF BIRTH', value: formattedDob },
-    { label: 'EXAMINATION DATE', value: formattedExamDate },
-    { label: 'CERTIFICATE SERIAL', value: certNumber },
+    { label: 'ACTUAL EXAM DATE', value: formattedExamDate },
+    { label: '', value: certNumber, isSerialOnly: true }, // "Certificate Serial हा label काढा"
   ];
 
-  const totalCardWidth = width - 120;
+  const totalCardWidth = width - 140;
   const cardWidth = totalCardWidth / 4;
-  const startX = 60;
+  const startX = 70;
 
   metadata.forEach((m, idx) => {
-    const boxX = startX + idx * cardWidth + dx;
+    const boxX = startX + idx * cardWidth + metaDx;
     if (!isPlainPaper) {
       page.drawRectangle({
         x: boxX + 4,
         y: colY - 14,
         width: cardWidth - 8,
-        height: 32,
+        height: 34,
         color: rgb(248 / 255, 250 / 255, 252 / 255),
         borderWidth: 0.75,
         borderColor: rgb(203 / 255, 213 / 255, 225 / 255),
       });
     }
 
-    const lblWidth = fontBold.widthOfTextAtSize(m.label, 7.5);
-    page.drawText(m.label, {
-      x: boxX + 4 + (cardWidth - 8 - lblWidth) / 2,
-      y: colY + 5,
-      size: 7.5,
-      font: fontBold,
-      color: rgb(100 / 255, 116 / 255, 139 / 255),
-    });
+    if (m.label) {
+      const lblWidth = fontBold.widthOfTextAtSize(m.label, 7.5);
+      page.drawText(m.label, {
+        x: boxX + 4 + (cardWidth - 8 - lblWidth) / 2,
+        y: colY + 6,
+        size: 7.5,
+        font: fontBold,
+        color: rgb(100 / 255, 116 / 255, 139 / 255),
+      });
+    }
 
-    const valWidth = fontBold.widthOfTextAtSize(m.value, 9.5);
+    const valFontSize = m.isSerialOnly ? 10.5 : 9.5;
+    const valWidth = fontBold.widthOfTextAtSize(m.value, valFontSize);
+    const valY = m.label ? colY - 7 : colY - 2; // Centered if no label
     page.drawText(m.value, {
       x: boxX + 4 + (cardWidth - 8 - valWidth) / 2,
-      y: colY - 7,
-      size: 9.5,
+      y: valY,
+      size: valFontSize,
       font: fontBold,
-      color: rgb(15 / 255, 23 / 255, 42 / 255),
+      color: m.isSerialOnly ? rgb(180 / 255, 83 / 255, 9 / 255) : rgb(15 / 255, 23 / 255, 42 / 255),
     });
   });
 
-  // 13. Signatures & Official Gold Seal Section
-  const footerY = 62 + dy;
-
-  // Left Signature: Chief Examiner
-  const leftSigX = 80 + dx;
-  page.drawLine({
-    start: { x: leftSigX, y: footerY + 22 },
-    end: { x: leftSigX + 180, y: footerY + 22 },
-    thickness: 1,
-    color: rgb(100 / 255, 116 / 255, 139 / 255),
-  });
-  page.drawText(examiner, {
-    x: leftSigX,
-    y: footerY + 10,
-    size: 9,
-    font: fontBold,
-    color: rgb(15 / 255, 23 / 255, 42 / 255),
-  });
-  page.drawText('Chief Examiner & Grading Master', {
-    x: leftSigX,
-    y: footerY,
-    size: 7.5,
-    font: fontRegular,
-    color: rgb(100 / 255, 116 / 255, 139 / 255),
-  });
-
-  // Center: Official Golden Seal Medallion (Drawn with vectors)
+  // 7. Golden Seal Medallion (Center bottom) - Signatures REMOVED
+  const footerY = 54 + dy;
   const sealCenterX = width / 2 + dx;
   const sealCenterY = footerY + 16;
   if (!hideSeal) {
-  page.drawCircle({
-    x: sealCenterX,
-    y: sealCenterY,
-    size: 26,
-    color: rgb(254 / 255, 243 / 255, 199 / 255),
-    borderWidth: 2,
-    borderColor: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
-  page.drawCircle({
-    x: sealCenterX,
-    y: sealCenterY,
-    size: 22,
-    borderWidth: 0.8,
-    borderColor: rgb(245 / 255, 158 / 255, 11 / 255),
-  });
+    page.drawCircle({
+      x: sealCenterX,
+      y: sealCenterY,
+      size: 24,
+      color: rgb(254 / 255, 243 / 255, 199 / 255),
+      borderWidth: 2,
+      borderColor: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
+    page.drawCircle({
+      x: sealCenterX,
+      y: sealCenterY,
+      size: 20,
+      borderWidth: 0.8,
+      borderColor: rgb(245 / 255, 158 / 255, 11 / 255),
+    });
 
-  const sealTitle = 'OFFICIAL SEAL';
-  const sealTWidth = fontBold.widthOfTextAtSize(sealTitle, 6.5);
-  page.drawText(sealTitle, {
-    x: sealCenterX - sealTWidth / 2,
-    y: sealCenterY + 4,
-    size: 6.5,
-    font: fontBold,
-    color: rgb(180 / 255, 83 / 255, 9 / 255),
-  });
+    const sealTitle = 'OFFICIAL SEAL';
+    const sealTWidth = fontBold.widthOfTextAtSize(sealTitle, 6);
+    page.drawText(sealTitle, {
+      x: sealCenterX - sealTWidth / 2,
+      y: sealCenterY + 4,
+      size: 6,
+      font: fontBold,
+      color: rgb(180 / 255, 83 / 255, 9 / 255),
+    });
 
-  const sealSub = 'GURUKUL ACADEMY';
-  const sealSWidth = fontBold.widthOfTextAtSize(sealSub, 5.5);
-  page.drawText(sealSub, {
-    x: sealCenterX - sealSWidth / 2,
-    y: sealCenterY - 4,
-    size: 5.5,
-    font: fontBold,
-    color: rgb(15 / 255, 23 / 255, 42 / 255),
-  });
+    const sealSub = 'GURUKUL ACADEMY';
+    const sealSWidth = fontBold.widthOfTextAtSize(sealSub, 5);
+    page.drawText(sealSub, {
+      x: sealCenterX - sealSWidth / 2,
+      y: sealCenterY - 3,
+      size: 5,
+      font: fontBold,
+      color: rgb(15 / 255, 23 / 255, 42 / 255),
+    });
 
-  const sealAccred = 'HONOR & MASTERY';
-  const sealAWidth = fontBold.widthOfTextAtSize(sealAccred, 5.5);
-  page.drawText(sealAccred, {
-    x: sealCenterX - sealAWidth / 2,
-    y: sealCenterY - 11,
-    size: 5.5,
-    font: fontBold,
-    color: rgb(217 / 255, 119 / 255, 6 / 255),
-  });
+    const sealAccred = 'HONOR & MASTERY';
+    const sealAWidth = fontBold.widthOfTextAtSize(sealAccred, 5);
+    page.drawText(sealAccred, {
+      x: sealCenterX - sealAWidth / 2,
+      y: sealCenterY - 9,
+      size: 5,
+      font: fontBold,
+      color: rgb(217 / 255, 119 / 255, 6 / 255),
+    });
   }
-
-  // Right Signature: Academy Director
-  const rightSigX = width - 260 + dx;
-  page.drawLine({
-    start: { x: rightSigX, y: footerY + 22 },
-    end: { x: rightSigX + 180, y: footerY + 22 },
-    thickness: 1,
-    color: rgb(100 / 255, 116 / 255, 139 / 255),
-  });
-  page.drawText('Academy Director & Head Coach', {
-    x: rightSigX,
-    y: footerY + 10,
-    size: 9,
-    font: fontBold,
-    color: rgb(15 / 255, 23 / 255, 42 / 255),
-  });
-  page.drawText(dojo, {
-    x: rightSigX,
-    y: footerY,
-    size: 7.5,
-    font: fontRegular,
-    color: rgb(100 / 255, 116 / 255, 139 / 255),
-  });
-
-  // Bottom Security Line
-  const securityNotice = `Authentic Gurukul Credential | Verified by Registry Engine | Document ID: ${certNumber}`;
-  const secWidth = fontRegular.widthOfTextAtSize(securityNotice, 7);
-  page.drawText(securityNotice, {
-    x: (width - secWidth) / 2,
-    y: 35,
-    size: 7,
-    font: fontRegular,
-    color: rgb(148 / 255, 163 / 255, 184 / 255),
-  });
 
   return await doc.save();
 }
@@ -548,10 +444,10 @@ export async function downloadCertificatePdf(cert: CertificateData): Promise<voi
   const studentSafe = (cert.student_name || cert.playerName || 'Student')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 30);
-  const rankSafe = (cert.to_rank_name || cert.rankSecured || 'Rank')
+  const beltSafe = (cert.belt_color || cert.beltColor || 'Belt')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 20);
-  const fileName = `Gurukul_Certificate_${studentSafe}_${rankSafe}.pdf`;
+  const fileName = `Gurukul_Certificate_${studentSafe}_${beltSafe}.pdf`;
 
   const link = document.createElement('a');
   link.href = url;
@@ -559,34 +455,35 @@ export async function downloadCertificatePdf(cert: CertificateData): Promise<voi
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  URL.revokeObjectURL(url);
 }
 
-
 /**
- * Directly invokes the browser printing dialog for the generated certificate PDF
+ * Opens a print dialog in browser with the certificate PDF loaded in an invisible iframe
  */
 export async function printCertificatePdf(cert: CertificateData): Promise<void> {
   const pdfBytes = await generateMartialArtsCertificatePdf(cert);
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
-
-  // Directly open PDF preview in a new window/tab for 100% reliable printing across Chrome, Edge, Safari, and Mobile
-  const printWin = window.open(url, '_blank');
-  if (printWin) {
-    printWin.focus();
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
     try {
-      printWin.onload = () => {
-        try {
-          printWin.print();
-        } catch {}
-      };
-    } catch {}
-  } else {
-    // Fallback: download directly if popups are blocked
-    await downloadCertificatePdf(cert);
-  }
-
-  setTimeout(() => URL.revokeObjectURL(url), 120000);
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.open(url, '_blank');
+    }
+    setTimeout(() => {
+      try { document.body.removeChild(iframe); } catch {}
+      URL.revokeObjectURL(url);
+    }, 60000);
+  };
 }

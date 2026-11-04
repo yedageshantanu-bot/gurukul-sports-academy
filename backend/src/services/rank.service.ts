@@ -954,4 +954,128 @@ export class RankService {
 
     return results;
   }
+
+  /**
+   * Update an existing promotion or exam record (e.g. correct date, belt/rank, dojo, or examiner)
+   */
+  static async updatePromotion(id: string, dto: {
+    promotionDate?: string;
+    targetRankId?: string;
+    representedFrom?: string;
+    promotedBy?: string | null;
+    dob?: string;
+    regNumber?: string;
+    notes?: string;
+  }) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('rank_promotions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchErr || !existing) {
+      throw new AppError('Promotion record not found', 404);
+    }
+
+    const payload: any = {};
+    if (dto.promotionDate !== undefined) {
+      payload.promotion_date = dto.promotionDate;
+    }
+    if (dto.representedFrom !== undefined) {
+      payload.represented_from = dto.representedFrom;
+    }
+    if (dto.promotedBy !== undefined) {
+      payload.promoted_by = dto.promotedBy && dto.promotedBy.trim() ? dto.promotedBy.trim() : null;
+    }
+    if (dto.dob !== undefined) {
+      payload.dob = dto.dob;
+    }
+    if (dto.regNumber !== undefined) {
+      payload.reg_number = dto.regNumber;
+    }
+    if (dto.notes !== undefined) {
+      payload.notes = dto.notes;
+    }
+
+    if (dto.targetRankId) {
+      const { data: rankObj } = await supabaseAdmin
+        .from('martial_arts_ranks')
+        .select('*')
+        .eq('id', dto.targetRankId)
+        .maybeSingle();
+
+      if (rankObj) {
+        payload.new_rank_id = rankObj.id;
+        payload.new_rank_name = rankObj.rank_name;
+      }
+    }
+
+    const { data: updated, error: updateErr } = await supabaseAdmin
+      .from('rank_promotions')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      throw new AppError(`Failed to update promotion record: ${updateErr.message}`, 500);
+    }
+
+    // Also update current student_ranks if matching
+    const studentRankUpdates: any = { updated_at: new Date().toISOString() };
+    if (payload.promotion_date) studentRankUpdates.promoted_at = payload.promotion_date;
+    if (payload.new_rank_id) studentRankUpdates.current_rank_id = payload.new_rank_id;
+    if (payload.represented_from) studentRankUpdates.represented_from = payload.represented_from;
+    if (dto.promotedBy !== undefined) studentRankUpdates.promoted_by = payload.promoted_by;
+    if (payload.dob) studentRankUpdates.dob = payload.dob;
+    if (payload.reg_number) studentRankUpdates.reg_number = payload.reg_number;
+
+    await supabaseAdmin
+      .from('student_ranks')
+      .update(studentRankUpdates)
+      .eq('student_id', existing.student_id)
+      .eq('discipline_code', existing.discipline_code);
+
+    return updated;
+  }
+
+  /**
+   * Directly update a student's current martial rank record (e.g. correct exam date, rank, dojo, examiner)
+   */
+  static async updateStudentRankRecord(studentId: string, disciplineCode: string, dto: {
+    promotionDate?: string;
+    targetRankId?: string;
+    representedFrom?: string;
+    promotedBy?: string | null;
+    dob?: string;
+    regNumber?: string;
+  }) {
+    if (!supabaseAdmin) throw new AppError('Database connection unavailable', 500);
+
+    const payload: any = { updated_at: new Date().toISOString() };
+    if (dto.promotionDate !== undefined) payload.promoted_at = dto.promotionDate;
+    if (dto.targetRankId !== undefined) payload.current_rank_id = dto.targetRankId;
+    if (dto.representedFrom !== undefined) payload.represented_from = dto.representedFrom;
+    if (dto.promotedBy !== undefined) {
+      payload.promoted_by = dto.promotedBy && dto.promotedBy.trim() ? dto.promotedBy.trim() : null;
+    }
+    if (dto.dob !== undefined) payload.dob = dto.dob;
+    if (dto.regNumber !== undefined) payload.reg_number = dto.regNumber;
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('student_ranks')
+      .update(payload)
+      .eq('student_id', studentId)
+      .eq('discipline_code', disciplineCode)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      throw new AppError(`Failed to update student rank: ${error.message}`, 500);
+    }
+
+    return updated;
+  }
 }

@@ -394,21 +394,36 @@ export class AnnouncementService {
 
     // 3. Dispatch to all recipient phones with randomized anti-ban throttle (3.8s base + jitter)
     const rawTemplate = options?.customTemplate || meta.customTemplate;
-    const defaultBody = `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`;
+    const isTeamTargeted = (meta?.teamCodes && meta.teamCodes.length > 0) || (meta?.teamMemberIds && meta.teamMemberIds.length > 0);
+
+    // For team messages, strictly send user title and body without boilerplate greetings or sign-offs
+    const defaultBody = isTeamTargeted
+      ? `*${announcement.title}*\n\n${announcement.message}`
+      : `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`;
     const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const items = recipients
       .map((rec) => {
         let body = defaultBody;
-        if (rawTemplate && typeof rawTemplate === 'string' && rawTemplate.trim()) {
+        if (isTeamTargeted) {
+          // Team message: Send exactly title and body as entered
+          body = `*${announcement.title}*\n\n${announcement.message}`;
+        } else if (rawTemplate && typeof rawTemplate === 'string' && rawTemplate.trim()) {
+          // Clean out legacy boilerplate if present
+          let cleanTpl = rawTemplate
+            .replace(/🥋\s*\*?Gurukul Sports Academy Announcement\*?\s*\n*/gi, '')
+            .replace(/Dear\s+\{student_name\}\s*\/\s*Parents,?\s*\n*/gi, '')
+            .replace(/Warm regards,\s*\n*Gurukul Sports Academy Administration/gi, '');
+
           const parentName = rec.name && rec.name.split(' ')[0] ? `${rec.name.split(' ')[0]}'s Parent` : 'Parent';
-          body = rawTemplate
+          body = cleanTpl
             .replace(/{title}/g, announcement.title || '')
             .replace(/{message}/g, announcement.message || '')
             .replace(/{student_name}/g, rec.name || 'Athlete')
             .replace(/{parent_name}/g, parentName)
             .replace(/{academy_name}/g, academyName)
-            .replace(/{date}/g, todayStr);
+            .replace(/{date}/g, todayStr)
+            .trim();
         }
 
         return {
@@ -693,7 +708,10 @@ export class AnnouncementService {
       const newTitle = updates.title || existing.title;
       const newMessage = updates.message || existing.message;
       const academyName = 'Gurukul Sports Academy';
-      const formatted = `📢 *${newTitle}*\n\n${newMessage}\n\n- *${academyName}*`;
+      const isTeam = (existingMeta?.teamCodes && existingMeta.teamCodes.length > 0) || ((updates as any)?.teamCodes && (updates as any).teamCodes.length > 0);
+      const formatted = isTeam
+        ? `*${newTitle}*\n\n${newMessage}`
+        : `📢 *${newTitle}*\n\n${newMessage}\n\n- *${academyName}*`;
 
       await queueService.updateScheduledAnnouncementItems(
         id,

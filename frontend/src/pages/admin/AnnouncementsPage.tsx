@@ -125,12 +125,18 @@ export const AnnouncementsPage: React.FC = () => {
   ]);
 
   // Top WhatsApp Broadcast Template Configurator
-  const DEFAULT_ANNOUNCEMENT_TEMPLATE =
-    '🥋 *Gurukul Sports Academy Announcement*\n\nDear {student_name} / Parents,\n*{title}*\n\n{message}\n\nWarm regards,\nGurukul Sports Academy Administration';
+  const DEFAULT_ANNOUNCEMENT_TEMPLATE = '*{title}*\n\n{message}';
+
+  const [nextScheduledItem, setNextScheduledItem] = useState<any | null>(null);
 
   const [announcementWhatsappTemplate, setAnnouncementWhatsappTemplate] = useState<string>(() => {
     try {
-      return localStorage.getItem('gurukul_announcement_whatsapp_template') || DEFAULT_ANNOUNCEMENT_TEMPLATE;
+      const saved = localStorage.getItem('gurukul_announcement_whatsapp_template');
+      if (saved && (saved.includes('Gurukul Sports Academy Announcement') || saved.includes('Dear {student_name}') || saved.includes('Warm regards'))) {
+        localStorage.setItem('gurukul_announcement_whatsapp_template', DEFAULT_ANNOUNCEMENT_TEMPLATE);
+        return DEFAULT_ANNOUNCEMENT_TEMPLATE;
+      }
+      return saved || DEFAULT_ANNOUNCEMENT_TEMPLATE;
     } catch {
       return DEFAULT_ANNOUNCEMENT_TEMPLATE;
     }
@@ -195,12 +201,14 @@ export const AnnouncementsPage: React.FC = () => {
       const data = await apiClient<any>('/announcements');
       setAnnouncements(Array.isArray(data) ? data : data?.data || []);
 
-      // Also fetch scheduled announcements count
+      // Also fetch scheduled announcements count and next pending item
       apiClient<any>('/announcements/scheduled')
         .then((res) => {
           const sData = Array.isArray(res) ? res : res?.data || [];
-          const pending = sData.filter((i: any) => i.status === 'SCHEDULED').length;
-          setScheduledCount(pending);
+          const pendingItems = sData.filter((i: any) => i.status === 'SCHEDULED');
+          pendingItems.sort((a: any, b: any) => new Date(a.scheduled_at || 0).getTime() - new Date(b.scheduled_at || 0).getTime());
+          setScheduledCount(pendingItems.length);
+          setNextScheduledItem(pendingItems[0] || null);
         })
         .catch(() => {});
     } catch (err: any) {
@@ -654,6 +662,41 @@ export const AnnouncementsPage: React.FC = () => {
           Create Announcement
         </Button>
       </div>
+
+      {/* Prominent Next Scheduled Message in Queue Banner */}
+      {nextScheduledItem && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
+              <Clock className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
+                  Next in Queue
+                </span>
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                  Scheduled for: {new Date(nextScheduledItem.scheduled_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                {nextScheduledItem.title}
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1 mt-0.5">
+                {nextScheduledItem.message}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/admin/announcements/scheduled"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center gap-1.5 transition-colors shrink-0 shadow-xs"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Manage / Edit Queue ({scheduledCount})</span>
+          </Link>
+        </div>
+      )}
 
       {/* Primary View Switcher Banner */}
       <div className="p-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-xl flex items-center gap-1 max-w-md">

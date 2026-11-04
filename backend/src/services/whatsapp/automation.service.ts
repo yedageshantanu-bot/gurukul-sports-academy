@@ -728,7 +728,11 @@ export class WhatsAppAutomationService {
           }
         } else {
           // Strict Cadence Stages:
-          if (diffDays === 5) {
+          if (diffDays === 30) {
+            // T-30: 1-Month in advance courtesy reminder
+            eventType = 'FEE_UPCOMING';
+            cadenceStage = 'T_MINUS_30';
+          } else if (diffDays === 5) {
             eventType = 'FEE_UPCOMING';
             cadenceStage = 'T_MINUS_5';
           } else if (diffDays === 2) {

@@ -11,6 +11,21 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/scripts/**/*"]
+  "include": [
+    "src/app.ts",
+    "src/server.ts",
+    "src/config/**/*",
+    "src/constants/**/*",
+    "src/controllers/**/*",
+    "src/middlewares/**/*",
+    "src/routes/**/*",
+    "src/services/**/*",
+    "src/types/**/*",
+    "src/utils/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/scripts"
+  ]
 }

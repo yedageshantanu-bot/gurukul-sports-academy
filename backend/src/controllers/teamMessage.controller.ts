@@ -300,17 +300,15 @@ export class TeamMessageController {
         return;
       }
 
-      if (!teamCode || !teamCode.trim()) {
-        res.status(400).json({ success: false, message: 'Team code is required.' });
-        return;
-      }
+      // Default to 'ALL' if no specific team is selected (Direct All Members)
+      const targetTeamCode = (teamCode && teamCode.trim()) ? teamCode.trim() : 'ALL';
 
       const clean10 = phone.trim().replace(/[^0-9]/g, '').slice(-10);
       if (clean10) {
         const { data: existingMembers } = await supabaseAdmin
           .from('team_members')
           .select('id, phone')
-          .eq('team_code', teamCode.trim());
+          .eq('team_code', targetTeamCode);
 
         const isDuplicateInTeam = (existingMembers || []).some(
           (m) => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === clean10
@@ -319,7 +317,9 @@ export class TeamMessageController {
         if (isDuplicateInTeam) {
           res.status(400).json({
             success: false,
-            message: 'This contact is already enrolled in this team.',
+            message: targetTeamCode === 'ALL'
+              ? 'This contact is already in All Members directory.'
+              : 'This contact is already enrolled in this team.',
           });
           return;
         }
@@ -331,7 +331,7 @@ export class TeamMessageController {
           name: name ? name.trim() : null,
           phone: phone.trim(),
           position: position ? position.trim() : null,
-          team_code: teamCode.trim(),
+          team_code: targetTeamCode,
           district: district ? district.trim() : null,
           notes: notes ? notes.trim() : null,
           status: 'ACTIVE',
@@ -343,7 +343,7 @@ export class TeamMessageController {
 
       res.status(201).json({
         success: true,
-        message: 'Team member added successfully',
+        message: targetTeamCode === 'ALL' ? 'Contact added to All Members successfully' : 'Team member added successfully',
         data,
       });
     } catch (err) {
@@ -367,7 +367,8 @@ export class TeamMessageController {
         }
       }
 
-      if (allTeams || clean10) {
+      // ONLY delete across all teams when explicitly requested (e.g. from All Members tab)
+      if (allTeams) {
         if (!clean10 && isUuid) {
           const { data: member } = await supabaseAdmin
             .from('team_members')
@@ -410,6 +411,7 @@ export class TeamMessageController {
         }
       }
 
+      // Single-team deletion: remove ONLY the specific team member record
       if (isUuid) {
         const { error } = await supabaseAdmin
           .from('team_members')
@@ -417,11 +419,19 @@ export class TeamMessageController {
           .eq('id', id);
 
         if (error) throw error;
+      } else if (clean10 && req.query.teamCode) {
+        const { error } = await supabaseAdmin
+          .from('team_members')
+          .delete()
+          .eq('team_code', String(req.query.teamCode))
+          .ilike('phone', `%${clean10}%`);
+
+        if (error) throw error;
       }
 
       res.status(200).json({
         success: true,
-        message: 'Team member removed successfully',
+        message: 'Team member removed from squad successfully',
       });
     } catch (err) {
       next(err);

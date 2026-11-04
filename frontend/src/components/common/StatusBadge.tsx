@@ -10,21 +10,31 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, dot = true }) 
   const normalized = status?.toUpperCase();
 
   switch (normalized) {
-    case 'PRESENT':
     case 'PAID':
+    case 'PAID IN FULL':
+      return <Badge variant="success" dot={dot}>Paid in full</Badge>;
+
+    case 'PARTIAL':
+    case 'PARTIALLY SETTLED':
+      return <Badge variant="warning" dot={dot}>Partially settled</Badge>;
+
+    case 'PENDING':
+      return <Badge variant="warning" dot={dot}>Pending</Badge>;
+
+    case 'OVERDUE':
+      return <Badge variant="danger" dot={dot}>Pending (Overdue)</Badge>;
+
+    case 'PRESENT':
     case 'ACTIVE':
     case 'SUCCESS':
       return <Badge variant="success" dot={dot}>{normalized}</Badge>;
 
     case 'ABSENT':
-    case 'OVERDUE':
     case 'FAILED':
       return <Badge variant="danger" dot={dot}>{normalized}</Badge>;
 
-    case 'PENDING':
-    case 'PARTIAL':
     case 'DUE':
-      return <Badge variant="warning" dot={dot}>{normalized}</Badge>;
+      return <Badge variant="warning" dot={dot}>Pending</Badge>;
 
     case 'INACTIVE':
     case 'DRAFT':

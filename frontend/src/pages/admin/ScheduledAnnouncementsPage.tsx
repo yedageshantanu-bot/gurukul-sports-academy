@@ -201,6 +201,13 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
     }
   };
 
+  // Next upcoming pending message in queue
+  const nextPendingItem = React.useMemo(() => {
+    const pendings = items.filter((i) => i.status === 'SCHEDULED' && new Date(i.scheduled_at || 0).getTime() > 0);
+    pendings.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+    return pendings[0] || null;
+  }, [items]);
+
   // KPI Computations
   const totalCount = items.length;
   const pendingCount = items.filter((i) => i.status === 'SCHEDULED').length;
@@ -359,6 +366,72 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           )}
         </button>
       </div>
+
+      {/* NEXT UPCOMING MESSAGE IN PENDING QUEUE */}
+      {nextPendingItem && (
+        <Card className="p-5 bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 border-2 border-amber-500/40 rounded-2xl shadow-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-sm shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 tracking-wide">
+                    Next in Queue / पुढील मेसेज
+                  </span>
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                    Scheduled Time: {formatIST(nextPendingItem.scheduled_at)}
+                  </span>
+                  <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-black/10 dark:bg-white/10 text-slate-800 dark:text-amber-200">
+                    {getRelativeCountdown(nextPendingItem.scheduled_at)}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {nextPendingItem.title}
+                </h3>
+                <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 max-w-2xl">
+                  {nextPendingItem.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleOpenEdit(nextPendingItem)}
+                className="text-xs border-amber-500/40 hover:bg-amber-500/10 text-slate-900 dark:text-white font-bold flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-amber-500" />
+                <span>Edit Time & Details</span>
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => handleSendNow(nextPendingItem)}
+                disabled={actionLoadingId === nextPendingItem.id}
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-xs"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Now</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleCancelSchedule(nextPendingItem)}
+                disabled={actionLoadingId === nextPendingItem.id}
+                className="text-xs border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold"
+                title="Cancel schedule and cancel queued items"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Cancel</span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

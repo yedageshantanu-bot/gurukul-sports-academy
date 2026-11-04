@@ -151,6 +151,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
   const [formEndDate, setFormEndDate] = useState<string>(() => {
     const nextYear = new Date();
     nextYear.setFullYear(nextYear.getFullYear() + 1);
+    nextYear.setDate(nextYear.getDate() - 1); // 1 day before start date anniversary
     return nextYear.toISOString().split('T')[0];
   });
 
@@ -159,7 +160,18 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
     if (newStart) {
       const d = new Date(newStart);
       d.setFullYear(d.getFullYear() + 1);
+      d.setDate(d.getDate() - 1); // 1 day before start date anniversary
       setFormEndDate(d.toISOString().split('T')[0]);
+    }
+  };
+
+  const handleEditStartDateChange = (newStart: string) => {
+    setEditStartDate(newStart);
+    if (newStart) {
+      const d = new Date(newStart);
+      d.setFullYear(d.getFullYear() + 1);
+      d.setDate(d.getDate() - 1); // 1 day before start date anniversary
+      setEditEndDate(d.toISOString().split('T')[0]);
     }
   };
 
@@ -297,6 +309,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
       if (!end) {
         const d = new Date(start);
         d.setFullYear(d.getFullYear() + 1);
+        d.setDate(d.getDate() - 1);
         end = d.toISOString().split('T')[0];
       }
     }
@@ -1310,7 +1323,7 @@ export const PublicationsPage: React.FC<PublicationsPageProps> = ({ embedded = f
                   type="date"
                   required
                   value={editStartDate}
-                  onChange={(e) => setEditStartDate(e.target.value)}
+                  onChange={(e) => handleEditStartDateChange(e.target.value)}
                   className="bg-white dark:bg-[#1E293B] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-xs"
                 />
               </div>

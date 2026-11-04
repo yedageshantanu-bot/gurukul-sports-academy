@@ -23,4 +23,9 @@ router.post('/assign', RankController.assignStudentRank);
 router.post('/promote', RankController.promote);
 router.get('/certificates', RankController.getCertificates);
 
+router.patch('/promotions/:id', RankController.updatePromotion);
+router.put('/promotions/:id', RankController.updatePromotion);
+router.patch('/student-rank', RankController.updateStudentRank);
+router.post('/student-rank/update', RankController.updateStudentRank);
+
 export default router;

@@ -184,15 +184,18 @@ export const FeesPage: React.FC = () => {
 
   const handleUndoPayment = async (fee: StudentFee) => {
     if (!token) return;
+    const studentName = fee.student?.name || 'student';
+    const amountToUndo = Number(fee.amount_paid || fee.amount_due || 0);
     const confirmUndo = window.confirm(
-      `Undo / Revert payment for ${fee.student?.name || 'student'}? This will restore the balance of ₹${Number(fee.amount_paid || fee.amount_due).toLocaleString('en-IN')} back to Pending/Overdue.`
+      `Undo / Revert payment for ${studentName}? This will cancel the accidental payment of ₹${amountToUndo.toLocaleString('en-IN')} and restore the pending balance.`
     );
     if (!confirmUndo) return;
 
     setUndoingFeeId(fee.id);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/payments/revert-fee/${fee.id}`, {
+      const targetIdentifier = fee.id || fee.student_id;
+      const res = await fetch(`${API_BASE}/payments/revert-fee/${targetIdentifier}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +205,19 @@ export const FeesPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to revert payment');
 
-      setReminderSuccessMessage(`✓ Payment reverted! Balance for ${fee.student?.name || 'student'} restored to Pending.`);
+      // Optimistic update: mark latest payment refunded and restore balance
+      setPaymentsList((prev) => {
+        let refundedOnce = false;
+        return prev.map((p) => {
+          if (!refundedOnce && (p.student_fee_id === fee.id || p.student_id === fee.student_id) && p.status === 'SUCCESS') {
+            refundedOnce = true;
+            return { ...p, status: 'REFUNDED' };
+          }
+          return p;
+        });
+      });
+
+      setReminderSuccessMessage(`✓ Payment reverted! Balance for ${studentName} has been restored.`);
       setTimeout(() => setReminderSuccessMessage(null), 4000);
       await fetchData();
     } catch (err: any) {
@@ -1506,11 +1521,11 @@ export const FeesPage: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full sm:w-44 text-xs h-10"
               >
-                <option value="ALL">All Statuses</option>
-                <option value="PENDING">Pending Only</option>
-                <option value="PARTIAL">Partial Only</option>
-                <option value="PAID">Paid Only</option>
-                <option value="OVERDUE">Overdue Only</option>
+                <option value="ALL">All Statuses (सर्व स्थिती)</option>
+                <option value="PAID">Paid in full (पूर्ण भरले)</option>
+                <option value="PARTIAL">Partially settled (अंशतः भरले)</option>
+                <option value="PENDING">Pending (प्रलंबित)</option>
+                <option value="OVERDUE">Pending (Overdue)</option>
               </Select>
             </div>
           </Card>
