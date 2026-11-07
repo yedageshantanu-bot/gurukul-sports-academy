@@ -728,14 +728,19 @@ export class WhatsAppAutomationService {
       // Current billing period YYYY-MM
       const currentBillingPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
-      // Fetch fee records for current billing period
+      // Fetch all fee records to aggregate cumulative dues per student across all cycles
       const { data: feeRecords } = await this.supabase
         .from('student_fees')
         .select('id, student_id, amount_due, amount_paid, due_date, status, billing_period')
-        .eq('billing_period', currentBillingPeriod);
+        .order('due_date', { ascending: true });
 
-      const feeMap = new Map<string, any>();
-      (feeRecords || []).forEach((f: any) => feeMap.set(f.student_id, f));
+      const studentFeeRecordsMap = new Map<string, any[]>();
+      (feeRecords || []).forEach((f: any) => {
+        if (!studentFeeRecordsMap.has(f.student_id)) {
+          studentFeeRecordsMap.set(f.student_id, []);
+        }
+        studentFeeRecordsMap.get(f.student_id)!.push(f);
+      });
 
       const eligibleItems: any[] = [];
       let escalatedCount = 0;
@@ -748,10 +753,33 @@ export class WhatsAppAutomationService {
           continue;
         }
 
-        const feeRecord = feeMap.get(student.id);
+        const records = studentFeeRecordsMap.get(student.id) || [];
         const monthlyFee = Number(student.monthly_fee || 0);
-        const amountDue = feeRecord ? Number(feeRecord.amount_due) : monthlyFee;
-        const amountPaid = feeRecord ? Number(feeRecord.amount_paid) : 0;
+
+        let amountDue = 0;
+        let amountPaid = 0;
+        let latestDueDate: Date | null = null;
+        let hasOverdue = false;
+
+        if (records.length === 0) {
+          amountDue = monthlyFee;
+          amountPaid = 0;
+          latestDueDate = new Date(currentYear, currentMonth, student.fee_due_day || 1);
+        } else {
+          for (const rec of records) {
+            const rDue = Number(rec.amount_due || 0);
+            const rPaid = Number(rec.amount_paid || 0);
+            amountDue += rDue;
+            amountPaid += rPaid;
+            if (rec.due_date && (!latestDueDate || new Date(rec.due_date) > latestDueDate)) {
+              latestDueDate = new Date(rec.due_date);
+            }
+            if (rec.status === 'OVERDUE' || (rec.due_date && new Date(rec.due_date) < new Date(todayStr) && rDue > rPaid)) {
+              hasOverdue = true;
+            }
+          }
+        }
+
         const pendingAmount = Math.max(0, amountDue - amountPaid);
 
         // If no pending fee or monthly fee is 0, nothing due!
@@ -762,7 +790,7 @@ export class WhatsAppAutomationService {
 
         // Determine student's due date for the cycle
         const dueDay = student.fee_due_day || 1; // Default 1st of month (or 5th)
-        let dueDate = feeRecord?.due_date ? new Date(feeRecord.due_date) : new Date(currentYear, currentMonth, dueDay);
+        let dueDate = latestDueDate || new Date(currentYear, currentMonth, dueDay);
         dueDate.setHours(0, 0, 0, 0);
 
         const dueDateMs = dueDate.getTime();
@@ -773,7 +801,7 @@ export class WhatsAppAutomationService {
         let cadenceStage: string | null = null;
 
         if (options?.forceAllUnpaid) {
-          if (diffDays < 0) {
+          if (hasOverdue || diffDays < 0) {
             eventType = 'FEE_OVERDUE';
             cadenceStage = 'FORCE_OVERDUE';
           } else {

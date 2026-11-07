@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { apiClient } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
@@ -384,11 +384,19 @@ export const AdminDashboard: React.FC = () => {
   const displayFollowups: FeeFollowupItem[] = feeFollowups;
   const displayActivity: RecentActivityItem[] = recentActivity;
 
+  // Reconciled cumulative pending dues matching the Fees page ledger exactly
+  const totalPendingFollowups = useMemo(() => {
+    return displayFollowups.reduce(
+      (sum, f) => sum + (f.remainingAmount != null ? Number(f.remainingAmount) : Math.max(0, Number(f.amountDue || 0) - Number(f.paidAmount || 0))),
+      0
+    );
+  }, [displayFollowups]);
+
   const totalStudents = kpis?.totalStudents ?? 0;
   const activeBatches = kpis?.activeBatches ?? 0;
   const expectedFees = monthlyFeeSummary?.expected ?? (kpis?.totalExpectedFees ?? (kpis?.feesExpectedThisMonth ?? 0));
   const collectedFees = monthlyFeeSummary?.collected ?? (kpis?.totalCollectedFees ?? (kpis?.feesCollectedThisMonth ?? 0));
-  const pendingFees = (kpis as any)?.totalPendingFees ?? (monthlyFeeSummary?.pending ?? (kpis?.feesPendingThisMonth ?? (feeFollowups.length > 0 ? feeFollowups.reduce((acc, f) => acc + (f.remainingAmount || 0), 0) : 0)));
+  const pendingFees = totalPendingFollowups > 0 ? totalPendingFollowups : ((kpis as any)?.totalPendingFees ?? (monthlyFeeSummary?.pending ?? (kpis?.feesPendingThisMonth ?? 0)));
   const overdueFees = (monthlyFeeSummary as any)?.overdue ?? ((kpis as any)?.totalOverdueFees ?? (kpis?.feesOverdueThisMonth ?? 0));
   const collectionRate = expectedFees > 0 ? Math.min(100, Math.round((collectedFees / expectedFees) * 100)) : 0;
 
@@ -1014,7 +1022,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
               <span className="text-slate-500 dark:text-slate-400 block font-medium">Total Pending Dues</span>
               <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
-                ₹{displayFollowups.reduce((sum, f) => sum + Math.max(0, Number(f.amountDue || 0) - Number(f.paidAmount || 0)), 0).toLocaleString('en-IN')}
+                ₹{totalPendingFollowups.toLocaleString('en-IN')}
               </span>
             </div>
           </div>
@@ -1043,18 +1051,21 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Recipient Roster Preview */}
           <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            {displayFollowups.map((item, idx) => (
-              <div key={item.feeId || idx} className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-slate-100">{item.studentName}</div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{item.parentWhatsapp || 'No WhatsApp'} • {item.batchName}</div>
+            {displayFollowups.map((item, idx) => {
+              const pendingDues = item.remainingAmount != null ? Number(item.remainingAmount) : Math.max(0, Number(item.amountDue || 0) - Number(item.paidAmount || 0));
+              return (
+                <div key={item.feeId || idx} className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <div>
+                    <div className="font-bold text-slate-900 dark:text-slate-100">{item.studentName}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">{item.parentWhatsapp || 'No WhatsApp'} • {item.batchName}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-rose-600 dark:text-rose-400">₹{pendingDues.toLocaleString('en-IN')}</div>
+                    <div className="text-[10px] text-slate-400">{item.status}</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-rose-600 dark:text-rose-400">₹{Math.max(0, Number(item.amountDue || 0) - Number(item.paidAmount || 0)).toLocaleString('en-IN')}</div>
-                  <div className="text-[10px] text-slate-400">{item.status}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Action Buttons */}

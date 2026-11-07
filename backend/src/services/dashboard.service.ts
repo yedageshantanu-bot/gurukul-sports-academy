@@ -212,14 +212,13 @@ export class DashboardService {
       0
     );
     const totalExpectedCohort = totalCollectedCohort + totalPendingCohort;
-
-    // Fallback to cohort totals if current month has no fees or has zero collections while cohort has collections.
-    // Must be mutually consistent so expected = collected + pending and collectionRate <= 100%.
     const useCohort = currentExpected === 0 || (currentCollected === 0 && totalCollectedCohort > 0);
-    const effectivePending = useCohort ? totalPendingCohort : currentPending;
-    const effectiveCollected = useCohort ? totalCollectedCohort : currentCollected;
-    const effectiveExpected = useCohort ? totalExpectedCohort : currentExpected;
-    const effectiveOverdue = useCohort ? totalOverdueCohort : overdueFees;
+
+    // Harmonize receivable with full cohort outstanding dues so dashboard reflects reconciled fees ledger
+    const effectivePending = Math.max(totalPendingCohort, currentPending);
+    const effectiveCollected = currentCollected > 0 ? currentCollected : totalCollectedCohort;
+    const effectiveExpected = effectiveCollected + effectivePending;
+    const effectiveOverdue = Math.max(totalOverdueCohort, overdueFees);
 
     const collectionPercentage =
       effectiveExpected > 0 ? Math.min(100, Math.round((effectiveCollected / effectiveExpected) * 100)) : 0;
@@ -344,10 +343,7 @@ export class DashboardService {
 
         const studentRecords = studentHistoryMap.get(fee.student_id) || [];
         
-        // Strict Business Rule §12 & §13:
-        // Count consecutive unpaid periods strictly from recorded fees.
-        // Stop immediately when a PAID record is encountered.
-        // Never count months that do not have records.
+        // Calculate consecutive unpaid periods strictly from recorded fees
         let consecutiveUnpaidCount = 0;
         for (const rec of studentRecords) {
           const recDue = Number(rec.amount_due || 0);
@@ -361,16 +357,35 @@ export class DashboardService {
           }
         }
 
-        const due = Number(fee.amount_due || 0);
-        const paid = Number(fee.amount_paid || 0);
-        const remaining = Math.max(0, due - paid);
-        const isPastDue = new Date(fee.due_date) < today;
+        // Aggregate cumulative dues across all fee records for this student so Dashboard matches Fees ledger exactly
+        let cumulativeDue = 0;
+        let cumulativePaid = 0;
+        let latestDueDate = fee.due_date;
+        let hasOverdue = false;
+
+        for (const rec of studentRecords) {
+          const recDue = Number(rec.amount_due || 0);
+          const recPaid = Number(rec.amount_paid || 0);
+          cumulativeDue += recDue;
+          cumulativePaid += recPaid;
+          if (rec.due_date && (!latestDueDate || new Date(rec.due_date) > new Date(latestDueDate))) {
+            latestDueDate = rec.due_date;
+          }
+          if (rec.status === 'OVERDUE' || (rec.due_date && new Date(rec.due_date) < today && recDue > recPaid)) {
+            hasOverdue = true;
+          }
+        }
+
+        const remaining = Math.max(0, cumulativeDue - cumulativePaid);
+        if (remaining <= 0) continue;
+
+        const isPastDue = latestDueDate ? new Date(latestDueDate) < today : false;
 
         let status: 'OVERDUE' | 'PARTIAL' | 'PENDING' = 'PENDING';
-        if (paid > 0) {
-          status = 'PARTIAL';
-        } else if (isPastDue) {
+        if (hasOverdue || isPastDue) {
           status = 'OVERDUE';
+        } else if (cumulativePaid > 0) {
+          status = 'PARTIAL';
         }
 
         // Determine attention level based on consecutive unpaid count and overdue state
@@ -383,7 +398,7 @@ export class DashboardService {
         } else if (consecutiveUnpaidCount === 2) {
           attentionLevel = 'REPEATED_PENDING';
           attentionBadge = '2 Months Unpaid';
-        } else if (isPastDue || status === 'OVERDUE') {
+        } else if (status === 'OVERDUE') {
           attentionLevel = 'FOLLOW_UP';
           attentionBadge = 'Overdue';
         } else if (status === 'PARTIAL') {
@@ -408,10 +423,10 @@ export class DashboardService {
           whatsappOptIn: studentObj?.whatsapp_opt_in !== false,
           billingPeriod: fee.billing_period,
           billingPeriodFormatted: DashboardService.formatBillingPeriod(fee.billing_period),
-          amountDue: due,
-          paidAmount: paid,
+          amountDue: cumulativeDue,
+          paidAmount: cumulativePaid,
           remainingAmount: remaining,
-          dueDate: fee.due_date,
+          dueDate: latestDueDate,
           status,
           consecutiveUnpaidCount,
           attentionLevel,
