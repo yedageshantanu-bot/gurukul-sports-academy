@@ -165,7 +165,7 @@ export const WhatsAppPage: React.FC = () => {
       if (deviceData) {
         // Strip out any fake mock numbers
         const rawPhone = deviceData.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
-        const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
+        const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999');
 
         if (!isValidPhone) {
           deviceData.phoneNumber = undefined;
@@ -206,7 +206,7 @@ export const WhatsAppPage: React.FC = () => {
 
       const statsObj = payload?.todayStats || payload?.stats;
       const rawPhone = deviceData?.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
-      const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
+      const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && rawPhone.length >= 10 && !rawPhone.includes('9999999999');
 
       setWhatsappStats((prev) => ({
         isConnected: Boolean(isDeviceReallyConnected),
@@ -247,7 +247,7 @@ export const WhatsAppPage: React.FC = () => {
       const returnedQr = payload?.qrCode || updatedStatus?.qrCode;
 
       const rawPhone = updatedStatus?.phoneNumber ? String(updatedStatus.phoneNumber).replace(/\D/g, '') : '';
-      const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999') && !rawPhone.includes('9421248210');
+      const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999');
 
       if (returnedQr) {
         setDevice((prev) => ({
@@ -348,8 +348,7 @@ export const WhatsAppPage: React.FC = () => {
     device.status === 'CONNECTED' &&
     device.phoneNumber &&
     device.phoneNumber.replace(/\D/g, '').length >= 10 &&
-    !device.phoneNumber.includes('9999999999') &&
-    !device.phoneNumber.includes('9421248210')
+    !device.phoneNumber.includes('9999999999')
   );
 
   // Real-time polling: runs every 3.5 seconds while waiting for QR scan, slows down once paired

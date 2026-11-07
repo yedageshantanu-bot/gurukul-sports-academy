@@ -60,7 +60,7 @@ export function isBlockedOrDummyNumber(phone: string): boolean {
   // Block common demo and test numbers from sample seeds
   const knownDummies = [
     '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
-    '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
+    '9888877777', '9123456780', '9876543210',
     '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
     '9100000000', '9111122222',
   ];
@@ -806,13 +806,17 @@ export class WhatsAppQueueService {
 
         const status = await provider.getStatus();
         const rawDigits = (status.phoneNumber || '').replace(/\D/g, '');
-        const isValidPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999') && !rawDigits.includes('9421248210');
+        const isValidPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999');
 
         if (status.status === 'CONNECTED' && isValidPhone) {
           // Keep bridge warm and update heartbeat in database
           await whatsappSettingsService.updateDeviceStatus('CONNECTED', status.phoneNumber, {
             lastHeartbeatAt: new Date().toISOString(),
           }).catch(() => {});
+
+          // Automatically dispatch pending backlog queue items and scheduled announcements
+          this.triggerBackgroundProcessing();
+          this.processScheduledAnnouncementsOnly().catch(() => {});
           return;
         } else if (status.status === 'CONNECTED' && !isValidPhone) {
           await whatsappSettingsService.updateDeviceStatus('QR_READY', undefined, {
@@ -829,6 +833,8 @@ export class WhatsAppQueueService {
             const reconnectRes = await provider.connect();
             if (reconnectRes.status?.status === 'CONNECTED') {
               console.log('[WhatsApp Watchdog] ✅ Auto-reconnected WhatsApp session successfully!');
+              this.triggerBackgroundProcessing();
+              this.processScheduledAnnouncementsOnly().catch(() => {});
             } else if (reconnectRes.qrCode) {
               console.log('[WhatsApp Watchdog] 📱 WhatsApp requires QR code re-authentication.');
             }

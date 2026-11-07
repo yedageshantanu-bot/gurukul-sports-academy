@@ -37,6 +37,11 @@ export class WhatsAppController {
             sessionStatus: deviceStatus.sessionStatus,
           })
           .catch(() => {});
+
+        if (deviceStatus.status === 'CONNECTED' && settings.device_status !== 'CONNECTED') {
+          queueService.triggerBackgroundProcessing();
+          queueService.processScheduledAnnouncementsOnly().catch(() => {});
+        }
       }
 
       res.status(200).json({
@@ -72,6 +77,11 @@ export class WhatsAppController {
         result.status.phoneNumber,
         { sessionStatus: result.status.sessionStatus }
       );
+
+      if (result.status.status === 'CONNECTED') {
+        queueService.triggerBackgroundProcessing();
+        queueService.processScheduledAnnouncementsOnly().catch(() => {});
+      }
 
       res.status(200).json({
         success: result.success,
@@ -112,6 +122,11 @@ export class WhatsAppController {
         result.status.phoneNumber,
         { sessionStatus: result.status.sessionStatus }
       );
+
+      if (result.status.status === 'CONNECTED') {
+        queueService.triggerBackgroundProcessing();
+        queueService.processScheduledAnnouncementsOnly().catch(() => {});
+      }
 
       res.status(200).json({
         success: result.success,

@@ -50,7 +50,7 @@ function isBlockedOrDummyNumber(phone: string): boolean {
 
   const knownDummies = [
     '9876500001', '9876500002', '9876500003', '9876500004', '9876500005',
-    '9888877777', '9123456780', '9876543210', '9421248210', '9421248211',
+    '9888877777', '9123456780', '9876543210',
     '0000000000', '1234567890', '9999999999', '1111111111', '2222222222',
     '9100000000', '9111122222',
   ];
@@ -1754,7 +1754,7 @@ export async function onRequest(context: any) {
 
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const cleanPhoneDigits = (bridgePhone || '').replace(/\D/g, '');
-      const isReallyConnected = bridgeStatus === 'CONNECTED' && cleanPhoneDigits.length >= 10 && !cleanPhoneDigits.includes('9999999999') && !cleanPhoneDigits.includes('9421248210');
+      const isReallyConnected = bridgeStatus === 'CONNECTED' && cleanPhoneDigits.length >= 10 && !cleanPhoneDigits.includes('9999999999');
 
       return jsonResponse({
         success: true,

@@ -194,7 +194,7 @@ export class OpenWaProvider implements WhatsAppSender {
 
     const effectiveQr = isConnected ? undefined : (qrCode || this.lastQrCode || undefined);
     const sessionPhone = session.phone ? String(session.phone).replace(/\D/g, '') : '';
-    const hasValidPhone = sessionPhone.length >= 10 && !sessionPhone.includes('9999999999') && !sessionPhone.includes('9421248210');
+    const hasValidPhone = sessionPhone.length >= 10 && !sessionPhone.includes('9999999999');
     const isReallyConnected = session.status === 'ready' && hasValidPhone;
     const formattedPhone = hasValidPhone ? `+${sessionPhone}` : undefined;
 
