@@ -360,8 +360,10 @@ export class DashboardService {
         // Aggregate cumulative dues across all fee records for this student so Dashboard matches Fees ledger exactly
         let cumulativeDue = 0;
         let cumulativePaid = 0;
-        let latestDueDate = fee.due_date;
         let hasOverdue = false;
+
+        let latestDueDate: string | null = fee.due_date || null;
+        let oldestUnpaidDueDate: string | null = null;
 
         for (const rec of studentRecords) {
           const recDue = Number(rec.amount_due || 0);
@@ -371,7 +373,13 @@ export class DashboardService {
           if (rec.due_date && (!latestDueDate || new Date(rec.due_date) > new Date(latestDueDate))) {
             latestDueDate = rec.due_date;
           }
-          if (rec.status === 'OVERDUE' || (rec.due_date && new Date(rec.due_date) < today && recDue > recPaid)) {
+          const isRecUnpaid = recDue > recPaid;
+          if (isRecUnpaid && rec.due_date) {
+            if (!oldestUnpaidDueDate || new Date(rec.due_date) < new Date(oldestUnpaidDueDate)) {
+              oldestUnpaidDueDate = rec.due_date;
+            }
+          }
+          if (rec.status === 'OVERDUE' || (rec.due_date && new Date(rec.due_date) < today && isRecUnpaid)) {
             hasOverdue = true;
           }
         }
@@ -379,7 +387,7 @@ export class DashboardService {
         const remaining = Math.max(0, cumulativeDue - cumulativePaid);
         if (remaining <= 0) continue;
 
-        const isPastDue = latestDueDate ? new Date(latestDueDate) < today : false;
+        const isPastDue = (oldestUnpaidDueDate || latestDueDate) ? new Date(oldestUnpaidDueDate || latestDueDate!) < today : false;
 
         let status: 'OVERDUE' | 'PARTIAL' | 'PENDING' = 'PENDING';
         if (hasOverdue || isPastDue) {
@@ -426,7 +434,7 @@ export class DashboardService {
           amountDue: cumulativeDue,
           paidAmount: cumulativePaid,
           remainingAmount: remaining,
-          dueDate: latestDueDate,
+          dueDate: oldestUnpaidDueDate || latestDueDate,
           status,
           consecutiveUnpaidCount,
           attentionLevel,

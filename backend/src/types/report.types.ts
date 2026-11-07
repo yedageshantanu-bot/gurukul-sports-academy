@@ -37,7 +37,7 @@ export type PaymentsReportFilterQuery = z.infer<typeof paymentsReportFilterSchem
 
 export const createAnnouncementSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title cannot exceed 200 characters'),
-  message: z.string().min(1, 'Message is required').max(2000, 'Message cannot exceed 2000 characters'),
+  message: z.string().min(1, 'Message is required'),
   batchIds: z.array(z.string().uuid('Valid batch ID is required')).default([]),
   tournamentIds: z.array(z.string().uuid()).optional(),
   teamCodes: z.array(z.string()).optional(),

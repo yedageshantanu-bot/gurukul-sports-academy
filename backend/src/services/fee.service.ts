@@ -353,12 +353,13 @@ export class FeeService {
   /**
    * Automatically generate/sync monthly fee records for all active monthly students.
    * If October (or November/any month) starts, this ensures every active student gets their
-   * billing record without manual entry. Active yearly students are protected and skipped.
+   * billing record without manual entry. Back-fills all missing historical periods from admission date
+   * so multi-month arrears accumulate properly (e.g. ₹600 + ₹600 = ₹1,200). Active yearly students are protected and skipped.
    */
   async syncMonthlyFeesForAllStudents(targetPeriod?: string) {
     const now = new Date();
-    const period = targetPeriod || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const [periodYear, periodMonth] = period.split('-').map((v) => parseInt(v, 10));
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const period = targetPeriod || currentPeriod;
 
     // 1. Fetch all active students with monthly fee > 0
     const { data: students, error: sErr } = await this.supabase
@@ -372,13 +373,14 @@ export class FeeService {
       return { syncedPeriod: period, createdCount: 0, totalActive: 0 };
     }
 
-    // 2. Fetch existing fees for this billing period
+    // 2. Fetch existing fees across all students to identify missing months
     const { data: existingFees } = await this.supabase
       .from('student_fees')
-      .select('student_id, billing_period')
-      .eq('billing_period', period);
+      .select('student_id, billing_period');
 
-    const existingStudentIds = new Set((existingFees || []).map((f) => f.student_id));
+    const existingStudentPeriods = new Set(
+      (existingFees || []).map((f) => `${f.student_id}:${f.billing_period}`)
+    );
 
     // 3. Fetch any active YEARLY fees (PAID, PARTIAL, or PENDING) to protect yearly students
     const { data: yearlyFees } = await this.supabase
@@ -393,43 +395,85 @@ export class FeeService {
 
     const newBillsToInsert: any[] = [];
 
+    // Helper: generate array of YYYY-MM periods from start to end (inclusive)
+    const generatePeriods = (startPeriod: string, endPeriod: string): string[] => {
+      const periods: string[] = [];
+      const [sYear, sMonth] = startPeriod.split('-').map(Number);
+      const [eYear, eMonth] = endPeriod.split('-').map(Number);
+      const curr = new Date(sYear, sMonth - 1, 1);
+      const stop = new Date(eYear, eMonth - 1, 1);
+
+      while (curr <= stop) {
+        periods.push(`${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`);
+        curr.setMonth(curr.getMonth() + 1);
+      }
+      return periods;
+    };
+
+    // Calculate maximum backfill window: at most 18 months in the past to prevent infinite runs on dirty data
+    const maxPast = new Date(now.getFullYear(), now.getMonth() - 18, 1);
+    const maxPastPeriod = `${maxPast.getFullYear()}-${String(maxPast.getMonth() + 1).padStart(2, '0')}`;
+
     for (const student of students) {
-      if (existingStudentIds.has(student.id) || yearlyStudentIds.has(student.id)) {
+      if (yearlyStudentIds.has(student.id)) {
         continue;
       }
 
-      // Check if admission date is strictly in a future month beyond period
+      // Determine starting period for this student
+      let studentStartPeriod = currentPeriod;
       if (student.admission_date) {
         const admPeriod = student.admission_date.slice(0, 7);
-        if (admPeriod > period) {
-          continue; // Student hasn't joined yet in this period
+        if (admPeriod < currentPeriod) {
+          studentStartPeriod = admPeriod < maxPastPeriod ? maxPastPeriod : admPeriod;
         }
+      } else {
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        studentStartPeriod = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}`;
       }
 
-      const dueDay = student.fee_due_day || 5;
-      const dueDate = new Date(periodYear, periodMonth - 1, Math.min(dueDay, 28)).toISOString().split('T')[0];
-      const isOverdue = new Date(dueDate) < today;
+      // Target period end: either currentPeriod, or targetPeriod if future
+      const endPeriod = targetPeriod && targetPeriod > currentPeriod ? targetPeriod : currentPeriod;
 
-      newBillsToInsert.push({
-        student_id: student.id,
-        billing_period: period,
-        amount_due: Number(student.monthly_fee),
-        amount_paid: 0,
-        due_date: dueDate,
-        status: isOverdue ? 'OVERDUE' : 'PENDING',
-      });
+      const periodsForStudent = generatePeriods(studentStartPeriod, endPeriod);
+      const dueDay = student.fee_due_day || 5;
+
+      for (const pStr of periodsForStudent) {
+        const key = `${student.id}:${pStr}`;
+        if (existingStudentPeriods.has(key)) {
+          continue;
+        }
+
+        const [pYear, pMonth] = pStr.split('-').map(Number);
+        const dueDate = new Date(pYear, pMonth - 1, Math.min(dueDay, 28)).toISOString().split('T')[0];
+        const isOverdue = new Date(dueDate) < today;
+
+        newBillsToInsert.push({
+          student_id: student.id,
+          billing_period: pStr,
+          amount_due: Number(student.monthly_fee),
+          amount_paid: 0,
+          due_date: dueDate,
+          status: isOverdue ? 'OVERDUE' : 'PENDING',
+        });
+        existingStudentPeriods.add(key);
+      }
     }
 
     if (newBillsToInsert.length > 0) {
-      const { error: insErr } = await this.supabase
-        .from('student_fees')
-        .insert(newBillsToInsert);
+      for (let i = 0; i < newBillsToInsert.length; i += 50) {
+        const chunk = newBillsToInsert.slice(i, i + 50);
+        const { error: insErr } = await this.supabase
+          .from('student_fees')
+          .insert(chunk);
 
-      if (insErr) {
-        console.error('[FeeService.syncMonthlyFeesForAllStudents] Insert error:', insErr);
-        throw new AppError(`Failed to insert monthly fees: ${insErr.message}`, 500);
+        if (insErr) {
+          console.error('[FeeService.syncMonthlyFeesForAllStudents] Chunk insert error:', insErr);
+          throw new AppError(`Failed to insert monthly fees: ${insErr.message}`, 500);
+        }
       }
     }
+
+    memoryCache.invalidateTag('dashboard');
 
     return {
       syncedPeriod: period,

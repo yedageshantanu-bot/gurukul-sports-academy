@@ -12,6 +12,7 @@ import {
   QueueFilterQuery,
   TodayStats,
 } from '../../types/whatsapp.types.js';
+import { feeService } from '../fee.service.js';
 
 export interface EnqueueMessageParams {
   recipientPhone: string;
@@ -730,6 +731,7 @@ export class WhatsAppQueueService {
   private schedulerInterval: NodeJS.Timeout | null = null;
   private watchdogInterval: NodeJS.Timeout | null = null;
   private lastWatchdogReconnectAttempt: number = 0;
+  private lastMonthlyFeeSync: number = 0;
 
   /**
    * Continuous WhatsApp Queue & Schedule Runner.
@@ -744,6 +746,15 @@ export class WhatsAppQueueService {
       this.processScheduledAnnouncementsOnly().catch((err) => {
         console.warn('[QueueService] Scheduled runner notice:', err.message);
       });
+
+      // Periodically sync monthly fees & back-fill missing arrears every 6 hours
+      const nowMs = Date.now();
+      if (nowMs - this.lastMonthlyFeeSync > 6 * 60 * 60 * 1000) {
+        this.lastMonthlyFeeSync = nowMs;
+        feeService.syncMonthlyFeesForAllStudents().catch((err) => {
+          console.warn('[QueueService] Auto-sync fee notice:', err.message);
+        });
+      }
     }, intervalMs);
 
     if (this.schedulerInterval.unref) {

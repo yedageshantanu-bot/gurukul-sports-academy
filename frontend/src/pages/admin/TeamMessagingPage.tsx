@@ -1178,13 +1178,26 @@ export const TeamMessagingPage: React.FC = () => {
                               ({contact.phone})
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5">
                             {contact.position && (
                               <span className="text-[10px] text-slate-400">{contact.position} • </span>
                             )}
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                              Teams: {contact.memberTeams.length > 0 ? contact.memberTeams.join(', ') : 'None yet'}
-                            </span>
+                            {contact.district ? (
+                              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                📍 {contact.district}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic">No District</span>
+                            )}
+                            {contact.memberTeams.length > 0 ? (
+                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                Already in Team
+                              </span>
+                            ) : (
+                              <span className="text-[9.5px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-white/10">
+                                Not in any team
+                              </span>
+                            )}
                           </div>
                         </div>
 

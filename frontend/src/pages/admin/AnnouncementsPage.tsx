@@ -1090,7 +1090,7 @@ export const AnnouncementsPage: React.FC = () => {
                 Announcement Message Body *
               </label>
               <span className="text-[11px] text-slate-400">
-                {formData.message.length} characters
+                {formData.message.length} characters (No character limit)
               </span>
             </div>
             <textarea
@@ -1317,9 +1317,14 @@ export const AnnouncementsPage: React.FC = () => {
           />
 
           <div className="w-full space-y-1.5 text-left">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal">
-              Announcement Message Body *
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-normal">
+                Announcement Message Body *
+              </label>
+              <span className="text-[11px] text-slate-400">
+                {editFormData.message.length} characters (No character limit)
+              </span>
+            </div>
             <textarea
               required
               rows={4}
