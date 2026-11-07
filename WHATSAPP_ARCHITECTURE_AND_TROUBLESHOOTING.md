@@ -139,3 +139,87 @@ To ensure your future WhatsApp automation and CRM integrations are bulletproof f
 | **Watchdog Demotion** | 60s cron forced status to `QR_READY` | Watchdog keeps alive on valid phone | Separate transport status from business rules |
 | **Perpetual QR Refresh**| 3.5s frontend polling hot-swapped QR | Working as designed (seamless sync) | Keep auto-refresh, add explicit visual status |
 | **Container Dropping** | Cloud container sleeping after 15m idle | Keepalive ping active via `keepAlive.mjs`| Use persistent instance or active ping cron |
+
+---
+
+## 7. Render 24/7 Keep-Alive & Uptime Bot Setup Guide
+
+### 7.1. Why Render Free Tier Sleeps & How External Pings Prevent It
+- **The 15-Minute Rule**: Render puts free web services to sleep (spins container down to 0) if no external HTTP request arrives for 15 minutes.
+- **The Problem When It Sleeps**: When the container sleeps, the WhatsApp Web connection is severed, requiring a fresh QR code scan upon wake-up.
+- **The Solution**: An external pinging service sends an HTTP `GET` request every **5 minutes**. Because 5 minutes is well below the 15-minute threshold, the Render inactivity timer constantly resets, keeping the containers running 24 hours a day, 7 days a week.
+- **Render Dashboard Action**: **Zero changes required in Render.** You do **NOT** need to configure anything in the Render dashboard. Render automatically resets the idle countdown whenever an external HTTP request reaches your public `.onrender.com` domain.
+
+---
+
+### 7.2. The Exact Keep-Alive URLs (Copy & Paste)
+
+You must configure **two separate monitors** (one for the backend API, and one for the WhatsApp bridge):
+
+| Monitor | Service Name | Exact Public URL to Ping | Method | Interval | Expected HTTP Status | Auth Header Required? |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Monitor 1** | Gurukul Dedicated Backend | `https://gurukul-sports-backend-ll86.onrender.com/api/health` | `GET` | `5 minutes` | `200 OK` | **No** (Public endpoint) |
+| **Monitor 2** | WhatsApp OpenWA Bridge | `https://gurukul-openwa-bridge-a0m4.onrender.com/health` | `GET` | `5 minutes` | `200 OK` | **No** (Public endpoint) |
+
+> [!NOTE]
+> Both endpoints return standard HTTP `200 OK` without requiring any passwords, bearer tokens, or API keys. Any standard HTTP client can ping them.
+
+---
+
+### 7.3. Step-by-Step Setup in UptimeRobot (Recommended - 100% Free)
+
+UptimeRobot provides 50 free monitors with 5-minute intervals. Follow these exact steps:
+
+1. **Sign Up / Log In**:
+   - Go to [UptimeRobot.com](https://uptimerobot.com) and sign in to your free account.
+2. **Add Monitor 1 (Backend API)**:
+   - Click the green **"+ Add New Monitor"** button.
+   - **Monitor Type**: Select `HTTP(s)`.
+   - **Friendly Name**: `Gurukul Backend API`
+   - **URL (or IP)**: `https://gurukul-sports-backend-ll86.onrender.com/api/health`
+   - **Monitoring Interval**: Select `5 minutes`.
+   - **Monitor Timeout**: Set to `30 seconds`.
+   - **Alert Contacts**: Select your email address.
+   - Click **"Create Monitor"**.
+3. **Add Monitor 2 (WhatsApp Bridge)**:
+   - Click **"+ Add New Monitor"** again.
+   - **Monitor Type**: Select `HTTP(s)`.
+   - **Friendly Name**: `Gurukul WhatsApp Bridge`
+   - **URL (or IP)**: `https://gurukul-openwa-bridge-a0m4.onrender.com/health`
+   - **Monitoring Interval**: Select `5 minutes`.
+   - **Monitor Timeout**: Set to `30 seconds`.
+   - **Alert Contacts**: Select your email address.
+   - Click **"Create Monitor"**.
+
+---
+
+### 7.4. Alternative: Step-by-Step Setup in Cron-Job.org
+
+If you use [Cron-Job.org](https://cron-job.org):
+1. Log in to [cron-job.org](https://cron-job.org).
+2. Click **"Cronjobs"** in the sidebar, then click **"Create cronjob"**.
+3. **Title**: `Gurukul Backend Keep-Alive`
+4. **URL**: `https://gurukul-sports-backend-ll86.onrender.com/api/health`
+5. **Execution schedule**: Select **"Every 5 minutes"** (Cron: `*/5 * * * *`).
+6. **Request Method**: `GET`
+7. Click **"Create"**.
+8. Repeat for the WhatsApp bridge:
+   - **Title**: `Gurukul WhatsApp Bridge Keep-Alive`
+   - **URL**: `https://gurukul-openwa-bridge-a0m4.onrender.com/health`
+   - **Schedule**: `*/5 * * * *`
+   - **Request Method**: `GET`
+   - Click **"Create"**.
+
+---
+
+### 7.5. Alternative: Running the Built-in Node Script Locally or on a Server
+
+The repository also includes [`repo/scripts/keepAlive.mjs`](file:///workspace/clever-faraday/repo/scripts/keepAlive.mjs). If you have any machine or server running continuously:
+```bash
+# Run directly
+node repo/scripts/keepAlive.mjs
+
+# Or keep it running in the background with PM2
+pm2 start repo/scripts/keepAlive.mjs --name gurukul-keepalive
+```
+
