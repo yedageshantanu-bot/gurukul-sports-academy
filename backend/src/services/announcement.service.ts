@@ -460,32 +460,38 @@ export class AnnouncementService {
               try {
                 await this.supabase.from('whatsapp_messages').insert({
                   recipient_phone: rec.recipientPhone,
+                  student_id: rec.studentId || null,
                   message_body: exactMessageBody,
                   status: 'SENT',
                   sent_at: new Date().toISOString(),
                   event_type: 'ANNOUNCEMENT',
-                  provider_message_id: sendRes.messageId || null,
                 });
-              } catch {}
+              } catch (insErr: any) {
+                console.warn('[AnnouncementService] Error inserting SENT audit log:', insErr.message);
+              }
             } else {
               try {
                 await this.supabase.from('whatsapp_messages').insert({
                   recipient_phone: rec.recipientPhone,
+                  student_id: rec.studentId || null,
                   message_body: exactMessageBody,
                   status: 'FAILED',
-                  error_message: sendRes.errorMessage || 'Failed to dispatch via gateway',
+                  sent_at: new Date().toISOString(),
                   event_type: 'ANNOUNCEMENT',
                 });
-              } catch {}
+              } catch (insErr: any) {
+                console.warn('[AnnouncementService] Error inserting FAILED audit log:', insErr.message);
+              }
             }
           } catch (e: any) {
             console.warn(`[AnnouncementService] Error delivering announcement to ${rec.recipientPhone}:`, e.message);
             try {
               await this.supabase.from('whatsapp_messages').insert({
                 recipient_phone: rec.recipientPhone,
+                student_id: rec.studentId || null,
                 message_body: exactMessageBody,
                 status: 'FAILED',
-                error_message: e.message || 'Exception during gateway dispatch',
+                sent_at: new Date().toISOString(),
                 event_type: 'ANNOUNCEMENT',
               });
             } catch {}
@@ -995,19 +1001,22 @@ export class AnnouncementService {
                 status: 'SENT',
                 sent_at: new Date().toISOString(),
                 event_type: 'ANNOUNCEMENT',
-                provider_message_id: sendRes.messageId || null,
               });
-            } catch {}
+            } catch (insErr: any) {
+              console.warn('[AnnouncementService] Error inserting missed SENT audit log:', insErr.message);
+            }
           } else {
             try {
               await this.supabase.from('whatsapp_messages').insert({
                 recipient_phone: rec.recipientPhone,
                 message_body: exactBody,
                 status: 'FAILED',
-                error_message: sendRes.errorMessage || 'Failed to dispatch via gateway',
+                sent_at: new Date().toISOString(),
                 event_type: 'ANNOUNCEMENT',
               });
-            } catch {}
+            } catch (insErr: any) {
+              console.warn('[AnnouncementService] Error inserting missed FAILED audit log:', insErr.message);
+            }
           }
         } catch (e: any) {
           console.warn(`[AnnouncementService] Error delivering missed announcement to ${rec.recipientPhone}:`, e.message);
@@ -1016,7 +1025,7 @@ export class AnnouncementService {
               recipient_phone: rec.recipientPhone,
               message_body: exactBody,
               status: 'FAILED',
-              error_message: e.message || 'Exception during gateway dispatch',
+              sent_at: new Date().toISOString(),
               event_type: 'ANNOUNCEMENT',
             });
           } catch {}
