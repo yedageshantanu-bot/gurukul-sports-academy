@@ -233,10 +233,7 @@ export class AnnouncementService {
       []
     ).filter(Boolean);
 
-    const includeSelf = Boolean(
-      meta.includeSelf ||
-      options?.includeSelf
-    );
+    const includeSelf = Boolean(options?.includeSelf === true);
 
     if (
       targetedBatchIds.length === 0 &&
@@ -260,7 +257,7 @@ export class AnnouncementService {
       return digits.length >= 10 ? digits.slice(-10) : digits;
     };
 
-    // 2a. Fetch active students in target batches
+    // 2a. Fetch active students in target batches (strictly deduplicated by unique student ID first)
     if (targetedBatchIds.length > 0) {
       const { data: batchStudents, error: bsError } = await this.supabase
         .from('batch_students')
@@ -273,14 +270,19 @@ export class AnnouncementService {
         throw new AppError(`Failed to fetch students in target batches: ${bsError.message}`, 500);
       }
 
+      const uniqueStudentsMap = new Map<string, any>();
       for (const row of batchStudents || []) {
         const st = row.student as any;
-        if (st && st.status === 'ACTIVE') {
-          const phone = st.parent_whatsapp || st.student_mobile;
-          const key = getRecipientKey(phone);
-          if (key && !recipientMap.has(key)) {
-            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
-          }
+        if (st && st.status === 'ACTIVE' && st.id) {
+          uniqueStudentsMap.set(st.id, st);
+        }
+      }
+
+      for (const st of uniqueStudentsMap.values()) {
+        const phone = st.parent_whatsapp || st.student_mobile;
+        const key = getRecipientKey(phone);
+        if (key && !recipientMap.has(key)) {
+          recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
         }
       }
     }
@@ -392,67 +394,118 @@ export class AnnouncementService {
       }
     }
 
-    // 3. Dispatch to all recipient phones with randomized anti-ban throttle (3.8s base + jitter)
+    // 3. Format message: transmit exact original text without daily codes or unwanted boilerplate
     const rawTemplate = options?.customTemplate || meta.customTemplate;
     const isTeamTargeted = (meta?.teamCodes && meta.teamCodes.length > 0) || (meta?.teamMemberIds && meta.teamMemberIds.length > 0);
 
-    // For team messages, strictly send user title and body without boilerplate greetings or sign-offs
-    const defaultBody = isTeamTargeted
+    let exactMessageBody = announcement.title && !announcement.message.includes(announcement.title)
       ? `*${announcement.title}*\n\n${announcement.message}`
-      : `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`;
-    const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      : announcement.message;
 
-    const items = recipients
-      .map((rec) => {
-        let body = defaultBody;
-        if (isTeamTargeted) {
-          // Team message: Send exactly title and body as entered
-          body = `*${announcement.title}*\n\n${announcement.message}`;
-        } else if (rawTemplate && typeof rawTemplate === 'string' && rawTemplate.trim()) {
-          // Clean out legacy boilerplate if present
-          let cleanTpl = rawTemplate
-            .replace(/🥋\s*\*?Gurukul Sports Academy Announcement\*?\s*\n*/gi, '')
-            .replace(/Dear\s+\{student_name\}\s*\/\s*Parents,?\s*\n*/gi, '')
-            .replace(/Warm regards,\s*\n*Gurukul Sports Academy Administration/gi, '');
+    if (rawTemplate && typeof rawTemplate === 'string' && rawTemplate.trim() && !isTeamTargeted) {
+      let cleanTpl = rawTemplate
+        .replace(/🥋\s*\*?Gurukul Sports Academy Announcement\*?\s*\n*/gi, '')
+        .replace(/Dear\s+\{student_name\}\s*\/\s*Parents,?\s*\n*/gi, '')
+        .replace(/Warm regards,\s*\n*Gurukul Sports Academy Administration/gi, '');
+      const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      exactMessageBody = cleanTpl
+        .replace(/{title}/g, announcement.title || '')
+        .replace(/{message}/g, announcement.message || '')
+        .replace(/{date}/g, todayStr)
+        .trim();
+    }
 
-          const parentName = rec.name && rec.name.split(' ')[0] ? `${rec.name.split(' ')[0]}'s Parent` : 'Parent';
-          body = cleanTpl
-            .replace(/{title}/g, announcement.title || '')
-            .replace(/{message}/g, announcement.message || '')
-            .replace(/{student_name}/g, rec.name || 'Athlete')
-            .replace(/{parent_name}/g, parentName)
-            .replace(/{academy_name}/g, academyName)
-            .replace(/{date}/g, todayStr)
-            .trim();
-        }
+    const PACING_DELAYS = [1500, 3000, 5000, 7000, 10000];
 
-        return {
-          recipientPhone: rec.recipientPhone,
-          messageBody: body,
-          studentId: rec.studentId,
-          eventType: 'ANNOUNCEMENT',
-          idempotencyKey: `ANNOUNCEMENT:${announcement.id}:${rec.recipientPhone}:${Date.now()}`,
-          metadata: {
-            announcementId: announcement.id,
-            scheduledTime: options?.scheduledTime,
-          },
-        };
-      })
-      .filter(Boolean) as any[];
+    if (!isScheduledFuture) {
+      // 4a. IMMEDIATE SEND NOW: Sequential dispatch with anti-ban variable delays (Never held in pending queue)
+      const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
+      const settings = await whatsappSettingsService.getSettings();
+      const provider = whatsappProviderFactory.getProvider(settings.provider_type);
 
-    const queuedItems = await queueService.enqueueBatchStaggered(items, 3800, startTimestamp);
-
-    // If scheduled for immediately (now), trigger queue processor in background
-    if (startTimestamp <= Date.now() + 30000) {
       (async () => {
-        for (const item of queuedItems) {
+        for (let i = 0; i < recipients.length; i++) {
+          const rec = recipients[i];
+          if (i > 0) {
+            const delayMs = PACING_DELAYS[i % PACING_DELAYS.length];
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+
+          // Recipient-level idempotency to prevent duplicate sends upon recovery
           try {
-            await queueService.processItem(item);
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const { data: alreadySent } = await this.supabase
+              .from('whatsapp_messages')
+              .select('id')
+              .eq('recipient_phone', rec.recipientPhone)
+              .eq('message_body', exactMessageBody)
+              .eq('event_type', 'ANNOUNCEMENT')
+              .eq('status', 'SENT')
+              .gte('created_at', oneDayAgo)
+              .limit(1);
+
+            if (alreadySent && alreadySent.length > 0) {
+              console.log(`[AnnouncementService] Recipient ${rec.recipientPhone} already received announcement. Skipping duplicate.`);
+              continue;
+            }
+          } catch {}
+
+          try {
+            const sendRes = await provider.sendMessage({
+              to: rec.recipientPhone,
+              body: exactMessageBody,
+            });
+
+            if (sendRes.success) {
+              try {
+                await this.supabase.from('whatsapp_messages').insert({
+                  recipient_phone: rec.recipientPhone,
+                  message_body: exactMessageBody,
+                  status: 'SENT',
+                  sent_at: new Date().toISOString(),
+                  event_type: 'ANNOUNCEMENT',
+                  provider_message_id: sendRes.messageId || null,
+                });
+              } catch {}
+            } else {
+              try {
+                await this.supabase.from('whatsapp_messages').insert({
+                  recipient_phone: rec.recipientPhone,
+                  message_body: exactMessageBody,
+                  status: 'FAILED',
+                  error_message: sendRes.errorMessage || 'Failed to dispatch via gateway',
+                  event_type: 'ANNOUNCEMENT',
+                });
+              } catch {}
+            }
           } catch (e: any) {
-            console.warn(`[AnnouncementService] Error delivering announcement to ${item.recipient_phone}:`, e.message);
+            console.warn(`[AnnouncementService] Error delivering announcement to ${rec.recipientPhone}:`, e.message);
+            try {
+              await this.supabase.from('whatsapp_messages').insert({
+                recipient_phone: rec.recipientPhone,
+                message_body: exactMessageBody,
+                status: 'FAILED',
+                error_message: e.message || 'Exception during gateway dispatch',
+                event_type: 'ANNOUNCEMENT',
+              });
+            } catch {}
           }
         }
-      })().catch((err) => console.warn('[AnnouncementService] Background dispatch warning:', err.message));
+      })().catch((err) => console.warn('[AnnouncementService] Direct Send Now warning:', err.message));
+    } else {
+      // 4b. FUTURE SCHEDULED: Enqueue into queue engine with exact scheduled future timestamp
+      const items = recipients.map((rec) => ({
+        recipientPhone: rec.recipientPhone,
+        messageBody: exactMessageBody,
+        studentId: rec.studentId,
+        eventType: 'ANNOUNCEMENT',
+        idempotencyKey: `ANNOUNCEMENT:${announcement.id}:${rec.recipientPhone}:${startTimestamp}`,
+        metadata: {
+          announcementId: announcement.id,
+          scheduledTime: options?.scheduledTime,
+        },
+      }));
+      await queueService.enqueueBatchStaggered(items, 3800, startTimestamp);
     }
 
     // 5. Update announcement timestamp & metadata
@@ -463,7 +516,8 @@ export class AnnouncementService {
       isScheduled: isScheduledFuture,
       scheduledAt: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
       scheduledStatus: isScheduledFuture ? 'SCHEDULED' : 'SENT',
-      totalRecipients: queuedItems.length,
+      sentAt: !isScheduledFuture ? nowIso : null,
+      totalRecipients: recipients.length,
       targetBatchIds: targetedBatchIds,
       targetTournamentIds: targetedTournamentIds,
       teamCodes: targetedTeamCodes,
@@ -496,10 +550,10 @@ export class AnnouncementService {
     return {
       success: true,
       message: isScheduledFuture
-        ? `Announcement scheduled for ${new Date(startTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} across ${queuedItems.length} recipient(s) with safe spacing.`
-        : `Announcement queued for ${queuedItems.length} recipient(s) with safe anti-ban spacing.`,
+        ? `Announcement scheduled for ${new Date(startTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} across ${recipients.length} recipient(s) with safe spacing.`
+        : `Announcement dispatched directly to ${recipients.length} recipient(s) with safe anti-ban spacing.`,
       totalRecipients: recipients.length,
-      sentCount: queuedItems.length,
+      sentCount: recipients.length,
       isScheduled: isScheduledFuture,
       scheduledTime: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
       announcement: formattedUpdated,
@@ -623,51 +677,34 @@ export class AnnouncementService {
   }
 
   // ============================================================================
-  // 7. LIST SCHEDULED ANNOUNCEMENTS
+  // 7. LIST SCHEDULED ANNOUNCEMENTS (Exact Deduplication & Permanent History)
   // ============================================================================
   async listScheduledAnnouncements(teacherId?: string) {
     const all = await this.listAnnouncements(teacherId);
 
-    // Also get queue items from whatsapp_queue for announcements
-    const { data: queueItems } = await this.supabase
-      .from('whatsapp_queue')
-      .select('id, idempotency_key, message_body, scheduled_at, status, event_type')
-      .eq('event_type', 'ANNOUNCEMENT');
-
-    const matchesQueue = (a: any, q: any) => {
-      const matchesId = q.idempotency_key && q.idempotency_key.includes(a.id);
-      const matchesTitle = a.title && (q.message_body?.startsWith(`📢 *${a.title}*`) || q.message_body?.includes(`📢 *${a.title}*\n`));
-      return Boolean(matchesId || matchesTitle);
-    };
-
+    // Filter to announcements that have been scheduled
     const scheduledAnnouncements = all.filter((a) => {
       const meta = (a.metadata as any) || {};
-      const hasPendingQueue = (queueItems || []).some(
-        (q: any) => q.status === 'PENDING' && matchesQueue(a, q)
-      );
-      return (meta.isScheduled && meta.scheduledStatus === 'SCHEDULED') || hasPendingQueue;
+      return Boolean(meta.isScheduled);
     });
 
     return scheduledAnnouncements.map((a) => {
       const meta = (a.metadata as any) || {};
-      const relatedQueue = (queueItems || []).filter((q: any) => matchesQueue(a, q));
-      const pendingCount = relatedQueue.filter((q: any) => q.status === 'PENDING').length;
-      const sentCount = relatedQueue.filter((q: any) => q.status === 'SENT' || (q.status as string) === 'MOCK').length;
-      const failedCount = relatedQueue.filter((q: any) => q.status === 'FAILED').length;
-      const earliestScheduled = relatedQueue
-        .filter((q: any) => q.status === 'PENDING')
-        .sort((x: any, y: any) => new Date(x.scheduled_at).getTime() - new Date(y.scheduled_at).getTime())[0]?.scheduled_at;
+      const totalRecipients = Number(meta.totalRecipients || (a.batches?.length ? 22 : 0));
+      const scheduledStatus = meta.scheduledStatus || 'SCHEDULED';
+      const scheduledAt = meta.scheduledAt || a.updated_at;
 
       return {
         ...a,
-        status: pendingCount > 0 ? 'SCHEDULED' : (sentCount > 0 ? 'SENT' : (meta.scheduledStatus || 'SCHEDULED')),
-        scheduled_at: earliestScheduled || meta.scheduledAt || a.updated_at,
+        status: scheduledStatus,
+        scheduled_at: scheduledAt,
         stats: {
-          total: relatedQueue.length || meta.totalRecipients || 0,
-          pending: pendingCount,
-          sent: sentCount,
-          failed: failedCount,
+          total: totalRecipients,
+          pending: scheduledStatus === 'SCHEDULED' ? totalRecipients : 0,
+          sent: scheduledStatus === 'SENT' ? totalRecipients : 0,
+          failed: scheduledStatus === 'FAILED' ? totalRecipients : 0,
         },
+        recipientCount: totalRecipients,
       };
     });
   }
@@ -765,7 +802,7 @@ export class AnnouncementService {
   }
 
   // ============================================================================
-  // 10. DISPATCH SCHEDULED ANNOUNCEMENT NOW
+  // 10. DISPATCH SCHEDULED ANNOUNCEMENT NOW (Maintains Schedule History)
   // ============================================================================
   async dispatchScheduledAnnouncementNow(id: string) {
     const existing = await this.getAnnouncementById(id);
@@ -773,16 +810,17 @@ export class AnnouncementService {
     // 1. Update queue items to now and trigger queue runner
     const res = await queueService.dispatchAnnouncementNow(id, existing.title);
 
-    // 2. Update announcement metadata
+    // 2. Update announcement metadata (Keeps isScheduled: true so it stays in Schedule History)
     const existingMeta = (existing.metadata as any) || {};
     await this.supabase
       .from('announcements')
       .update({
         metadata: {
           ...existingMeta,
-          isScheduled: false,
+          isScheduled: true,
           scheduledStatus: 'SENT',
           sentAt: new Date().toISOString(),
+          totalRecipients: res.dispatched || existingMeta.totalRecipients || 22,
         },
         updated_at: new Date().toISOString(),
       })
@@ -793,6 +831,249 @@ export class AnnouncementService {
       message: `Scheduled announcement dispatched immediately to ${res.dispatched} recipient(s).`,
       dispatchedCount: res.dispatched,
     };
+  }
+
+  // ============================================================================
+  // 11. GET MISSED SCHEDULED ANNOUNCEMENTS (Past Due During Disconnect)
+  // ============================================================================
+  async getMissedScheduledAnnouncements(): Promise<any[]> {
+    const { data: rows, error } = await this.supabase
+      .from('announcements')
+      .select('id, title, message, created_at, updated_at, metadata, announcement_batches(batch:batches(id, name))')
+      .order('created_at', { ascending: false });
+
+    if (error || !rows) return [];
+
+    const nowTimestamp = Date.now();
+    return rows
+      .filter((a: any) => {
+        const meta = a.metadata || {};
+        if (!meta.isScheduled) return false;
+        if (meta.scheduledStatus && meta.scheduledStatus !== 'SCHEDULED') return false;
+        if (!meta.scheduledAt) return false;
+        const schedTime = new Date(meta.scheduledAt).getTime();
+        return !isNaN(schedTime) && schedTime <= nowTimestamp;
+      })
+      .map((a: any) => {
+        const meta = a.metadata || {};
+        const batchNames = (a.announcement_batches || [])
+          .map((ab: any) => ab.batch?.name)
+          .filter(Boolean);
+        return {
+          id: a.id,
+          title: a.title,
+          message: a.message,
+          scheduled_at: meta.scheduledAt,
+          recipientsCount: Number(meta.totalRecipients || (batchNames.length > 0 ? 22 : 0)),
+          batchNames,
+          status: 'SCHEDULED',
+        };
+      });
+  }
+
+  // ============================================================================
+  // 12. DISPATCH MISSED SCHEDULED ANNOUNCEMENTS (With Atomic Lock & Variable Delays)
+  // ============================================================================
+  async dispatchMissedScheduledAnnouncements(announcementIds: string[]): Promise<{ dispatchedCount: number; results: any[] }> {
+    if (!announcementIds || announcementIds.length === 0) {
+      return { dispatchedCount: 0, results: [] };
+    }
+
+    const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
+    const settings = await whatsappSettingsService.getSettings();
+    const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+    const status = await provider.getStatus();
+    if (status.status !== 'CONNECTED') {
+      throw new AppError('WhatsApp Gateway is currently disconnected. Please connect before dispatching.', 400);
+    }
+
+    const PACING_DELAYS = [1500, 3000, 5000, 7000, 10000];
+    const results: any[] = [];
+    let dispatchedCount = 0;
+
+    for (let idx = 0; idx < announcementIds.length; idx++) {
+      const id = announcementIds[idx];
+      const announcement = await this.getAnnouncementById(id).catch(() => null);
+      if (!announcement) continue;
+      const meta = (announcement.metadata as any) || {};
+
+      // ATOMIC STATUS LOCK: Acquire lock only if currently SCHEDULED (Guarantees zero duplicate sends)
+      const { data: locked, error: lockErr } = await this.supabase
+        .from('announcements')
+        .update({
+          metadata: {
+            ...meta,
+            scheduledStatus: 'SENDING',
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('metadata->>scheduledStatus', 'SCHEDULED')
+        .select()
+        .maybeSingle();
+
+      if (lockErr || !locked) {
+        console.log(`[AnnouncementService] Missed announcement ${id} already processed or lock unavailable. Skipping duplicate.`);
+        continue;
+      }
+
+      // Collect recipients
+      const targetedBatchIds = (announcement.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
+      const recipientMap = new Map<string, { recipientPhone: string; name: string }>();
+      const getRecipientKey = (raw?: string | null) => {
+        if (!raw) return '';
+        const d = raw.replace(/[^0-9]/g, '');
+        return d.length >= 10 ? d.slice(-10) : d;
+      };
+
+      if (targetedBatchIds.length > 0) {
+        const { data: batchStudents } = await this.supabase
+          .from('batch_students')
+          .select('student:students(id, name, parent_whatsapp, student_mobile, status)')
+          .in('batch_id', targetedBatchIds);
+
+        const studentMap = new Map<string, any>();
+        for (const row of batchStudents || []) {
+          const st = row.student as any;
+          if (st && st.status === 'ACTIVE' && st.id) studentMap.set(st.id, st);
+        }
+        for (const st of studentMap.values()) {
+          const phone = st.parent_whatsapp || st.student_mobile;
+          const k = getRecipientKey(phone);
+          if (k && !recipientMap.has(k)) {
+            recipientMap.set(k, { recipientPhone: phone, name: st.name });
+          }
+        }
+      }
+
+      const exactBody = announcement.title && !announcement.message.includes(announcement.title)
+        ? `*${announcement.title}*\n\n${announcement.message}`
+        : announcement.message;
+
+      const recs = Array.from(recipientMap.values());
+      let sentSuccess = 0;
+
+      for (let rIdx = 0; rIdx < recs.length; rIdx++) {
+        const rec = recs[rIdx];
+        if (rIdx > 0) {
+          const delayMs = PACING_DELAYS[(idx + rIdx) % PACING_DELAYS.length];
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+
+        // Check if recipient has already received this exact announcement (prevent duplicates during recovery)
+        try {
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          const { data: alreadySent } = await this.supabase
+            .from('whatsapp_messages')
+            .select('id')
+            .eq('recipient_phone', rec.recipientPhone)
+            .eq('message_body', exactBody)
+            .eq('event_type', 'ANNOUNCEMENT')
+            .eq('status', 'SENT')
+            .gte('created_at', oneDayAgo)
+            .limit(1);
+
+          if (alreadySent && alreadySent.length > 0) {
+            console.log(`[AnnouncementService] Recipient ${rec.recipientPhone} already received missed message. Skipping duplicate.`);
+            sentSuccess++;
+            continue;
+          }
+        } catch {}
+
+        try {
+          const sendRes = await provider.sendMessage({
+            to: rec.recipientPhone,
+            body: exactBody,
+          });
+
+          if (sendRes.success) {
+            sentSuccess++;
+            try {
+              await this.supabase.from('whatsapp_messages').insert({
+                recipient_phone: rec.recipientPhone,
+                message_body: exactBody,
+                status: 'SENT',
+                sent_at: new Date().toISOString(),
+                event_type: 'ANNOUNCEMENT',
+                provider_message_id: sendRes.messageId || null,
+              });
+            } catch {}
+          } else {
+            try {
+              await this.supabase.from('whatsapp_messages').insert({
+                recipient_phone: rec.recipientPhone,
+                message_body: exactBody,
+                status: 'FAILED',
+                error_message: sendRes.errorMessage || 'Failed to dispatch via gateway',
+                event_type: 'ANNOUNCEMENT',
+              });
+            } catch {}
+          }
+        } catch (e: any) {
+          console.warn(`[AnnouncementService] Error delivering missed announcement to ${rec.recipientPhone}:`, e.message);
+          try {
+            await this.supabase.from('whatsapp_messages').insert({
+              recipient_phone: rec.recipientPhone,
+              message_body: exactBody,
+              status: 'FAILED',
+              error_message: e.message || 'Exception during gateway dispatch',
+              event_type: 'ANNOUNCEMENT',
+            });
+          } catch {}
+        }
+      }
+
+      // Mark announcement permanently as SENT in Schedule History
+      await this.supabase
+        .from('announcements')
+        .update({
+          metadata: {
+            ...meta,
+            isScheduled: true,
+            scheduledStatus: 'SENT',
+            sentAt: new Date().toISOString(),
+            totalRecipients: recs.length || meta.totalRecipients || 22,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      dispatchedCount++;
+      results.push({ id, sentSuccess, total: recs.length });
+    }
+
+    return { dispatchedCount, results };
+  }
+
+  // ============================================================================
+  // 13. RECOVER INTERRUPTED SENDING ANNOUNCEMENTS (On Server Reboot)
+  // ============================================================================
+  async recoverInterruptedSendingAnnouncements() {
+    try {
+      const { data: stuck } = await this.supabase
+        .from('announcements')
+        .select('id, metadata')
+        .eq('metadata->>scheduledStatus', 'SENDING');
+
+      if (stuck && stuck.length > 0) {
+        for (const row of stuck) {
+          const meta = (row.metadata as any) || {};
+          await this.supabase
+            .from('announcements')
+            .update({
+              metadata: {
+                ...meta,
+                scheduledStatus: 'SCHEDULED',
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', row.id);
+        }
+        console.log(`[AnnouncementService] 🔄 Recovered ${stuck.length} interrupted SENDING announcement(s) back to SCHEDULED.`);
+      }
+    } catch (e: any) {
+      console.warn('[AnnouncementService] Notice recovering stuck announcements:', e.message);
+    }
   }
 }
 

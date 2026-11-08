@@ -78,6 +78,7 @@ export class DashboardService {
       allFeesRes,
       recentPaymentsRes,
       recentStudentsRes,
+      upcomingScheduledRes,
     ] = await Promise.all([
       db.from('students').select('*', { count: 'exact', head: true }),
       db.from('students').select('*', { count: 'exact', head: true }).eq('status', STATUS.ACTIVE),
@@ -158,6 +159,10 @@ export class DashboardService {
         .select('id, name, course, status, admission_date, created_at')
         .order('created_at', { ascending: false })
         .limit(3),
+      db.from('announcements')
+        .select('id, title, message, created_at, metadata')
+        .order('created_at', { ascending: false })
+        .limit(20),
     ]);
 
     const totalStudents = totalStudentsRes.count || 0;
@@ -475,6 +480,31 @@ export class DashboardService {
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
 
+    // 8. Upcoming Scheduled Messages (Next 1–2 days / 48 hours)
+    const nowTimestamp = Date.now();
+    const upcomingScheduled = (upcomingScheduledRes?.data || [])
+      .filter((a: any) => {
+        const meta = a.metadata || {};
+        if (!meta.isScheduled) return false;
+        if (meta.scheduledStatus && meta.scheduledStatus !== 'SCHEDULED') return false;
+        if (!meta.scheduledAt) return false;
+        const schedTime = new Date(meta.scheduledAt).getTime();
+        return !isNaN(schedTime) && schedTime <= nowTimestamp + 48 * 60 * 60 * 1000;
+      })
+      .map((a: any) => {
+        const meta = a.metadata || {};
+        return {
+          id: a.id,
+          title: a.title,
+          messagePreview: a.message?.slice(0, 120) || '',
+          scheduledAt: meta.scheduledAt,
+          recipientsCount: Number(meta.totalRecipients || 0),
+          status: meta.scheduledStatus || 'SCHEDULED',
+        };
+      })
+      .sort((x: any, y: any) => new Date(x.scheduledAt).getTime() - new Date(y.scheduledAt).getTime())
+      .slice(0, 5);
+
     const result = {
       kpis: {
         totalStudents: totalStudents || 0,
@@ -517,6 +547,7 @@ export class DashboardService {
       batchFeeSummary,
       feeFollowups,
       recentActivity,
+      upcomingScheduled,
       recentStudents: recentStudents || [],
       recentBatches: allBatches?.slice(0, 5) || [],
     };

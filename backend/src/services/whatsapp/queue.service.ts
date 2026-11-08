@@ -562,6 +562,68 @@ export class WhatsAppQueueService {
   }
 
   /**
+   * Permanently delete all pending, processing, and queued messages from the WhatsApp queue and database.
+   * Hard-deletes from whatsapp_queue and whatsapp_messages.
+   */
+  async purgeQueue(): Promise<{ cancelledCount: number; deletedCount: number }> {
+    let deletedCount = 0;
+
+    // 1. Purge In-Memory queue items
+    deletedCount += this.inMemoryQueue.size;
+    this.inMemoryQueue.clear();
+    this.processingRecipients.clear();
+
+    // 2. Supabase permanent hard deletion of all PENDING, PROCESSING, CANCELLED, or QUEUED items
+    if (this.supabase) {
+      try {
+        const { data: queueData } = await this.supabase
+          .from('whatsapp_queue')
+          .delete()
+          .in('status', ['PENDING', 'PROCESSING', 'CANCELLED', 'QUEUED'])
+          .select('id');
+
+        if (queueData) {
+          deletedCount = Math.max(deletedCount, queueData.length);
+        }
+
+        // Delete all queued messages from whatsapp_messages table
+        const { data: msgData } = await this.supabase
+          .from('whatsapp_messages')
+          .delete()
+          .eq('status', 'QUEUED')
+          .select('id');
+
+        if (msgData) {
+          deletedCount += msgData.length;
+        }
+      } catch (err: any) {
+        console.warn('[QueueService] Error permanently deleting queue items:', err.message);
+      }
+    }
+
+    console.log(`[QueueService] 🗑️ Permanently deleted ${deletedCount} queued messages.`);
+    return { cancelledCount: deletedCount, deletedCount };
+  }
+
+  /**
+   * Delete a single message from whatsapp_queue or whatsapp_messages
+   */
+  async deleteQueueItem(id: string): Promise<boolean> {
+    this.inMemoryQueue.delete(id);
+    if (this.supabase) {
+      try {
+        await Promise.all([
+          this.supabase.from('whatsapp_queue').delete().eq('id', id),
+          this.supabase.from('whatsapp_messages').delete().eq('id', id),
+        ]);
+      } catch (err: any) {
+        console.warn('[QueueService] Error deleting queue/message item:', err.message);
+      }
+    }
+    return true;
+  }
+
+  /**
    * Update scheduled time and/or message body for pending queue items of an announcement
    */
   async updateScheduledAnnouncementItems(

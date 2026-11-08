@@ -223,6 +223,15 @@ export interface RecentActivityItem {
   timestamp: string;
 }
 
+export interface UpcomingScheduledItem {
+  id: string;
+  title: string;
+  messagePreview: string;
+  scheduledAt: string;
+  recipientsCount: number;
+  status: string;
+}
+
 export interface TeacherKPIs {
   assignedBatchCount: number;
   totalStudentCount: number;

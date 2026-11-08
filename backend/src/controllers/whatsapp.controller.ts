@@ -4,6 +4,7 @@ import { automationService } from '../services/whatsapp/automation.service.js';
 import { queueService } from '../services/whatsapp/queue.service.js';
 import { whatsappSettingsService } from '../services/whatsapp/whatsappSettings.service.js';
 import { whatsappProviderFactory } from '../services/whatsapp/whatsappProvider.factory.js';
+import { announcementService } from '../services/announcement.service.js';
 import {
   createTemplateSchema,
   updateTemplateSchema,
@@ -40,7 +41,6 @@ export class WhatsAppController {
 
         if (deviceStatus.status === 'CONNECTED' && settings.device_status !== 'CONNECTED') {
           queueService.triggerBackgroundProcessing();
-          queueService.processScheduledAnnouncementsOnly().catch(() => {});
         }
       }
 
@@ -80,7 +80,6 @@ export class WhatsAppController {
 
       if (result.status.status === 'CONNECTED') {
         queueService.triggerBackgroundProcessing();
-        queueService.processScheduledAnnouncementsOnly().catch(() => {});
       }
 
       res.status(200).json({
@@ -125,7 +124,6 @@ export class WhatsAppController {
 
       if (result.status.status === 'CONNECTED') {
         queueService.triggerBackgroundProcessing();
-        queueService.processScheduledAnnouncementsOnly().catch(() => {});
       }
 
       res.status(200).json({
@@ -298,12 +296,64 @@ export class WhatsAppController {
     }
   }
 
+  async purgeQueue(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await queueService.purgeQueue();
+      res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${result.deletedCount || result.cancelledCount} queued messages.`,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async deleteMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      await queueService.deleteQueueItem(id);
+      res.status(200).json({
+        success: true,
+        message: 'Message deleted successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async retryMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const updated = await queueService.retryMessage(req.params.id);
       res.status(200).json({
         success: true,
         data: updated,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getMissedScheduledMessages(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await announcementService.getMissedScheduledAnnouncements();
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async dispatchMissedScheduledMessages(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { announcementIds } = req.body;
+      const result = await announcementService.dispatchMissedScheduledAnnouncements(announcementIds || []);
+      res.status(200).json({
+        success: true,
+        message: `Successfully dispatched ${result.dispatchedCount} missed scheduled broadcast(s).`,
+        data: result,
       });
     } catch (err) {
       next(err);

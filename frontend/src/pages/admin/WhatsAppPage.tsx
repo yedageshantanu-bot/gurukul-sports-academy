@@ -20,6 +20,7 @@ import {
   Search,
   Eye,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 
 interface DeviceStatus {
@@ -80,10 +81,23 @@ export const WhatsAppPage: React.FC = () => {
   const [messages, setMessages] = useState<WhatsAppLogMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | '7DAYS'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SENT' | 'QUEUED' | 'FAILED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SENT' | 'FAILED'>('ALL');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<WhatsAppLogMessage | null>(null);
+
+  // Missed scheduled broadcasts modal state
+  const [missedMessages, setMissedMessages] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    scheduled_at: string;
+    recipientsCount: number;
+    batchNames?: string[];
+  }>>([]);
+  const [isMissedModalOpen, setIsMissedModalOpen] = useState(false);
+  const [selectedMissedIds, setSelectedMissedIds] = useState<string[]>([]);
+  const [dispatchingMissed, setDispatchingMissed] = useState(false);
 
   // Test message form
   const [testPhone, setTestPhone] = useState('');
@@ -102,6 +116,7 @@ export const WhatsAppPage: React.FC = () => {
         const { data: sbData } = await supabase
           .from('whatsapp_messages')
           .select('*, student:students(id, name, course, parent_name)')
+          .neq('status', 'QUEUED')
           .order('created_at', { ascending: false })
           .limit(100);
         if (sbData) setMessages(sbData as any);
@@ -112,6 +127,7 @@ export const WhatsAppPage: React.FC = () => {
         const { data: sbData } = await supabase
           .from('whatsapp_messages')
           .select('*, student:students(id, name, course, parent_name)')
+          .neq('status', 'QUEUED')
           .order('created_at', { ascending: false })
           .limit(100);
         if (sbData) setMessages(sbData as any);
@@ -217,6 +233,11 @@ export const WhatsAppPage: React.FC = () => {
         failed: statsObj?.failed ?? prev.failed ?? 0,
         billingPeriod: statsObj?.billingPeriod || prev.billingPeriod,
       }));
+
+      // If connected, check for any missed scheduled messages to surface prompt
+      if (isDeviceReallyConnected) {
+        checkMissedScheduled();
+      }
     } catch (err: any) {
       console.warn('Failed to load WhatsApp status:', err);
     } finally {
@@ -224,6 +245,58 @@ export const WhatsAppPage: React.FC = () => {
       setRefreshing(false);
     }
   }, []);
+
+  // Check for missed scheduled broadcasts
+  const checkMissedScheduled = useCallback(async () => {
+    try {
+      const res = await apiClient<any>('/whatsapp/missed-scheduled-messages');
+      const data = res?.data || [];
+      if (Array.isArray(data) && data.length > 0) {
+        setMissedMessages(data);
+        setSelectedMissedIds(data.map((m: any) => m.id));
+        setIsMissedModalOpen(true);
+      }
+    } catch (err) {
+      console.warn('Failed to check missed scheduled broadcasts:', err);
+    }
+  }, []);
+
+  const handleDispatchMissed = async () => {
+    if (selectedMissedIds.length === 0) {
+      toast.error('Please select at least one broadcast to dispatch.');
+      return;
+    }
+
+    setDispatchingMissed(true);
+    try {
+      const res = await apiClient<any>('/whatsapp/dispatch-missed-scheduled-messages', {
+        method: 'POST',
+        body: JSON.stringify({ announcementIds: selectedMissedIds }),
+      });
+      toast.success(res?.message || `Dispatched ${selectedMissedIds.length} missed broadcast(s) successfully!`);
+      setIsMissedModalOpen(false);
+      fetchMessages();
+      fetchStatus();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to dispatch missed broadcasts');
+    } finally {
+      setDispatchingMissed(false);
+    }
+  };
+
+  const handleToggleSelectAllMissed = () => {
+    if (selectedMissedIds.length === missedMessages.length) {
+      setSelectedMissedIds([]);
+    } else {
+      setSelectedMissedIds(missedMessages.map((m) => m.id));
+    }
+  };
+
+  const handleToggleMissedId = (id: string) => {
+    setSelectedMissedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     fetchStatus(true);
@@ -297,6 +370,25 @@ export const WhatsAppPage: React.FC = () => {
       toast.error(errMsg);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  // Delete individual message (queued or sent log)
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('Delete this message entry?')) return;
+    try {
+      // Optimistic UI update
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+      await Promise.allSettled([
+        apiClient(`/whatsapp/messages/${messageId}`, { method: 'DELETE' }),
+        supabase.from('whatsapp_queue').delete().eq('id', messageId),
+        supabase.from('whatsapp_messages').delete().eq('id', messageId),
+      ]);
+      toast.success('Message deleted successfully.');
+      fetchStatus(false);
+    } catch (err: any) {
+      console.warn('Error deleting message:', err);
     }
   };
 
@@ -428,11 +520,12 @@ export const WhatsAppPage: React.FC = () => {
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'SENT') {
           if (msg.status !== 'SENT' && msg.status !== 'DELIVERED' && msg.status !== 'MOCK' && msg.status !== 'OK' && (msg.status as string) !== 'SENT_NOW') return false;
-        } else if (statusFilter === 'QUEUED') {
-          if (msg.status !== 'QUEUED') return false;
         } else if (statusFilter === 'FAILED') {
           if (msg.status !== 'FAILED') return false;
         }
+      } else {
+        // By default when viewing All messages, exclude queued items
+        if (msg.status === 'QUEUED') return false;
       }
 
       // Event Type filter
@@ -583,9 +676,11 @@ export const WhatsAppPage: React.FC = () => {
           <span className="font-semibold text-slate-900 dark:text-white">Live WhatsApp Gateway:</span>
           <span>Attendance alerts, fee receipts, and parent broadcasts dispatched in real-time.</span>
         </div>
-        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-          Queue backlog: {whatsappStats.queued} pending
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+            {isConnected ? '● Connected & Ready' : '○ Standby / Scan QR to Connect'}
+          </span>
+        </div>
       </div>
 
       {/* Main Grid: QR Code & Status */}
@@ -898,9 +993,8 @@ export const WhatsAppPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500 cursor-pointer"
             >
-              <option value="ALL">All Status</option>
+              <option value="ALL">All Statuses</option>
               <option value="SENT">Sent / Delivered</option>
-              <option value="QUEUED">Queued (Pending)</option>
               <option value="FAILED">Failed</option>
             </select>
           </div>
@@ -927,13 +1021,15 @@ export const WhatsAppPage: React.FC = () => {
         </div>
 
         {/* Counter Info & Table */}
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between gap-2">
           <span>
             Showing <strong>{filteredMessages.length}</strong> of <strong>{messages.length}</strong> recorded messages
           </span>
-          <span className="font-mono">
-            Today Sent: {displaySentToday} • All-Time: {displayTotalSent}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono">
+              Today Sent: {displaySentToday} • All-Time: {displayTotalSent}
+            </span>
+          </div>
         </div>
 
         {loadingMessages ? (
@@ -1069,7 +1165,7 @@ export const WhatsAppPage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                      <td className="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
                         <button
                           type="button"
                           onClick={() => setSelectedMessage(msg)}
@@ -1077,6 +1173,15 @@ export const WhatsAppPage: React.FC = () => {
                         >
                           <Eye className="w-3 h-3" />
                           <span>View</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                          title="Delete message entry"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -1146,6 +1251,121 @@ export const WhatsAppPage: React.FC = () => {
                 <strong>Error:</strong> {selectedMessage.error_message}
               </div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Missed Scheduled Messages Reconnection Modal */}
+      {isMissedModalOpen && (
+        <Modal
+          isOpen={isMissedModalOpen}
+          onClose={() => !dispatchingMissed && setIsMissedModalOpen(false)}
+          title="Missed Scheduled Broadcasts (Reconnected)"
+          maxWidth="lg"
+        >
+          <div className="p-6 space-y-4">
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs">
+              <p className="font-semibold mb-1">WhatsApp Gateway Reconnected!</p>
+              <p>
+                The WhatsApp session was offline when the following broadcasts reached their scheduled time.
+                Select which messages you would like to dispatch now. Any unselected messages will remain safely in Schedule.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-900 dark:text-white">
+                <input
+                  type="checkbox"
+                  checked={missedMessages.length > 0 && selectedMissedIds.length === missedMessages.length}
+                  onChange={handleToggleSelectAllMissed}
+                  className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                />
+                <span>Select All ({missedMessages.length})</span>
+              </label>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                {selectedMissedIds.length} of {missedMessages.length} selected
+              </span>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1">
+              {missedMessages.map((msg) => {
+                const isSelected = selectedMissedIds.includes(msg.id);
+                return (
+                  <div
+                    key={msg.id}
+                    onClick={() => handleToggleMissedId(msg.id)}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                      isSelected
+                        ? 'border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {}} // handled by parent onClick
+                      className="w-4 h-4 mt-0.5 rounded text-orange-600 focus:ring-orange-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          {msg.title}
+                        </span>
+                        <span className="text-[10.5px] font-mono text-amber-600 dark:text-amber-400">
+                          {new Date(msg.scheduled_at).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {msg.message}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          {msg.recipientsCount} Recipients
+                        </span>
+                        {msg.batchNames && msg.batchNames.length > 0 && (
+                          <span>• {msg.batchNames.join(', ')}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsMissedModalOpen(false)}
+                disabled={dispatchingMissed}
+                className="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+              >
+                Keep in Schedule
+              </button>
+              <button
+                type="button"
+                onClick={handleDispatchMissed}
+                disabled={dispatchingMissed || selectedMissedIds.length === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {dispatchingMissed ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Dispatching...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Send Selected ({selectedMissedIds.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

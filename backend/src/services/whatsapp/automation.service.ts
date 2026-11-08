@@ -1156,64 +1156,8 @@ export class WhatsAppAutomationService {
       throw new AppError(`Failed to list messages: ${error.message}`, 500);
     }
 
-    let allResults = data || [];
-
-    // If filtering for QUEUED or ALL, merge active items from whatsapp_queue
-    if (!filters.status || filters.status === 'QUEUED') {
-      try {
-        let queueQuery = this.supabase
-          .from('whatsapp_queue')
-          .select(`
-            *,
-            student:students(id, name, course, parent_name)
-          `)
-          .in('status', ['PENDING', 'PROCESSING'])
-          .order('created_at', { ascending: false });
-
-        if (filters.eventType) {
-          queueQuery = queueQuery.eq('event_type', filters.eventType);
-        }
-        if (filters.studentId) {
-          queueQuery = queueQuery.eq('student_id', filters.studentId);
-        }
-        if (filters.startDate) {
-          queueQuery = queueQuery.gte('created_at', filters.startDate);
-        }
-        if (filters.endDate) {
-          queueQuery = queueQuery.lte('created_at', filters.endDate);
-        }
-
-        const { data: queueItems } = await queueQuery;
-        if (queueItems && queueItems.length > 0) {
-          const mappedQueue = queueItems.map((q: any) => ({
-            id: q.id,
-            template_id: q.template_id,
-            student_id: q.student_id,
-            recipient_phone: q.recipient_phone,
-            event_type: q.event_type,
-            message_body: q.message_body,
-            provider_message_id: q.provider_message_id,
-            status: 'QUEUED',
-            error_message: q.failure_reason,
-            sent_at: null,
-            created_at: q.created_at,
-            student: q.student,
-          }));
-
-          if (filters.status === 'QUEUED') {
-            allResults = mappedQueue;
-          } else {
-            allResults = [...mappedQueue, ...allResults].sort(
-              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
-          }
-        }
-      } catch (err: any) {
-        console.warn('[WhatsAppAutomation.listMessages] Queue merge warning:', err.message);
-      }
-    }
-
-    return allResults;
+    // Outbox history strictly reflects authentic dispatched records (SENT / FAILED) from whatsapp_messages
+    return data || [];
   }
 
   // ============================================================================

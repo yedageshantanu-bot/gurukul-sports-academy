@@ -7,6 +7,7 @@ import {
   MonthlyFeeSummary,
   FeeFollowupItem,
   RecentActivityItem,
+  UpcomingScheduledItem,
 } from '../../types/crm';
 import {
   Users,
@@ -24,6 +25,7 @@ import {
   MessageSquare,
   Send,
   ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../../components/ui/Modal';
@@ -54,6 +56,7 @@ export const AdminDashboard: React.FC = () => {
   const [monthlyFeeSummary, setMonthlyFeeSummary] = useState<MonthlyFeeSummary | null>(null);
   const [feeFollowups, setFeeFollowups] = useState<FeeFollowupItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
+  const [upcomingScheduled, setUpcomingScheduled] = useState<UpcomingScheduledItem[]>([]);
 
   // Sending reminder state
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
@@ -83,6 +86,7 @@ export const AdminDashboard: React.FC = () => {
         setMonthlyFeeSummary(res.monthlyFeeSummary || null);
         setFeeFollowups(res.feeFollowups || []);
         setRecentActivity(res.recentActivity || []);
+        setUpcomingScheduled(res.upcomingScheduled || []);
 
         try {
           sessionStorage.setItem('gurukul_dashboard_cache', JSON.stringify({
@@ -832,6 +836,89 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 3b. Upcoming Scheduled Messages Widget (Next 48 Hours) */}
+      <div className="stitch-card mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">Upcoming Scheduled Messages</h3>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  {upcomingScheduled.length} scheduled
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Broadcasts scheduled to dispatch within the next 48 hours
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/admin/announcements/scheduled"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline"
+          >
+            <span>View Schedule & History</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {upcomingScheduled.length === 0 ? (
+          <div className="py-6 text-center rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              No scheduled messages queued for the next 48 hours.
+            </p>
+            <Link
+              to="/admin/announcements"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              <span>Schedule New Broadcast</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {upcomingScheduled.map((item) => (
+              <div
+                key={item.id}
+                className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 hover:border-indigo-300 dark:hover:border-indigo-700/60 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="font-semibold text-sm text-slate-900 dark:text-white truncate" title={item.title}>
+                      {item.title}
+                    </span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                      SCHEDULED
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-3">
+                    {item.messagePreview}
+                  </p>
+                </div>
+                <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                    <Clock className="w-3 h-3 text-indigo-500" />
+                    {new Date(item.scheduledAt).toLocaleString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </span>
+                  <span className="flex items-center gap-1 font-mono">
+                    <Users className="w-3 h-3 text-slate-400" />
+                    {item.recipientsCount} Recipients
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 4. Lower Columns: Overdue Fee Follow-ups & Recent Activity */}

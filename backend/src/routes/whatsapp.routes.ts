@@ -47,7 +47,12 @@ router.post('/opt-in', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, ne
 router.get('/queue', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.listQueue(req, res, next));
 router.post('/queue', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.enqueueMessage(req, res, next));
 router.post('/queue/process', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.processQueue(req, res, next));
+router.post('/queue/purge', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.purgeQueue(req, res, next));
+router.delete('/queue', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.purgeQueue(req, res, next));
 router.post('/messages/:id/retry', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.retryMessage(req, res, next));
+router.delete('/messages/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.deleteMessage(req, res, next));
+router.get('/missed-scheduled-messages', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.getMissedScheduledMessages(req, res, next));
+router.post('/dispatch-missed-scheduled-messages', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.dispatchMissedScheduledMessages(req, res, next));
 
 // ==============================================================================
 // 4. MESSAGE LOGS & OUTBOX
