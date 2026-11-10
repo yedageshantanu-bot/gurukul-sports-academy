@@ -91,7 +91,7 @@ export const AdminDashboard: React.FC = () => {
         }),
       ]);
 
-      if (res && res.kpis && res.kpis.totalStudents > 0) {
+      if (res && res.kpis) {
         setKpis(res.kpis || null);
         setAttendanceData(res.attendance || null);
         setCurrentMonth(res.currentMonth || { billingPeriod: '', formatted: '' });
@@ -109,6 +109,8 @@ export const AdminDashboard: React.FC = () => {
             monthlyFeeSummary: res.monthlyFeeSummary,
             feeFollowups: res.feeFollowups,
             recentActivity: res.recentActivity,
+            upcomingScheduled: res.upcomingScheduled || [],
+            postponedScheduled: res.postponedScheduled || [],
             cachedAt: Date.now(),
           }));
         } catch {}
@@ -165,6 +167,46 @@ export const AdminDashboard: React.FC = () => {
             overdue: 0,
             collectionRate: (totalCollected + totalPending) > 0 ? Math.round((totalCollected / (totalCollected + totalPending)) * 100) : 0,
           });
+
+          try {
+            const { data: schedData } = await supabase
+              .from('announcements')
+              .select('*')
+              .in('status', ['SCHEDULED', 'POSTPONED'])
+              .order('scheduled_for', { ascending: true });
+
+            if (schedData && schedData.length > 0) {
+              const up: UpcomingScheduledItem[] = [];
+              const post: UpcomingScheduledItem[] = [];
+              schedData.forEach((a: any) => {
+                const item: UpcomingScheduledItem = {
+                  id: `slot-fallback-${a.id}`,
+                  announcementId: a.id,
+                  slotNumber: 1,
+                  title: a.title,
+                  message: a.message,
+                  messagePreview: (a.message || '').slice(0, 140),
+                  scheduledAt: a.scheduled_for,
+                  recipientsCount: Number(a.recipient_count || 0),
+                  status: a.status === 'POSTPONED' ? 'POSTPONED' : 'SCHEDULED',
+                  originalScheduledAt: a.scheduled_for,
+                  postponedAt: null,
+                  dispatchTimestamp: null,
+                  history: [],
+                  batches: [],
+                };
+                if (a.status === 'POSTPONED') {
+                  post.push(item);
+                } else {
+                  up.push(item);
+                }
+              });
+              setUpcomingScheduled(up);
+              setPostponedScheduled(post);
+            }
+          } catch (annErr) {
+            console.warn('Direct Supabase announcements fallback note:', annErr);
+          }
         } catch (sbErr) {
           console.warn('Direct Supabase dashboard fallback note:', sbErr);
         }
@@ -238,6 +280,44 @@ export const AdminDashboard: React.FC = () => {
           overdue: 0,
           collectionRate: (totalCollected + totalPending) > 0 ? Math.round((totalCollected / (totalCollected + totalPending)) * 100) : 0,
         });
+
+        try {
+          const { data: schedData } = await supabase
+            .from('announcements')
+            .select('*')
+            .in('status', ['SCHEDULED', 'POSTPONED'])
+            .order('scheduled_for', { ascending: true });
+
+          if (schedData && schedData.length > 0) {
+            const up: UpcomingScheduledItem[] = [];
+            const post: UpcomingScheduledItem[] = [];
+            schedData.forEach((a: any) => {
+              const item: UpcomingScheduledItem = {
+                id: `slot-fallback-${a.id}`,
+                announcementId: a.id,
+                slotNumber: 1,
+                title: a.title,
+                message: a.message,
+                messagePreview: (a.message || '').slice(0, 140),
+                scheduledAt: a.scheduled_for,
+                recipientsCount: Number(a.recipient_count || 0),
+                status: a.status === 'POSTPONED' ? 'POSTPONED' : 'SCHEDULED',
+                originalScheduledAt: a.scheduled_for,
+                postponedAt: null,
+                dispatchTimestamp: null,
+                history: [],
+                batches: [],
+              };
+              if (a.status === 'POSTPONED') {
+                post.push(item);
+              } else {
+                up.push(item);
+              }
+            });
+            setUpcomingScheduled(up);
+            setPostponedScheduled(post);
+          }
+        } catch {}
       } catch (fallbackErr) {
         console.error('Final fallback error:', fallbackErr);
       }
@@ -259,6 +339,8 @@ export const AdminDashboard: React.FC = () => {
           setMonthlyFeeSummary(cached.monthlyFeeSummary || null);
           setFeeFollowups(cached.feeFollowups || []);
           setRecentActivity(cached.recentActivity || []);
+          if (cached.upcomingScheduled) setUpcomingScheduled(cached.upcomingScheduled);
+          if (cached.postponedScheduled) setPostponedScheduled(cached.postponedScheduled);
           setLoading(false);
           // Refresh silently in background
           fetchDashboard(true);
