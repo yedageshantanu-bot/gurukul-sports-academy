@@ -77,6 +77,18 @@ export const AdminDashboard: React.FC = () => {
     const [reminderToast, setReminderToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
   const [whatsappStats, setWhatsappStats] = useState<{ sent: number; totalSent: number; dailyLimit: number; pending?: number; queued?: number } | null>(null);
+  const [slotActionLoadingId, setSlotActionLoadingId] = useState<string | null>(null);
+
+  const displayFollowups: FeeFollowupItem[] = feeFollowups;
+  const displayActivity: RecentActivityItem[] = recentActivity;
+
+  // Reconciled cumulative pending dues matching the Fees page ledger exactly
+  const totalPendingFollowups = useMemo(() => {
+    return feeFollowups.reduce(
+      (sum, f) => sum + (f.remainingAmount != null ? Number(f.remainingAmount) : Math.max(0, Number(f.amountDue || 0) - Number(f.paidAmount || 0))),
+      0
+    );
+  }, [feeFollowups]);
 
   const fetchDashboard = async (silent = false) => {
     try {
@@ -482,8 +494,6 @@ export const AdminDashboard: React.FC = () => {
     setIsDetailModalOpen(true);
   };
 
-  const [slotActionLoadingId, setSlotActionLoadingId] = useState<string | null>(null);
-
   const handleDirectSlotSendNow = async (slot: UpcomingScheduledItem, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(`Are you sure you want to dispatch slot for "${slot.title}" to WhatsApp queue immediately?`)) {
@@ -561,17 +571,6 @@ export const AdminDashboard: React.FC = () => {
     const today = new Date().setHours(0, 0, 0, 0);
     return Math.max(0, Math.floor((today - due) / (1000 * 60 * 60 * 24)));
   };
-
-  const displayFollowups: FeeFollowupItem[] = feeFollowups;
-  const displayActivity: RecentActivityItem[] = recentActivity;
-
-  // Reconciled cumulative pending dues matching the Fees page ledger exactly
-  const totalPendingFollowups = useMemo(() => {
-    return displayFollowups.reduce(
-      (sum, f) => sum + (f.remainingAmount != null ? Number(f.remainingAmount) : Math.max(0, Number(f.amountDue || 0) - Number(f.paidAmount || 0))),
-      0
-    );
-  }, [displayFollowups]);
 
   const totalStudents = kpis?.totalStudents ?? 0;
   const activeBatches = kpis?.activeBatches ?? 0;
