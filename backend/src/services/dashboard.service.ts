@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../types/auth.types.js';
 import { env } from '../config/env.js';
 import { requestContext } from '../config/requestContext.js';
 import { memoryCache } from '../utils/cache.js';
+import { announcementService } from './announcement.service.js';
 
 export class DashboardService {
   /**
@@ -78,7 +79,7 @@ export class DashboardService {
       allFeesRes,
       recentPaymentsRes,
       recentStudentsRes,
-      upcomingScheduledRes,
+      unifiedSlotsRes,
     ] = await Promise.all([
       db.from('students').select('*', { count: 'exact', head: true }),
       db.from('students').select('*', { count: 'exact', head: true }).eq('status', STATUS.ACTIVE),
@@ -159,10 +160,7 @@ export class DashboardService {
         .select('id, name, course, status, admission_date, created_at')
         .order('created_at', { ascending: false })
         .limit(3),
-      db.from('announcements')
-        .select('id, title, message, created_at, metadata')
-        .order('created_at', { ascending: false })
-        .limit(20),
+      announcementService.listUnifiedSlots(),
     ]);
 
     const totalStudents = totalStudentsRes.count || 0;
@@ -480,30 +478,47 @@ export class DashboardService {
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
 
-    // 8. Upcoming Scheduled Messages (Next 1–2 days / 48 hours)
-    const nowTimestamp = Date.now();
-    const upcomingScheduled = (upcomingScheduledRes?.data || [])
-      .filter((a: any) => {
-        const meta = a.metadata || {};
-        if (!meta.isScheduled) return false;
-        if (meta.scheduledStatus && meta.scheduledStatus !== 'SCHEDULED') return false;
-        if (!meta.scheduledAt) return false;
-        const schedTime = new Date(meta.scheduledAt).getTime();
-        return !isNaN(schedTime) && schedTime <= nowTimestamp + 48 * 60 * 60 * 1000;
-      })
-      .map((a: any) => {
-        const meta = a.metadata || {};
-        return {
-          id: a.id,
-          title: a.title,
-          messagePreview: a.message?.slice(0, 120) || '',
-          scheduledAt: meta.scheduledAt,
-          recipientsCount: Number(meta.totalRecipients || 0),
-          status: meta.scheduledStatus || 'SCHEDULED',
-        };
-      })
-      .sort((x: any, y: any) => new Date(x.scheduledAt).getTime() - new Date(y.scheduledAt).getTime())
-      .slice(0, 5);
+    // 8. Unified Scheduling: ALL Upcoming Scheduled Messages & Separate Postponed Section
+    // Display every valid upcoming scheduled delivery slot (earliest first, no 3-card limit, no 48h cut-off)
+    const upcomingScheduled = (unifiedSlotsRes?.upcoming || []).map((s: any) => ({
+      id: s.id,
+      announcementId: s.announcementId,
+      slotNumber: s.slotNumber,
+      title: s.title,
+      message: s.message,
+      messagePreview: s.messagePreview || (s.message || '').slice(0, 140),
+      scheduledAt: s.scheduledAt,
+      recipientsCount: Number(s.recipientCount || 0),
+      status: s.status,
+      originalScheduledAt: s.originalScheduledAt || null,
+      postponedAt: s.postponedAt || null,
+      dispatchTimestamp: s.dispatchTimestamp || null,
+      history: s.history || [],
+      batches: s.batches || [],
+    }));
+
+    const postponedScheduled = (unifiedSlotsRes?.postponed || []).map((s: any) => ({
+      id: s.id,
+      announcementId: s.announcementId,
+      slotNumber: s.slotNumber,
+      title: s.title,
+      message: s.message,
+      messagePreview: s.messagePreview || (s.message || '').slice(0, 140),
+      scheduledAt: s.scheduledAt,
+      recipientsCount: Number(s.recipientCount || 0),
+      status: s.status,
+      originalScheduledAt: s.originalScheduledAt || null,
+      postponedAt: s.postponedAt || null,
+      dispatchTimestamp: s.dispatchTimestamp || null,
+      history: s.history || [],
+      batches: s.batches || [],
+    }));
+
+    const scheduledCounts = unifiedSlotsRes?.counts || {
+      upcoming: upcomingScheduled.length,
+      postponed: postponedScheduled.length,
+      total: upcomingScheduled.length + postponedScheduled.length,
+    };
 
     const result = {
       kpis: {
@@ -548,6 +563,8 @@ export class DashboardService {
       feeFollowups,
       recentActivity,
       upcomingScheduled,
+      postponedScheduled,
+      scheduledCounts,
       recentStudents: recentStudents || [],
       recentBatches: allBatches?.slice(0, 5) || [],
     };

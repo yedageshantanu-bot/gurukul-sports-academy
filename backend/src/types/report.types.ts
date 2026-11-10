@@ -110,3 +110,64 @@ export interface PaymentsReportSummary {
   }[];
   records: any[];
 }
+
+// ============================================================================
+// UNIFIED SCHEDULING SYSTEM & DELIVERY SLOT TYPES
+// ============================================================================
+
+export type ScheduledSlotStatus =
+  | 'SCHEDULED'
+  | 'PENDING'
+  | 'POSTPONED'
+  | 'SENDING'
+  | 'SENT'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export interface SlotHistoryEntry {
+  timestamp: string;
+  action: 'CREATED' | 'RESCHEDULED' | 'POSTPONED' | 'SEND_NOW' | 'SENT' | 'FAILED' | 'CANCELLED';
+  note?: string;
+  fromStatus?: ScheduledSlotStatus;
+  toStatus?: ScheduledSlotStatus;
+}
+
+export interface ScheduledDeliverySlot {
+  id: string; // Unique slot ID (UUID)
+  announcementId: string;
+  slotNumber: number;
+  title: string;
+  announcementTitle?: string;
+  message: string;
+  messagePreview?: string;
+  scheduledAt: string; // Target ISO timestamp (Asia/Kolkata timezone reference)
+  status: ScheduledSlotStatus;
+  originalScheduledAt?: string | null;
+  postponedAt?: string | null;
+  dispatchTimestamp?: string | null;
+  recipientCount: number;
+  recipientList?: Array<{ phone: string; name: string; studentId?: string }>;
+  deliveryResult?: any;
+  errorDetails?: string | null;
+  history: SlotHistoryEntry[];
+  batches?: Array<{ id: string; name: string }>;
+  targetSummary?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const postponeSlotSchema = z.object({
+  scheduledAt: z.string().min(1, 'New scheduled date/time is required'),
+  reason: z.string().optional(),
+});
+
+export const rescheduleSlotSchema = z.object({
+  scheduledAt: z.string().min(1, 'New scheduled date/time is required'),
+  title: z.string().optional(),
+  message: z.string().optional(),
+  reason: z.string().optional(),
+});
+
+export type PostponeSlotDTO = z.infer<typeof postponeSlotSchema>;
+export type RescheduleSlotDTO = z.infer<typeof rescheduleSlotSchema>;
+

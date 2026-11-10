@@ -223,13 +223,52 @@ export interface RecentActivityItem {
   timestamp: string;
 }
 
+export type ScheduledSlotStatus =
+  | 'SCHEDULED'
+  | 'PENDING'
+  | 'POSTPONED'
+  | 'SENDING'
+  | 'SENT'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export interface SlotHistoryItem {
+  timestamp: string;
+  action: string;
+  note?: string;
+  fromStatus?: ScheduledSlotStatus;
+  toStatus?: ScheduledSlotStatus;
+}
+
 export interface UpcomingScheduledItem {
   id: string;
+  announcementId?: string;
+  slotNumber?: number;
   title: string;
+  message?: string;
   messagePreview: string;
   scheduledAt: string;
   recipientsCount: number;
-  status: string;
+  status: ScheduledSlotStatus | string;
+  originalScheduledAt?: string | null;
+  postponedAt?: string | null;
+  dispatchTimestamp?: string | null;
+  history?: SlotHistoryItem[];
+  batches?: Array<{ id: string; name: string }>;
+  deliveryResult?: any;
+  errorDetails?: string | null;
+}
+
+export interface ScheduledDeliverySlot extends UpcomingScheduledItem {
+  recipientCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ScheduledCounts {
+  upcoming: number;
+  postponed: number;
+  total: number;
 }
 
 export interface TeacherKPIs {

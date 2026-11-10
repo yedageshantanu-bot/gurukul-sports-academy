@@ -186,11 +186,20 @@ export class WhatsAppQueueService {
     const idempotencyKey =
       params.idempotencyKey || this.generateIdempotencyKey(normalizedPhone, eventType, params.messageBody);
 
-    // Duplicate guard: reject duplicate send if the exact same message is currently queued or in-flight
+    // Duplicate guard: reject duplicate send only if an active (non-stale) item is currently queued or in-flight
+    const nowMs = Date.now();
     for (const item of this.inMemoryQueue.values()) {
       if (item.idempotency_key === idempotencyKey && (item.status === 'PENDING' || item.status === 'PROCESSING')) {
-        console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Halting duplicate.`);
-        throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+        const itemSchedMs = new Date(item.scheduled_at || 0).getTime();
+        const isStale = (nowMs - itemSchedMs > 30 * 60 * 1000) && item.status === 'PENDING';
+        if (isStale) {
+          item.status = 'FAILED';
+          item.failure_reason = 'Stale delivery window expired (superseded)';
+          item.updated_at = new Date().toISOString();
+        } else {
+          console.log(`[QueueService] Message is already queued and waiting for dispatch to ${normalizedPhone}. Halting duplicate.`);
+          throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+        }
       }
     }
 
@@ -198,14 +207,28 @@ export class WhatsAppQueueService {
       try {
         const { data: existing } = await this.supabase
           .from('whatsapp_queue')
-          .select('id, status')
+          .select('id, status, scheduled_at')
           .eq('idempotency_key', idempotencyKey)
           .in('status', ['PENDING', 'PROCESSING'])
           .maybeSingle();
 
         if (existing) {
-          console.log(`[QueueService] Message with idempotency key ${idempotencyKey} is already ${existing.status} in DB. Halting duplicate.`);
-          throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+          const schedTime = new Date(existing.scheduled_at || 0).getTime();
+          const isStale = (nowMs - schedTime > 30 * 60 * 1000) && existing.status === 'PENDING';
+          if (isStale) {
+            await this.supabase
+              .from('whatsapp_queue')
+              .update({
+                status: 'FAILED',
+                failure_reason: 'Stale delivery window expired (superseded)',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existing.id);
+            this.inMemoryQueue.delete(existing.id);
+          } else {
+            console.log(`[QueueService] Message with idempotency key ${idempotencyKey} is already ${existing.status} in DB. Halting duplicate.`);
+            throw new AppError('Message is already queued and waiting for dispatch', 409, 'DUPLICATE_MESSAGE');
+          }
         }
       } catch (err: any) {
         if (err instanceof AppError) throw err;
@@ -263,11 +286,13 @@ export class WhatsAppQueueService {
           if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
             const { data: existingRec } = await this.supabase
               .from('whatsapp_queue')
-              .select('id, status')
+              .select('id, status, scheduled_at')
               .eq('idempotency_key', newItem.idempotency_key)
               .maybeSingle();
 
-            if (existingRec && existingRec.status !== 'PENDING' && existingRec.status !== 'PROCESSING') {
+            const isStaleRec = existingRec?.scheduled_at ? (Date.now() - new Date(existingRec.scheduled_at).getTime() > 30 * 60 * 1000) : false;
+
+            if (existingRec && (existingRec.status !== 'PENDING' && existingRec.status !== 'PROCESSING' || isStaleRec)) {
               const { data: updated, error: updateErr } = await this.supabase
                 .from('whatsapp_queue')
                 .update({
@@ -559,6 +584,145 @@ export class WhatsAppQueueService {
     }
 
     return cancelledCount;
+  }
+
+  /**
+   * Cancel pending queue items strictly for an individual delivery slot
+   */
+  async cancelPendingItemsForSlot(slotId: string): Promise<number> {
+    let cancelledCount = 0;
+    const now = new Date().toISOString();
+
+    // 1. In-Memory cancellation
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesSlot =
+          item.idempotency_key?.includes(slotId) ||
+          (item.metadata as any)?.slotId === slotId;
+        if (matchesSlot) {
+          item.status = 'CANCELLED';
+          item.updated_at = now;
+          cancelledCount++;
+        }
+      }
+    }
+
+    // 2. Supabase cancellation
+    if (this.supabase && slotId) {
+      try {
+        const { data } = await this.supabase
+          .from('whatsapp_queue')
+          .update({ status: 'CANCELLED', updated_at: now })
+          .eq('status', 'PENDING')
+          .ilike('idempotency_key', `%${slotId}%`)
+          .select('id');
+        if (data) cancelledCount = Math.max(cancelledCount, data.length);
+      } catch (err: any) {
+        console.warn(`[QueueService] Error cancelling slot ${slotId} items:`, err.message);
+      }
+    }
+
+    return cancelledCount;
+  }
+
+  /**
+   * Update scheduled time or message for an individual delivery slot
+   */
+  async updateSlotQueueItems(
+    slotId: string,
+    newScheduledAt: string,
+    newFormattedBody?: string
+  ): Promise<number> {
+    let updatedCount = 0;
+    const now = new Date().toISOString();
+
+    // 1. In-Memory update
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesSlot =
+          item.idempotency_key?.includes(slotId) ||
+          (item.metadata as any)?.slotId === slotId;
+        if (matchesSlot) {
+          item.scheduled_at = newScheduledAt;
+          if (newFormattedBody) item.message_body = newFormattedBody;
+          item.updated_at = now;
+          updatedCount++;
+        }
+      }
+    }
+
+    // 2. Supabase update
+    if (this.supabase && slotId) {
+      try {
+        const updatePayload: Record<string, any> = {
+          scheduled_at: newScheduledAt,
+          updated_at: now,
+        };
+        if (newFormattedBody) {
+          updatePayload.message_body = newFormattedBody;
+        }
+
+        const { data } = await this.supabase
+          .from('whatsapp_queue')
+          .update(updatePayload)
+          .eq('status', 'PENDING')
+          .ilike('idempotency_key', `%${slotId}%`)
+          .select('id');
+
+        if (data) updatedCount = Math.max(updatedCount, data.length);
+      } catch (err: any) {
+        console.warn(`[QueueService] Error updating slot ${slotId} queue items:`, err.message);
+      }
+    }
+
+    return updatedCount;
+  }
+
+  /**
+   * Immediately dispatch pending items for an individual delivery slot
+   */
+  async dispatchSlotNow(slotId: string): Promise<{ dispatched: number }> {
+    const now = new Date().toISOString();
+    const affectedIds: string[] = [];
+
+    // 1. Supabase update to now
+    if (this.supabase && slotId) {
+      try {
+        const { data } = await this.supabase
+          .from('whatsapp_queue')
+          .update({ scheduled_at: now, updated_at: now })
+          .eq('status', 'PENDING')
+          .ilike('idempotency_key', `%${slotId}%`)
+          .select('*');
+
+        if (data && data.length > 0) {
+          for (const item of data) {
+            this.inMemoryQueue.set(item.id, item as WhatsAppQueueItem);
+            affectedIds.push(item.id);
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[QueueService] Error triggering immediate slot dispatch for ${slotId}:`, err.message);
+      }
+    }
+
+    // 2. In-memory update
+    for (const item of this.inMemoryQueue.values()) {
+      if (item.status === 'PENDING') {
+        const matchesSlot =
+          item.idempotency_key?.includes(slotId) ||
+          (item.metadata as any)?.slotId === slotId;
+        if (matchesSlot) {
+          item.scheduled_at = now;
+          if (!affectedIds.includes(item.id)) affectedIds.push(item.id);
+        }
+      }
+    }
+
+    // Trigger queue runner in background
+    this.triggerBackgroundProcessing();
+
+    return { dispatched: affectedIds.length };
   }
 
   /**

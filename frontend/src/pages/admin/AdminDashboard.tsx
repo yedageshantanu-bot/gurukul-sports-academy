@@ -26,10 +26,14 @@ import {
   Send,
   ShieldCheck,
   Clock,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { ScheduleDetailModal } from '../../components/announcements/ScheduleDetailModal';
 
 export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,14 @@ export const AdminDashboard: React.FC = () => {
   const [feeFollowups, setFeeFollowups] = useState<FeeFollowupItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
   const [upcomingScheduled, setUpcomingScheduled] = useState<UpcomingScheduledItem[]>([]);
+  const [postponedScheduled, setPostponedScheduled] = useState<UpcomingScheduledItem[]>([]);
+  const [selectedSlotForModal, setSelectedSlotForModal] = useState<UpcomingScheduledItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
+  const [upcomingPage, setUpcomingPage] = useState<number>(1);
+  const [postponedPage, setPostponedPage] = useState<number>(1);
+  const [showAllUpcoming, setShowAllUpcoming] = useState<boolean>(false);
+  const [showAllPostponed, setShowAllPostponed] = useState<boolean>(false);
+  const SLOTS_PER_PAGE = 6;
 
   // Sending reminder state
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
@@ -87,6 +99,7 @@ export const AdminDashboard: React.FC = () => {
         setFeeFollowups(res.feeFollowups || []);
         setRecentActivity(res.recentActivity || []);
         setUpcomingScheduled(res.upcomingScheduled || []);
+        setPostponedScheduled(res.postponedScheduled || []);
 
         try {
           sessionStorage.setItem('gurukul_dashboard_cache', JSON.stringify({
@@ -339,6 +352,88 @@ export const AdminDashboard: React.FC = () => {
       setTimeout(() => setReminderToast(null), 6000);
     } finally {
       setBatchDispatching(false);
+    }
+  };
+
+  const formatSlotIST = (dateStr?: string | null) => {
+    if (!dateStr) return 'TBA';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const formatSlotCountdown = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const now = Date.now();
+    const target = new Date(dateStr).getTime();
+    if (isNaN(target)) return '';
+
+    const diffMs = target - now;
+    if (diffMs < 0) {
+      const pastSec = Math.floor(Math.abs(diffMs) / 1000);
+      if (pastSec < 60) return 'Due now';
+      if (pastSec < 3600) return `${Math.floor(pastSec / 60)}m ago`;
+      if (pastSec < 86400) return `${Math.floor(pastSec / 3600)}h ago`;
+      return `${Math.floor(pastSec / 86400)}d ago`;
+    }
+
+    const sec = Math.floor(diffMs / 1000);
+    const hours = Math.floor(sec / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
+
+    if (hours === 0 && minutes < 60) return `In ${minutes}m`;
+    if (hours < 24) return `In ${hours}h ${minutes}m`;
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return `In ${days}d ${remHours}h`;
+  };
+
+  const handleOpenSlotModal = (slot: UpcomingScheduledItem) => {
+    setSelectedSlotForModal(slot);
+    setIsDetailModalOpen(true);
+  };
+
+  const [slotActionLoadingId, setSlotActionLoadingId] = useState<string | null>(null);
+
+  const handleDirectSlotSendNow = async (slot: UpcomingScheduledItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to dispatch slot for "${slot.title}" to WhatsApp queue immediately?`)) {
+      return;
+    }
+    try {
+      setSlotActionLoadingId(slot.id);
+      const res: any = await apiClient(`/announcements/slots/${slot.id}/send-now`, {
+        method: 'POST',
+      }).catch(async (err) => {
+        if (err?.message?.includes('not found') && slot.announcementId) {
+          return await apiClient(`/announcements/scheduled/${slot.announcementId}/send-now`, {
+            method: 'POST',
+          });
+        }
+        throw err;
+      });
+
+      setReminderToast({
+        message: res?.message || 'Slot dispatched immediately with safe anti-ban spacing!',
+        type: 'success',
+      });
+      setTimeout(() => setReminderToast(null), 5000);
+      fetchDashboard(true);
+    } catch (err: any) {
+      setReminderToast({
+        message: err.message || 'Failed to dispatch slot.',
+        type: 'error',
+      });
+      setTimeout(() => setReminderToast(null), 6000);
+    } finally {
+      setSlotActionLoadingId(null);
     }
   };
 
@@ -838,7 +933,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 3b. Upcoming Scheduled Messages Widget (Next 48 Hours) */}
+      {/* 3b. UNIFIED SCHEDULING: ALL UPCOMING SCHEDULED MESSAGES (CHRONOLOGICAL EARLIEST-FIRST) */}
       <div className="stitch-card mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2.5">
@@ -851,73 +946,289 @@ export const AdminDashboard: React.FC = () => {
                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
                   {upcomingScheduled.length} scheduled
                 </span>
+                <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                  Earliest first (IST)
+                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Broadcasts scheduled to dispatch within the next 48 hours
+                All upcoming delivery slots sorted in ascending chronological order
               </p>
             </div>
           </div>
-          <Link
-            to="/admin/announcements/scheduled"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline"
-          >
-            <span>View Schedule & History</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            {upcomingScheduled.length > SLOTS_PER_PAGE && (
+              <button
+                type="button"
+                onClick={() => setShowAllUpcoming(!showAllUpcoming)}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline"
+              >
+                {showAllUpcoming ? `Show Paginated` : `Show All (${upcomingScheduled.length})`}
+              </button>
+            )}
+            <Link
+              to="/admin/announcements/scheduled"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline"
+            >
+              <span>View Full History</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {upcomingScheduled.length === 0 ? (
-          <div className="py-6 text-center rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800">
+          <div className="py-7 text-center rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              No scheduled messages queued for the next 48 hours.
+              No upcoming scheduled broadcasts waiting for dispatch.
             </p>
             <Link
               to="/admin/announcements"
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
             >
               <Megaphone className="w-3.5 h-3.5" />
               <span>Schedule New Broadcast</span>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {upcomingScheduled.map((item) => (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 hover:border-indigo-300 dark:hover:border-indigo-700/60 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="font-semibold text-sm text-slate-900 dark:text-white truncate" title={item.title}>
-                      {item.title}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
-                      SCHEDULED
-                    </span>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(showAllUpcoming
+                ? upcomingScheduled
+                : upcomingScheduled.slice((upcomingPage - 1) * SLOTS_PER_PAGE, upcomingPage * SLOTS_PER_PAGE)
+              ).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleOpenSlotModal(item)}
+                  className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all flex flex-col justify-between cursor-pointer group shadow-sm hover:shadow"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-1.5 py-0.5 rounded">
+                          #{item.slotNumber || 1}
+                        </span>
+                        <span className="font-semibold text-sm text-slate-900 dark:text-white truncate" title={item.title}>
+                          {item.title}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 shrink-0">
+                        {item.status || 'SCHEDULED'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-3">
+                      {item.messagePreview}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-3">
-                    {item.messagePreview}
-                  </p>
+
+                  <div>
+                    <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                      <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                        <Clock className="w-3 h-3 text-indigo-500" />
+                        {formatSlotIST(item.scheduledAt)}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono">
+                        {formatSlotCountdown(item.scheduledAt)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <Users className="w-3 h-3 text-slate-400" />
+                        {item.recipientsCount} recipient(s)
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDirectSlotSendNow(item, e)}
+                          disabled={slotActionLoadingId === item.id}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1"
+                          title="Dispatch this slot immediately with safe anti-ban delay"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>{slotActionLoadingId === item.id ? 'Sending...' : 'Send Now'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
-                    <Clock className="w-3 h-3 text-indigo-500" />
-                    {new Date(item.scheduledAt).toLocaleString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true,
-                    })}
+              ))}
+            </div>
+
+            {/* Pagination Controls for Upcoming */}
+            {!showAllUpcoming && upcomingScheduled.length > SLOTS_PER_PAGE && (
+              <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-800/60 text-xs text-slate-500 dark:text-slate-400">
+                <span>
+                  Showing {(upcomingPage - 1) * SLOTS_PER_PAGE + 1}–
+                  {Math.min(upcomingPage * SLOTS_PER_PAGE, upcomingScheduled.length)} of {upcomingScheduled.length} delivery slot(s)
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setUpcomingPage((p) => Math.max(1, p - 1))}
+                    disabled={upcomingPage === 1}
+                    className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-2 font-mono font-semibold">
+                    {upcomingPage} / {Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE)}
                   </span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <Users className="w-3 h-3 text-slate-400" />
-                    {item.recipientsCount} Recipients
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setUpcomingPage((p) => Math.min(Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE), p + 1))}
+                    disabled={upcomingPage >= Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE)}
+                    className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-            ))}
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 3c. SEPARATE POSTPONED MESSAGES SECTION */}
+      <div className="stitch-card mb-6 border-l-4 border-l-amber-500 dark:border-l-amber-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40">
+              <RotateCcw className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">Postponed Messages</h3>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60">
+                  {postponedScheduled.length} postponed
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Broadcasts postponed to a new delivery time (eligible for dispatch upon arrival)
+              </p>
+            </div>
           </div>
+          {postponedScheduled.length > SLOTS_PER_PAGE && (
+            <button
+              type="button"
+              onClick={() => setShowAllPostponed(!showAllPostponed)}
+              className="text-xs font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline"
+            >
+              {showAllPostponed ? `Show Paginated` : `Show All (${postponedScheduled.length})`}
+            </button>
+          )}
+        </div>
+
+        {postponedScheduled.length === 0 ? (
+          <div className="py-6 text-center rounded-xl bg-amber-50/20 dark:bg-amber-950/10 border border-dashed border-amber-200/60 dark:border-amber-900/40">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              No postponed messages. Active upcoming broadcasts are listed above.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(showAllPostponed
+                ? postponedScheduled
+                : postponedScheduled.slice((postponedPage - 1) * SLOTS_PER_PAGE, postponedPage * SLOTS_PER_PAGE)
+              ).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleOpenSlotModal(item)}
+                  className="p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/20 dark:bg-amber-950/20 hover:border-amber-400 dark:hover:border-amber-600 transition-all flex flex-col justify-between cursor-pointer group shadow-sm hover:shadow"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded">
+                          #{item.slotNumber || 1}
+                        </span>
+                        <span className="font-semibold text-sm text-slate-900 dark:text-white truncate" title={item.title}>
+                          {item.title}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300/80 shrink-0">
+                        POSTPONED
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-2.5">
+                      {item.messagePreview}
+                    </p>
+
+                    {item.originalScheduledAt && (
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-2">
+                        Was: <span className="line-through">{formatSlotIST(item.originalScheduledAt)}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="pt-2 border-t border-amber-200/60 dark:border-amber-800/40 flex items-center justify-between text-[11px] mb-2">
+                      <span className="flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-200">
+                        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        {formatSlotIST(item.scheduledAt)}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-mono">
+                        {formatSlotCountdown(item.scheduledAt)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <Users className="w-3 h-3 text-slate-400" />
+                        {item.recipientsCount} recipient(s)
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDirectSlotSendNow(item, e)}
+                          disabled={slotActionLoadingId === item.id}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition flex items-center gap-1"
+                          title="Dispatch now or reschedule"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>{slotActionLoadingId === item.id ? 'Sending...' : 'Send Now'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls for Postponed */}
+            {!showAllPostponed && postponedScheduled.length > SLOTS_PER_PAGE && (
+              <div className="flex items-center justify-between pt-3 mt-3 border-t border-amber-200/60 dark:border-amber-800/40 text-xs text-slate-500 dark:text-slate-400">
+                <span>
+                  Showing {(postponedPage - 1) * SLOTS_PER_PAGE + 1}–
+                  {Math.min(postponedPage * SLOTS_PER_PAGE, postponedScheduled.length)} of {postponedScheduled.length} postponed slot(s)
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPostponedPage((p) => Math.max(1, p - 1))}
+                    disabled={postponedPage === 1}
+                    className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-2 font-mono font-semibold">
+                    {postponedPage} / {Math.ceil(postponedScheduled.length / SLOTS_PER_PAGE)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPostponedPage((p) => Math.min(Math.ceil(postponedScheduled.length / SLOTS_PER_PAGE), p + 1))}
+                    disabled={postponedPage >= Math.ceil(postponedScheduled.length / SLOTS_PER_PAGE)}
+                    className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1177,6 +1488,14 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* MODAL: Scheduled Delivery Slot Detail & Lifecycle Actions */}
+      <ScheduleDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        slot={selectedSlotForModal}
+        onRefresh={() => fetchDashboard(true)}
+      />
 
     </div>
   );

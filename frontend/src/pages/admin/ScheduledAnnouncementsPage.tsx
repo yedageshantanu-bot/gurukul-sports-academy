@@ -20,17 +20,26 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
+import { ScheduleDetailModal } from '../../components/announcements/ScheduleDetailModal';
+import { UpcomingScheduledItem } from '../../types/crm';
 
 interface ScheduledAnnouncementItem {
   id: string;
+  announcement_id?: string;
+  slot_number?: number;
   title: string;
   message: string;
   author_id?: string;
   created_at: string;
   updated_at: string;
-  status: 'SCHEDULED' | 'SENT' | 'CANCELLED';
+  status: 'SCHEDULED' | 'PENDING' | 'POSTPONED' | 'SENDING' | 'SENT' | 'FAILED' | 'CANCELLED';
   scheduled_at: string;
+  original_scheduled_at?: string | null;
+  postponed_at?: string | null;
+  dispatch_timestamp?: string | null;
   batches?: Array<{ id: string; name: string }>;
+  recipientCount?: number;
+  history?: any[];
   stats?: {
     total: number;
     pending: number;
@@ -46,8 +55,12 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'SENT' | 'CANCELLED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTPONED' | 'SENT' | 'CANCELLED'>('ALL');
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
+
+  // Selected Slot Detail Modal State
+  const [selectedSlotForModal, setSelectedSlotForModal] = useState<UpcomingScheduledItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -210,7 +223,8 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
   // KPI Computations
   const totalCount = items.length;
-  const pendingCount = items.filter((i) => i.status === 'SCHEDULED').length;
+  const pendingCount = items.filter((i) => i.status === 'SCHEDULED' || i.status === 'PENDING').length;
+  const postponedCount = items.filter((i) => i.status === 'POSTPONED').length;
   const sentCount = items.filter((i) => i.status === 'SENT').length;
   const cancelledCount = items.filter((i) => i.status === 'CANCELLED').length;
 
@@ -225,7 +239,8 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
     const matchesStatus =
       statusFilter === 'ALL' ||
-      (statusFilter === 'PENDING' && item.status === 'SCHEDULED') ||
+      (statusFilter === 'PENDING' && (item.status === 'SCHEDULED' || item.status === 'PENDING')) ||
+      (statusFilter === 'POSTPONED' && item.status === 'POSTPONED') ||
       (statusFilter === 'SENT' && item.status === 'SENT') ||
       (statusFilter === 'CANCELLED' && item.status === 'CANCELLED');
 
@@ -479,6 +494,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           {[
             { key: 'ALL', label: `All (${totalCount})` },
             { key: 'PENDING', label: `Pending (${pendingCount})` },
+            { key: 'POSTPONED', label: `Postponed (${postponedCount})` },
             { key: 'SENT', label: `Sent (${sentCount})` },
             { key: 'CANCELLED', label: `Cancelled (${cancelledCount})` },
           ].map((tab) => (
@@ -644,6 +660,34 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
                     {/* Actions */}
                     <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSlotForModal({
+                            id: item.id,
+                            announcementId: item.announcement_id || item.id,
+                            slotNumber: item.slot_number || 1,
+                            title: item.title,
+                            message: item.message,
+                            messagePreview: item.message.slice(0, 150),
+                            scheduledAt: item.scheduled_at,
+                            recipientsCount: item.recipientCount || item.stats?.total || 0,
+                            status: item.status,
+                            originalScheduledAt: item.original_scheduled_at,
+                            postponedAt: item.postponed_at,
+                            dispatchTimestamp: item.dispatch_timestamp,
+                            batches: item.batches,
+                            history: item.history,
+                          });
+                          setIsDetailModalOpen(true);
+                        }}
+                        className="w-full text-xs font-semibold py-1.5 flex items-center justify-center gap-1.5 cursor-pointer border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Slot Details &amp; Lifecycle</span>
+                      </Button>
+
                       {isPending && (
                         <>
                           <Button
@@ -779,6 +823,14 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Unified Slot Detail Modal */}
+      <ScheduleDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        slot={selectedSlotForModal}
+        onRefresh={() => fetchScheduled(true)}
+      />
     </div>
   );
 };

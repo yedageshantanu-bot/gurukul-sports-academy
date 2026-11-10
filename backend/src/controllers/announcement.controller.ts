@@ -64,12 +64,14 @@ export class AnnouncementController {
   async sendAnnouncement(req: Request, res: Response, next: NextFunction) {
     try {
       const scheduledTime = req.body?.scheduledTime;
-      const isScheduledFuture = Boolean(
-        scheduledTime && new Date(scheduledTime).getTime() > Date.now() + 30000
-      );
+      const scheduledTimes = req.body?.scheduledTimes;
+      const hasFutureTime =
+        (scheduledTime && new Date(scheduledTime).getTime() > Date.now() + 30000) ||
+        (Array.isArray(scheduledTimes) &&
+          scheduledTimes.some((t: string) => new Date(t).getTime() > Date.now() + 30000));
 
       // Guard: If broadcasting immediately (not scheduled for future), verify gateway is connected
-      if (!isScheduledFuture) {
+      if (!hasFutureTime) {
         try {
           const settings = await whatsappSettingsService.getSettings();
           const provider = whatsappProviderFactory.getProvider(settings.provider_type);
@@ -92,6 +94,7 @@ export class AnnouncementController {
       const includeTwoWayPrompt = req.body?.includeTwoWayPrompt !== false;
       const result = await announcementService.sendAnnouncement(req.params.id, {
         scheduledTime,
+        scheduledTimes,
         includeTwoWayPrompt,
         customTemplate: req.body?.customTemplate,
         tournamentIds: req.body?.tournamentIds,
@@ -200,6 +203,103 @@ export class AnnouncementController {
         success: true,
         message: result.message,
         data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // UNIFIED SCHEDULING: SLOTS CONTROLLER ACTIONS
+  // ============================================================================
+
+  async listSlots(req: Request, res: Response, next: NextFunction) {
+    try {
+      const teacherId = req.user?.role === ROLES.TEACHER ? req.user.teacherId : undefined;
+      const data = await announcementService.listUnifiedSlots(teacherId);
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getSlotById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const teacherId = req.user?.role === ROLES.TEACHER ? req.user.teacherId : undefined;
+      const data = await announcementService.getSlotById(req.params.slotId, teacherId);
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async postponeSlot(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { scheduledAt, reason } = req.body;
+      if (!scheduledAt) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New scheduledAt is required for postponement.' },
+        });
+      }
+      const data = await announcementService.postponeSlot(req.params.slotId, scheduledAt, reason);
+      res.status(200).json({
+        success: true,
+        message: data.message,
+        data: data.slot,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async rescheduleSlot(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { scheduledAt, title, message, reason } = req.body;
+      if (!scheduledAt) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'New scheduledAt is required for rescheduling.' },
+        });
+      }
+      const data = await announcementService.rescheduleSlot(req.params.slotId, scheduledAt, title, message, reason);
+      res.status(200).json({
+        success: true,
+        message: data.message,
+        data: data.slot,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async sendSlotNow(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await announcementService.sendSlotNow(req.params.slotId);
+      res.status(200).json({
+        success: true,
+        message: data.message,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async cancelSlot(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { reason } = req.body;
+      const data = await announcementService.cancelSlot(req.params.slotId, reason);
+      res.status(200).json({
+        success: true,
+        message: data.message,
+        data: data.slot,
       });
     } catch (err) {
       next(err);

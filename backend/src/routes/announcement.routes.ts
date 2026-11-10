@@ -12,6 +12,14 @@ router.use(verifyAuth);
 // List announcements (Admin gets all, Teacher gets announcements for assigned batches)
 router.get('/', (req, res, next) => announcementController.listAnnouncements(req, res, next));
 
+// Unified Scheduling Delivery Slots endpoints (MUST be defined before /:id)
+router.get('/slots', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.listSlots(req, res, next));
+router.get('/slots/:slotId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.getSlotById(req, res, next));
+router.post('/slots/:slotId/postpone', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.postponeSlot(req, res, next));
+router.post('/slots/:slotId/reschedule', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.rescheduleSlot(req, res, next));
+router.post('/slots/:slotId/send-now', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.sendSlotNow(req, res, next));
+router.delete('/slots/:slotId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.cancelSlot(req, res, next));
+
 // Scheduled announcements endpoints (MUST be defined before /:id)
 router.get('/scheduled', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.listScheduled(req, res, next));
 router.patch('/scheduled/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.updateScheduled(req, res, next));

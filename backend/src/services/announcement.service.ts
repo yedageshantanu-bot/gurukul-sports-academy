@@ -1,6 +1,11 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../middlewares/errorHandler.js';
-import { CreateAnnouncementDTO } from '../types/report.types.js';
+import {
+  CreateAnnouncementDTO,
+  ScheduledDeliverySlot,
+  ScheduledSlotStatus,
+  SlotHistoryEntry,
+} from '../types/report.types.js';
 import { whatsappProviderFactory } from './whatsapp/whatsappProvider.factory.js';
 import { queueService } from './whatsapp/queue.service.js';
 
@@ -193,12 +198,13 @@ export class AnnouncementService {
   }
 
   // ============================================================================
-  // 4. SEND ANNOUNCEMENT (Admin Only)
+  // 4. SEND ANNOUNCEMENT (Admin Only) - Multi-Slot Delivery System
   // ============================================================================
   async sendAnnouncement(
     id: string,
     options?: {
       scheduledTime?: string;
+      scheduledTimes?: string[];
       includeTwoWayPrompt?: boolean;
       customTemplate?: string;
       tournamentIds?: string[];
@@ -369,17 +375,27 @@ export class AnnouncementService {
       .maybeSingle();
     const academyName = academy?.academy_name || 'Gurukul Sports Academy';
 
-    // Calculate start timestamp (handles user-scheduled future broadcasts)
-    let startTimestamp = Date.now();
-    if (options?.scheduledTime) {
-      const parsedTime = new Date(options.scheduledTime).getTime();
-      if (!isNaN(parsedTime) && parsedTime > Date.now()) {
-        startTimestamp = parsedTime;
-      }
+    // Calculate target delivery times (handles single or multi-slot scheduled broadcasts)
+    const rawTimes: string[] = [];
+    if (Array.isArray(options?.scheduledTimes) && options.scheduledTimes.length > 0) {
+      rawTimes.push(...options.scheduledTimes);
+    } else if (options?.scheduledTime) {
+      rawTimes.push(options.scheduledTime);
     }
 
+    const futureTimes: number[] = [];
+    for (const t of rawTimes) {
+      const parsed = new Date(t).getTime();
+      if (!isNaN(parsed) && parsed > Date.now()) {
+        futureTimes.push(parsed);
+      }
+    }
+    // Sort chronological ascending
+    futureTimes.sort((a, b) => a - b);
+
+    const isScheduledFuture = futureTimes.length > 0;
+
     // Verify WhatsApp gateway connectivity if broadcasting immediately
-    const isScheduledFuture = startTimestamp > Date.now() + 30000;
     if (!isScheduledFuture) {
       const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
       const settings = await whatsappSettingsService.getSettings();
@@ -416,14 +432,75 @@ export class AnnouncementService {
     }
 
     const PACING_DELAYS = [1500, 3000, 5000, 7000, 10000];
+    const nowIso = new Date().toISOString();
+    const existingMeta = (announcement.metadata as any) || {};
+    const existingSlots: ScheduledDeliverySlot[] = Array.isArray(existingMeta.slots)
+      ? existingMeta.slots
+      : this.materializeSlots(announcement);
+
+    const batchesInfo = (announcement.batches || [])
+      .map((b: any) => ({ id: b.batch?.id, name: b.batch?.name }))
+      .filter((b: any) => b.id);
 
     if (!isScheduledFuture) {
-      // 4a. IMMEDIATE SEND NOW: Sequential dispatch with anti-ban variable delays (Never held in pending queue)
+      // 4a. IMMEDIATE SEND NOW: Create an independent SENDING slot, execute direct dispatch with anti-ban spacing
+      const slotId = crypto.randomUUID();
+      const slotNumber = existingSlots.length + 1;
+      const immediateSlot: ScheduledDeliverySlot = {
+        id: slotId,
+        announcementId: announcement.id,
+        slotNumber,
+        title: announcement.title,
+        message: exactMessageBody,
+        messagePreview: exactMessageBody.slice(0, 150),
+        scheduledAt: nowIso,
+        status: 'SENDING',
+        recipientCount: recipients.length,
+        recipientList: recipients.map((r) => ({ phone: r.recipientPhone, name: r.name, studentId: r.studentId })),
+        history: [
+          {
+            timestamp: nowIso,
+            action: 'SEND_NOW',
+            note: 'Immediate broadcast dispatched directly',
+            toStatus: 'SENDING',
+          },
+        ],
+        batches: batchesInfo,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+
+      const updatedSlots = [...existingSlots, immediateSlot];
+
+      // Save announcement with new slot
+      await this.supabase
+        .from('announcements')
+        .update({
+          updated_at: nowIso,
+          metadata: {
+            ...existingMeta,
+            slots: updatedSlots,
+            isScheduled: existingSlots.some((s) => s.status === 'SCHEDULED' || s.status === 'POSTPONED'),
+            sentAt: nowIso,
+            totalRecipients: recipients.length,
+            targetBatchIds: targetedBatchIds,
+            targetTournamentIds: targetedTournamentIds,
+            teamCodes: targetedTeamCodes,
+            teamMemberIds: targetedTeamMemberIds,
+            includeSelf,
+            customTemplate: rawTemplate || existingMeta.customTemplate,
+          },
+        })
+        .eq('id', id);
+
       const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
 
       (async () => {
+        let sentSuccess = 0;
+        let sentFailed = 0;
+
         for (let i = 0; i < recipients.length; i++) {
           const rec = recipients[i];
           if (i > 0) {
@@ -431,7 +508,7 @@ export class AnnouncementService {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
           }
 
-          // Recipient-level idempotency to prevent duplicate sends upon recovery
+          // Recipient-level idempotency to prevent duplicate sends within 24 hours
           try {
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data: alreadySent } = await this.supabase
@@ -445,7 +522,7 @@ export class AnnouncementService {
               .limit(1);
 
             if (alreadySent && alreadySent.length > 0) {
-              console.log(`[AnnouncementService] Recipient ${rec.recipientPhone} already received announcement. Skipping duplicate.`);
+              sentSuccess++;
               continue;
             }
           } catch {}
@@ -457,6 +534,7 @@ export class AnnouncementService {
             });
 
             if (sendRes.success) {
+              sentSuccess++;
               try {
                 await this.supabase.from('whatsapp_messages').insert({
                   recipient_phone: rec.recipientPhone,
@@ -466,10 +544,9 @@ export class AnnouncementService {
                   sent_at: new Date().toISOString(),
                   event_type: 'ANNOUNCEMENT',
                 });
-              } catch (insErr: any) {
-                console.warn('[AnnouncementService] Error inserting SENT audit log:', insErr.message);
-              }
+              } catch {}
             } else {
+              sentFailed++;
               try {
                 await this.supabase.from('whatsapp_messages').insert({
                   recipient_phone: rec.recipientPhone,
@@ -479,12 +556,10 @@ export class AnnouncementService {
                   sent_at: new Date().toISOString(),
                   event_type: 'ANNOUNCEMENT',
                 });
-              } catch (insErr: any) {
-                console.warn('[AnnouncementService] Error inserting FAILED audit log:', insErr.message);
-              }
+              } catch {}
             }
           } catch (e: any) {
-            console.warn(`[AnnouncementService] Error delivering announcement to ${rec.recipientPhone}:`, e.message);
+            sentFailed++;
             try {
               await this.supabase.from('whatsapp_messages').insert({
                 recipient_phone: rec.recipientPhone,
@@ -497,73 +572,147 @@ export class AnnouncementService {
             } catch {}
           }
         }
+
+        // Finalize slot status in DB
+        immediateSlot.status = sentFailed > 0 && sentSuccess === 0 ? 'FAILED' : 'SENT';
+        immediateSlot.dispatchTimestamp = new Date().toISOString();
+        immediateSlot.deliveryResult = { total: recipients.length, success: sentSuccess, failed: sentFailed };
+        immediateSlot.updatedAt = new Date().toISOString();
+        immediateSlot.history.push({
+          timestamp: new Date().toISOString(),
+          action: immediateSlot.status as any,
+          note: `Immediate dispatch completed (${sentSuccess} sent, ${sentFailed} failed)`,
+          fromStatus: 'SENDING',
+          toStatus: immediateSlot.status,
+        });
+
+        const { data: latestAnn } = await this.supabase
+          .from('announcements')
+          .select('metadata')
+          .eq('id', id)
+          .maybeSingle();
+
+        const latestSlots: ScheduledDeliverySlot[] = (latestAnn?.metadata as any)?.slots || updatedSlots;
+        const targetSlotIdx = latestSlots.findIndex((s) => s.id === slotId);
+        if (targetSlotIdx !== -1) {
+          latestSlots[targetSlotIdx] = immediateSlot;
+        }
+
+        await this.supabase
+          .from('announcements')
+          .update({
+            metadata: {
+              ...(latestAnn?.metadata || existingMeta),
+              slots: latestSlots,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
       })().catch((err) => console.warn('[AnnouncementService] Direct Send Now warning:', err.message));
+
+      return {
+        success: true,
+        message: `Announcement dispatched directly to ${recipients.length} recipient(s) with safe anti-ban spacing.`,
+        totalRecipients: recipients.length,
+        sentCount: recipients.length,
+        isScheduled: false,
+        slots: updatedSlots,
+      };
     } else {
-      // 4b. FUTURE SCHEDULED: Enqueue into queue engine with exact scheduled future timestamp
-      const items = recipients.map((rec) => ({
-        recipientPhone: rec.recipientPhone,
-        messageBody: exactMessageBody,
-        studentId: rec.studentId,
-        eventType: 'ANNOUNCEMENT',
-        idempotencyKey: `ANNOUNCEMENT:${announcement.id}:${rec.recipientPhone}:${startTimestamp}`,
-        metadata: {
+      // 4b. FUTURE SCHEDULED: Create independent delivery slots for each scheduled time
+      const createdSlots: ScheduledDeliverySlot[] = [];
+
+      for (let sIdx = 0; sIdx < futureTimes.length; sIdx++) {
+        const schedMs = futureTimes[sIdx];
+        const slotId = crypto.randomUUID();
+        const slotNumber = existingSlots.length + sIdx + 1;
+        const slotIso = new Date(schedMs).toISOString();
+
+        const slot: ScheduledDeliverySlot = {
+          id: slotId,
           announcementId: announcement.id,
-          scheduledTime: options?.scheduledTime,
-        },
-      }));
-      await queueService.enqueueBatchStaggered(items, 3800, startTimestamp);
+          slotNumber,
+          title: announcement.title,
+          message: exactMessageBody,
+          messagePreview: exactMessageBody.slice(0, 150),
+          scheduledAt: slotIso,
+          status: 'SCHEDULED',
+          recipientCount: recipients.length,
+          recipientList: recipients.map((r) => ({ phone: r.recipientPhone, name: r.name, studentId: r.studentId })),
+          history: [
+            {
+              timestamp: nowIso,
+              action: 'CREATED',
+              note: `Scheduled delivery slot #${slotNumber} configured for ${new Date(schedMs).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+              toStatus: 'SCHEDULED',
+            },
+          ],
+          batches: batchesInfo,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+
+        createdSlots.push(slot);
+
+        // Enqueue into queue engine with slot-isolated idempotencyKey
+        const items = recipients.map((rec) => ({
+          recipientPhone: rec.recipientPhone,
+          messageBody: exactMessageBody,
+          studentId: rec.studentId,
+          eventType: 'ANNOUNCEMENT',
+          idempotencyKey: `SLOT:${slotId}:${rec.recipientPhone}:${schedMs}`,
+          metadata: {
+            slotId,
+            announcementId: announcement.id,
+            scheduledTime: slotIso,
+          },
+        }));
+        await queueService.enqueueBatchStaggered(items, 3800, schedMs);
+      }
+
+      const allSlots = [...existingSlots, ...createdSlots];
+      const earliestScheduled = [...allSlots]
+        .filter((s) => s.status === 'SCHEDULED' || s.status === 'POSTPONED')
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+
+      const updatedMeta = {
+        ...existingMeta,
+        slots: allSlots,
+        isScheduled: true,
+        scheduledAt: earliestScheduled?.scheduledAt || new Date(futureTimes[0]).toISOString(),
+        scheduledStatus: 'SCHEDULED',
+        totalRecipients: recipients.length,
+        targetBatchIds: targetedBatchIds,
+        targetTournamentIds: targetedTournamentIds,
+        teamCodes: targetedTeamCodes,
+        teamMemberIds: targetedTeamMemberIds,
+        includeSelf,
+        customTemplate: rawTemplate || existingMeta.customTemplate,
+      };
+
+      const { data: updated, error: updateErr } = await this.supabase
+        .from('announcements')
+        .update({
+          updated_at: nowIso,
+          metadata: updatedMeta,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateErr) {
+        throw new AppError(`Failed to update announcement metadata: ${updateErr.message}`, 500);
+      }
+
+      return {
+        success: true,
+        message: `${createdSlots.length} delivery slot(s) scheduled successfully across ${recipients.length} recipient(s).`,
+        totalRecipients: recipients.length,
+        isScheduled: true,
+        slots: allSlots,
+        announcement: updated,
+      };
     }
-
-    // 5. Update announcement timestamp & metadata
-    const nowIso = new Date().toISOString();
-    const existingMeta = (announcement.metadata as any) || {};
-    const updatedMeta = {
-      ...existingMeta,
-      isScheduled: isScheduledFuture,
-      scheduledAt: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
-      scheduledStatus: isScheduledFuture ? 'SCHEDULED' : 'SENT',
-      sentAt: !isScheduledFuture ? nowIso : null,
-      totalRecipients: recipients.length,
-      targetBatchIds: targetedBatchIds,
-      targetTournamentIds: targetedTournamentIds,
-      teamCodes: targetedTeamCodes,
-      teamMemberIds: targetedTeamMemberIds,
-      includeSelf,
-      customTemplate: rawTemplate || existingMeta.customTemplate,
-    };
-
-    const { data: updated, error: updateErr } = await this.supabase
-      .from('announcements')
-      .update({
-        updated_at: nowIso,
-        metadata: updatedMeta,
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateErr) {
-      throw new AppError(`Failed to update announcement timestamp: ${updateErr.message}`, 500);
-    }
-
-    const formattedUpdated = {
-      ...updated,
-      status: isScheduledFuture ? 'SCHEDULED' : 'SENT',
-      sent_at: isScheduledFuture ? null : nowIso,
-      scheduled_at: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
-    };
-
-    return {
-      success: true,
-      message: isScheduledFuture
-        ? `Announcement scheduled for ${new Date(startTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} across ${recipients.length} recipient(s) with safe spacing.`
-        : `Announcement dispatched directly to ${recipients.length} recipient(s) with safe anti-ban spacing.`,
-      totalRecipients: recipients.length,
-      sentCount: recipients.length,
-      isScheduled: isScheduledFuture,
-      scheduledTime: isScheduledFuture ? new Date(startTimestamp).toISOString() : null,
-      announcement: formattedUpdated,
-    };
   }
 
   // ============================================================================
@@ -683,36 +832,547 @@ export class AnnouncementService {
   }
 
   // ============================================================================
+  // UNIFIED SCHEDULING SYSTEM: MULTI-SLOT MATERIALIZATION & LIFECYCLE
+  // ============================================================================
+
+  materializeSlots(announcement: any): ScheduledDeliverySlot[] {
+    const meta = (announcement.metadata as any) || {};
+    const batches = (announcement.batches || [])
+      .map((b: any) => ({ id: b.batch?.id, name: b.batch?.name }))
+      .filter((b: any) => b.id);
+
+    // If slots array exists in metadata, enrich and return each slot
+    if (Array.isArray(meta.slots) && meta.slots.length > 0) {
+      return meta.slots.map((s: any, idx: number) => ({
+        id: s.id || `${announcement.id}-slot-${idx + 1}`,
+        announcementId: announcement.id,
+        slotNumber: s.slotNumber || idx + 1,
+        title: s.title || announcement.title,
+        announcementTitle: s.title || announcement.title,
+        message: s.message || announcement.message,
+        messagePreview: s.messagePreview || (s.message || announcement.message || '').slice(0, 150),
+        scheduledAt: s.scheduledAt || meta.scheduledAt || announcement.updated_at || announcement.created_at,
+        status: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
+        originalScheduledAt: s.originalScheduledAt || null,
+        postponedAt: s.postponedAt || null,
+        dispatchTimestamp: s.dispatchTimestamp || (s.status === 'SENT' ? announcement.updated_at : null),
+        recipientCount: Number(s.recipientCount || meta.totalRecipients || (batches.length ? 22 : 0)),
+        recipientList: s.recipientList || [],
+        deliveryResult: s.deliveryResult || null,
+        errorDetails: s.errorDetails || null,
+        history: Array.isArray(s.history) && s.history.length > 0
+          ? s.history
+          : [
+              {
+                timestamp: announcement.created_at,
+                action: 'CREATED',
+                note: `Slot #${s.slotNumber || idx + 1} initialized`,
+                toStatus: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
+              },
+            ],
+        batches: s.batches || batches,
+        createdAt: s.createdAt || announcement.created_at,
+        updatedAt: s.updatedAt || announcement.updated_at,
+      }));
+    }
+
+    // Backward compatibility: If announcement was marked as scheduled in legacy single-schedule format
+    if (meta.isScheduled === true || meta.scheduledAt) {
+      const scheduledAt = meta.scheduledAt || announcement.updated_at || announcement.created_at;
+      const status: ScheduledSlotStatus = (meta.scheduledStatus as ScheduledSlotStatus) || 'SCHEDULED';
+      return [
+        {
+          id: `${announcement.id}-slot-1`,
+          announcementId: announcement.id,
+          slotNumber: 1,
+          title: announcement.title,
+          announcementTitle: announcement.title,
+          message: announcement.message,
+          messagePreview: (announcement.message || '').slice(0, 150),
+          scheduledAt,
+          status,
+          originalScheduledAt: meta.originalScheduledAt || null,
+          postponedAt: meta.postponedAt || null,
+          dispatchTimestamp: meta.sentAt || (status === 'SENT' ? announcement.updated_at : null),
+          recipientCount: Number(meta.totalRecipients || (batches.length ? 22 : 0)),
+          recipientList: [],
+          deliveryResult: null,
+          errorDetails: null,
+          history: [
+            {
+              timestamp: announcement.created_at,
+              action: 'CREATED',
+              note: 'Materialized from legacy scheduled announcement',
+              toStatus: status,
+            },
+          ],
+          batches,
+          createdAt: announcement.created_at,
+          updatedAt: announcement.updated_at,
+        },
+      ];
+    }
+
+    return [];
+  }
+
+  async listUnifiedSlots(teacherId?: string): Promise<{
+    upcoming: ScheduledDeliverySlot[];
+    postponed: ScheduledDeliverySlot[];
+    all: ScheduledDeliverySlot[];
+    counts: {
+      upcoming: number;
+      postponed: number;
+      total: number;
+    };
+  }> {
+    const announcements = await this.listAnnouncements(teacherId);
+    const allSlots: ScheduledDeliverySlot[] = [];
+
+    for (const ann of announcements) {
+      const slots = this.materializeSlots(ann);
+      allSlots.push(...slots);
+    }
+
+    const nowTimestamp = Date.now();
+
+    // 1. Upcoming slots: active future schedules (SCHEDULED or PENDING)
+    // Exclude past delivery slots from active upcoming reminders (> 60s in past)
+    // ASCENDING CHRONOLOGICAL SORTING: earliest scheduled delivery first
+    const upcoming = allSlots
+      .filter(
+        (s) =>
+          (s.status === 'SCHEDULED' || s.status === 'PENDING') &&
+          new Date(s.scheduledAt).getTime() >= nowTimestamp - 60000
+      )
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+    // 2. Postponed slots: separate section, chronological ascending
+    const postponed = allSlots
+      .filter((s) => s.status === 'POSTPONED')
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+    // All slots sorted chronological ascending
+    const allSorted = [...allSlots].sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    );
+
+    return {
+      upcoming,
+      postponed,
+      all: allSorted,
+      counts: {
+        upcoming: upcoming.length,
+        postponed: postponed.length,
+        total: allSlots.length,
+      },
+    };
+  }
+
+  async getSlotById(slotId: string, teacherId?: string): Promise<{ slot: ScheduledDeliverySlot; announcement: any }> {
+    const announcements = await this.listAnnouncements(teacherId);
+    for (const ann of announcements) {
+      const slots = this.materializeSlots(ann);
+      const found = slots.find(
+        (s) => s.id === slotId || `${ann.id}-slot-${s.slotNumber}` === slotId || ann.id === slotId
+      );
+      if (found) {
+        return { slot: found, announcement: ann };
+      }
+    }
+    throw new AppError('Delivery slot not found', 404, 'SLOT_NOT_FOUND');
+  }
+
+  async postponeSlot(slotId: string, newScheduledAt: string, reason?: string) {
+    const { slot, announcement } = await this.getSlotById(slotId);
+    const meta = (announcement.metadata as any) || {};
+    let slots: ScheduledDeliverySlot[] = this.materializeSlots(announcement);
+
+    const targetIdx = slots.findIndex((s) => s.id === slot.id);
+    if (targetIdx === -1) {
+      throw new AppError('Delivery slot not found', 404);
+    }
+
+    const currentSlot = slots[targetIdx];
+    const oldStatus = currentSlot.status;
+    const oldScheduledAt = currentSlot.scheduledAt;
+
+    currentSlot.originalScheduledAt = currentSlot.originalScheduledAt || oldScheduledAt;
+    currentSlot.scheduledAt = new Date(newScheduledAt).toISOString();
+    currentSlot.postponedAt = new Date().toISOString();
+    currentSlot.status = 'POSTPONED';
+    currentSlot.updatedAt = new Date().toISOString();
+
+    if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
+    currentSlot.history.push({
+      timestamp: new Date().toISOString(),
+      action: 'POSTPONED',
+      note: reason || `Delivery postponed to ${new Date(newScheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+      fromStatus: oldStatus,
+      toStatus: 'POSTPONED',
+    });
+
+    slots[targetIdx] = currentSlot;
+
+    // Update queue items for this slot
+    await queueService.updateSlotQueueItems(slot.id, currentSlot.scheduledAt);
+
+    // Save updated slots to DB
+    await this.supabase
+      .from('announcements')
+      .update({
+        metadata: {
+          ...meta,
+          slots,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', announcement.id);
+
+    return {
+      success: true,
+      message: `Delivery slot #${currentSlot.slotNumber} postponed to ${new Date(newScheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+      slot: currentSlot,
+    };
+  }
+
+  async rescheduleSlot(slotId: string, newScheduledAt: string, title?: string, message?: string, reason?: string) {
+    const { slot, announcement } = await this.getSlotById(slotId);
+    const meta = (announcement.metadata as any) || {};
+    let slots: ScheduledDeliverySlot[] = this.materializeSlots(announcement);
+
+    const targetIdx = slots.findIndex((s) => s.id === slot.id);
+    if (targetIdx === -1) {
+      throw new AppError('Delivery slot not found', 404);
+    }
+
+    const currentSlot = slots[targetIdx];
+    const oldStatus = currentSlot.status;
+    currentSlot.scheduledAt = new Date(newScheduledAt).toISOString();
+    if (title) currentSlot.title = title;
+    if (message) {
+      currentSlot.message = message;
+      currentSlot.messagePreview = message.slice(0, 150);
+    }
+    currentSlot.status = 'SCHEDULED';
+    currentSlot.updatedAt = new Date().toISOString();
+
+    if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
+    currentSlot.history.push({
+      timestamp: new Date().toISOString(),
+      action: 'RESCHEDULED',
+      note: reason || `Delivery slot rescheduled to ${new Date(newScheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+      fromStatus: oldStatus,
+      toStatus: 'SCHEDULED',
+    });
+
+    slots[targetIdx] = currentSlot;
+
+    // Update queue items for this slot
+    await queueService.updateSlotQueueItems(slot.id, currentSlot.scheduledAt, currentSlot.message);
+
+    // Save updated slots to DB
+    await this.supabase
+      .from('announcements')
+      .update({
+        metadata: {
+          ...meta,
+          slots,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', announcement.id);
+
+    return {
+      success: true,
+      message: `Delivery slot #${currentSlot.slotNumber} rescheduled successfully.`,
+      slot: currentSlot,
+    };
+  }
+
+  async cancelSlot(slotId: string, reason?: string) {
+    const { slot, announcement } = await this.getSlotById(slotId);
+    const meta = (announcement.metadata as any) || {};
+    let slots: ScheduledDeliverySlot[] = this.materializeSlots(announcement);
+
+    const targetIdx = slots.findIndex((s) => s.id === slot.id);
+    if (targetIdx === -1) {
+      throw new AppError('Delivery slot not found', 404);
+    }
+
+    const currentSlot = slots[targetIdx];
+    const oldStatus = currentSlot.status;
+    currentSlot.status = 'CANCELLED';
+    currentSlot.updatedAt = new Date().toISOString();
+
+    if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
+    currentSlot.history.push({
+      timestamp: new Date().toISOString(),
+      action: 'CANCELLED',
+      note: reason || 'Delivery slot cancelled',
+      fromStatus: oldStatus,
+      toStatus: 'CANCELLED',
+    });
+
+    slots[targetIdx] = currentSlot;
+
+    // Cancel pending queue items strictly for this slot
+    const cancelledCount = await queueService.cancelPendingItemsForSlot(slot.id);
+
+    // Save updated slots to DB
+    await this.supabase
+      .from('announcements')
+      .update({
+        metadata: {
+          ...meta,
+          slots,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', announcement.id);
+
+    return {
+      success: true,
+      message: `Delivery slot #${currentSlot.slotNumber} cancelled successfully (${cancelledCount} pending queued items cancelled).`,
+      slot: currentSlot,
+    };
+  }
+
+  async sendSlotNow(slotId: string) {
+    const { slot, announcement } = await this.getSlotById(slotId);
+    const meta = (announcement.metadata as any) || {};
+    let slots: ScheduledDeliverySlot[] = this.materializeSlots(announcement);
+
+    const targetIdx = slots.findIndex((s) => s.id === slot.id);
+    if (targetIdx === -1) {
+      throw new AppError('Delivery slot not found', 404);
+    }
+
+    const currentSlot = slots[targetIdx];
+    if (currentSlot.status === 'SENDING') {
+      throw new AppError('Slot is already currently in flight (SENDING).', 409, 'ALREADY_SENDING');
+    }
+    if (currentSlot.status === 'SENT') {
+      throw new AppError('Slot has already been sent.', 400, 'ALREADY_SENT');
+    }
+
+    // Atomic status transition: mark SENDING
+    const oldStatus = currentSlot.status;
+    currentSlot.status = 'SENDING';
+    currentSlot.updatedAt = new Date().toISOString();
+
+    if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
+    currentSlot.history.push({
+      timestamp: new Date().toISOString(),
+      action: 'SEND_NOW',
+      note: 'Send Now triggered - direct dispatch in progress',
+      fromStatus: oldStatus,
+      toStatus: 'SENDING',
+    });
+
+    slots[targetIdx] = currentSlot;
+
+    // Save SENDING status to DB immediately
+    await this.supabase
+      .from('announcements')
+      .update({
+        metadata: {
+          ...meta,
+          slots,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', announcement.id);
+
+    // Cancel any pending queue entries for this slot so background scheduler doesn't double-send
+    await queueService.cancelPendingItemsForSlot(slot.id);
+
+    // Collect recipients for this slot
+    let recipients = currentSlot.recipientList || [];
+    if (!recipients || recipients.length === 0) {
+      const targetedBatchIds = (announcement.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
+      const recipientMap = new Map<string, { recipientPhone: string; name: string; studentId?: string }>();
+      const getRecipientKey = (raw?: string | null) => {
+        if (!raw) return '';
+        const d = raw.replace(/[^0-9]/g, '');
+        return d.length >= 10 ? d.slice(-10) : d;
+      };
+
+      if (targetedBatchIds.length > 0) {
+        const { data: batchStudents } = await this.supabase
+          .from('batch_students')
+          .select('student:students(id, name, parent_whatsapp, student_mobile, status)')
+          .in('batch_id', targetedBatchIds);
+
+        for (const row of batchStudents || []) {
+          const st = row.student as any;
+          if (st && st.status === 'ACTIVE' && st.id) {
+            const phone = st.parent_whatsapp || st.student_mobile;
+            const k = getRecipientKey(phone);
+            if (k && !recipientMap.has(k)) {
+              recipientMap.set(k, { recipientPhone: phone, name: st.name, studentId: st.id });
+            }
+          }
+        }
+      }
+
+      recipients = Array.from(recipientMap.values()).map((r) => ({
+        phone: r.recipientPhone,
+        name: r.name,
+        studentId: r.studentId,
+      }));
+    }
+
+    const { whatsappSettingsService } = await import('./whatsapp/whatsappSettings.service.js');
+    const settings = await whatsappSettingsService.getSettings();
+    const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+    const PACING_DELAYS = [1500, 3000, 5000, 7000, 10000];
+
+    const exactBody = currentSlot.message;
+    let dispatchedSuccess = 0;
+    let dispatchedFailed = 0;
+
+    for (let i = 0; i < recipients.length; i++) {
+      const rec = recipients[i];
+      if (i > 0) {
+        const delayMs = PACING_DELAYS[i % PACING_DELAYS.length];
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      // Idempotency: skip if already sent to this recipient in the last 24h
+      try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: alreadySent } = await this.supabase
+          .from('whatsapp_messages')
+          .select('id')
+          .eq('recipient_phone', rec.phone)
+          .eq('message_body', exactBody)
+          .eq('event_type', 'ANNOUNCEMENT')
+          .eq('status', 'SENT')
+          .gte('created_at', oneDayAgo)
+          .limit(1);
+
+        if (alreadySent && alreadySent.length > 0) {
+          dispatchedSuccess++;
+          continue;
+        }
+      } catch {}
+
+      try {
+        const sendRes = await provider.sendMessage({
+          to: rec.phone,
+          body: exactBody,
+        });
+
+        if (sendRes.success) {
+          dispatchedSuccess++;
+          try {
+            await this.supabase.from('whatsapp_messages').insert({
+              recipient_phone: rec.phone,
+              student_id: rec.studentId || null,
+              message_body: exactBody,
+              status: 'SENT',
+              sent_at: new Date().toISOString(),
+              event_type: 'ANNOUNCEMENT',
+            });
+          } catch {}
+        } else {
+          dispatchedFailed++;
+          try {
+            await this.supabase.from('whatsapp_messages').insert({
+              recipient_phone: rec.phone,
+              student_id: rec.studentId || null,
+              message_body: exactBody,
+              status: 'FAILED',
+              sent_at: new Date().toISOString(),
+              event_type: 'ANNOUNCEMENT',
+            });
+          } catch {}
+        }
+      } catch (sendErr: any) {
+        dispatchedFailed++;
+        try {
+          await this.supabase.from('whatsapp_messages').insert({
+            recipient_phone: rec.phone,
+            student_id: rec.studentId || null,
+            message_body: exactBody,
+            status: 'FAILED',
+            sent_at: new Date().toISOString(),
+            event_type: 'ANNOUNCEMENT',
+          });
+        } catch {}
+      }
+    }
+
+    // Atomic update of slot to SENT
+    currentSlot.status = dispatchedFailed > 0 && dispatchedSuccess === 0 ? 'FAILED' : 'SENT';
+    currentSlot.dispatchTimestamp = new Date().toISOString();
+    currentSlot.updatedAt = new Date().toISOString();
+    currentSlot.deliveryResult = {
+      total: recipients.length,
+      success: dispatchedSuccess,
+      failed: dispatchedFailed,
+    };
+    if (dispatchedFailed > 0 && dispatchedSuccess === 0) {
+      currentSlot.errorDetails = 'All message deliveries failed through WhatsApp provider.';
+    }
+
+    currentSlot.history.push({
+      timestamp: new Date().toISOString(),
+      action: currentSlot.status as any,
+      note: `Direct Send Now completed: ${dispatchedSuccess} sent, ${dispatchedFailed} failed`,
+      fromStatus: 'SENDING',
+      toStatus: currentSlot.status,
+    });
+
+    slots[targetIdx] = currentSlot;
+
+    // Save updated slots to DB. Other slots and announcement itself remain preserved!
+    await this.supabase
+      .from('announcements')
+      .update({
+        metadata: {
+          ...meta,
+          slots,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', announcement.id);
+
+    return {
+      success: true,
+      message: `Delivery slot #${currentSlot.slotNumber} dispatched immediately to ${dispatchedSuccess} recipient(s).`,
+      dispatchedCount: dispatchedSuccess,
+      slot: currentSlot,
+    };
+  }
+
+  // ============================================================================
   // 7. LIST SCHEDULED ANNOUNCEMENTS (Exact Deduplication & Permanent History)
   // ============================================================================
   async listScheduledAnnouncements(teacherId?: string) {
-    const all = await this.listAnnouncements(teacherId);
-
-    // Filter to announcements that have been scheduled
-    const scheduledAnnouncements = all.filter((a) => {
-      const meta = (a.metadata as any) || {};
-      return Boolean(meta.isScheduled);
-    });
-
-    return scheduledAnnouncements.map((a) => {
-      const meta = (a.metadata as any) || {};
-      const totalRecipients = Number(meta.totalRecipients || (a.batches?.length ? 22 : 0));
-      const scheduledStatus = meta.scheduledStatus || 'SCHEDULED';
-      const scheduledAt = meta.scheduledAt || a.updated_at;
-
-      return {
-        ...a,
-        status: scheduledStatus,
-        scheduled_at: scheduledAt,
-        stats: {
-          total: totalRecipients,
-          pending: scheduledStatus === 'SCHEDULED' ? totalRecipients : 0,
-          sent: scheduledStatus === 'SENT' ? totalRecipients : 0,
-          failed: scheduledStatus === 'FAILED' ? totalRecipients : 0,
-        },
-        recipientCount: totalRecipients,
-      };
-    });
+    const { all } = await this.listUnifiedSlots(teacherId);
+    return all.map((slot) => ({
+      id: slot.id,
+      announcement_id: slot.announcementId,
+      slot_number: slot.slotNumber,
+      title: slot.title,
+      message: slot.message,
+      status: slot.status,
+      scheduled_at: slot.scheduledAt,
+      original_scheduled_at: slot.originalScheduledAt,
+      postponed_at: slot.postponedAt,
+      dispatch_timestamp: slot.dispatchTimestamp,
+      recipientCount: slot.recipientCount,
+      batches: slot.batches,
+      history: slot.history,
+      stats: {
+        total: slot.recipientCount,
+        pending: slot.status === 'SCHEDULED' || slot.status === 'PENDING' ? slot.recipientCount : 0,
+        sent: slot.status === 'SENT' ? slot.recipientCount : 0,
+        failed: slot.status === 'FAILED' ? slot.recipientCount : 0,
+      },
+    }));
   }
 
   // ============================================================================
