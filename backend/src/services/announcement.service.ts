@@ -841,45 +841,53 @@ export class AnnouncementService {
       .map((b: any) => ({ id: b.batch?.id, name: b.batch?.name }))
       .filter((b: any) => b.id);
 
-    // If slots array exists in metadata, enrich and return each slot
+    // If slots array exists in metadata, enrich and return each slot (EXCLUDING CANCELLED)
     if (Array.isArray(meta.slots) && meta.slots.length > 0) {
-      return meta.slots.map((s: any, idx: number) => ({
-        id: s.id || `${announcement.id}-slot-${idx + 1}`,
-        announcementId: announcement.id,
-        slotNumber: s.slotNumber || idx + 1,
-        title: s.title || announcement.title,
-        announcementTitle: s.title || announcement.title,
-        message: s.message || announcement.message,
-        messagePreview: s.messagePreview || (s.message || announcement.message || '').slice(0, 150),
-        scheduledAt: s.scheduledAt || meta.scheduledAt || announcement.updated_at || announcement.created_at,
-        status: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
-        originalScheduledAt: s.originalScheduledAt || null,
-        postponedAt: s.postponedAt || null,
-        dispatchTimestamp: s.dispatchTimestamp || (s.status === 'SENT' ? announcement.updated_at : null),
-        recipientCount: Number(s.recipientCount || meta.totalRecipients || (batches.length ? 22 : 0)),
-        recipientList: s.recipientList || [],
-        deliveryResult: s.deliveryResult || null,
-        errorDetails: s.errorDetails || null,
-        history: Array.isArray(s.history) && s.history.length > 0
-          ? s.history
-          : [
-              {
-                timestamp: announcement.created_at,
-                action: 'CREATED',
-                note: `Slot #${s.slotNumber || idx + 1} initialized`,
-                toStatus: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
-              },
-            ],
-        batches: s.batches || batches,
-        createdAt: s.createdAt || announcement.created_at,
-        updatedAt: s.updatedAt || announcement.updated_at,
-      }));
+      return meta.slots
+        .filter((s: any) => s && s.status !== 'CANCELLED' && (s.status as any) !== 'DELETED')
+        .map((s: any, idx: number) => ({
+          id: s.id || `${announcement.id}-slot-${idx + 1}`,
+          announcementId: announcement.id,
+          slotNumber: s.slotNumber || idx + 1,
+          title: s.title || announcement.title,
+          announcementTitle: s.title || announcement.title,
+          message: s.message || announcement.message,
+          messagePreview: s.messagePreview || (s.message || announcement.message || '').slice(0, 150),
+          scheduledAt: s.scheduledAt || meta.scheduledAt || announcement.updated_at || announcement.created_at,
+          status: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
+          originalScheduledAt: s.originalScheduledAt || null,
+          postponedAt: s.postponedAt || null,
+          dispatchTimestamp: s.dispatchTimestamp || (s.status === 'SENT' ? announcement.updated_at : null),
+          recipientCount: Number(s.recipientCount || meta.totalRecipients || (batches.length ? 22 : 0)),
+          recipientList: s.recipientList || [],
+          deliveryResult: s.deliveryResult || null,
+          errorDetails: s.errorDetails || null,
+          history: Array.isArray(s.history) && s.history.length > 0
+            ? s.history
+            : [
+                {
+                  timestamp: announcement.created_at,
+                  action: 'CREATED',
+                  note: `Slot #${s.slotNumber || idx + 1} initialized`,
+                  toStatus: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
+                },
+              ],
+          batches: s.batches || batches,
+          createdAt: s.createdAt || announcement.created_at,
+          updatedAt: s.updatedAt || announcement.updated_at,
+        }));
     }
 
     // Backward compatibility: If announcement was marked as scheduled in legacy single-schedule format
-    if (meta.isScheduled === true || meta.scheduledAt) {
+    if (
+      (meta.isScheduled === true || (meta.scheduledAt && meta.isScheduled !== false)) &&
+      meta.scheduledStatus !== 'CANCELLED' &&
+      !meta.is_deleted &&
+      !announcement.deleted_at
+    ) {
       const scheduledAt = meta.scheduledAt || announcement.updated_at || announcement.created_at;
       const status: ScheduledSlotStatus = (meta.scheduledStatus as ScheduledSlotStatus) || 'SCHEDULED';
+      if (status === 'CANCELLED') return [];
       return [
         {
           id: `${announcement.id}-slot-1`,
@@ -934,16 +942,12 @@ export class AnnouncementService {
       allSlots.push(...slots);
     }
 
-    const nowTimestamp = Date.now();
-
-    // 1. Upcoming slots: active future schedules (SCHEDULED or PENDING)
-    // Exclude past delivery slots from active upcoming reminders (> 60s in past)
+    // 1. Upcoming slots: active future OR pending schedules (SCHEDULED or PENDING)
+    // Never hide past-due unsent slots if waiting for device connection or in multi-slot sequence!
     // ASCENDING CHRONOLOGICAL SORTING: earliest scheduled delivery first
     const upcoming = allSlots
       .filter(
-        (s) =>
-          (s.status === 'SCHEDULED' || s.status === 'PENDING') &&
-          new Date(s.scheduledAt).getTime() >= nowTimestamp - 60000
+        (s) => s.status === 'SCHEDULED' || s.status === 'PENDING'
       )
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
@@ -952,10 +956,10 @@ export class AnnouncementService {
       .filter((s) => s.status === 'POSTPONED')
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
-    // All slots sorted chronological ascending
-    const allSorted = [...allSlots].sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-    );
+    // All active slots sorted chronological ascending (excluding cancelled)
+    const allSorted = [...allSlots]
+      .filter((s) => s.status !== 'CANCELLED')
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
     return {
       upcoming,
@@ -964,7 +968,7 @@ export class AnnouncementService {
       counts: {
         upcoming: upcoming.length,
         postponed: postponed.length,
-        total: allSlots.length,
+        total: allSorted.length,
       },
     };
   }
@@ -1093,31 +1097,19 @@ export class AnnouncementService {
   async cancelSlot(slotId: string, reason?: string) {
     const { slot, announcement } = await this.getSlotById(slotId);
     const meta = (announcement.metadata as any) || {};
-    let slots: ScheduledDeliverySlot[] = this.materializeSlots(announcement);
+    let rawSlots: any[] = Array.isArray(meta.slots) ? meta.slots : [];
 
-    const targetIdx = slots.findIndex((s) => s.id === slot.id);
-    if (targetIdx === -1) {
-      throw new AppError('Delivery slot not found', 404);
-    }
-
-    const currentSlot = slots[targetIdx];
-    const oldStatus = currentSlot.status;
-    currentSlot.status = 'CANCELLED';
-    currentSlot.updatedAt = new Date().toISOString();
-
-    if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
-    currentSlot.history.push({
-      timestamp: new Date().toISOString(),
-      action: 'CANCELLED',
-      note: reason || 'Delivery slot cancelled',
-      fromStatus: oldStatus,
-      toStatus: 'CANCELLED',
-    });
-
-    slots[targetIdx] = currentSlot;
+    // Filter out the cancelled slot completely so it does not linger or show as cancelled clutter
+    const remainingSlots = rawSlots.filter(
+      (s: any) => s.id !== slot.id && s.id !== `${announcement.id}-slot-${slot.slotNumber}`
+    );
 
     // Cancel pending queue items strictly for this slot
     const cancelledCount = await queueService.cancelPendingItemsForSlot(slot.id);
+
+    const hasActiveRemaining = remainingSlots.some(
+      (s: any) => s.status === 'SCHEDULED' || s.status === 'POSTPONED' || s.status === 'PENDING'
+    );
 
     // Save updated slots to DB
     await this.supabase
@@ -1125,16 +1117,23 @@ export class AnnouncementService {
       .update({
         metadata: {
           ...meta,
-          slots,
+          slots: remainingSlots,
+          isScheduled: hasActiveRemaining,
+          scheduledStatus: hasActiveRemaining ? meta.scheduledStatus : 'CANCELLED',
         },
         updated_at: new Date().toISOString(),
       })
       .eq('id', announcement.id);
 
+    // If it was the only slot or legacy announcement, delete the announcement completely
+    if (remainingSlots.length === 0 && (!rawSlots || rawSlots.length <= 1)) {
+      await this.deleteAnnouncement(announcement.id);
+    }
+
     return {
       success: true,
-      message: `Delivery slot #${currentSlot.slotNumber} cancelled successfully (${cancelledCount} pending queued items cancelled).`,
-      slot: currentSlot,
+      message: `Delivery slot #${slot.slotNumber} cancelled and removed (${cancelledCount} pending queued items cancelled).`,
+      slot,
     };
   }
 
@@ -1430,39 +1429,17 @@ export class AnnouncementService {
   // ============================================================================
   // 9. DELETE / CANCEL SCHEDULED ANNOUNCEMENT
   // ============================================================================
-  async deleteScheduledAnnouncement(id: string, permanent: boolean = false) {
+  async deleteScheduledAnnouncement(id: string, permanent: boolean = true) {
     const existing = await this.getAnnouncementById(id);
 
     // 1. Cancel pending queue items
     const cancelledCount = await queueService.cancelPendingItemsForAnnouncement(id, existing.title);
 
-    // If permanent deletion requested, delete the announcement record entirely
-    if (permanent) {
-      await this.deleteAnnouncement(id);
-      return {
-        success: true,
-        message: `Scheduled broadcast deleted permanently (${cancelledCount} queued messages cancelled).`,
-        cancelledCount,
-      };
-    }
-
-    // 2. Mark announcement metadata scheduledStatus as CANCELLED
-    const existingMeta = (existing.metadata as any) || {};
-    await this.supabase
-      .from('announcements')
-      .update({
-        metadata: {
-          ...existingMeta,
-          isScheduled: false,
-          scheduledStatus: 'CANCELLED',
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
+    // Always permanently delete so deleted/cancelled broadcasts never linger
+    await this.deleteAnnouncement(id);
     return {
       success: true,
-      message: `Scheduled broadcast cancelled successfully (${cancelledCount} queued messages cancelled).`,
+      message: `Scheduled broadcast deleted permanently (${cancelledCount} queued messages cancelled).`,
       cancelledCount,
     };
   }

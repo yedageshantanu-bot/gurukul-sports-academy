@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Ban,
   MessageSquare,
+  Edit2,
 } from 'lucide-react';
 import { UpcomingScheduledItem } from '../../types/crm';
 import { apiClient } from '../../lib/api';
@@ -213,8 +214,7 @@ export const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
 
   const startRescheduleFlow = () => {
     const base = slot.scheduledAt ? new Date(slot.scheduledAt).getTime() : Date.now();
-    const next = new Date(base + 3600000);
-    const localIso = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const localIso = new Date(base - new Date(base).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     setNewScheduledTime(localIso);
     setEditedTitle(slot.title);
     setEditedMessage(slot.message || slot.messagePreview);
@@ -298,6 +298,47 @@ export const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Modal Navigation Tabs */}
+        {slot.status !== 'CANCELLED' && slot.status !== 'SENT' && (
+          <div className="flex items-center gap-1 px-5 pt-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+            <button
+              type="button"
+              onClick={() => setActiveTab('DETAILS')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition border-b-2 cursor-pointer ${
+                activeTab === 'DETAILS'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              📋 Slot Details
+            </button>
+            <button
+              type="button"
+              onClick={startRescheduleFlow}
+              className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition border-b-2 flex items-center gap-1 cursor-pointer ${
+                activeTab === 'RESCHEDULE'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>Edit & Reschedule</span>
+            </button>
+            <button
+              type="button"
+              onClick={startPostponeFlow}
+              className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition border-b-2 flex items-center gap-1 cursor-pointer ${
+                activeTab === 'POSTPONE'
+                  ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Postpone</span>
+            </button>
+          </div>
+        )}
 
         {/* Body content */}
         <div className="p-5 overflow-y-auto space-y-4">
@@ -554,10 +595,10 @@ export const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
                     type="button"
                     onClick={startRescheduleFlow}
                     disabled={Boolean(loadingAction)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition cursor-pointer"
                   >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Reschedule</span>
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit & Reschedule</span>
                   </button>
 
                   <button

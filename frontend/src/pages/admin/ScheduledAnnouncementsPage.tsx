@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   ArrowLeft,
+  RotateCcw,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -55,7 +56,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTPONED' | 'SENT' | 'CANCELLED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTPONED' | 'SENT'>('ALL');
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
 
   // Selected Slot Detail Modal State
@@ -175,16 +176,16 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
   };
 
   const handleCancelSchedule = async (item: ScheduledAnnouncementItem) => {
-    if (!window.confirm(`Cancel scheduled broadcast for "${item.title}"? Any unsent queue items will be purged.`)) {
+    if (!window.confirm(`Cancel and remove scheduled broadcast for "${item.title}"? Any unsent queue items will be purged.`)) {
       return;
     }
 
     try {
       setActionLoadingId(item.id);
-      const res: any = await apiClient(`/announcements/scheduled/${item.id}`, {
+      const res: any = await apiClient(`/announcements/scheduled/${item.id}?permanent=true`, {
         method: 'DELETE',
       });
-      toast.success(res?.message || 'Scheduled broadcast cancelled!');
+      toast.success(res?.message || 'Scheduled broadcast cancelled and removed successfully!');
       await fetchScheduled(true);
     } catch (err: any) {
       console.error('Cancel failed:', err);
@@ -216,21 +217,23 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
   // Next upcoming pending message in queue
   const nextPendingItem = React.useMemo(() => {
-    const pendings = items.filter((i) => i.status === 'SCHEDULED' && new Date(i.scheduled_at || 0).getTime() > 0);
+    const pendings = items.filter((i) => (i.status === 'SCHEDULED' || i.status === 'PENDING') && new Date(i.scheduled_at || 0).getTime() > 0);
     pendings.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
     return pendings[0] || null;
   }, [items]);
 
-  // KPI Computations
-  const totalCount = items.length;
+  // KPI Computations (excluding cancelled records)
+  const activeItems = items.filter((i) => i.status !== 'CANCELLED');
+  const totalCount = activeItems.length;
   const pendingCount = items.filter((i) => i.status === 'SCHEDULED' || i.status === 'PENDING').length;
   const postponedCount = items.filter((i) => i.status === 'POSTPONED').length;
   const sentCount = items.filter((i) => i.status === 'SENT').length;
-  const cancelledCount = items.filter((i) => i.status === 'CANCELLED').length;
 
-  // Search & Filter
+  // Search & Filter (Never show CANCELLED items)
   const q = searchTerm.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
+    if (item.status === 'CANCELLED') return false;
+
     const matchesSearch =
       !q ||
       item.title.toLowerCase().includes(q) ||
@@ -241,8 +244,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
       statusFilter === 'ALL' ||
       (statusFilter === 'PENDING' && (item.status === 'SCHEDULED' || item.status === 'PENDING')) ||
       (statusFilter === 'POSTPONED' && item.status === 'POSTPONED') ||
-      (statusFilter === 'SENT' && item.status === 'SENT') ||
-      (statusFilter === 'CANCELLED' && item.status === 'CANCELLED');
+      (statusFilter === 'SENT' && item.status === 'SENT');
 
     return matchesSearch && matchesStatus;
   });
@@ -477,13 +479,13 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Delivered to WhatsApp queue</span>
         </Card>
 
-        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-rose-500/30 transition-all shadow-sm">
+        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-amber-500/30 transition-all shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cancelled / Purged</span>
-            <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Postponed Slots</span>
+            <RotateCcw className="w-4 h-4 text-amber-500 dark:text-amber-400" />
           </div>
-          <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-2">{cancelledCount}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Cancelled by academy admin</span>
+          <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2">{postponedCount}</p>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Scheduled for future date</span>
         </Card>
       </div>
 
@@ -492,11 +494,10 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
         {/* Status Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
-            { key: 'ALL', label: `All (${totalCount})` },
+            { key: 'ALL', label: `All Active (${totalCount})` },
             { key: 'PENDING', label: `Pending (${pendingCount})` },
             { key: 'POSTPONED', label: `Postponed (${postponedCount})` },
             { key: 'SENT', label: `Sent (${sentCount})` },
-            { key: 'CANCELLED', label: `Cancelled (${cancelledCount})` },
           ].map((tab) => (
             <button
               key={tab.key}

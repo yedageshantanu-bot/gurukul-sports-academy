@@ -29,6 +29,7 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  Edit2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../../components/ui/Modal';
@@ -1121,9 +1122,21 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSlotModal(item);
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1 cursor-pointer"
+                          title="Edit slot details, message, or reschedule delivery time"
+                        >
+                          <Edit2 className="w-3 h-3 text-indigo-500" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => handleDirectSlotSendNow(item, e)}
                           disabled={slotActionLoadingId === item.id}
-                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1"
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
                           title="Dispatch this slot immediately with safe anti-ban delay"
                         >
                           <Send className="w-3 h-3" />
@@ -1264,9 +1277,21 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSlotModal(item);
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-200 transition flex items-center gap-1 cursor-pointer"
+                          title="Edit postponed slot"
+                        >
+                          <Edit2 className="w-3 h-3 text-amber-600" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => handleDirectSlotSendNow(item, e)}
                           disabled={slotActionLoadingId === item.id}
-                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition flex items-center gap-1"
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
                           title="Dispatch now or reschedule"
                         >
                           <Send className="w-3 h-3" />
