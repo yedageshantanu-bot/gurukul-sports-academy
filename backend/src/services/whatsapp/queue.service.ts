@@ -1043,9 +1043,16 @@ export class WhatsAppQueueService {
 
         const status = await provider.getStatus();
         const rawDigits = (status.phoneNumber || '').replace(/\D/g, '');
-        const isValidPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999');
+        const isMock = rawDigits.includes('9999999999');
 
-        if (status.status === 'CONNECTED' && isValidPhone) {
+        // 24/7 Render Free-Tier Keep-Alive Ping: Resets Render 15-min idle countdown
+        try {
+          fetch('https://gurukul-openwa-bridge-a0m4.onrender.com/health', {
+            signal: AbortSignal.timeout(5000),
+          }).catch(() => {});
+        } catch {}
+
+        if (status.status === 'CONNECTED' && !isMock) {
           // Keep bridge warm and update heartbeat in database
           await whatsappSettingsService.updateDeviceStatus('CONNECTED', status.phoneNumber, {
             lastHeartbeatAt: new Date().toISOString(),
@@ -1055,15 +1062,12 @@ export class WhatsAppQueueService {
           this.triggerBackgroundProcessing();
           this.processScheduledAnnouncementsOnly().catch(() => {});
           return;
-        } else if (status.status === 'CONNECTED' && !isValidPhone) {
-          await whatsappSettingsService.updateDeviceStatus('QR_READY', undefined, {
-            sessionStatus: status.sessionStatus || 'Waiting for phone companion scan',
-          }).catch(() => {});
         }
 
-        // If disconnected or session dropped, attempt auto-reconnect with 3-minute backoff
+        // If genuinely disconnected or session dropped, attempt auto-reconnect with 3-minute backoff
+        // Only if status is actually DISCONNECTED (do NOT interrupt QR_READY or CONNECTING handshakes)
         const now = Date.now();
-        if (now - this.lastWatchdogReconnectAttempt > 180000) {
+        if (status.status === 'DISCONNECTED' && now - this.lastWatchdogReconnectAttempt > 180000) {
           this.lastWatchdogReconnectAttempt = now;
           console.log(`[WhatsApp Watchdog] ⚠️ Connection status is '${status.status}'. Attempting automatic socket reconnect...`);
           if (typeof provider.connect === 'function') {

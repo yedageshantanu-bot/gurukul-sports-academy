@@ -1678,6 +1678,10 @@ export async function onRequest(context: any) {
               bridgeStatus = 'CONNECTED';
               if (readySession.phone) {
                 bridgePhone = `+${readySession.phone.replace(/\D/g, '')}`;
+              } else if (readySession.pushName) {
+                bridgePhone = readySession.pushName;
+              } else {
+                bridgePhone = '+91 (Active Companion)';
               }
             } else {
               // Fetch QR code for pairing
@@ -1754,7 +1758,7 @@ export async function onRequest(context: any) {
 
       const academyName = isDemo ? 'Effort Career Classes' : 'Gurukul Sports Academy';
       const cleanPhoneDigits = (bridgePhone || '').replace(/\D/g, '');
-      const isReallyConnected = bridgeStatus === 'CONNECTED' && cleanPhoneDigits.length >= 10 && !cleanPhoneDigits.includes('9999999999');
+      const isReallyConnected = bridgeStatus === 'CONNECTED' && !cleanPhoneDigits.includes('9999999999');
 
       return jsonResponse({
         success: true,
@@ -1832,7 +1836,11 @@ export async function onRequest(context: any) {
           }
         }
 
-        if (session) {
+        if (session && session.status === 'ready') {
+          // Do NOT restart session if already ready! Preserves live WebSocket
+          status = 'CONNECTED';
+          phone = session.phone ? `+${session.phone.replace(/\D/g, '')}` : (session.pushName || '+91 (Active Companion)');
+        } else if (session) {
           await fetch(`${bridgeUrl}/api/sessions/${session.id}/start`, {
             method: 'POST',
             headers,
@@ -1846,9 +1854,9 @@ export async function onRequest(context: any) {
               qrCode = qrData.qrCode;
             }
           }
-          if (session.status === 'ready' && session.phone) {
+          if (session.status === 'ready') {
             status = 'CONNECTED';
-            phone = `+${session.phone.replace(/\D/g, '')}`;
+            phone = session.phone ? `+${session.phone.replace(/\D/g, '')}` : (session.pushName || '+91 (Active Companion)');
           }
         }
       } catch (err: any) {

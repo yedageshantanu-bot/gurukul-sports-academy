@@ -47,11 +47,11 @@ export class WhatsAppSettingsService {
             data.provider_type = 'openwa';
           }
           const rawDigits = (data.device_phone_number || '').replace(/\D/g, '');
-          const isRealPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999');
-          if (!isRealPhone) {
+          const isMock = rawDigits.includes('9999999999');
+          if (isMock) {
             data.device_phone_number = null;
             if (data.device_status === 'CONNECTED') {
-              data.device_status = 'QR_READY';
+              data.device_status = 'DISCONNECTED';
             }
           }
           // Keep in-memory cache updated with DB
@@ -124,9 +124,9 @@ export class WhatsAppSettingsService {
   ): Promise<WhatsAppSettings> {
     const current = await this.getSettings();
     const rawDigits = (phoneNumber || '').replace(/\D/g, '');
-    const isRealPhone = rawDigits.length >= 10 && !rawDigits.includes('9999999999');
-    const cleanPhone: string | null = (isRealPhone && phoneNumber) ? phoneNumber : null;
-    const effectiveStatus = (status === 'CONNECTED' && !cleanPhone) ? 'QR_READY' : status;
+    const isMock = rawDigits.includes('9999999999');
+    const cleanPhone: string | null = isMock ? null : (phoneNumber || current.device_phone_number || null);
+    const effectiveStatus = (status === 'CONNECTED' && isMock) ? 'DISCONNECTED' : status;
 
     const updated: WhatsAppSettings = {
       ...current,

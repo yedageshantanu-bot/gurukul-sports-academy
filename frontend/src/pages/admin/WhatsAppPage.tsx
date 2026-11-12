@@ -181,9 +181,9 @@ export const WhatsAppPage: React.FC = () => {
       if (deviceData) {
         // Strip out any fake mock numbers
         const rawPhone = deviceData.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
-        const isValidPhone = rawPhone.length >= 10 && !rawPhone.includes('9999999999');
+        const isMock = rawPhone.includes('9999999999');
 
-        if (!isValidPhone) {
+        if (isMock) {
           deviceData.phoneNumber = undefined;
           if (deviceData.status === 'CONNECTED') {
             deviceData.status = deviceData.qrCode ? 'QR_READY' : 'DISCONNECTED';
@@ -191,7 +191,7 @@ export const WhatsAppPage: React.FC = () => {
         }
 
         setDevice((prev) => {
-          if (deviceData.status === 'CONNECTED' && isValidPhone) {
+          if (deviceData.status === 'CONNECTED' && !isMock) {
             return deviceData;
           }
           if (deviceData.qrCode) {
@@ -204,8 +204,8 @@ export const WhatsAppPage: React.FC = () => {
           return deviceData;
         });
 
-        // If not connected and no QR code, automatically initiate connect to get fresh QR
-        if (autoTriggerConnect && !isValidPhone && !deviceData.qrCode) {
+        // Only auto-trigger connect if genuinely DISCONNECTED and no QR code is active
+        if (autoTriggerConnect && deviceData.status === 'DISCONNECTED' && !deviceData.qrCode) {
           apiClient<any>('/whatsapp/connect', { method: 'POST' }).then((cRes) => {
             const cPayload = cRes?.data !== undefined ? cRes.data : cRes;
             const cQr = cPayload?.qrCode || cPayload?.status?.qrCode;
@@ -222,7 +222,7 @@ export const WhatsAppPage: React.FC = () => {
 
       const statsObj = payload?.todayStats || payload?.stats;
       const rawPhone = deviceData?.phoneNumber ? String(deviceData.phoneNumber).replace(/\D/g, '') : '';
-      const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && rawPhone.length >= 10 && !rawPhone.includes('9999999999');
+      const isDeviceReallyConnected = deviceData?.status === 'CONNECTED' && !rawPhone.includes('9999999999');
 
       setWhatsappStats((prev) => ({
         isConnected: Boolean(isDeviceReallyConnected),
@@ -305,6 +305,10 @@ export const WhatsAppPage: React.FC = () => {
 
   // Connect or Regenerate QR code
   const handleConnectOrRefresh = async () => {
+    if (device.status === 'CONNECTED') {
+      toast.info('WhatsApp is already connected and active!');
+      return;
+    }
     setRefreshing(true);
     setError(null);
     setSuccess(null);
@@ -438,9 +442,7 @@ export const WhatsAppPage: React.FC = () => {
 
   const isConnected = Boolean(
     device.status === 'CONNECTED' &&
-    device.phoneNumber &&
-    device.phoneNumber.replace(/\D/g, '').length >= 10 &&
-    !device.phoneNumber.includes('9999999999')
+    (!device.phoneNumber || !device.phoneNumber.includes('9999999999'))
   );
 
   // Real-time polling: runs every 3.5 seconds while waiting for QR scan, slows down once paired
