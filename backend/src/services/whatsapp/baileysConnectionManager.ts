@@ -849,11 +849,11 @@ export class BaileysWhatsAppProvider implements WhatsAppSender {
     };
   }
 
-  async disconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    await this.manager.disconnect(false);
+  async disconnect(logout = false): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
+    await this.manager.disconnect(logout);
     return {
       success: true,
-      message: 'WhatsApp socket disconnected',
+      message: logout ? 'WhatsApp session unlinked and credentials cleared' : 'WhatsApp socket disconnected',
       status: await this.getStatus(),
     };
   }

@@ -95,10 +95,11 @@ export class WhatsAppController {
     try {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
-      const result = await provider.disconnect();
+      // Explicit unlink action: pass true to logout socket and purge credentials from Supabase
+      const result = await (provider as any).disconnect(true);
 
-      await whatsappSettingsService.updateDeviceStatus('DISCONNECTED', undefined, {
-        sessionStatus: 'Disconnected by admin command',
+      await whatsappSettingsService.updateDeviceStatus('DISCONNECTED', null, {
+        sessionStatus: 'Unlinked by admin command',
       });
 
       res.status(200).json({

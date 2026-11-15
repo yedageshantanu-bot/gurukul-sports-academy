@@ -120,13 +120,17 @@ export class WhatsAppSettingsService {
 
   async updateDeviceStatus(
     status: WhatsAppDeviceStatusEnum,
-    phoneNumber?: string,
+    phoneNumber?: string | null,
     sessionMetadata?: Record<string, any>
   ): Promise<WhatsAppSettings> {
     const current = await this.getSettings();
     const rawDigits = (phoneNumber || '').replace(/\D/g, '');
     const isMock = rawDigits.includes('9999999999');
-    const cleanPhone: string | null = isMock ? null : (phoneNumber || current.device_phone_number || null);
+    const cleanPhone: string | null = (phoneNumber === null || (status === 'DISCONNECTED' && phoneNumber === ''))
+      ? null
+      : isMock
+      ? null
+      : (phoneNumber || current.device_phone_number || null);
     const effectiveStatus = (status === 'CONNECTED' && isMock) ? 'DISCONNECTED' : status;
 
     const updated: WhatsAppSettings = {
