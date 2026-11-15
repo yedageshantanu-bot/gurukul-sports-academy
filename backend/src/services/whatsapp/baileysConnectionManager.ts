@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import fs from 'fs';
 import path from 'path';
+import QRCode from 'qrcode';
 import {
   WhatsAppSender,
   SendMessageParams,
@@ -129,6 +130,20 @@ export function atomicWriteFileSync(filePath: string, data: string | Buffer): vo
  * 7. Reverse Proxy Keep-Alive: Ping frames (25s) with readyState checks to prevent idle drops
  * 8. Zero Memory Leaks: Complete EventEmitter and WebSocket unbinding on every rotation
  */
+export function createBaileysPinoLogger(baseLogger?: any) {
+  const pinoLogger: any = {
+    level: 'silent',
+    trace: () => {},
+    debug: () => {},
+    info: () => {},
+    warn: (...args: any[]) => (baseLogger?.warn ? baseLogger.warn(...args) : console.warn(...args)),
+    error: (...args: any[]) => (baseLogger?.error ? baseLogger.error(...args) : console.error(...args)),
+    fatal: (...args: any[]) => (baseLogger?.error ? baseLogger.error(...args) : console.error(...args)),
+    child: () => pinoLogger,
+  };
+  return pinoLogger;
+}
+
 export class BaileysConnectionManager extends EventEmitter {
   private config: Required<ConnectionManagerConfig>;
   private currentState: WhatsAppSessionState = 'DISCONNECTED';
@@ -173,12 +188,42 @@ export class BaileysConnectionManager extends EventEmitter {
     return this.currentState;
   }
 
+  public waitForState(targetStates: WhatsAppSessionState[], timeoutMs = 7000): Promise<WhatsAppSessionState> {
+    if (targetStates.includes(this.currentState)) {
+      return Promise.resolve(this.currentState);
+    }
+
+    return new Promise((resolve) => {
+      let timer: NodeJS.Timeout | null = null;
+
+      const onStateChange = (payload: any) => {
+        const toState = payload?.to || this.currentState;
+        if (targetStates.includes(toState)) {
+          cleanup();
+          resolve(toState);
+        }
+      };
+
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        this.off('state.change', onStateChange);
+      };
+
+      timer = setTimeout(() => {
+        cleanup();
+        resolve(this.currentState);
+      }, timeoutMs);
+
+      this.on('state.change', onStateChange);
+    });
+  }
+
   public getStatus(): SessionStatusPayload {
     return {
       state: this.currentState,
       sessionId: this.config.sessionId,
       phoneNumber: this.phoneNumber || undefined,
-      qrCode: this.currentState === 'QR_READY' ? (this.qrCode || undefined) : undefined,
+      qrCode: this.currentState !== 'CONNECTED' && this.qrCode ? this.qrCode : undefined,
       reconnectAttempts: this.reconnectAttempts,
       lastConnectedAt: this.connectedAtTimestamp ? new Date(this.connectedAtTimestamp).toISOString() : undefined,
       lastHeartbeatAt: this.lastHeartbeatTimestamp ? new Date(this.lastHeartbeatTimestamp).toISOString() : undefined,
@@ -269,7 +314,7 @@ export class BaileysConnectionManager extends EventEmitter {
         await this.initializeSocket();
         return true;
       } catch (err: any) {
-        this.config.logger.error?.(`[WhatsApp Connect] Socket initialization failed:`, err.message);
+        this.config.logger.error?.(`[WhatsApp Connect] Socket initialization failed:`, err.stack || err.message);
         this.transitionState('ERROR', { error: err.message });
         return false;
       } finally {
@@ -279,6 +324,56 @@ export class BaileysConnectionManager extends EventEmitter {
     })();
 
     return this.activeConnectPromise;
+  }
+
+  /**
+   * Waits up to timeoutMs for the socket to either emit a QR code or establish an authenticated connection.
+   * Eliminates the race condition where HTTP /connect returns before Baileys finishes the initial handshake.
+   */
+  public async waitForQrOrConnected(timeoutMs = 7000): Promise<{ qrCode?: string; connected: boolean }> {
+    if (this.currentState === 'CONNECTED') {
+      return { connected: true };
+    }
+    if (this.qrCode && this.currentState === 'QR_READY') {
+      return { qrCode: this.qrCode, connected: false };
+    }
+
+    return new Promise((resolve) => {
+      let resolved = false;
+
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          resolve({ qrCode: this.qrCode || undefined, connected: this.currentState === 'CONNECTED' });
+        }
+      }, timeoutMs);
+
+      const onQr = (qr: string) => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          resolve({ qrCode: qr, connected: false });
+        }
+      };
+
+      const onStateChange = (payload: any) => {
+        if (payload?.to === 'CONNECTED' && !resolved) {
+          resolved = true;
+          cleanup();
+          resolve({ connected: true });
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.off('qr', onQr);
+        this.off('state.change', onStateChange);
+      };
+
+      this.once('qr', onQr);
+      this.on('state.change', onStateChange);
+    });
   }
 
   private async initializeSocket(): Promise<void> {
@@ -324,6 +419,10 @@ export class BaileysConnectionManager extends EventEmitter {
     const { state, saveCreds } = this.authAdapter;
 
     // 3. Socket Configuration with Cloud-Safe Timeouts & Render 512MB RAM Optimization
+    const socketLogger = this.config.logger?.child
+      ? this.config.logger.child({ module: 'baileys' })
+      : createBaileysPinoLogger(this.config.logger);
+
     const socketConfig = {
       version,
       auth: state,
@@ -339,7 +438,7 @@ export class BaileysConnectionManager extends EventEmitter {
       getMessage: async () => undefined, // Memory Guard: Prevent in-memory caching of past messages
       markOnlineOnConnect: false, // Lean presence: Do not broadcast presence continuously
       generateHighQualityLinkPreview: false,
-      logger: this.config.logger.child ? this.config.logger.child({ module: 'baileys' }) : undefined,
+      logger: socketLogger,
     };
 
     const sock = makeWASocket(socketConfig);
@@ -375,10 +474,19 @@ export class BaileysConnectionManager extends EventEmitter {
 
     // Handle QR code generation
     if (qr) {
-      this.qrCode = qr;
-      this.transitionState('QR_READY', { qr });
-      this.config.onQrCode(qr);
-      this.emit('qr', qr);
+      QRCode.toDataURL(qr, { margin: 2, scale: 6 })
+        .then((dataUrl) => {
+          this.qrCode = dataUrl;
+          this.transitionState('QR_READY', { qr: dataUrl, rawQr: qr });
+          this.config.onQrCode(dataUrl);
+          this.emit('qr', dataUrl);
+        })
+        .catch(() => {
+          this.qrCode = qr;
+          this.transitionState('QR_READY', { qr });
+          this.config.onQrCode(qr);
+          this.emit('qr', qr);
+        });
 
       if (this.qrExpiryTimer) clearTimeout(this.qrExpiryTimer);
       this.qrExpiryTimer = setTimeout(() => {
@@ -813,6 +921,8 @@ export class BaileysWhatsAppProvider implements WhatsAppSender {
     const mappedState: WhatsAppDeviceStatus['status'] =
       status.state === 'CONNECTED'
         ? 'CONNECTED'
+        : status.qrCode
+        ? 'QR_READY'
         : status.state === 'QR_READY'
         ? 'QR_READY'
         : status.state === 'RECONNECTING' || status.state === 'INITIALIZING'
@@ -836,6 +946,10 @@ export class BaileysWhatsAppProvider implements WhatsAppSender {
 
   async connect(): Promise<{ success: boolean; message: string; qrCode?: string; status: WhatsAppDeviceStatus }> {
     const success = await this.manager.connect();
+    if (success) {
+      // Synchronously await either fresh QR code emission or established connection
+      await this.manager.waitForQrOrConnected(7000);
+    }
     const deviceStatus = await this.getStatus();
     return {
       success,
@@ -858,13 +972,23 @@ export class BaileysWhatsAppProvider implements WhatsAppSender {
     };
   }
 
-  async reconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
+  async reconnect(): Promise<{ success: boolean; message: string; qrCode?: string; status: WhatsAppDeviceStatus }> {
     await this.manager.disconnect(false);
-    await this.manager.connect();
+    const success = await this.manager.connect();
+    if (success) {
+      // Synchronously await either fresh QR code emission or established connection
+      await this.manager.waitForQrOrConnected(7000);
+    }
+    const deviceStatus = await this.getStatus();
     return {
-      success: true,
-      message: 'WhatsApp reconnect initiated',
-      status: await this.getStatus(),
+      success,
+      message: deviceStatus.qrCode
+        ? 'QR code ready for scanning'
+        : deviceStatus.status === 'CONNECTED'
+        ? 'WhatsApp connected successfully'
+        : 'WhatsApp reconnect initiated',
+      qrCode: deviceStatus.qrCode,
+      status: deviceStatus,
     };
   }
 

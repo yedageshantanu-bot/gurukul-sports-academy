@@ -188,6 +188,32 @@ async function runTests() {
   const parsedSettings = updateWhatsAppSettingsSchema.safeParse({ providerType: 'baileys' });
   assert(parsedSettings.success, 'updateWhatsAppSettingsSchema accepts providerType: baileys');
 
+  // --------------------------------------------------------------------------
+  // TEST SUITE 5: QR Generation, Pino Logger & Handshake Synchronicity
+  // --------------------------------------------------------------------------
+  console.log('\n▶ [Suite 5] QR Generation, Pino Logger & Handshake Synchronicity');
+  const { createBaileysPinoLogger } = await import('../services/whatsapp/baileysConnectionManager.js');
+  const mockPinoLogger = createBaileysPinoLogger(console);
+  assert(typeof mockPinoLogger.child === 'function', 'createBaileysPinoLogger returns logger with child() function');
+  const childLogger = mockPinoLogger.child({ module: 'test' });
+  assert(typeof childLogger.warn === 'function', 'child logger has warn method');
+  assert(typeof childLogger.error === 'function', 'child logger has error method');
+  assert(typeof childLogger.child === 'function', 'child logger recursively provides child method');
+
+  // Test QR to Data URL conversion
+  const QRCode = (await import('qrcode')).default;
+  const sampleRawQr = '2@testPairingToken123456789,987654321';
+  const qrDataUrl = await QRCode.toDataURL(sampleRawQr, { margin: 2, scale: 6 });
+  assert(qrDataUrl.startsWith('data:image/png;base64,'), 'QRCode.toDataURL formats as base64 PNG data URI');
+  assert(qrDataUrl.length > 500, 'QRCode data URI has valid image byte payload length');
+
+  // Test Manager Handshake Waiter Methods
+  assert(typeof manager.waitForQrOrConnected === 'function', 'Connection manager exposes waitForQrOrConnected');
+  assert(typeof manager.waitForState === 'function', 'Connection manager exposes waitForState');
+  const currentTestState = manager.getState();
+  const instantWait = await manager.waitForState([currentTestState], 100);
+  assert(instantWait === currentTestState, 'waitForState resolves immediately if already in target state');
+
   console.log('\n================================================================');
   console.log(`Diagnostic Results: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================\n');

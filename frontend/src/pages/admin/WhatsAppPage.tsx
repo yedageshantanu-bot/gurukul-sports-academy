@@ -204,8 +204,8 @@ export const WhatsAppPage: React.FC = () => {
           return deviceData;
         });
 
-        // Only auto-trigger connect if genuinely DISCONNECTED and no QR code is active
-        if (autoTriggerConnect && deviceData.status === 'DISCONNECTED' && !deviceData.qrCode) {
+        // Only auto-trigger connect if genuinely DISCONNECTED or ERROR and no QR code is active
+        if (autoTriggerConnect && (deviceData.status === 'DISCONNECTED' || deviceData.status === 'ERROR') && !deviceData.qrCode) {
           apiClient<any>('/whatsapp/connect', { method: 'POST' }).then((cRes) => {
             const cPayload = cRes?.data !== undefined ? cRes.data : cRes;
             const cQr = cPayload?.qrCode || cPayload?.status?.qrCode;

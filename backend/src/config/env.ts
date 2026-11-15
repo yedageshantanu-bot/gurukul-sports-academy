@@ -4,10 +4,13 @@ import fs from 'fs';
 import { z } from 'zod';
 
 // Resolve .env from backend directory or project root reliably
+const backendEnvPath = path.resolve(process.cwd(), 'backend', '.env');
 const currentEnvPath = path.resolve(process.cwd(), '.env');
 const parentEnvPath = path.resolve(process.cwd(), '..', '.env');
 
-if (fs.existsSync(currentEnvPath)) {
+if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+} else if (fs.existsSync(currentEnvPath)) {
   dotenv.config({ path: currentEnvPath });
 } else if (fs.existsSync(parentEnvPath)) {
   dotenv.config({ path: parentEnvPath });

@@ -1160,10 +1160,10 @@ export class WhatsAppQueueService {
           return;
         }
 
-        // If genuinely disconnected or session dropped, attempt auto-reconnect with 60s backoff
-        // Only if status is actually DISCONNECTED (do NOT interrupt QR_READY or CONNECTING handshakes)
+        // If genuinely disconnected or session dropped/errored, attempt auto-reconnect with 30s backoff
+        // (Do NOT interrupt QR_READY or CONNECTING handshakes)
         const now = Date.now();
-        if (status.status === 'DISCONNECTED' && now - this.lastWatchdogReconnectAttempt > 60000) {
+        if ((status.status === 'DISCONNECTED' || status.status === 'ERROR') && now - this.lastWatchdogReconnectAttempt > 30000) {
           this.lastWatchdogReconnectAttempt = now;
           console.log(`[WhatsApp Watchdog] ⚠️ Connection status is '${status.status}'. Attempting automatic socket reconnect...`);
           if (typeof provider.connect === 'function') {
