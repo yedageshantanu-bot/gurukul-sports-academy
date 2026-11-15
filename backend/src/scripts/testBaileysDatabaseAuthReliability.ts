@@ -99,9 +99,9 @@ async function runTests() {
     sessionDir: './whatsapp-sessions-test',
   });
 
-  assert(manager.getState() === 'INITIALIZING', 'Connection manager starts in INITIALIZING state');
+  assert(manager.getState() === 'DISCONNECTED', 'Connection manager starts in DISCONNECTED state');
   const status = manager.getStatus();
-  assert(status.state === 'INITIALIZING', 'getStatus returns session state accurately');
+  assert(status.state === 'DISCONNECTED', 'getStatus returns session state accurately');
 
   // Test Pre-Send Number Validation rejecting empty onWhatsApp result
   const mockUnregisteredSocket = {

@@ -14,7 +14,7 @@ export class WhatsAppSettingsService {
     global_automation_enabled: true,
     emergency_stop: false,
     daily_limit: env.WHATSAPP_DAILY_LIMIT || 40,
-    provider_type: 'openwa',
+    provider_type: (env.WHATSAPP_PROVIDER as any) || 'baileys',
     device_phone_number: null,
     device_status: 'DISCONNECTED',
     last_connected_at: null,
@@ -45,7 +45,7 @@ export class WhatsAppSettingsService {
           // Never allow mock provider in production to taint live status, but permit in test runs
           const isTest = process.env.NODE_ENV === 'test' || env.NODE_ENV === 'test' || process.argv.some((a) => a.includes('test'));
           if (data.provider_type === 'mock' && !isTest) {
-            data.provider_type = 'openwa';
+            data.provider_type = (env.WHATSAPP_PROVIDER as any) || 'baileys';
           }
           const rawDigits = (data.device_phone_number || '').replace(/\D/g, '');
           const isMock = rawDigits.includes('9999999999');

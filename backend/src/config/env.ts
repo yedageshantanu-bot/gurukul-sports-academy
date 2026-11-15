@@ -30,7 +30,7 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().or(z.literal('')),
   RAZORPAY_KEY_SECRET: z.string().optional().or(z.literal('')),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().or(z.literal('')),
-  WHATSAPP_PROVIDER: z.string().default('openwa'),
+  WHATSAPP_PROVIDER: z.string().default('baileys'),
   WHATSAPP_ACCESS_TOKEN: z.string().optional().or(z.literal('')),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional().or(z.literal('')),
   WHATSAPP_VERIFY_TOKEN: z.string().optional().or(z.literal('')),

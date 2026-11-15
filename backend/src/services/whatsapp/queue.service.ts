@@ -1138,8 +1138,11 @@ export class WhatsAppQueueService {
         const rawDigits = (status.phoneNumber || '').replace(/\D/g, '');
         const isMock = rawDigits.includes('9999999999');
 
-        // 24/7 Render Free-Tier Keep-Alive Ping: Resets Render 15-min idle countdown
+        // 24/7 Render Free-Tier Keep-Alive Ping: Keeps Render service warm
         try {
+          fetch('https://gurukul-sports-backend-ll86.onrender.com/health', {
+            signal: AbortSignal.timeout(5000),
+          }).catch(() => {});
           fetch('https://gurukul-openwa-bridge-a0m4.onrender.com/health', {
             signal: AbortSignal.timeout(5000),
           }).catch(() => {});

@@ -131,7 +131,7 @@ export function atomicWriteFileSync(filePath: string, data: string | Buffer): vo
  */
 export class BaileysConnectionManager extends EventEmitter {
   private config: Required<ConnectionManagerConfig>;
-  private currentState: WhatsAppSessionState = 'INITIALIZING';
+  private currentState: WhatsAppSessionState = 'DISCONNECTED';
   private socket: any = null;
   private qrCode: string | null = null;
   private phoneNumber: string | null = null;
