@@ -209,7 +209,8 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
     try {
       setActionLoadingId(item.id);
-      const res: any = await apiClient(`/announcements/scheduled/${item.id}?permanent=true`, {
+      const targetId = item.announcement_id || (item as any).announcementId || (item.id.includes('-slot-') ? item.id.split('-slot-')[0] : item.id);
+      const res: any = await apiClient(`/announcements/scheduled/${targetId}?permanent=true`, {
         method: 'DELETE',
       });
       toast.success(res?.message || 'Scheduled broadcast cancelled and removed successfully!');
@@ -285,25 +286,25 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
     }
   };
 
-  // Helper determinations for past/missed messages
+  // Helper determinations for past/missed messages (strictly past scheduled time)
   const nowMs = Date.now();
   const isSlotPast = (item: ScheduledAnnouncementItem) => {
     const schedMs = new Date(item.scheduled_at).getTime();
     const isDone = item.status === 'SENT' || item.status === 'FAILED';
-    const isOverdue = (item.status === 'SCHEDULED' || item.status === 'PENDING') && schedMs < (nowMs - 5 * 60 * 1000);
-    return isDone || isOverdue;
+    const isPastTime = schedMs <= nowMs;
+    return isDone || isPastTime;
   };
 
   const isSlotMissed = (item: ScheduledAnnouncementItem) => {
     const schedMs = new Date(item.scheduled_at).getTime();
-    return (item.status as any) === 'MISSED' || ((item.status === 'SCHEDULED' || item.status === 'PENDING') && schedMs < (nowMs - 5 * 60 * 1000));
+    return (item.status as any) === 'MISSED' || ((item.status === 'SCHEDULED' || item.status === 'PENDING') && schedMs <= nowMs);
   };
 
-  // Next upcoming pending message in queue
+  // Next upcoming pending message in queue (strictly in future)
   const nextPendingItem = React.useMemo(() => {
     const pendings = items.filter(
       (i) => (i.status === 'SCHEDULED' || i.status === 'PENDING') &&
-             new Date(i.scheduled_at || 0).getTime() >= (nowMs - 5 * 60 * 1000)
+             new Date(i.scheduled_at || 0).getTime() > nowMs
     );
     pendings.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
     return pendings[0] || null;
@@ -540,10 +541,6 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 tracking-wide">
                     Next in Queue / पुढील मेसेज
-                  </span>
-                  {/* Requirement 3: Batch Code & Slot Tag */}
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-                    {nextPendingItem.batch_code || nextPendingItem.batchCode || 'BATCH-MAIN'} ({nextPendingItem.slot_tag || nextPendingItem.slotTag || `Slot ${nextPendingItem.slot_number || 1}`})
                   </span>
                   <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                     Scheduled Time: {formatIST(nextPendingItem.scheduled_at)}
@@ -910,11 +907,6 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
             const isActionLoading = actionLoadingId === item.id;
             const isSelected = selectedSlotIds.includes(item.id);
 
-            // Requirement 3: Batch Code & Slot Tag
-            const batchCode = item.batch_code || item.batchCode || 'BATCH-MAIN';
-            const slotTag = item.slot_tag || item.slotTag || (item.slot_number ? `Slot ${item.slot_number}/${item.total_slots || 1}` : 'Slot 1/1');
-            const dispatchId = item.dispatch_id || item.dispatchId;
-
             return (
               <Card
                 key={item.id}
@@ -950,21 +942,6 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                             <Square className="w-4 h-4 text-slate-400" />
                           )}
                         </button>
-                      )}
-
-                      {/* Requirement 3: Human-Readable Unique Batch Code & Slot Tag */}
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 font-mono text-xs font-bold">
-                        <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-sans uppercase">Batch:</span>
-                        <span>{batchCode}</span>
-                        <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-[10px]">
-                          {slotTag}
-                        </span>
-                      </div>
-
-                      {dispatchId && (
-                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                          ID: {dispatchId}
-                        </span>
                       )}
 
                       {/* Status Badges */}

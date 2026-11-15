@@ -1429,7 +1429,18 @@ export class AnnouncementService {
       tournamentIds?: string[];
     }
   ) {
-    const existing = await this.getAnnouncementById(id);
+    let announcementId = id;
+    if (id.includes('-slot-')) {
+      announcementId = id.split('-slot-')[0];
+    } else {
+      try {
+        const { announcement } = await this.getSlotById(id);
+        if (announcement?.id) {
+          announcementId = announcement.id;
+        }
+      } catch {}
+    }
+    const existing = await this.getAnnouncementById(announcementId);
     const existingMeta = (existing.metadata as any) || {};
 
     const updatedMeta = {
@@ -1438,7 +1449,7 @@ export class AnnouncementService {
     };
 
     // 1. Update announcement in DB
-    await this.updateAnnouncement(id, {
+    await this.updateAnnouncement(announcementId, {
       title: updates.title,
       message: updates.message,
       batchIds: updates.batchIds,
@@ -1472,13 +1483,24 @@ export class AnnouncementService {
   // 9. DELETE / CANCEL SCHEDULED ANNOUNCEMENT
   // ============================================================================
   async deleteScheduledAnnouncement(id: string, permanent: boolean = true) {
-    const existing = await this.getAnnouncementById(id);
+    let announcementId = id;
+    if (id.includes('-slot-')) {
+      announcementId = id.split('-slot-')[0];
+    } else {
+      try {
+        const { announcement } = await this.getSlotById(id);
+        if (announcement?.id) {
+          announcementId = announcement.id;
+        }
+      } catch {}
+    }
+    const existing = await this.getAnnouncementById(announcementId);
 
     // 1. Cancel pending queue items
-    const cancelledCount = await queueService.cancelPendingItemsForAnnouncement(id, existing.title);
+    const cancelledCount = await queueService.cancelPendingItemsForAnnouncement(announcementId, existing.title);
 
     // Always permanently delete so deleted/cancelled broadcasts never linger
-    await this.deleteAnnouncement(id);
+    await this.deleteAnnouncement(announcementId);
     return {
       success: true,
       message: `Scheduled broadcast deleted permanently (${cancelledCount} queued messages cancelled).`,
@@ -1491,7 +1513,7 @@ export class AnnouncementService {
   // ============================================================================
   async deleteHistorySlots(params: {
     slotIds?: string[];
-    filter?: 'ALL_HISTORY' | 'SENT' | 'FAILED' | 'MISSED';
+    filter?: 'ALL_HISTORY' | 'SENT' | 'FAILED' | 'MISSED' | 'MISSED_QR';
     startDate?: string;
     endDate?: string;
   }): Promise<{ success: boolean; deletedCount: number; message: string }> {
@@ -1513,7 +1535,7 @@ export class AnnouncementService {
       // Filter by status category
       if (params.filter === 'SENT' && slot.status !== 'SENT') return false;
       if (params.filter === 'FAILED' && slot.status !== 'FAILED') return false;
-      if (params.filter === 'MISSED' && slot.status !== 'SCHEDULED' && slot.status !== 'PENDING') return false;
+      if ((params.filter === 'MISSED' || (params.filter as any) === 'MISSED_QR') && slot.status !== 'SCHEDULED' && slot.status !== 'PENDING') return false;
 
       // Filter by date range if provided
       if (params.startDate && new Date(slot.scheduledAt) < new Date(params.startDate)) return false;
@@ -1549,30 +1571,24 @@ export class AnnouncementService {
               const sId = s.id || `${announcementId}-slot-${s.slotNumber || idx + 1}`;
               return !slotIdSet.has(sId) && (!s.id || !slotIdSet.has(s.id));
             });
-            await this.supabase
-              .from('announcements')
-              .update({
-                metadata: {
-                  ...meta,
-                  slots: remainingSlots,
-                  isScheduled: remainingSlots.some((s: any) => s.status === 'SCHEDULED' || s.status === 'POSTPONED'),
-                },
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', announcementId);
+            if (remainingSlots.length === 0) {
+              await this.supabase.from('announcements').delete().eq('id', announcementId);
+            } else {
+              await this.supabase
+                .from('announcements')
+                .update({
+                  metadata: {
+                    ...meta,
+                    slots: remainingSlots,
+                    isScheduled: remainingSlots.some((s: any) => s.status === 'SCHEDULED' || s.status === 'POSTPONED'),
+                  },
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', announcementId);
+            }
           } else {
-            // Legacy single slot announcement
-            await this.supabase
-              .from('announcements')
-              .update({
-                metadata: {
-                  ...meta,
-                  isScheduled: false,
-                  scheduledStatus: 'DELETED',
-                },
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', announcementId);
+            // Legacy single slot announcement - completely remove from database
+            await this.supabase.from('announcements').delete().eq('id', announcementId);
           }
         }
       } catch (err: any) {

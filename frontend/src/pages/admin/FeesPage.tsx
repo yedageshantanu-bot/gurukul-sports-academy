@@ -1205,7 +1205,7 @@ export const FeesPage: React.FC = () => {
             <div className="flex flex-col justify-center p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-slate-300 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-emerald-300 text-[11px]">5-Stage Cadence:</span>
-                <span className="text-[10px] text-amber-300 font-mono">₹{reminderRules.lateFeeRate || 50} Overdue Rate</span>
+                <span className="text-[10px] text-emerald-400 font-medium">Standard Dues</span>
               </div>
               <div className="flex flex-wrap gap-1 text-[10px]">
                 {reminderRules.fiveDaysBefore && <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">T-5d</span>}
@@ -1361,8 +1361,8 @@ export const FeesPage: React.FC = () => {
                   </label>
                 </div>
 
-                {/* Overdue Rate & Grace Days Configuration */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                {/* Grace Days Configuration */}
+                <div className="pt-2 border-t border-slate-800/80">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-400 mb-1">
                       Grace Period / देय सवलत दिवस
@@ -1373,21 +1373,7 @@ export const FeesPage: React.FC = () => {
                       max={15}
                       value={reminderRules.graceDays || 2}
                       onChange={(e) => setReminderRules((r: any) => ({ ...r, graceDays: Number(e.target.value) }))}
-                      className="w-full px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Overdue Penalty Rate / दंड दर (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={10}
-                      value={reminderRules.lateFeeRate || 50}
-                      onChange={(e) => setReminderRules((r: any) => ({ ...r, lateFeeRate: Number(e.target.value) }))}
-                      className="w-full px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full sm:w-1/2 px-2.5 py-1 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
                 </div>

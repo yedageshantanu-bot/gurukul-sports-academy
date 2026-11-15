@@ -102,7 +102,7 @@ export const WhatsAppPage: React.FC = () => {
   const [dispatchingMissed, setDispatchingMissed] = useState(false);
 
   // Test message form
-  const [testPhone, setTestPhone] = useState('');
+  const [testPhone, setTestPhone] = useState('9404849500');
   const [testMessage, setTestMessage] = useState('Hello from Gurukul Sports Academy! Your training session reminder.');
   const [sendingTest, setSendingTest] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -434,20 +434,21 @@ export const WhatsAppPage: React.FC = () => {
   // Send Test Message
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!testPhone.trim()) return;
+    if (!testPhone.trim()) {
+      toast.error('Please enter a recipient phone number.');
+      return;
+    }
+    const rawDigits = testPhone.replace(/\D/g, '');
+    const digits = rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
+    if (digits.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const normalizedPhone = `+91${digits}`;
+
     setSendingTest(true);
     setError(null);
     setSuccess(null);
-
-    const digits = testPhone.replace(/\D/g, '');
-    let normalizedPhone = testPhone.trim();
-    if (digits.length === 10) {
-      normalizedPhone = `+91${digits}`;
-    } else if (digits.length === 11 && digits.startsWith('0')) {
-      normalizedPhone = `+91${digits.slice(1)}`;
-    } else if (!normalizedPhone.startsWith('+')) {
-      normalizedPhone = `+${digits}`;
-    }
 
     try {
       const res = await apiClient<any>('/whatsapp/send', {
@@ -460,7 +461,7 @@ export const WhatsAppPage: React.FC = () => {
         }),
       });
 
-      const successMsg = res?.message || `Direct WhatsApp message dispatched to ${normalizedPhone}!`;
+      const successMsg = res?.message || `WhatsApp message dispatched to ${normalizedPhone}!`;
       setSuccess(successMsg);
       toast.success(successMsg);
       setTimeout(() => setSuccess(null), 5000);
@@ -912,7 +913,7 @@ export const WhatsAppPage: React.FC = () => {
                   required
                   value={testPhone}
                   onChange={setTestPhone}
-                  placeholder="94048 49500"
+                  placeholder="Enter 10-digit mobile number"
                   helperText="Fixed +91 country prefix. Enter recipient's 10-digit mobile."
                 />
 
@@ -929,11 +930,11 @@ export const WhatsAppPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={sendingTest || !isConnected}
+                disabled={sendingTest}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{sendingTest ? 'Sending...' : isConnected ? 'Send WhatsApp Message' : 'Connect Device First'}</span>
+                <span>{sendingTest ? 'Sending...' : isConnected ? 'Send WhatsApp Message' : 'Enqueue Message (Device Standby)'}</span>
               </button>
             </form>
           </div>

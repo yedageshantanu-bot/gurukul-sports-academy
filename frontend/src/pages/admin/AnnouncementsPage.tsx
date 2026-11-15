@@ -201,14 +201,22 @@ export const AnnouncementsPage: React.FC = () => {
       const data = await apiClient<any>('/announcements');
       setAnnouncements(Array.isArray(data) ? data : data?.data || []);
 
-      // Also fetch scheduled announcements count and next pending item
+      // Also fetch scheduled announcements count and next pending item (strictly upcoming future only)
       apiClient<any>('/announcements/scheduled')
         .then((res) => {
           const sData = Array.isArray(res) ? res : res?.data || [];
-          const pendingItems = sData.filter((i: any) => i.status === 'SCHEDULED');
-          pendingItems.sort((a: any, b: any) => new Date(a.scheduled_at || 0).getTime() - new Date(b.scheduled_at || 0).getTime());
-          setScheduledCount(pendingItems.length);
-          setNextScheduledItem(pendingItems[0] || null);
+          const nowMs = Date.now();
+          // Strictly upcoming future items only (scheduled_at > nowMs)
+          const futurePendingItems = sData.filter(
+            (i: any) =>
+              (i.status === 'SCHEDULED' || i.status === 'PENDING') &&
+              new Date(i.scheduled_at || 0).getTime() > nowMs
+          );
+          futurePendingItems.sort(
+            (a: any, b: any) => new Date(a.scheduled_at || 0).getTime() - new Date(b.scheduled_at || 0).getTime()
+          );
+          setScheduledCount(futurePendingItems.length);
+          setNextScheduledItem(futurePendingItems[0] || null);
         })
         .catch(() => {});
     } catch (err: any) {

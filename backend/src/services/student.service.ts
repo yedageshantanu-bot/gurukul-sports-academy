@@ -931,8 +931,9 @@ export class StudentService {
       }
     }
 
-    // Automatic WhatsApp welcome message on student creation (Requirement 5)
-    if (student.whatsapp_opt_in !== false && (dto as any).sendWelcomeWhatsApp !== false && (dto as any).sendWhatsApp !== false) {
+    // Automatic WhatsApp welcome message on student creation is disabled per academy preference.
+    // It will ONLY trigger if explicitly requested via sendWelcomeWhatsApp === true
+    if ((dto as any).sendWelcomeWhatsApp === true) {
       const recipientPhone = normalizedParentWhatsapp || normalizedStudentMobile;
       if (recipientPhone) {
         import('./whatsapp/automation.service.js').then(({ automationService }) => {
