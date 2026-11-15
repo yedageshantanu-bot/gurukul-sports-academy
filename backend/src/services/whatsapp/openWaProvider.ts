@@ -20,6 +20,7 @@ export class OpenWaProvider implements WhatsAppSender {
   private cachedSessionInfo: any = null;
   private lastStatusResult: { data: WhatsAppDeviceStatus; timestamp: number } | null = null;
   private lastQrCode: string | null = null;
+  private isConnectingMutex: boolean = false;
 
   private getBaseUrl(): string {
     return (env.OPENWA_API_URL || process.env.OPENWA_API_URL || env.WHATSAPP_LINKED_DEVICE_URL || 'https://gurukul-openwa-bridge-a0m4.onrender.com').replace(/\/+$/, '');
@@ -171,19 +172,8 @@ export class OpenWaProvider implements WhatsAppSender {
     let qrCode: string | undefined = undefined;
 
     if (!isConnected) {
-      // Check if QR code is ready in OpenWA
-      let fetchedQr = await this.getQrCode(session.id);
-      if (!fetchedQr && session.status !== 'starting' && session.status !== 'ready') {
-        try {
-          await fetch(`${baseUrl}/api/sessions/${session.id}/start`, {
-            method: 'POST',
-            headers: this.getHeaders(),
-            body: JSON.stringify({}),
-            signal: AbortSignal.timeout(6000),
-          });
-          fetchedQr = await this.getQrCode(session.id);
-        } catch {}
-      }
+      // Check if QR code is ready in OpenWA (Pure read-only query - NEVER trigger /start on read polls)
+      const fetchedQr = await this.getQrCode(session.id);
       if (fetchedQr) {
         qrCode = fetchedQr;
         this.lastQrCode = fetchedQr;
@@ -226,82 +216,98 @@ export class OpenWaProvider implements WhatsAppSender {
   }
 
   async connect(): Promise<{ success: boolean; message: string; qrCode?: string; status: WhatsAppDeviceStatus }> {
-    this.lastStatusResult = null; // Bust cache for explicit connect
-    const baseUrl = this.getBaseUrl();
-    const session = await this.getActiveSession();
-
-    if (!session) {
-      return {
-        success: false,
-        message: 'Could not initialize session on OpenWA gateway',
-        status: {
-          status: 'DISCONNECTED',
-          providerName: 'OpenWA REST API Gateway',
-          isConfigured: false,
-        },
-      };
-    }
-
-    // CRITICAL FIX: If session is already 'ready' / connected, DO NOT call /start!
-    // In OpenWA / Baileys, calling /start on an active session forcibly tears down the live WebSocket
-    // and logs out the linked companion device!
-    if (session.status === 'ready') {
-      console.log(`[OpenWA] Session ${session.id} is already in 'ready' status. Preserving active socket.`);
-      this.lastStatusResult = null;
+    if (this.isConnectingMutex) {
+      console.log('[OpenWA] Connect mutex locked: another connection attempt is in progress. Returning current status.');
       const currentStatus = await this.getStatus();
       return {
         success: true,
-        message: 'WhatsApp session is already connected and active!',
+        message: 'Connection initialization in progress...',
+        qrCode: currentStatus.qrCode,
         status: currentStatus,
       };
     }
 
-    // 1. Start the session in OpenWA only if not already starting or ready
-    if (session.status !== 'starting') {
-      try {
-        await fetch(`${baseUrl}/api/sessions/${session.id}/start`, {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify({}),
-          signal: AbortSignal.timeout(8000),
-        });
-      } catch (e: any) {
-        console.warn('[OpenWA] Session start request note:', e.message);
+    this.isConnectingMutex = true;
+    try {
+      this.lastStatusResult = null; // Bust cache for explicit connect
+      const baseUrl = this.getBaseUrl();
+      const session = await this.getActiveSession();
+
+      if (!session) {
+        return {
+          success: false,
+          message: 'Could not initialize session on OpenWA gateway',
+          status: {
+            status: 'DISCONNECTED',
+            providerName: 'OpenWA REST API Gateway',
+            isConfigured: false,
+          },
+        };
       }
-    }
 
-    // 2. Poll for QR code (up to 8 seconds to allow Render bridge to generate QR)
-    let qrCode: string | null = null;
-    for (let i = 0; i < 8; i++) {
-      qrCode = await this.getQrCode(session.id);
-      if (qrCode) break;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+      // CRITICAL FIX: If session is already 'ready' / connected, DO NOT call /start!
+      // In OpenWA / Baileys, calling /start on an active session forcibly tears down the live WebSocket
+      // and logs out the linked companion device!
+      if (session.status === 'ready') {
+        console.log(`[OpenWA] Session ${session.id} is already in 'ready' status. Preserving active socket.`);
+        this.lastStatusResult = null;
+        const currentStatus = await this.getStatus();
+        return {
+          success: true,
+          message: 'WhatsApp session is already connected and active!',
+          status: currentStatus,
+        };
+      }
 
-    if (qrCode) {
-      this.lastQrCode = qrCode;
-    }
+      // 1. Start the session in OpenWA only if not already starting or ready
+      if (session.status !== 'starting') {
+        try {
+          await fetch(`${baseUrl}/api/sessions/${session.id}/start`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({}),
+            signal: AbortSignal.timeout(8000),
+          });
+        } catch (e: any) {
+          console.warn('[OpenWA] Session start request note:', e.message);
+        }
+      }
 
-    this.lastStatusResult = null;
-    const status = await this.getStatus();
-    const finalQr = qrCode || this.lastQrCode || status.qrCode;
-    if (finalQr && status.status !== 'CONNECTED') {
-      status.qrCode = finalQr;
-      status.status = 'QR_READY';
-      this.lastStatusResult = {
-        data: status,
-        timestamp: Date.now(),
+      // 2. Poll for QR code (up to 8 seconds to allow Render bridge to generate QR)
+      let qrCode: string | null = null;
+      for (let i = 0; i < 8; i++) {
+        qrCode = await this.getQrCode(session.id);
+        if (qrCode) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      if (qrCode) {
+        this.lastQrCode = qrCode;
+      }
+
+      this.lastStatusResult = null;
+      const status = await this.getStatus();
+      const finalQr = qrCode || this.lastQrCode || status.qrCode;
+      if (finalQr && status.status !== 'CONNECTED') {
+        status.qrCode = finalQr;
+        status.status = 'QR_READY';
+        this.lastStatusResult = {
+          data: status,
+          timestamp: Date.now(),
+        };
+      }
+
+      return {
+        success: true,
+        message: finalQr
+          ? 'Fresh QR code generated! Scan via WhatsApp on your phone.'
+          : 'Session starting in background. QR code will appear momentarily.',
+        qrCode: finalQr || undefined,
+        status,
       };
+    } finally {
+      this.isConnectingMutex = false;
     }
-
-    return {
-      success: true,
-      message: finalQr
-        ? 'Fresh QR code generated! Scan via WhatsApp on your phone.'
-        : 'Session starting in background. QR code will appear momentarily.',
-      qrCode: finalQr || undefined,
-      status,
-    };
   }
 
   async disconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {

@@ -4,15 +4,21 @@ import { MockWhatsAppProvider } from './mockWhatsAppProvider.js';
 import { MetaWhatsAppProvider } from './metaWhatsAppProvider.js';
 import { PrototypeLinkedDeviceSender } from './prototypeLinkedDeviceSender.js';
 import { openWaProvider, OpenWaProvider } from './openWaProvider.js';
+import { BaileysWhatsAppProvider } from './baileysConnectionManager.js';
 
 class WhatsAppProviderFactory {
   private mockProvider = new MockWhatsAppProvider();
   private metaProvider = new MetaWhatsAppProvider();
   private prototypeSender = new PrototypeLinkedDeviceSender();
   private openWaProvider = openWaProvider;
+  private baileysProvider = new BaileysWhatsAppProvider();
 
-  getProvider(providerType?: 'mock' | 'prototype_linked_device' | 'meta' | 'openwa' | string): WhatsAppSender {
+  getProvider(providerType?: 'mock' | 'prototype_linked_device' | 'meta' | 'openwa' | 'baileys' | string): WhatsAppSender {
     const selected = (providerType || env.WHATSAPP_PROVIDER || 'openwa').toLowerCase().trim();
+
+    if (selected === 'mock') {
+      return this.mockProvider;
+    }
 
     if (selected === 'meta') {
       if (this.metaProvider.isConfigured()) {
@@ -24,16 +30,20 @@ class WhatsAppProviderFactory {
       return this.prototypeSender;
     }
 
-    // Always prefer OpenWA bridge when available or configured
-    if (this.openWaProvider.isConfigured() || selected === 'openwa' || selected === 'open-wa' || selected === 'open_wa') {
+    if (selected === 'baileys') {
+      return this.baileysProvider;
+    }
+
+    if (selected === 'openwa' || selected === 'open-wa' || selected === 'open_wa') {
       return this.openWaProvider;
     }
 
-    if (selected === 'mock') {
-      return this.mockProvider;
+    // Default to OpenWA if configured, otherwise fallback to mock
+    if (this.openWaProvider.isConfigured()) {
+      return this.openWaProvider;
     }
 
-    return this.openWaProvider;
+    return this.mockProvider;
   }
 
   getOpenWaProvider(): OpenWaProvider {
@@ -50,6 +60,10 @@ class WhatsAppProviderFactory {
 
   getMetaProvider(): MetaWhatsAppProvider {
     return this.metaProvider;
+  }
+
+  getBaileysProvider(): BaileysWhatsAppProvider {
+    return this.baileysProvider;
   }
 }
 

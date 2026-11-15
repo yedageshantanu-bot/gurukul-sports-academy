@@ -59,6 +59,7 @@ export const supabaseAdmin = new Proxy({} as SupabaseClient<any, any, any>, {
           'whatsapp_queue',
           'whatsapp_settings',
           'whatsapp_logs',
+          'whatsapp_auth_state',
         ];
         if (globalPublicTables.includes(relation) && supabasePublicClient) {
           return supabasePublicClient.from(relation);

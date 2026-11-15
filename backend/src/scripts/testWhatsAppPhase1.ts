@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '../config/env.js';
 import app from '../app.js';
@@ -122,8 +123,9 @@ async function runWhatsAppPhase1Tests() {
 
     // Clean up any stale records from previous test runs
     if (supabaseAdmin) {
-      await supabaseAdmin.from('whatsapp_queue').delete().in('recipient_phone', ['+919404849500', '9404849500']);
-      await supabaseAdmin.from('whatsapp_messages').delete().in('recipient_phone', ['+919404849500', '9404849500']);
+      const testPhones = ['+919404849500', '9404849500', '+919999999999', '9999999999', '+919421248211', '+919822012349'];
+      await supabaseAdmin.from('whatsapp_queue').delete().in('recipient_phone', testPhones);
+      await supabaseAdmin.from('whatsapp_messages').delete().in('recipient_phone', testPhones);
     }
     (queueService as any).inMemoryQueue.clear();
 

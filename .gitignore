@@ -35,6 +35,9 @@ data/session/
 *.session
 **/.session/
 **/session/
+whatsapp-sessions/
+**/whatsapp-sessions/
+backend/whatsapp-sessions/
 credentials/
 tokens/
 *.token

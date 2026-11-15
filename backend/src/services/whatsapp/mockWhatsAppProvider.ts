@@ -25,10 +25,11 @@ export class MockWhatsAppProvider implements WhatsAppSender {
   }
 
   async connect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    this._connected = false;
+    this._connected = true;
+    this._lastConnectedAt = new Date().toISOString();
     return {
       success: true,
-      message: 'Mock WhatsApp provider disconnected. Please use OpenWA bridge for live device pairing.',
+      message: 'Mock WhatsApp provider connected',
       status: await this.getStatus(),
     };
   }
@@ -43,11 +44,11 @@ export class MockWhatsAppProvider implements WhatsAppSender {
   }
 
   async reconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    this._connected = false;
+    this._connected = true;
     this._lastConnectedAt = new Date().toISOString();
     return {
       success: true,
-      message: 'Mock WhatsApp provider disconnected. Live device pairing requires OpenWA gateway.',
+      message: 'Mock WhatsApp provider reconnected',
       status: await this.getStatus(),
     };
   }

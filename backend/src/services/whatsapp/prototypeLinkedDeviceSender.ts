@@ -230,8 +230,27 @@ export class PrototypeLinkedDeviceSender implements WhatsAppSender {
     };
   }
 
-  async reconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
-    await this.disconnect();
+  async reconnect(): Promise<{ success: boolean; message: string; qrCode?: string; status: WhatsAppDeviceStatus }> {
+    const baseUrl = await this.getBridgeBaseUrl();
+    if (baseUrl) {
+      try {
+        const res = await fetch(`${baseUrl}/reconnect`, {
+          method: 'POST',
+          headers: env.WHATSAPP_LINKED_DEVICE_TOKEN ? { Authorization: `Bearer ${env.WHATSAPP_LINKED_DEVICE_TOKEN}` } : {},
+        });
+        if (res.ok) {
+          const liveStatus = await this.getStatus();
+          return {
+            success: liveStatus.status === 'CONNECTED' || liveStatus.status === 'QR_READY',
+            message: liveStatus.status === 'CONNECTED' ? 'Reconnected successfully' : 'Reconnection initiated',
+            qrCode: liveStatus.qrCode,
+            status: liveStatus,
+          };
+        }
+      } catch {}
+    }
+
+    // Soft reconnect without unlinking/purging credentials
     return this.connect();
   }
 

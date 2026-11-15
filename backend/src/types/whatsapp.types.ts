@@ -50,6 +50,7 @@ export const WHATSAPP_PROVIDER_TYPES = [
   'prototype_linked_device',
   'meta',
   'openwa',
+  'baileys',
 ] as const;
 export type WhatsAppProviderType = typeof WHATSAPP_PROVIDER_TYPES[number];
 
