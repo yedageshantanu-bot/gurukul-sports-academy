@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Megaphone, Calendar, Bell, Trophy, AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 
 export const StudentAnnouncementsPage: React.FC = () => {
   const { token } = useAuth();
@@ -10,11 +10,8 @@ export const StudentAnnouncementsPage: React.FC = () => {
   const { data: announcements, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['student-announcements'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/announcements'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      return json.data || [];
+      const data = await apiClient<any>('/student-portal/announcements');
+      return Array.isArray(data) ? data : data?.data || [];
     },
     enabled: !!token,
   });

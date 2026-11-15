@@ -16,7 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 import { InstallPwaPrompt } from '../../components/pwa/InstallPwaPrompt';
 import { NotificationPromptCard } from '../../components/notifications/NotificationPromptCard';
 import { AbsenceWarningBanner } from '../../components/notifications/AbsenceWarningBanner';
@@ -28,11 +28,7 @@ export const StudentDashboard: React.FC = () => {
   const { data: profileData } = useQuery({
     queryKey: ['student-profile'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/profile'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      return data.data;
+      return apiClient<any>('/student-portal/profile');
     },
     enabled: !!token,
   });
@@ -41,11 +37,7 @@ export const StudentDashboard: React.FC = () => {
   const { data: attendanceData, isLoading: attLoading } = useQuery({
     queryKey: ['student-attendance-summary'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/attendance'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      return data.data;
+      return apiClient<any>('/student-portal/attendance');
     },
     enabled: !!token,
   });
@@ -54,11 +46,7 @@ export const StudentDashboard: React.FC = () => {
   const { data: feesData, isLoading: feesLoading } = useQuery({
     queryKey: ['student-fees-summary'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/fees'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      return data.data;
+      return apiClient<any>('/student-portal/fees');
     },
     enabled: !!token,
   });
@@ -67,11 +55,8 @@ export const StudentDashboard: React.FC = () => {
   const { data: announcementsData } = useQuery({
     queryKey: ['student-announcements-preview'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/announcements'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      return data.data || [];
+      const data = await apiClient<any>('/student-portal/announcements');
+      return Array.isArray(data) ? data : data?.data || [];
     },
     enabled: !!token,
   });

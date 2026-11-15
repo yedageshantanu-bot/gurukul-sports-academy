@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 import { InstallPwaPrompt } from '../../components/pwa/InstallPwaPrompt';
 
 export const StudentSettingsPage: React.FC = () => {
@@ -45,11 +45,7 @@ export const StudentSettingsPage: React.FC = () => {
   const { data: profileData } = useQuery({
     queryKey: ['student-profile-settings'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/profile'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      return json.data;
+      return apiClient<any>('/student-portal/profile');
     },
     enabled: !!token,
   });
@@ -73,19 +69,10 @@ export const StudentSettingsPage: React.FC = () => {
 
     setPwdLoading(true);
     try {
-      const res = await fetch(getApiUrl('/student-portal/change-password'), {
+      await apiClient('/student-portal/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ newPassword }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to update password.');
-      }
 
       setPwdSuccess('Password changed successfully! You can now use your new password to log in.');
       setNewPassword('');

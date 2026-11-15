@@ -32,7 +32,7 @@ import { Select } from '../../components/ui/Select';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { API_BASE } from '../../lib/api';
+import { API_BASE, authFetch } from '../../lib/api';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -195,7 +195,7 @@ export const FeesPage: React.FC = () => {
     setError(null);
     try {
       const targetIdentifier = fee.id || fee.student_id;
-      const res = await fetch(`${API_BASE}/payments/revert-fee/${targetIdentifier}`, {
+      const res = await authFetch(`${API_BASE}/payments/revert-fee/${targetIdentifier}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,7 +279,6 @@ export const FeesPage: React.FC = () => {
 
   // Fetch data
   const fetchData = async () => {
-    if (!token) return;
     setLoading(true);
     setError(null);
 
@@ -287,10 +286,10 @@ export const FeesPage: React.FC = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [feesRes, plansRes, studentsRes, paymentsRes] = await Promise.all([
-        fetch(`${API_BASE}/fees/students`, { headers }),
-        fetch(`${API_BASE}/fees/plans`, { headers }),
-        fetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
-        fetch(`${API_BASE}/payments`, { headers }).catch(() => null),
+        authFetch(`${API_BASE}/fees/students`, { headers }),
+        authFetch(`${API_BASE}/fees/plans`, { headers }),
+        authFetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
+        authFetch(`${API_BASE}/payments`, { headers }).catch(() => null),
       ]);
 
       const feesData = await feesRes.json();
@@ -310,7 +309,7 @@ export const FeesPage: React.FC = () => {
       }
 
       // Sync active fee reminder template from database
-      fetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
+      authFetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
         .then((r) => r.json())
         .then((res) => {
           if (res?.success && Array.isArray(res.data)) {
@@ -345,7 +344,7 @@ export const FeesPage: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/fees/plans`, {
+      const res = await authFetch(`${API_BASE}/fees/plans`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -380,7 +379,7 @@ export const FeesPage: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/fees/students`, {
+      const res = await authFetch(`${API_BASE}/fees/students`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -507,7 +506,7 @@ export const FeesPage: React.FC = () => {
       const amountNum = parseFloat(payForm.amount);
 
       if (payForm.provider === 'MANUAL') {
-        const res = await fetch(`${API_BASE}/payments/manual`, {
+        const res = await authFetch(`${API_BASE}/payments/manual`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -549,7 +548,7 @@ export const FeesPage: React.FC = () => {
         const receiptNo = data.data?.receipt?.receipt_number || 'Issued';
         setModalSuccessMessage(`Payment recorded successfully! Receipt: ${receiptNo}`);
       } else {
-        const orderRes = await fetch(`${API_BASE}/payments/order`, {
+        const orderRes = await authFetch(`${API_BASE}/payments/order`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -567,7 +566,7 @@ export const FeesPage: React.FC = () => {
 
         const { paymentRecordId, orderId } = orderData.data;
         const mockPaymentId = `mock_pay_${Date.now()}`;
-        const verifyRes = await fetch(`${API_BASE}/payments/verify`, {
+        const verifyRes = await authFetch(`${API_BASE}/payments/verify`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -608,7 +607,7 @@ export const FeesPage: React.FC = () => {
     setError(null);
     setReminderSuccessMessage(null);
     try {
-      const res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
+      const res = await authFetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -645,7 +644,7 @@ export const FeesPage: React.FC = () => {
     setError(null);
     setReminderSuccessMessage(null);
     try {
-      const res = await fetch(`${API_BASE}/whatsapp/remind/monthly-fees`, {
+      const res = await authFetch(`${API_BASE}/whatsapp/remind/monthly-fees`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -686,7 +685,7 @@ export const FeesPage: React.FC = () => {
     setAdjustingLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/fees/students/${adjustingFee.id}`, {
+      const res = await authFetch(`${API_BASE}/fees/students/${adjustingFee.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -731,7 +730,7 @@ export const FeesPage: React.FC = () => {
     setStudentToDeleteFromFees(null);
 
     try {
-      const res = await fetch(`${API_BASE}/students/${targetStudentId}`, {
+      const res = await authFetch(`${API_BASE}/students/${targetStudentId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -755,7 +754,7 @@ export const FeesPage: React.FC = () => {
       if (token) {
         // Sync to Supabase whatsapp_templates table via API
         try {
-          const tplsRes = await fetch(`${API_BASE}/whatsapp/templates?active=true`, {
+          const tplsRes = await authFetch(`${API_BASE}/whatsapp/templates?active=true`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const tplsJson = await tplsRes.json().catch(() => null);
@@ -767,7 +766,7 @@ export const FeesPage: React.FC = () => {
           if (existingTpls.length > 0) {
             await Promise.all(
               existingTpls.map((tpl: any) =>
-                fetch(`${API_BASE}/whatsapp/templates/${tpl.id}`, {
+                authFetch(`${API_BASE}/whatsapp/templates/${tpl.id}`, {
                   method: 'PATCH',
                   headers: {
                     'Content-Type': 'application/json',
@@ -782,7 +781,7 @@ export const FeesPage: React.FC = () => {
               )
             );
           } else {
-            await fetch(`${API_BASE}/whatsapp/templates`, {
+            await authFetch(`${API_BASE}/whatsapp/templates`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -818,7 +817,7 @@ export const FeesPage: React.FC = () => {
     try {
       const now = new Date();
       const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const res = await fetch(`${API_BASE}/fees/sync-monthly`, {
+      const res = await authFetch(`${API_BASE}/fees/sync-monthly`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -861,7 +860,7 @@ export const FeesPage: React.FC = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/fees/plans/${editingPlan.id}`, {
+      const res = await authFetch(`${API_BASE}/fees/plans/${editingPlan.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -905,7 +904,7 @@ export const FeesPage: React.FC = () => {
     if (!token) return;
     try {
       const endpoint = currentActive ? 'deactivate' : 'activate';
-      await fetch(`${API_BASE}/fees/plans/${id}/${endpoint}`, {
+      await authFetch(`${API_BASE}/fees/plans/${id}/${endpoint}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });

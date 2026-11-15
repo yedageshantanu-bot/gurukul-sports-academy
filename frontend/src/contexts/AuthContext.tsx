@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { getApiUrl, refreshTokenFromServer } from '../lib/api';
+import { getApiUrl, refreshTokenFromServer, isJwtExpired } from '../lib/api';
 import { AuthContextType, Role, UserProfile } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,7 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [loading, setLoading] = useState<boolean>(() => {
     try {
-      return !localStorage.getItem('gurukul_user_profile');
+      const hasToken = !!localStorage.getItem('gurukul_access_token') || !!localStorage.getItem('gurukul_refresh_token');
+      return hasToken && !localStorage.getItem('gurukul_user_profile');
     } catch {
       return false;
     }
@@ -151,6 +152,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch {}
         }
 
+        // If token exists but is expired, attempt immediate refresh before profile fetch
+        if (tokenToVerify && isJwtExpired(tokenToVerify, 30)) {
+          const refreshed = await refreshTokenFromServer();
+          if (refreshed) {
+            tokenToVerify = refreshed;
+          }
+        }
+
         if (!tokenToVerify) {
           // Attempt session recovery via persistent refresh token!
           try {
@@ -225,33 +234,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
+    // Listen to token refresh events emitted by apiClient / authFetch
+    const handleTokenRefreshed = (e: any) => {
+      const refreshedToken = e.detail?.token;
+      if (refreshedToken && isMounted) {
+        setToken(refreshedToken);
+      }
+    };
+    window.addEventListener('gurukul:token_refreshed', handleTokenRefreshed);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (session) {
-          setUser(session.user);
-          setToken(session.access_token);
-          const backendProfile = await fetchBackendProfile(session.access_token, session.user);
-          if (backendProfile) {
-            setProfile(backendProfile);
+        try {
+          if (session) {
+            setUser(session.user);
+            setToken(session.access_token);
             try {
-              localStorage.setItem('gurukul_user_profile', JSON.stringify(backendProfile));
+              localStorage.setItem('gurukul_access_token', session.access_token);
+              if (session.refresh_token) {
+                localStorage.setItem('gurukul_refresh_token', session.refresh_token);
+              }
             } catch {}
+
+            // Check if profile already exists in localStorage for this user
+            let resolvedProfile: UserProfile | null = null;
+            try {
+              const cached = localStorage.getItem('gurukul_user_profile');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.userId === session.user.id || parsed.email === session.user.email) {
+                  resolvedProfile = parsed;
+                  if (isMounted) setProfile(parsed);
+                }
+              }
+            } catch {}
+
+            // If not cached, fetch backend profile
+            if (!resolvedProfile) {
+              const backendProfile = await fetchBackendProfile(session.access_token, session.user);
+              if (backendProfile && isMounted) {
+                setProfile(backendProfile);
+                try {
+                  localStorage.setItem('gurukul_user_profile', JSON.stringify(backendProfile));
+                } catch {}
+              }
+            }
+          } else {
+            // If session is null / signed out
+            if (_event === 'SIGNED_OUT') {
+              if (isMounted) {
+                setUser(null);
+                setProfile(null);
+                setToken(null);
+              }
+            } else {
+              const cachedProfile = localStorage.getItem('gurukul_user_profile');
+              if (!cachedProfile && isMounted) {
+                setUser(null);
+                setProfile(null);
+                setToken(null);
+              }
+            }
           }
-        } else {
-          // If session is null, do NOT wipe user if we have a valid cached profile in localStorage!
-          const cachedProfile = localStorage.getItem('gurukul_user_profile');
-          if (!cachedProfile) {
-            setUser(null);
-            setProfile(null);
-            setToken(null);
+        } catch (e) {
+          console.warn('onAuthStateChange error handled:', e);
+        } finally {
+          if (isMounted) {
+            setLoading(false);
           }
         }
-        setLoading(false);
       }
     );
 
     return () => {
       isMounted = false;
+      window.removeEventListener('gurukul:token_refreshed', handleTokenRefreshed);
       subscription.unsubscribe();
     };
   }, []);
@@ -400,6 +457,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('gurukul_user_profile', JSON.stringify(studentProfile));
       } catch {}
 
+      if (accessToken && refreshToken) {
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }).catch(() => {});
+      }
+
       return { role: 'STUDENT' };
     } finally {
       setLoading(false);
@@ -408,15 +472,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async (): Promise<void> => {
     try {
+      setLoading(false);
       localStorage.removeItem('gurukul_access_token');
       localStorage.removeItem('gurukul_refresh_token');
       localStorage.removeItem('gurukul_user_profile');
+      try {
+        sessionStorage.clear();
+      } catch {}
       await supabase.auth.signOut().catch(() => {});
       await fetch(getApiUrl('/auth/logout'), { method: 'POST' }).catch(() => {});
     } finally {
       setUser(null);
       setProfile(null);
       setToken(null);
+      setLoading(false);
+      window.location.href = '/login';
     }
   };
 

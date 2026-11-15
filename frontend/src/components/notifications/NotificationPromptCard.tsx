@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BellRing, CheckCircle, ShieldAlert, Sparkles, Send } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 
 const VAPID_PUBLIC_KEY = 'BC2noxfQupMkGe4h2SYxU_JxRBntSyHWUrdtjukh73ajbEv91kgvb2axAhca8pzb-tjstxWO0rPJP405vjBD9pU';
 
@@ -42,12 +42,8 @@ export const NotificationPromptCard: React.FC = () => {
       }
 
       if (sub) {
-        await fetch(getApiUrl('/student-portal/push-subscribe'), {
+        await apiClient('/student-portal/push-subscribe', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({ subscription: sub }),
         });
         console.log('[NotificationPromptCard] Web Push subscription synced with backend server!');
@@ -134,18 +130,12 @@ export const NotificationPromptCard: React.FC = () => {
     );
 
     // 2. Trigger server-side push notification via backend WebPush
-    if (token) {
-      try {
-        await fetch(getApiUrl('/student-portal/test-push'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      } catch (err) {
-        console.warn('Server test-push call error:', err);
-      }
+    try {
+      await apiClient('/student-portal/test-push', {
+        method: 'POST',
+      });
+    } catch (err) {
+      console.warn('Server test-push call error:', err);
     }
 
     setTimeout(() => setTestSent(false), 3000);

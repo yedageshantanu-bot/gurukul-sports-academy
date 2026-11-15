@@ -66,8 +66,15 @@ const ENABLE_STUDENT_PORTAL = false;
 // Authenticated root redirector
 const RootRedirect: React.FC = () => {
   const { isAuthenticated, role, loading } = useAuth();
+  const [loadingTimedOut, setLoadingTimedOut] = React.useState(false);
 
-  if (loading) {
+  React.useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setLoadingTimedOut(true), 1500);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading && !loadingTimedOut) {
     return <LoadingScreen message="Gurukul Sports Academy" subMessage="Preparing portal..." />;
   }
 
@@ -79,11 +86,15 @@ const RootRedirect: React.FC = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
 
+  if (role === 'TEACHER') {
+    return <Navigate to="/teacher/dashboard" replace />;
+  }
+
   if (role === 'STUDENT') {
     return <Navigate to="/login" replace />;
   }
 
-  return <Navigate to="/teacher/dashboard" replace />;
+  return <Navigate to="/login" replace />;
 };
 
 // Admin Layout wrapper passing auth & dynamic branding state

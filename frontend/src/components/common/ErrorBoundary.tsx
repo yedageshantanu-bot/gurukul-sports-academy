@@ -30,6 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     try {
+      localStorage.removeItem('gurukul_access_token');
+      localStorage.removeItem('gurukul_refresh_token');
+      localStorage.removeItem('gurukul_user_profile');
       localStorage.removeItem('sb-litnduotmypvhnorjnwa-auth-token');
       localStorage.removeItem('gurukul_sports_theme');
       sessionStorage.clear();

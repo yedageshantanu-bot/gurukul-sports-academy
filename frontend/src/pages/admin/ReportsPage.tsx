@@ -7,7 +7,7 @@ import { Select } from '../../components/ui/Select';
 import { ReceiptModal } from '../../components/common/ReceiptModal';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
-import { apiClient, getApiUrl } from '../../lib/api';
+import { apiClient, authFetch, getApiUrl } from '../../lib/api';
 import {
   Download,
   Filter,
@@ -185,9 +185,7 @@ export const ReportsPage: React.FC = () => {
       if (selectedStatus) params.set('status', selectedStatus);
 
       const endpoint = getApiUrl(`/reports/${activeTab}/export?${params.toString()}`);
-      const res = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(endpoint);
 
       if (!res.ok) {
         throw new Error('CSV Export failed');

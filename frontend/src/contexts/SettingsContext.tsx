@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AcademySettings } from '../types/settings';
 import { useAuth } from './AuthContext';
-import { getApiUrl } from '../lib/api';
+import { apiClient } from '../lib/api';
 
 interface SettingsContextType {
   settings: AcademySettings | null;
@@ -25,23 +25,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const response = await fetch(getApiUrl('/settings'), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch academy settings');
-      }
-
-      const result = await response.json();
-      if (result.success && result.data) {
-        setSettings(result.data);
+      const data = await apiClient<any>('/settings');
+      if (data) {
+        setSettings(data);
       }
     } catch (err: any) {
-      console.error('[SettingsContext] Error fetching settings:', err.message);
+      console.warn('[SettingsContext] Error fetching settings:', err.message);
     } finally {
       setLoading(false);
     }

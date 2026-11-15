@@ -11,7 +11,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 import { AbsenceWarningBanner } from '../../components/notifications/AbsenceWarningBanner';
 
 export const StudentAttendancePage: React.FC = () => {
@@ -24,12 +24,7 @@ export const StudentAttendancePage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['student-attendance-records', selectedYear, selectedMonth],
     queryFn: async () => {
-      const res = await fetch(
-        getApiUrl(`/student-portal/attendance?year=${selectedYear}&month=${selectedMonth}`),
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const json = await res.json();
-      return json.data;
+      return apiClient<any>(`/student-portal/attendance?year=${selectedYear}&month=${selectedMonth}`);
     },
     enabled: !!token,
   });

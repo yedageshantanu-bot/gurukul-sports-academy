@@ -14,7 +14,7 @@ import {
   CheckCircle2 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient } from '../../lib/api';
 
 export interface InAppNotification {
   id: string;
@@ -54,11 +54,8 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   const { data: notifications = [], isLoading, refetch } = useQuery<InAppNotification[]>({
     queryKey: ['student-in-app-notifications'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/notifications'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      return json.data || [];
+      const data = await apiClient<any>('/student-portal/notifications');
+      return Array.isArray(data) ? data : data?.data || [];
     },
     enabled: !!token,
     staleTime: 30 * 1000,

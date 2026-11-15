@@ -30,7 +30,7 @@ import { Select } from '../../components/ui/Select';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { API_BASE } from '../../lib/api';
+import { API_BASE, authFetch } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { formatBillingPeriod } from './FeesPage';
 
@@ -98,18 +98,17 @@ export const PaymentsPage: React.FC = () => {
   });
 
   const fetchData = async () => {
-    if (!token) return;
     setLoading(true);
     setError(null);
 
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const [paymentsRes, feesRes, studentsRes, tournRes, pubsRes] = await Promise.all([
-        fetch(`${API_BASE}/payments`, { headers }),
-        fetch(`${API_BASE}/fees/students`, { headers }),
-        fetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
-        fetch(`${API_BASE}/tournaments/registrations/all`, { headers }).catch(() => null),
-        fetch(`${API_BASE}/publications`, { headers }).catch(() => null),
+        authFetch(`${API_BASE}/payments`, { headers }),
+        authFetch(`${API_BASE}/fees/students`, { headers }),
+        authFetch(`${API_BASE}/students?status=ACTIVE`, { headers }),
+        authFetch(`${API_BASE}/tournaments/registrations/all`, { headers }).catch(() => null),
+        authFetch(`${API_BASE}/publications`, { headers }).catch(() => null),
       ]);
 
       const paymentsData = await paymentsRes.json();
@@ -131,7 +130,7 @@ export const PaymentsPage: React.FC = () => {
       }
 
       // Sync active fee reminder template from database so unified template is always active everywhere
-      fetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
+      authFetch(`${API_BASE}/whatsapp/templates?active=true`, { headers })
         .then((r) => r.json())
         .then((res) => {
           if (res?.success && Array.isArray(res.data)) {
@@ -188,7 +187,7 @@ export const PaymentsPage: React.FC = () => {
 
       if (manualForm.stream === 'TOURNAMENTS' && manualForm.targetId) {
         // Tournament registration settlement
-        const res = await fetch(`${API_BASE}/tournaments/registrations/${manualForm.targetId}/payment`, {
+        const res = await authFetch(`${API_BASE}/tournaments/registrations/${manualForm.targetId}/payment`, {
           method: 'PATCH',
           headers,
           body: JSON.stringify({
@@ -204,7 +203,7 @@ export const PaymentsPage: React.FC = () => {
         toast.success(`Tournament fee recorded successfully!`);
       } else if (manualForm.stream === 'PUBLICATIONS' && manualForm.targetId) {
         // Publication fee settlement
-        const res = await fetch(`${API_BASE}/publications/${manualForm.targetId}/fee`, {
+        const res = await authFetch(`${API_BASE}/publications/${manualForm.targetId}/fee`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -225,7 +224,7 @@ export const PaymentsPage: React.FC = () => {
           return;
         }
 
-        const res = await fetch(`${API_BASE}/payments/manual`, {
+        const res = await authFetch(`${API_BASE}/payments/manual`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -277,7 +276,7 @@ export const PaymentsPage: React.FC = () => {
     setUndoingPaymentId(paymentId);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/payments/${paymentId}/revert`, {
+      const res = await authFetch(`${API_BASE}/payments/${paymentId}/revert`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -322,7 +321,7 @@ export const PaymentsPage: React.FC = () => {
     try {
       let res;
       if (latestPayment) {
-        res = await fetch(`${API_BASE}/payments/${latestPayment.id}/revert`, {
+        res = await authFetch(`${API_BASE}/payments/${latestPayment.id}/revert`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -330,7 +329,7 @@ export const PaymentsPage: React.FC = () => {
           },
         });
       } else if (targetFeeId) {
-        res = await fetch(`${API_BASE}/payments/revert-fee/${targetFeeId}`, {
+        res = await authFetch(`${API_BASE}/payments/revert-fee/${targetFeeId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -376,7 +375,7 @@ export const PaymentsPage: React.FC = () => {
 
     try {
       if (item.stream === 'TOURNAMENTS' && item.registrationId) {
-        const res = await fetch(`${API_BASE}/tournaments/registrations/${item.registrationId}/notify`, {
+        const res = await authFetch(`${API_BASE}/tournaments/registrations/${item.registrationId}/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         });
@@ -387,7 +386,7 @@ export const PaymentsPage: React.FC = () => {
         setSuccessToast(`WhatsApp reminder dispatched to ${item.studentName} for tournament entry!`);
         toast.success(`WhatsApp reminder dispatched for ${item.studentName}!`);
       } else if (item.stream === 'PUBLICATIONS' && item.publicationId) {
-        const res = await fetch(`${API_BASE}/publications/${item.publicationId}/whatsapp-reminder`, {
+        const res = await authFetch(`${API_BASE}/publications/${item.publicationId}/whatsapp-reminder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         });
@@ -404,7 +403,7 @@ export const PaymentsPage: React.FC = () => {
         const savedFeeTemplate = localStorage.getItem('gurukul_whatsapp_fee_template') || undefined;
         let res;
         if (targetFeeId || targetStudentId) {
-          res = await fetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
+          res = await authFetch(`${API_BASE}/whatsapp/trigger-fee-reminder`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

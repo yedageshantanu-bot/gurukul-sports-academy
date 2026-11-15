@@ -13,7 +13,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getApiUrl } from '../../lib/api';
+import { apiClient, authFetch, getApiUrl } from '../../lib/api';
 
 export const StudentFeesPage: React.FC = () => {
   const { token } = useAuth();
@@ -22,11 +22,7 @@ export const StudentFeesPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['student-fees-details'],
     queryFn: async () => {
-      const res = await fetch(getApiUrl('/student-portal/fees'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      return json.data;
+      return apiClient<any>('/student-portal/fees');
     },
     enabled: !!token,
   });
@@ -38,9 +34,7 @@ export const StudentFeesPage: React.FC = () => {
   const handleDownloadBlob = async (receipt: any) => {
     try {
       setDownloadingId(receipt.id);
-      const res = await fetch(getApiUrl(`/student-portal/receipt/${receipt.id}/pdf`), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(getApiUrl(`/student-portal/receipt/${receipt.id}/pdf`));
 
       if (!res.ok) {
         throw new Error('Failed to generate PDF');
