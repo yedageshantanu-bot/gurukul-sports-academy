@@ -976,12 +976,14 @@ export class AnnouncementService {
       allSlots.push(...slots);
     }
 
-    // 1. Upcoming slots: active future OR pending schedules (SCHEDULED or PENDING)
-    // Never hide past-due unsent slots if waiting for device connection or in multi-slot sequence!
-    // ASCENDING CHRONOLOGICAL SORTING: earliest scheduled delivery first
+    const nowMs = Date.now();
+    // 1. Upcoming slots: active future schedules ONLY (scheduledAt > nowMs)
+    // Never show past or overdue slots under Upcoming!
     const upcoming = allSlots
       .filter(
-        (s) => s.status === 'SCHEDULED' || s.status === 'PENDING'
+        (s) =>
+          (s.status === 'SCHEDULED' || s.status === 'PENDING') &&
+          new Date(s.scheduledAt).getTime() > nowMs
       )
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 

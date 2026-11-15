@@ -503,8 +503,14 @@ export class WhatsAppAutomationService {
 
       if (error || !student) return null;
 
-      const recipientPhone = student.parent_whatsapp || student.student_mobile;
+      let recipientPhone = student.parent_whatsapp || student.student_mobile;
       if (!recipientPhone) return null;
+
+      // SAFETY GUARD: If receipt is a test receipt, NEVER send to real parents! Divert to admin test phone
+      if (params.receiptNumber?.startsWith('TEST-') || params.receiptNumber?.includes('TEST')) {
+        console.warn(`[SAFETY GUARD] Diverting test payment receipt ${params.receiptNumber} away from real parent ${recipientPhone} to admin test phone +919404849500`);
+        recipientPhone = '+919404849500';
+      }
 
       // Calculate actual remaining pending fee balance (supports partial payments)
       let pendingBalance = '0.00';

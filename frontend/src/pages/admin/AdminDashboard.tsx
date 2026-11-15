@@ -117,7 +117,8 @@ export const AdminDashboard: React.FC = () => {
       const cached = sessionStorage.getItem('gurukul_dashboard_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        return Array.isArray(parsed.upcomingScheduled) ? parsed.upcomingScheduled : [];
+        const list = Array.isArray(parsed.upcomingScheduled) ? parsed.upcomingScheduled : [];
+        return list.filter((i: any) => new Date(i.scheduledAt).getTime() > Date.now());
       }
     } catch {}
     return [];
@@ -139,6 +140,14 @@ export const AdminDashboard: React.FC = () => {
   const [showAllUpcoming, setShowAllUpcoming] = useState<boolean>(false);
   const [showAllPostponed, setShowAllPostponed] = useState<boolean>(false);
   const SLOTS_PER_PAGE = 6;
+
+  // Strictly filter for future upcoming slots only (scheduledAt > Date.now())
+  const activeUpcomingScheduled = useMemo(() => {
+    const now = Date.now();
+    return upcomingScheduled.filter(
+      (item) => (item.status === 'SCHEDULED' || item.status === 'PENDING') && new Date(item.scheduledAt).getTime() > now
+    );
+  }, [upcomingScheduled]);
 
   // Sending reminder state
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
@@ -180,7 +189,11 @@ export const AdminDashboard: React.FC = () => {
         setMonthlyFeeSummary(res.monthlyFeeSummary || null);
         setFeeFollowups(res.feeFollowups || []);
         setRecentActivity(res.recentActivity || []);
-        setUpcomingScheduled(res.upcomingScheduled || []);
+        const nowMs = Date.now();
+        const validUpcoming = (res.upcomingScheduled || []).filter(
+          (s: any) => new Date(s.scheduledAt).getTime() > nowMs
+        );
+        setUpcomingScheduled(validUpcoming);
         setPostponedScheduled(res.postponedScheduled || []);
 
         try {
@@ -191,7 +204,7 @@ export const AdminDashboard: React.FC = () => {
             monthlyFeeSummary: res.monthlyFeeSummary,
             feeFollowups: res.feeFollowups,
             recentActivity: res.recentActivity,
-            upcomingScheduled: res.upcomingScheduled || [],
+            upcomingScheduled: validUpcoming,
             postponedScheduled: res.postponedScheduled || [],
             cachedAt: Date.now(),
           }));
@@ -1116,7 +1129,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-semibold text-slate-900 dark:text-white">Upcoming Scheduled Messages</h3>
                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                  {upcomingScheduled.length} scheduled
+                  {activeUpcomingScheduled.length} scheduled
                 </span>
                 <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                   Earliest first (IST)
@@ -1128,13 +1141,13 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {upcomingScheduled.length > SLOTS_PER_PAGE && (
+            {activeUpcomingScheduled.length > SLOTS_PER_PAGE && (
               <button
                 type="button"
                 onClick={() => setShowAllUpcoming(!showAllUpcoming)}
                 className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline"
               >
-                {showAllUpcoming ? `Show Paginated` : `Show All (${upcomingScheduled.length})`}
+                {showAllUpcoming ? `Show Paginated` : `Show All (${activeUpcomingScheduled.length})`}
               </button>
             )}
             <Link
@@ -1147,7 +1160,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {upcomingScheduled.length === 0 ? (
+        {activeUpcomingScheduled.length === 0 ? (
           <div className="py-7 text-center rounded-xl bg-slate-50/50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800">
             <p className="text-xs text-slate-500 dark:text-slate-400">
               No upcoming scheduled broadcasts waiting for dispatch.
@@ -1164,8 +1177,8 @@ export const AdminDashboard: React.FC = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {(showAllUpcoming
-                ? upcomingScheduled
-                : upcomingScheduled.slice((upcomingPage - 1) * SLOTS_PER_PAGE, upcomingPage * SLOTS_PER_PAGE)
+                ? activeUpcomingScheduled
+                : activeUpcomingScheduled.slice((upcomingPage - 1) * SLOTS_PER_PAGE, upcomingPage * SLOTS_PER_PAGE)
               ).map((item) => (
                 <div
                   key={item.id}
@@ -1240,11 +1253,11 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Pagination Controls for Upcoming */}
-            {!showAllUpcoming && upcomingScheduled.length > SLOTS_PER_PAGE && (
+            {!showAllUpcoming && activeUpcomingScheduled.length > SLOTS_PER_PAGE && (
               <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-800/60 text-xs text-slate-500 dark:text-slate-400">
                 <span>
                   Showing {(upcomingPage - 1) * SLOTS_PER_PAGE + 1}–
-                  {Math.min(upcomingPage * SLOTS_PER_PAGE, upcomingScheduled.length)} of {upcomingScheduled.length} delivery slot(s)
+                  {Math.min(upcomingPage * SLOTS_PER_PAGE, activeUpcomingScheduled.length)} of {activeUpcomingScheduled.length} delivery slot(s)
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -1256,12 +1269,12 @@ export const AdminDashboard: React.FC = () => {
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
                   <span className="px-2 font-mono font-semibold">
-                    {upcomingPage} / {Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE)}
+                    {upcomingPage} / {Math.ceil(activeUpcomingScheduled.length / SLOTS_PER_PAGE)}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setUpcomingPage((p) => Math.min(Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE), p + 1))}
-                    disabled={upcomingPage >= Math.ceil(upcomingScheduled.length / SLOTS_PER_PAGE)}
+                    onClick={() => setUpcomingPage((p) => Math.min(Math.ceil(activeUpcomingScheduled.length / SLOTS_PER_PAGE), p + 1))}
+                    disabled={upcomingPage >= Math.ceil(activeUpcomingScheduled.length / SLOTS_PER_PAGE)}
                     className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     <ChevronRight className="w-3.5 h-3.5" />

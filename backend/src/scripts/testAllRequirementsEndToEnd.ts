@@ -103,11 +103,11 @@ async function runEndToEndVerification() {
   assert(welcomeResult?.event_type === 'STUDENT_WELCOME', 'Queue item has event_type STUDENT_WELCOME');
   console.log('  Student welcome trigger passed');
 
-  // Test 5b: Fee Balance Settlement in Payment Receipts
+  // Test 5b: Fee Balance Settlement in Payment Receipts (Using admin test phone safeguard)
   const paymentResult = await automationService.triggerPaymentSuccessAutomation({
     studentId: '78ec9600-5101-4470-9c33-dcb6517f6834',
     amount: 1500,
-    receiptNumber: `TEST-REC-${testRunId}`,
+    receiptNumber: `TEST-REC-SAFE-${testRunId}`,
   });
   assert(paymentResult !== null, 'triggerPaymentSuccessAutomation generated queue item');
   assert(paymentResult?.event_type === 'PAYMENT_SUCCESS', 'Queue item has event_type PAYMENT_SUCCESS');
