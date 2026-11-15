@@ -12,6 +12,13 @@ router.use(verifyAuth);
 // List announcements (Admin gets all, Teacher gets announcements for assigned batches)
 router.get('/', (req, res, next) => announcementController.listAnnouncements(req, res, next));
 
+// Export Historical Scheduled & Missed Messages to PDF (Requirement 1)
+router.get('/export-history-pdf', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.exportHistoryPdf(req, res, next));
+router.get('/scheduled/export-history-pdf', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.exportHistoryPdf(req, res, next));
+
+// Delete Filtered History Scheduled Messages (Requirement 2)
+router.post('/scheduled/delete-history', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => announcementController.deleteHistory(req, res, next));
+
 // Unified Scheduling Delivery Slots endpoints (MUST be defined before /:id)
 router.get('/slots', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.listSlots(req, res, next));
 router.get('/slots/:slotId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN, ROLES.TEACHER), (req, res, next) => announcementController.getSlotById(req, res, next));

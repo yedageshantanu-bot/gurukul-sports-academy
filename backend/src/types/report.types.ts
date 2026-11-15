@@ -154,6 +154,10 @@ export interface ScheduledDeliverySlot {
   targetSummary?: string;
   createdAt: string;
   updatedAt: string;
+  batchCode?: string;       // Human-readable batch code, e.g. BATCH-8F3A or SCHED-20261116-01
+  slotTag?: string;         // Slot tag, e.g. Slot 1/3, Slot 2/3
+  dispatchId?: string;      // Unique composite ID, e.g. BATCH-8F3A-S1
+  totalSlots?: number;      // Total slots count in multi-slot broadcast
 }
 
 export const postponeSlotSchema = z.object({

@@ -257,6 +257,10 @@ export interface UpcomingScheduledItem {
   batches?: Array<{ id: string; name: string }>;
   deliveryResult?: any;
   errorDetails?: string | null;
+  batchCode?: string;
+  slotTag?: string;
+  dispatchId?: string;
+  totalSlots?: number;
 }
 
 export interface ScheduledDeliverySlot extends UpcomingScheduledItem {

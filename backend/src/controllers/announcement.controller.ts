@@ -305,6 +305,46 @@ export class AnnouncementController {
       next(err);
     }
   }
+
+  // ============================================================================
+  // EXPORT HISTORY PDF (Requirement 1)
+  // ============================================================================
+  async exportHistoryPdf(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const { scheduledPdfExportService } = await import('../services/scheduledPdfExport.service.js');
+      const buffer = await scheduledPdfExportService.generateHistoryPdf();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="Scheduled_Messages_History_Report.pdf"');
+      res.setHeader('Content-Length', buffer.length);
+      res.end(buffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // DELETE FILTERED HISTORY (Requirement 2)
+  // ============================================================================
+  async deleteHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { slotIds, filter, startDate, endDate } = req.body;
+      const result = await announcementService.deleteHistorySlots({
+        slotIds,
+        filter,
+        startDate,
+        endDate,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        deletedCount: result.deletedCount,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const announcementController = new AnnouncementController();

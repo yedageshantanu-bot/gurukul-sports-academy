@@ -13,6 +13,7 @@ import {
   useDatabaseAuthState,
   DatabaseAuthStateResult,
 } from './baileysAuthState.js';
+import { recipientSecurityService } from './recipientSecurity.service.js';
 
 /**
  * WhatsApp Session Lifecycle States
@@ -788,6 +789,15 @@ export class BaileysConnectionManager extends EventEmitter {
 
       if (this.currentState !== 'CONNECTED' || !this.socket) {
         throw new Error(`Cannot send message: WhatsApp is not connected (current state: ${this.currentState})`);
+      }
+
+      // Security Check (Requirement 4): Block arbitrary non-CRM numbers while permitting all unsaved/new CRM contacts
+      const isAllowedRecipient = await recipientSecurityService.isCrmRecipient(to);
+      if (!isAllowedRecipient) {
+        const securityError = `[SECURITY BLOCK] Attempted send to non-CRM number: ${to}`;
+        this.config.logger.warn?.(securityError);
+        console.warn(securityError);
+        throw new Error(securityError);
       }
 
       // 2. Pre-Send Number Validation via sock.onWhatsApp (for 1-on-1 WhatsApp numbers)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import { apiClient } from '../../lib/api';
+import { apiClient, getApiUrl, getValidAccessToken } from '../../lib/api';
+import { FeeReminderPipelineGraph } from '../../components/fees/FeeReminderPipelineGraph';
 import { supabase } from '../../lib/supabase';
 import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Modal } from '../../components/ui/Modal';
@@ -21,6 +22,7 @@ import {
   Eye,
   XCircle,
   Trash2,
+  Download,
 } from 'lucide-react';
 
 interface DeviceStatus {
@@ -103,6 +105,39 @@ export const WhatsAppPage: React.FC = () => {
   const [testPhone, setTestPhone] = useState('');
   const [testMessage, setTestMessage] = useState('Hello from Gurukul Sports Academy! Your training session reminder.');
   const [sendingTest, setSendingTest] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Requirement 1: Export History & Missed Messages to PDF
+  const handleExportHistoryPdf = async () => {
+    try {
+      setExportingPdf(true);
+      const token = await getValidAccessToken();
+      const url = getApiUrl('/whatsapp/export-history-pdf');
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate history PDF (status ${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `whatsapp-scheduled-history-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success('Historical messages PDF downloaded successfully!');
+    } catch (err: any) {
+      console.error('PDF export error:', err);
+      toast.error(err.message || 'Failed to export history PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   // Fetch Message Outbox Logs from backend with Supabase fallback
   const fetchMessages = useCallback(async () => {
@@ -905,6 +940,9 @@ export const WhatsAppPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Requirement 6: Automated Fee Reminder Pipeline Graph */}
+      <FeeReminderPipelineGraph onTriggerSuccess={fetchMessages} />
+
       {/* WhatsApp Message Outbox & Audit Log */}
       <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 rounded-xl p-6 shadow-sm dark:shadow-xl space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/10">
@@ -924,6 +962,18 @@ export const WhatsAppPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Requirement 1: Export Outbox & Historical Scheduled Messages to PDF */}
+            <button
+              type="button"
+              onClick={handleExportHistoryPdf}
+              disabled={exportingPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
+              title="Download historical scheduled messages and outbox logs to PDF"
+            >
+              <Download className={`w-3.5 h-3.5 ${exportingPdf ? 'animate-bounce' : ''}`} />
+              <span>{exportingPdf ? 'Exporting PDF...' : 'Export History PDF'}</span>
+            </button>
+
             <button
               type="button"
               onClick={fetchMessages}

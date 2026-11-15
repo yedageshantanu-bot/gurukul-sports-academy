@@ -32,6 +32,7 @@ import { Select } from '../../components/ui/Select';
 import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { FeeReminderPipelineGraph } from '../../components/fees/FeeReminderPipelineGraph';
 import { API_BASE, authFetch } from '../../lib/api';
 
 const MONTH_NAMES = [
@@ -1149,6 +1150,9 @@ export const FeesPage: React.FC = () => {
           <span className="font-medium">{reminderSuccessMessage}</span>
         </div>
       )}
+
+      {/* Requirement 6: Automated Fee Reminder Cadence Flow Pipeline */}
+      <FeeReminderPipelineGraph onTriggerSuccess={fetchData} className="mb-4" />
 
       {/* WhatsApp Fee Reminder Template & Schedule Automation Card */}
       <Card className="p-4 bg-gradient-to-br from-emerald-950/20 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl shadow-sm">

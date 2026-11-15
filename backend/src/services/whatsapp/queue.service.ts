@@ -13,6 +13,7 @@ import {
   TodayStats,
 } from '../../types/whatsapp.types.js';
 import { feeService } from '../fee.service.js';
+import { recipientSecurityService } from './recipientSecurity.service.js';
 
 export interface EnqueueMessageParams {
   recipientPhone: string;
@@ -73,14 +74,8 @@ export function isBlockedOrDummyNumber(phone: string): boolean {
   // Block sequential ascending / descending
   if (last10 === '1234567890' || last10 === '0123456789' || last10 === '9876543210' || last10 === '8765432109') return true;
 
-  // Block common demo/test prefixes and patterns
-  if (
-    last10.startsWith('987650') ||
-    last10.startsWith('98888') ||
-    last10.startsWith('000000') ||
-    last10.startsWith('910000') ||
-    last10.startsWith('900000')
-  ) {
+  // Block common demo/test invalid prefix patterns
+  if (last10.startsWith('000000')) {
     return true;
   }
 
@@ -254,6 +249,21 @@ export class WhatsAppQueueService {
     const now = new Date().toISOString();
     const scheduledAt = params.scheduledAt || now;
 
+    // Strict Recipient Security & Dummy Guard (Requirement 4)
+    const isDummy = this.isBlockedOrDummyNumber(normalizedPhone);
+    const crmCheck = isDummy
+      ? { allowed: false, reason: `Blocked delivery: ${normalizedPhone} is a dummy/placeholder test number.` }
+      : await recipientSecurityService.validateCrmRecipient(normalizedPhone);
+
+    const isSecurityBlocked = !crmCheck.allowed;
+    if (isSecurityBlocked) {
+      if (isDummy) {
+        console.warn(`[SAFETY GUARD] ${crmCheck.reason}`);
+      } else {
+        console.warn(`[SECURITY BLOCK] Attempted send to non-CRM number: ${normalizedPhone} (${crmCheck.reason})`);
+      }
+    }
+
     const newItem: WhatsAppQueueItem = {
       id: queueId,
       recipient_phone: normalizedPhone,
@@ -262,11 +272,11 @@ export class WhatsAppQueueService {
       event_type: eventType,
       message_body: params.messageBody,
       scheduled_at: scheduledAt,
-      status: 'PENDING',
-      attempts: 0,
-      max_attempts: 3,
+      status: isSecurityBlocked ? 'FAILED' : 'PENDING',
+      attempts: isSecurityBlocked ? 1 : 0,
+      max_attempts: isSecurityBlocked ? 0 : 3,
       sent_at: null,
-      failure_reason: null,
+      failure_reason: isSecurityBlocked ? (crmCheck.reason || `[SECURITY BLOCK] Attempted send to non-CRM number: ${normalizedPhone}`) : null,
       idempotency_key: idempotencyKey,
       provider_message_id: null,
       metadata: params.metadata || {},
@@ -339,7 +349,7 @@ export class WhatsAppQueueService {
         if (!error && data) {
           this.inMemoryQueue.set(queueId, { ...newItem, ...data });
           // If scheduled for now, trigger worker immediately
-          if (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000) {
+          if (!isSecurityBlocked && (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000)) {
             this.triggerBackgroundProcessing();
           }
           return data as WhatsAppQueueItem;
@@ -350,7 +360,7 @@ export class WhatsAppQueueService {
     }
 
     // If scheduled for now, trigger worker immediately
-    if (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000) {
+    if (!isSecurityBlocked && (!params.scheduledAt || new Date(params.scheduledAt).getTime() <= Date.now() + 2000)) {
       this.triggerBackgroundProcessing();
     }
 
@@ -406,9 +416,24 @@ export class WhatsAppQueueService {
       return { success: false, reason, status: 'CANCELLED' };
     }
 
+    // --- SAFETY CHECK 4c (Requirement 4): Is recipient a verified CRM contact? ---
+    if (provider.name !== 'MOCK') {
+      const crmCheck = await recipientSecurityService.validateCrmRecipient(item.recipient_phone);
+      if (!crmCheck.allowed) {
+        const reason = `[SECURITY BLOCK] Attempted send to non-CRM number: ${item.recipient_phone}`;
+        console.warn(`[QueueService] 🛑 ${reason}`);
+        await this.markItemFailed(item.id, reason, true, true);
+        await this.updateItemStatus(item.id, 'FAILED');
+        return { success: false, reason, status: 'FAILED' };
+      }
+    }
+
     // --- SAFETY CHECK 5: Is Message Still Valid? ---
     if (item.status === 'CANCELLED') {
       return { success: false, reason: 'Message was cancelled', status: 'CANCELLED' };
+    }
+    if (item.status === 'FAILED') {
+      return { success: false, reason: item.failure_reason || 'Message failed validation', status: 'FAILED' };
     }
     if (item.status === 'SENT') {
       return { success: true, reason: 'Message already sent', status: 'SENT' };

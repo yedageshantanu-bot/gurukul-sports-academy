@@ -547,6 +547,78 @@ export class WhatsAppController {
   }
 
   // ============================================================================
+  // FEE CADENCE PIPELINE GRAPH (Requirement 6)
+  // ============================================================================
+  async getFeeCadencePipeline(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const pipeline = await automationService.getFeeCadencePipelineStatus();
+      res.status(200).json({
+        success: true,
+        data: pipeline,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // TRIGGER WELCOME ADMISSION MESSAGE (Requirement 5)
+  // ============================================================================
+  async triggerWelcomeMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { studentId, parentPhone, studentName, parentName, course, monthlyFee } = req.body;
+      let targetPhone = parentPhone;
+      let targetName = studentName;
+      let targetParent = parentName;
+      let targetCourse = course;
+      let targetFee = monthlyFee;
+
+      if (studentId) {
+        const { supabaseAdmin } = await import('../config/supabase.js');
+        if (supabaseAdmin) {
+          const { data: st } = await supabaseAdmin
+            .from('students')
+            .select('id, name, parent_name, parent_whatsapp, student_mobile, course, monthly_fee')
+            .eq('id', studentId)
+            .maybeSingle();
+
+          if (st) {
+            targetPhone = targetPhone || st.parent_whatsapp || st.student_mobile;
+            targetName = targetName || st.name;
+            targetParent = targetParent || st.parent_name;
+            targetCourse = targetCourse || st.course;
+            targetFee = targetFee || Number(st.monthly_fee);
+          }
+        }
+      }
+
+      if (!targetPhone || !targetName) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'Recipient phone number and student name are required.' },
+        });
+      }
+
+      const queued = await automationService.triggerStudentWelcomeAutomation({
+        studentId,
+        parentPhone: targetPhone,
+        studentName: targetName,
+        parentName: targetParent,
+        course: targetCourse,
+        monthlyFee: targetFee ? Number(targetFee) : undefined,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Welcome WhatsApp notification dispatched for ${targetName}!`,
+        data: queued,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
   // TEMPLATES
   // ============================================================================
   async createTemplate(req: Request, res: Response, next: NextFunction) {
@@ -700,6 +772,45 @@ export class WhatsAppController {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.send(buffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // EXPORT SCHEDULED HISTORY PDF (Requirement 1)
+  // ============================================================================
+  async exportScheduledHistoryPdf(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const { scheduledPdfExportService } = await import('../services/scheduledPdfExport.service.js');
+      const buffer = await scheduledPdfExportService.generateHistoryPdf();
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="Scheduled_Messages_History_Report.pdf"');
+      res.setHeader('Content-Length', buffer.length);
+      res.end(buffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ============================================================================
+  // DELETE FILTERED HISTORY (Requirement 2)
+  // ============================================================================
+  async deleteFilteredHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { slotIds, filter, startDate, endDate } = req.body;
+      const result = await announcementService.deleteHistorySlots({
+        slotIds,
+        filter,
+        startDate,
+        endDate,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        deletedCount: result.deletedCount,
+      });
     } catch (err) {
       next(err);
     }

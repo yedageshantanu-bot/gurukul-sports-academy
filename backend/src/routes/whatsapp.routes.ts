@@ -53,6 +53,9 @@ router.post('/messages/:id/retry', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (
 router.delete('/messages/:id', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.deleteMessage(req, res, next));
 router.get('/missed-scheduled-messages', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.getMissedScheduledMessages(req, res, next));
 router.post('/dispatch-missed-scheduled-messages', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.dispatchMissedScheduledMessages(req, res, next));
+router.get('/export-history-pdf', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.exportScheduledHistoryPdf(req, res, next));
+router.get('/scheduled/export-history-pdf', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.exportScheduledHistoryPdf(req, res, next));
+router.post('/scheduled/delete-history', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.deleteFilteredHistory(req, res, next));
 
 // ==============================================================================
 // 4. MESSAGE LOGS & OUTBOX
@@ -63,6 +66,8 @@ router.post('/send', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next
 router.post('/trigger-fee-reminder', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerFeeReminder(req, res, next));
 router.post('/remind/monthly-fees', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerMonthlyFeeReminders(req, res, next));
 router.post('/remind/fee-cadence', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerFeeCadenceReminders(req, res, next));
+router.get('/fee-cadence-pipeline', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.getFeeCadencePipeline(req, res, next));
+router.post('/trigger-welcome', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.triggerWelcomeMessage(req, res, next));
 router.post('/reports/send-student/:studentId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.sendStudentMonthlyReport(req, res, next));
 router.post('/reports/send-all', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.sendAllMonthlyReports(req, res, next));
 router.get('/reports/download-pdf/:studentId', requireRole(ROLES.ADMIN, ROLES.DEMO_ADMIN), (req, res, next) => whatsappController.downloadStudentReportPdf(req, res, next));

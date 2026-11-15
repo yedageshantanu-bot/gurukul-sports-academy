@@ -14,8 +14,13 @@ import {
   Search,
   ArrowLeft,
   RotateCcw,
+  Download,
+  Filter,
+  CheckSquare,
+  Square,
+  AlertTriangle,
 } from 'lucide-react';
-import { apiClient } from '../../lib/api';
+import { apiClient, getApiUrl, getValidAccessToken } from '../../lib/api';
 import { useToast } from '../../contexts/ToastContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -24,7 +29,7 @@ import { SkeletonLoader } from '../../components/common/SkeletonLoader';
 import { ScheduleDetailModal } from '../../components/announcements/ScheduleDetailModal';
 import { UpcomingScheduledItem } from '../../types/crm';
 
-interface ScheduledAnnouncementItem {
+export interface ScheduledAnnouncementItem {
   id: string;
   announcement_id?: string;
   slot_number?: number;
@@ -40,6 +45,14 @@ interface ScheduledAnnouncementItem {
   dispatch_timestamp?: string | null;
   batches?: Array<{ id: string; name: string }>;
   recipientCount?: number;
+  batch_code?: string;
+  slot_tag?: string;
+  dispatch_id?: string;
+  total_slots?: number;
+  batchCode?: string;
+  slotTag?: string;
+  dispatchId?: string;
+  totalSlots?: number;
   history?: any[];
   stats?: {
     total: number;
@@ -50,13 +63,19 @@ interface ScheduledAnnouncementItem {
   metadata?: any;
 }
 
+export type HistoryFilterTab = 'UPCOMING' | 'PAST_SENT' | 'MISSED_QR' | 'FAILED' | 'ALL_HISTORY';
+
 export const ScheduledAnnouncementsPage: React.FC = () => {
   const { toast } = useToast();
   const [items, setItems] = useState<ScheduledAnnouncementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTPONED' | 'SENT'>('ALL');
+  
+  // Filter tabs: Default to UPCOMING to keep dashboard completely clean of past clutter
+  const [filterTab, setFilterTab] = useState<HistoryFilterTab>('UPCOMING');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [whatsappStatus, setWhatsappStatus] = useState<{ status: string; phoneNumber?: string } | null>(null);
 
   // Selected Slot Detail Modal State
@@ -70,6 +89,15 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
   const [editMessage, setEditMessage] = useState('');
   const [editScheduledTime, setEditScheduledTime] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // PDF Export State
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Permanent Delete Modal & Bulk Selection State
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<'SELECTED' | 'ALL_FILTERED'>('SELECTED');
+  const [deletingHistory, setDeletingHistory] = useState(false);
 
   // Action loading states
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -112,7 +140,6 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
     setEditingItem(item);
     setEditTitle(item.title);
     setEditMessage(item.message);
-    // Format to YYYY-MM-DDTHH:mm
     if (item.scheduled_at) {
       const dt = new Date(item.scheduled_at);
       const tzOffset = dt.getTimezoneOffset() * 60000;
@@ -195,59 +222,165 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
     }
   };
 
-  const handleDeletePermanent = async (item: ScheduledAnnouncementItem) => {
-    if (!window.confirm(`Permanently delete announcement "${item.title}"? This cannot be undone.`)) {
-      return;
-    }
-
+  // Requirement 1: Export Historical & Missed Scheduled Messages to PDF
+  const handleExportHistoryPdf = async () => {
     try {
-      setActionLoadingId(item.id);
-      const res: any = await apiClient(`/announcements/scheduled/${item.id}?permanent=true`, {
-        method: 'DELETE',
+      setExportingPdf(true);
+      const token = await getValidAccessToken();
+      const url = getApiUrl('/announcements/export-history-pdf');
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      toast.success(res?.message || 'Announcement deleted permanently!');
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate history PDF (status ${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `whatsapp-scheduled-history-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success('Historical & missed messages PDF downloaded successfully!');
+    } catch (err: any) {
+      console.error('PDF export error:', err);
+      toast.error(err.message || 'Failed to export history PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  // Requirement 2: Permanent Delete of Filtered History
+  const handleDeleteHistory = async () => {
+    try {
+      setDeletingHistory(true);
+      const payload: any = {
+        filter: filterTab === 'PAST_SENT' ? 'SENT' : filterTab === 'MISSED_QR' ? 'MISSED' : filterTab === 'FAILED' ? 'FAILED' : 'ALL_HISTORY',
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      };
+
+      if (deleteMode === 'SELECTED') {
+        payload.slotIds = selectedSlotIds;
+      }
+
+      const res: any = await apiClient('/announcements/scheduled/delete-history', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      toast.success(res?.message || `Permanently deleted ${res?.deletedCount || 0} historical records.`);
+      setIsDeleteModalOpen(false);
+      setSelectedSlotIds([]);
       await fetchScheduled(true);
     } catch (err: any) {
-      console.error('Delete failed:', err);
-      toast.error(err.message || 'Failed to delete announcement');
+      console.error('Permanent delete failed:', err);
+      toast.error(err.message || 'Failed to delete historical logs');
     } finally {
-      setActionLoadingId(null);
+      setDeletingHistory(false);
     }
+  };
+
+  // Helper determinations for past/missed messages
+  const nowMs = Date.now();
+  const isSlotPast = (item: ScheduledAnnouncementItem) => {
+    const schedMs = new Date(item.scheduled_at).getTime();
+    const isDone = item.status === 'SENT' || item.status === 'FAILED';
+    const isOverdue = (item.status === 'SCHEDULED' || item.status === 'PENDING') && schedMs < (nowMs - 5 * 60 * 1000);
+    return isDone || isOverdue;
+  };
+
+  const isSlotMissed = (item: ScheduledAnnouncementItem) => {
+    const schedMs = new Date(item.scheduled_at).getTime();
+    return (item.status as any) === 'MISSED' || ((item.status === 'SCHEDULED' || item.status === 'PENDING') && schedMs < (nowMs - 5 * 60 * 1000));
   };
 
   // Next upcoming pending message in queue
   const nextPendingItem = React.useMemo(() => {
-    const pendings = items.filter((i) => (i.status === 'SCHEDULED' || i.status === 'PENDING') && new Date(i.scheduled_at || 0).getTime() > 0);
+    const pendings = items.filter(
+      (i) => (i.status === 'SCHEDULED' || i.status === 'PENDING') &&
+             new Date(i.scheduled_at || 0).getTime() >= (nowMs - 5 * 60 * 1000)
+    );
     pendings.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
     return pendings[0] || null;
-  }, [items]);
+  }, [items, nowMs]);
 
-  // KPI Computations (excluding cancelled records)
+  // Counts for filter bar
   const activeItems = items.filter((i) => i.status !== 'CANCELLED');
-  const totalCount = activeItems.length;
-  const pendingCount = items.filter((i) => i.status === 'SCHEDULED' || i.status === 'PENDING').length;
-  const postponedCount = items.filter((i) => i.status === 'POSTPONED').length;
-  const sentCount = items.filter((i) => i.status === 'SENT').length;
+  const upcomingCount = activeItems.filter((i) => !isSlotPast(i)).length;
+  const pastSentCount = items.filter((i) => i.status === 'SENT').length;
+  const missedCount = activeItems.filter((i) => isSlotMissed(i)).length;
+  const failedCount = items.filter((i) => i.status === 'FAILED').length;
+  const allHistoryCount = activeItems.filter((i) => isSlotPast(i)).length;
 
-  // Search & Filter (Never show CANCELLED items)
+  // Search & Tab Filter logic
   const q = searchTerm.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
     if (item.status === 'CANCELLED') return false;
 
+    // Search query
+    const batchCodeStr = item.batch_code || item.batchCode || '';
+    const slotTagStr = item.slot_tag || item.slotTag || '';
+    const dispatchIdStr = item.dispatch_id || item.dispatchId || '';
     const matchesSearch =
       !q ||
       item.title.toLowerCase().includes(q) ||
       item.message.toLowerCase().includes(q) ||
+      batchCodeStr.toLowerCase().includes(q) ||
+      slotTagStr.toLowerCase().includes(q) ||
+      dispatchIdStr.toLowerCase().includes(q) ||
       (item.batches || []).some((b) => b.name.toLowerCase().includes(q));
 
-    const matchesStatus =
-      statusFilter === 'ALL' ||
-      (statusFilter === 'PENDING' && (item.status === 'SCHEDULED' || item.status === 'PENDING')) ||
-      (statusFilter === 'POSTPONED' && item.status === 'POSTPONED') ||
-      (statusFilter === 'SENT' && item.status === 'SENT');
+    if (!matchesSearch) return false;
 
-    return matchesSearch && matchesStatus;
+    // Date range filter
+    if (startDate) {
+      const itemDate = new Date(item.scheduled_at).toISOString().slice(0, 10);
+      if (itemDate < startDate) return false;
+    }
+    if (endDate) {
+      const itemDate = new Date(item.scheduled_at).toISOString().slice(0, 10);
+      if (itemDate > endDate) return false;
+    }
+
+    // Tab filter
+    if (filterTab === 'UPCOMING') {
+      // Default view: ONLY show upcoming/scheduled messages (hide all past/ago clutter)
+      return !isSlotPast(item);
+    }
+    if (filterTab === 'PAST_SENT') {
+      return item.status === 'SENT';
+    }
+    if (filterTab === 'MISSED_QR') {
+      return isSlotMissed(item);
+    }
+    if (filterTab === 'FAILED') {
+      return item.status === 'FAILED';
+    }
+    if (filterTab === 'ALL_HISTORY') {
+      return isSlotPast(item);
+    }
+
+    return true;
   });
+
+  const toggleSelectSlot = (id: string) => {
+    setSelectedSlotIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSlotIds.length === filteredItems.length && filteredItems.length > 0) {
+      setSelectedSlotIds([]);
+    } else {
+      setSelectedSlotIds(filteredItems.map((i) => i.id));
+    }
+  };
 
   const formatIST = (dateStr: string) => {
     if (!dateStr) return 'TBA';
@@ -266,8 +399,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
   const getRelativeCountdown = (dateStr: string) => {
     if (!dateStr) return '';
     const target = new Date(dateStr).getTime();
-    const now = Date.now();
-    const diff = target - now;
+    const diff = target - Date.now();
 
     if (diff < 0) {
       const pastMins = Math.floor(-diff / 60000);
@@ -307,7 +439,19 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Requirement 1: Export History PDF Button */}
+          <Button
+            variant="outline"
+            onClick={handleExportHistoryPdf}
+            disabled={exportingPdf}
+            className="border-indigo-300 dark:border-indigo-700/60 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-xs font-semibold py-2 px-3 shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Export past scheduled messages and missed logs to PDF table"
+          >
+            <Download className={`w-3.5 h-3.5 ${exportingPdf ? 'animate-bounce' : ''}`} />
+            <span>{exportingPdf ? 'Exporting PDF...' : 'Export History PDF'}</span>
+          </Button>
+
           <Button
             variant="outline"
             onClick={() => fetchScheduled(true)}
@@ -327,7 +471,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* WhatsApp Status Alert Banner */}
+      {/* WhatsApp Gateway Status Banner */}
       {whatsappStatus && whatsappStatus.status !== 'CONNECTED' && (
         <div className="p-3.5 px-4 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200">
@@ -361,7 +505,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Primary View Switcher Banner */}
+      {/* Navigation Switcher between All Announcements and Scheduled Messages */}
       <div className="p-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-xl flex items-center gap-1 max-w-md">
         <Link
           to="/admin/announcements"
@@ -376,16 +520,16 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
         >
           <Clock className="w-3.5 h-3.5" />
           <span>Scheduled Messages</span>
-          {pendingCount > 0 && (
+          {upcomingCount > 0 && (
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 text-slate-950 font-black">
-              {pendingCount}
+              {upcomingCount}
             </span>
           )}
         </button>
       </div>
 
-      {/* NEXT UPCOMING MESSAGE IN PENDING QUEUE */}
-      {nextPendingItem && (
+      {/* NEXT UPCOMING MESSAGE IN PENDING QUEUE (Displayed only when on Upcoming tab) */}
+      {filterTab === 'UPCOMING' && nextPendingItem && (
         <Card className="p-5 bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 border-2 border-amber-500/40 rounded-2xl shadow-md">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
@@ -396,6 +540,10 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 tracking-wide">
                     Next in Queue / पुढील मेसेज
+                  </span>
+                  {/* Requirement 3: Batch Code & Slot Tag */}
+                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                    {nextPendingItem.batch_code || nextPendingItem.batchCode || 'BATCH-MAIN'} ({nextPendingItem.slot_tag || nextPendingItem.slotTag || `Slot ${nextPendingItem.slot_number || 1}`})
                   </span>
                   <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                     Scheduled Time: {formatIST(nextPendingItem.scheduled_at)}
@@ -421,7 +569,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                 className="text-xs border-amber-500/40 hover:bg-amber-500/10 text-slate-900 dark:text-white font-bold flex items-center gap-1.5"
               >
                 <Edit2 className="w-3.5 h-3.5 text-amber-500" />
-                <span>Edit Time & Details</span>
+                <span>Edit Time</span>
               </Button>
 
               <Button
@@ -451,81 +599,269 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
       )}
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-amber-500/30 transition-all shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Card
+          onClick={() => setFilterTab('UPCOMING')}
+          className={`p-3.5 bg-white dark:bg-[#0F172A]/80 border transition-all shadow-sm cursor-pointer ${
+            filterTab === 'UPCOMING' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200 dark:border-white/10 hover:border-amber-500/40'
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Scheduled</span>
-            <Calendar className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Upcoming</span>
+            <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{totalCount}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Scheduled on system</span>
+          <p className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">{upcomingCount}</p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">Default Clean View</span>
         </Card>
 
-        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-cyan-500/30 transition-all shadow-sm">
+        <Card
+          onClick={() => setFilterTab('PAST_SENT')}
+          className={`p-3.5 bg-white dark:bg-[#0F172A]/80 border transition-all shadow-sm cursor-pointer ${
+            filterTab === 'PAST_SENT' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-white/10 hover:border-emerald-500/40'
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Dispatch</span>
-            <Clock className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-          </div>
-          <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400 mt-2">{pendingCount}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Awaiting scheduled trigger</span>
-        </Card>
-
-        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-emerald-500/30 transition-all shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Successfully Dispatched</span>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Past Sent</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
           </div>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">{sentCount}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Delivered to WhatsApp queue</span>
+          <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{pastSentCount}</p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">Delivered history</span>
         </Card>
 
-        <Card className="p-4 bg-white dark:bg-[#0F172A]/80 border-slate-200 dark:border-white/10 hover:border-amber-500/30 transition-all shadow-sm">
+        <Card
+          onClick={() => setFilterTab('MISSED_QR')}
+          className={`p-3.5 bg-white dark:bg-[#0F172A]/80 border transition-all shadow-sm cursor-pointer ${
+            filterTab === 'MISSED_QR' ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-slate-200 dark:border-white/10 hover:border-orange-500/40'
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Postponed Slots</span>
-            <RotateCcw className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Missed (QR Off)</span>
+            <RotateCcw className="w-4 h-4 text-orange-500 dark:text-orange-400" />
           </div>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2">{postponedCount}</p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">Scheduled for future date</span>
+          <p className="text-xl font-black text-orange-600 dark:text-orange-400 mt-1">{missedCount}</p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">WhatsApp was offline</span>
+        </Card>
+
+        <Card
+          onClick={() => setFilterTab('FAILED')}
+          className={`p-3.5 bg-white dark:bg-[#0F172A]/80 border transition-all shadow-sm cursor-pointer ${
+            filterTab === 'FAILED' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-200 dark:border-white/10 hover:border-rose-500/40'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Failed</span>
+            <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+          </div>
+          <p className="text-xl font-black text-rose-600 dark:text-rose-400 mt-1">{failedCount}</p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">Delivery errors</span>
+        </Card>
+
+        <Card
+          onClick={() => setFilterTab('ALL_HISTORY')}
+          className={`p-3.5 bg-white dark:bg-[#0F172A]/80 border transition-all shadow-sm cursor-pointer col-span-2 sm:col-span-1 ${
+            filterTab === 'ALL_HISTORY' ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-white/10 hover:border-indigo-500/40'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">All History</span>
+            <Calendar className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+          </div>
+          <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{allHistoryCount}</p>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">Entire log trail</span>
         </Card>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#0F172A]/70 p-3 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {[
-            { key: 'ALL', label: `All Active (${totalCount})` },
-            { key: 'PENDING', label: `Pending (${pendingCount})` },
-            { key: 'POSTPONED', label: `Postponed (${postponedCount})` },
-            { key: 'SENT', label: `Sent (${sentCount})` },
-          ].map((tab) => (
+      {/* Requirement 2: Filter Toggle Bar + Date Range + Search */}
+      <div className="bg-white dark:bg-[#0F172A]/90 p-4 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Main Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-black/30 rounded-xl border border-slate-200 dark:border-white/5">
             <button
-              key={tab.key}
               type="button"
-              onClick={() => setStatusFilter(tab.key as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                statusFilter === tab.key
-                  ? 'bg-amber-500 text-slate-950 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+              onClick={() => {
+                setFilterTab('UPCOMING');
+                setSelectedSlotIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'UPCOMING'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {tab.label}
+              <Clock className="w-3.5 h-3.5" />
+              <span>Upcoming ({upcomingCount})</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-black/15 text-slate-950 font-black">Default</span>
             </button>
-          ))}
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTab('PAST_SENT');
+                setSelectedSlotIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'PAST_SENT'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Past Sent ({pastSentCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTab('MISSED_QR');
+                setSelectedSlotIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'MISSED_QR'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Missed (QR Off) ({missedCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTab('FAILED');
+                setSelectedSlotIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'FAILED'
+                  ? 'bg-rose-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>Failed ({failedCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTab('ALL_HISTORY');
+                setSelectedSlotIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === 'ALL_HISTORY'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>All History ({allHistoryCount})</span>
+            </button>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by title, batch, ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500"
+            />
+          </div>
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search scheduled messages, batches..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500"
-          />
+        {/* Date Range Sub-Filter Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Date Range:
+            </span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs focus:outline-none"
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs focus:outline-none"
+            />
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold"
+              >
+                Clear Dates
+              </button>
+            )}
+          </div>
+
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            Showing <strong className="text-slate-900 dark:text-white font-mono">{filteredItems.length}</strong> record(s)
+            {filterTab === 'UPCOMING' && ' (Past completed messages hidden)'}
+          </div>
         </div>
       </div>
+
+      {/* Requirement 2: Bulk Selection & Permanent Delete Action Bar (Only visible when viewing past history) */}
+      {filterTab !== 'UPCOMING' && filteredItems.length > 0 && (
+        <div className="p-3 px-4 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+            >
+              {selectedSlotIds.length === filteredItems.length && filteredItems.length > 0 ? (
+                <CheckSquare className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Square className="w-4 h-4 text-slate-400" />
+              )}
+              <span>Select All</span>
+            </button>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-600 dark:text-slate-400 font-medium">
+              {selectedSlotIds.length} of {filteredItems.length} selected
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selectedSlotIds.length === 0}
+              onClick={() => {
+                setDeleteMode('SELECTED');
+                setIsDeleteModalOpen(true);
+              }}
+              className="border-rose-400/50 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-xs font-bold py-1.5 px-3 flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Delete Selected ({selectedSlotIds.length})</span>
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                setDeleteMode('ALL_FILTERED');
+                setIsDeleteModalOpen(true);
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-1.5 px-3 flex items-center gap-1.5 shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Filtered History ({filteredItems.length})</span>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Scheduled Items List */}
       {loading ? (
@@ -535,44 +871,103 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
       ) : filteredItems.length === 0 ? (
         <Card className="p-12 text-center bg-white dark:bg-[#0F172A]/60 border-slate-200 dark:border-white/10 rounded-2xl shadow-sm">
           <Clock className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">No scheduled announcements found</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
-            {searchTerm || statusFilter !== 'ALL'
-              ? 'Try modifying your search query or status filter to see other messages.'
-              : 'You have no scheduled messages waiting in the queue. Create a new announcement and set a future date & time to schedule it.'}
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+            {filterTab === 'UPCOMING'
+              ? 'No Upcoming Scheduled Announcements'
+              : `No Records Found in ${filterTab.replace('_', ' ')}`}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
+            {filterTab === 'UPCOMING'
+              ? 'Past messages are automatically hidden from this dashboard to keep your view clean. Switch to "Past Sent", "Missed (QR Off)", or "All History" to view or audit past dispatches.'
+              : 'There are no historical records matching the active filter criteria.'}
           </p>
-          <Link to="/admin/announcements" className="inline-block mt-4">
-            <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-4 shadow-sm cursor-pointer">
-              <Megaphone className="w-3.5 h-3.5 mr-1.5" />
-              Compose Scheduled Announcement
-            </Button>
-          </Link>
+          <div className="flex justify-center gap-3 mt-4">
+            {filterTab !== 'UPCOMING' && (
+              <Button
+                variant="outline"
+                onClick={() => setFilterTab('UPCOMING')}
+                className="text-xs font-bold py-2 px-4 border-amber-500/40 text-amber-600"
+              >
+                Back to Upcoming Messages
+              </Button>
+            )}
+            <Link to="/admin/announcements">
+              <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-4 shadow-sm cursor-pointer">
+                <Megaphone className="w-3.5 h-3.5 mr-1.5" />
+                Compose Scheduled Announcement
+              </Button>
+            </Link>
+          </div>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {filteredItems.map((item) => {
-            const isPending = item.status === 'SCHEDULED';
+            const isPending = item.status === 'SCHEDULED' || item.status === 'PENDING';
             const isSent = item.status === 'SENT';
-            const isCancelled = item.status === 'CANCELLED';
+            const isMissed = isSlotMissed(item);
+            const isFailed = item.status === 'FAILED';
             const countdown = getRelativeCountdown(item.scheduled_at);
             const isActionLoading = actionLoadingId === item.id;
+            const isSelected = selectedSlotIds.includes(item.id);
+
+            // Requirement 3: Batch Code & Slot Tag
+            const batchCode = item.batch_code || item.batchCode || 'BATCH-MAIN';
+            const slotTag = item.slot_tag || item.slotTag || (item.slot_number ? `Slot ${item.slot_number}/${item.total_slots || 1}` : 'Slot 1/1');
+            const dispatchId = item.dispatch_id || item.dispatchId;
 
             return (
               <Card
                 key={item.id}
                 className={`p-5 rounded-2xl border transition-all shadow-sm ${
-                  isPending
+                  isSelected
+                    ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
+                    : isPending
                     ? 'bg-white dark:bg-[#0F172A]/90 border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/50'
                     : isSent
                     ? 'bg-white dark:bg-[#0F172A]/80 border-emerald-500/20'
+                    : isMissed
+                    ? 'bg-white dark:bg-[#0F172A]/80 border-orange-500/30'
+                    : isFailed
+                    ? 'bg-white dark:bg-[#0F172A]/80 border-rose-500/30'
                     : 'bg-white dark:bg-[#0F172A]/60 border-slate-200 dark:border-white/5 opacity-80'
                 }`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                   {/* Left Column: Details */}
                   <div className="space-y-2 flex-1">
-                    {/* Status & Time Header */}
+                    {/* Header with Checkbox, Status, Batch ID, and Timings */}
                     <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {/* Checkbox for past history item selection */}
+                      {filterTab !== 'UPCOMING' && (
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectSlot(item.id)}
+                          className="mr-1 text-slate-400 hover:text-amber-500 cursor-pointer"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-indigo-500" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400" />
+                          )}
+                        </button>
+                      )}
+
+                      {/* Requirement 3: Human-Readable Unique Batch Code & Slot Tag */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 font-mono text-xs font-bold">
+                        <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-sans uppercase">Batch:</span>
+                        <span>{batchCode}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-[10px]">
+                          {slotTag}
+                        </span>
+                      </div>
+
+                      {dispatchId && (
+                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                          ID: {dispatchId}
+                        </span>
+                      )}
+
+                      {/* Status Badges */}
                       {isPending && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                           <Clock className="w-3 h-3 text-amber-500 animate-spin" style={{ animationDuration: '6s' }} />
@@ -585,10 +980,16 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                           DISPATCHED
                         </span>
                       )}
-                      {isCancelled && (
+                      {isMissed && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30">
+                          <RotateCcw className="w-3 h-3 text-orange-500" />
+                          MISSED (QR OFF)
+                        </span>
+                      )}
+                      {isFailed && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
                           <AlertCircle className="w-3 h-3 text-rose-500" />
-                          CANCELLED
+                          FAILED
                         </span>
                       )}
 
@@ -647,7 +1048,7 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                     <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-white/5 text-xs space-y-1.5">
                       <div className="flex items-center justify-between font-semibold text-slate-700 dark:text-slate-300">
                         <span>Total Recipients:</span>
-                        <strong className="text-slate-900 dark:text-white font-mono">{item.stats?.total || 0}</strong>
+                        <strong className="text-slate-900 dark:text-white font-mono">{item.stats?.total || item.recipientCount || 0}</strong>
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-amber-600 dark:text-amber-400 font-medium">Pending in Queue:</span>
@@ -675,6 +1076,10 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
                             scheduledAt: item.scheduled_at,
                             recipientsCount: item.recipientCount || item.stats?.total || 0,
                             status: item.status,
+                            batchCode: item.batch_code || item.batchCode,
+                            slotTag: item.slot_tag || item.slotTag,
+                            dispatchId: item.dispatch_id || item.dispatchId,
+                            totalSlots: item.total_slots || item.totalSlots,
                             originalScheduledAt: item.original_scheduled_at,
                             postponedAt: item.postponed_at,
                             dispatchTimestamp: item.dispatch_timestamp,
@@ -727,13 +1132,13 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
                       {!isPending && (
                         <div className="space-y-1.5">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/40 text-center text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                            {isSent ? 'Dispatched to recipients' : 'Broadcast cancelled'}
-                          </div>
                           <Button
                             variant="outline"
-                            onClick={() => handleDeletePermanent(item)}
-                            disabled={isActionLoading}
+                            onClick={() => {
+                              setSelectedSlotIds([item.id]);
+                              setDeleteMode('SELECTED');
+                              setIsDeleteModalOpen(true);
+                            }}
                             className="w-full border-rose-300 dark:border-rose-600/40 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-xs font-semibold py-1.5 px-2 cursor-pointer flex items-center justify-center gap-1"
                           >
                             <Trash2 className="w-3 h-3 text-rose-500" />
@@ -749,6 +1154,50 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* CONFIRMATION MODAL FOR PERMANENT DELETION */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm Permanent Deletion of History (इतिहास हटवा)"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-800 dark:text-rose-200 space-y-1">
+              <strong className="block text-sm">This action is permanent and cannot be undone.</strong>
+              <p>
+                {deleteMode === 'SELECTED'
+                  ? `You are about to permanently delete ${selectedSlotIds.length} selected historical scheduled message record(s) from the Supabase database.`
+                  : `You are about to permanently delete all ${filteredItems.length} records matching the current filter "${filterTab.replace('_', ' ')}" from the Supabase database.`}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            Tip: If you need an audit trail, please click <strong>"Export History PDF"</strong> before proceeding with permanent cleanup.
+          </p>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deletingHistory}
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={deletingHistory}
+              onClick={handleDeleteHistory}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2 px-4 shadow-sm"
+            >
+              {deletingHistory ? 'Deleting History...' : 'Yes, Delete Permanently'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* EDIT SCHEDULE MODAL */}
       <Modal
@@ -835,3 +1284,5 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
     </div>
   );
 };
+
+export default ScheduledAnnouncementsPage;

@@ -346,13 +346,13 @@ export class WhatsAppAutomationService {
 
       const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
 
-      // 4. Enqueue into transactional queue with transition idempotency key
-      const idempotencyKey = `ATTENDANCE_ABSENT:${student.id}:${params.date}:${Date.now()}`;
+      // 4. Enqueue into transactional queue with transition idempotency key (1 alert per student per date)
+      const idempotencyKey = `ATTENDANCE_ABSENT:${student.id}:${params.date}`;
       const queued = await queueService.enqueueMessage({
         recipientPhone,
         messageBody,
         studentId: student.id,
-        templateId: template.id,
+        templateId: template?.id || null,
         eventType: 'ATTENDANCE_ABSENT',
         idempotencyKey,
       });
@@ -452,7 +452,7 @@ export class WhatsAppAutomationService {
         recipientPhone,
         messageBody,
         studentId: student.id,
-        templateId: template.id,
+        templateId: template?.id || null,
         eventType: 'ATTENDANCE_CORRECTION',
         idempotencyKey: correctionIdempotencyKey,
         metadata: {
@@ -506,25 +506,60 @@ export class WhatsAppAutomationService {
       const recipientPhone = student.parent_whatsapp || student.student_mobile;
       if (!recipientPhone) return null;
 
+      // Calculate actual remaining pending fee balance (supports partial payments)
+      let pendingBalance = '0.00';
+      if (params.studentFeeId) {
+        try {
+          const { data: feeRec } = await this.supabase
+            .from('student_fees')
+            .select('amount_due, amount_paid')
+            .eq('id', params.studentFeeId)
+            .maybeSingle();
+          if (feeRec) {
+            const rem = Math.max(0, Number(feeRec.amount_due || 0) - Number(feeRec.amount_paid || 0));
+            pendingBalance = rem.toFixed(2);
+          }
+        } catch {
+          // Fallback to default
+        }
+      } else {
+        try {
+          const { data: feeRecs } = await this.supabase
+            .from('student_fees')
+            .select('amount_due, amount_paid')
+            .eq('student_id', params.studentId);
+          if (Array.isArray(feeRecs) && feeRecs.length > 0) {
+            const totalDue = feeRecs.reduce((acc, f) => acc + Number(f.amount_due || 0), 0);
+            const totalPaid = feeRecs.reduce((acc, f) => acc + Number(f.amount_paid || 0), 0);
+            const rem = Math.max(0, totalDue - totalPaid);
+            pendingBalance = rem.toFixed(2);
+          }
+        } catch {
+          // Fallback to default
+        }
+      }
+
       const academyName = await this.getAcademyName();
       const messageBody = this.renderTemplate(template.body, {
         academy_name: academyName,
         student_name: student.name,
-        parent_name: student.parent_name || 'Parent',
+        parent_name: cleanParentName(student.parent_name, student.name),
         phone: recipientPhone,
         course_name: student.course || 'Course',
         amount: params.amount.toString(),
-        pending_amount: '0.00',
+        pending_amount: pendingBalance,
         receipt_number: params.receiptNumber || 'REC-CONFIRMED',
         date: new Date().toISOString().split('T')[0],
       });
 
+      const idempotencyKey = `PAYMENT_SUCCESS:${params.studentId}:${params.receiptNumber || params.amount}:${params.studentFeeId || 'general'}`;
       const queued = await queueService.enqueueMessage({
         recipientPhone,
         messageBody,
         studentId: student.id,
-        templateId: template.id,
+        templateId: template?.id || null,
         eventType: 'PAYMENT_SUCCESS',
+        idempotencyKey,
       });
 
       await queueService.processItem(queued);
@@ -645,6 +680,7 @@ export class WhatsAppAutomationService {
 
     // Deliver exact configured fee template text without appending activation/onboarding notes
     const messageBody = baseBody;
+    const idempotencyKey = `FEE_REMINDER:${targetStudentId}:${fee?.id || 'gen'}:${eventType}:${new Date().toISOString().split('T')[0]}`;
 
     const queued = await queueService.enqueueMessage({
       recipientPhone,
@@ -652,6 +688,7 @@ export class WhatsAppAutomationService {
       studentId: student.id,
       templateId: template?.id,
       eventType,
+      idempotencyKey,
     });
 
     const processResult = await queueService.processItem(queued);
@@ -879,7 +916,7 @@ export class WhatsAppAutomationService {
           recipientPhone,
           messageBody,
           studentId: student.id,
-          templateId: template.id,
+          templateId: template?.id || null,
           eventType,
           idempotencyKey,
           metadata: {
@@ -927,6 +964,188 @@ export class WhatsAppAutomationService {
   // Backward compatibility alias for manual sweep / legacy route
   async triggerMonthly5thFeeDueAutomation() {
     return this.triggerMultiStageFeeCadenceAutomation({ forceAllUnpaid: true });
+  }
+
+  // ============================================================================
+  // VISUAL FEE REMINDER CADENCE PIPELINE (Requirement 6)
+  // ============================================================================
+  async getFeeCadencePipelineStatus() {
+    const academyName = await this.getAcademyName();
+
+    // 1. Fetch active templates
+    const [tplUpcoming, tplDue, tplOverdue, tplSuccess] = await Promise.all([
+      templateService.getActiveTemplateForEvent('FEE_UPCOMING').catch(() => null),
+      templateService.getActiveTemplateForEvent('FEE_DUE').catch(() => null),
+      templateService.getActiveTemplateForEvent('FEE_OVERDUE').catch(() => null),
+      templateService.getActiveTemplateForEvent('PAYMENT_SUCCESS').catch(() => null),
+    ]);
+
+    // 2. Fetch live metrics from students and student_fees
+    let upcomingEligible = 0;
+    let dueTodayEligible = 0;
+    let overdueEligible = 0;
+    let recentPaidEligible = 0;
+
+    let queuedUpcoming = 0;
+    let queuedDue = 0;
+    let queuedOverdue = 0;
+    let queuedSuccess = 0;
+
+    if (this.supabase) {
+      try {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const todayStr = now.toISOString().split('T')[0];
+        const todayMs = new Date(currentYear, currentMonth, now.getDate()).getTime();
+
+        const [
+          { data: students },
+          { data: fees },
+          { data: queueItems },
+          { data: recentPayments },
+        ] = await Promise.all([
+          this.supabase.from('students').select('id, monthly_fee, fee_due_day, status').eq('status', 'ACTIVE'),
+          this.supabase.from('student_fees').select('id, student_id, amount_due, amount_paid, due_date, status'),
+          this.supabase.from('whatsapp_queue').select('event_type, status').eq('status', 'PENDING'),
+          this.supabase.from('payments').select('id').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        ]);
+
+        recentPaidEligible = recentPayments?.length || 0;
+
+        const feeMap = new Map<string, any[]>();
+        (fees || []).forEach((f: any) => {
+          if (!feeMap.has(f.student_id)) feeMap.set(f.student_id, []);
+          feeMap.get(f.student_id)!.push(f);
+        });
+
+        for (const st of (students || [])) {
+          const stFees = feeMap.get(st.id) || [];
+          let amountDue = 0;
+          let amountPaid = 0;
+          let latestDueDate: Date | null = null;
+          let hasOverdue = false;
+
+          for (const rec of stFees) {
+            const rDue = Number(rec.amount_due || 0);
+            const rPaid = Number(rec.amount_paid || 0);
+            amountDue += rDue;
+            amountPaid += rPaid;
+            if (rec.due_date && (!latestDueDate || new Date(rec.due_date) > latestDueDate)) {
+              latestDueDate = new Date(rec.due_date);
+            }
+            if (rec.status === 'OVERDUE' || (rec.due_date && new Date(rec.due_date) < new Date(todayStr) && rDue > rPaid)) {
+              hasOverdue = true;
+            }
+          }
+
+          const pending = Math.max(0, amountDue - amountPaid);
+          if (pending > 0) {
+            const dueDay = st.fee_due_day || 5;
+            const dueDate = latestDueDate || new Date(currentYear, currentMonth, dueDay);
+            dueDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.round((dueDate.getTime() - todayMs) / (1000 * 60 * 60 * 24));
+
+            if (diffDays >= 1 && diffDays <= 5) {
+              upcomingEligible++;
+            } else if (diffDays === 0) {
+              dueTodayEligible++;
+            } else if (diffDays < 0 || hasOverdue) {
+              overdueEligible++;
+            }
+          }
+        }
+
+        // Count pending queue items per stage
+        for (const q of (queueItems || [])) {
+          if (q.event_type === 'FEE_UPCOMING') queuedUpcoming++;
+          else if (q.event_type === 'FEE_DUE' || q.event_type === 'FEE_REMINDER') queuedDue++;
+          else if (q.event_type === 'FEE_OVERDUE') queuedOverdue++;
+          else if (q.event_type === 'PAYMENT_SUCCESS') queuedSuccess++;
+        }
+      } catch (err: any) {
+        console.warn('[WhatsAppAutomation] Notice calculating pipeline status:', err.message);
+      }
+    }
+
+    const defaultTplUpcoming = 'Namaste {parent_name}! 🙏 Advance courtesy notice: Monthly fee for {student_name} ({course}) of ₹{pending_amount} is due on {due_date}. - {academy_name}';
+    const defaultTplDue = 'Namaste {parent_name}! 🙏 Reminder: Training fee of ₹{pending_amount} for {student_name} ({course}) is due today ({due_date}). Thank you! - {academy_name}';
+    const defaultTplOverdue = 'Urgent Notice: Fee of ₹{pending_amount} for {student_name} is overdue. Please settle at the earliest to ensure uninterrupted coaching. - {academy_name}';
+    const defaultTplSuccess = 'Payment Confirmed! 🏆 Received ₹{amount} for {student_name}. Receipt No: {receipt_number}. Remaining dues: ₹{pending_amount}. Thank you! - {academy_name}';
+
+    const renderPreview = (tpl: string) => {
+      return tpl
+        .replace(/{student_name}|{{student_name}}/g, 'Aarav Patil')
+        .replace(/{parent_name}|{{parent_name}}/g, 'Rajesh Patil')
+        .replace(/{course}|{course_name}|{{course}}/g, 'Karate & Athletics')
+        .replace(/{amount}|{pending_amount}|{{pending_amount}}/g, '1,500')
+        .replace(/{due_date}|{{due_date}}/g, '5th of this month')
+        .replace(/{receipt_number}|{{receipt_number}}/g, 'REC-2026-089')
+        .replace(/{academy_name}|{{academy_name}}/g, academyName);
+    };
+
+    return [
+      {
+        stageNumber: 1,
+        id: 'stage_upcoming',
+        name: 'Upcoming Due Reminder',
+        subtitle: 'Advance Courtesy Alert',
+        timing: 'T-5 & T-2 Days (5 & 2 Days Before Due Date)',
+        eventType: 'FEE_UPCOMING',
+        isActive: true,
+        templateTitle: tplUpcoming?.name || 'Standard Advance Due Notice',
+        templateBody: tplUpcoming?.body || defaultTplUpcoming,
+        templatePreview: renderPreview(tplUpcoming?.body || defaultTplUpcoming),
+        eligibleStudentsCount: upcomingEligible,
+        queuedCount: queuedUpcoming,
+        badgeColor: 'emerald',
+      },
+      {
+        stageNumber: 2,
+        id: 'stage_due',
+        name: 'Due Date Reminder',
+        subtitle: 'Day-of-Due Settlement Alert',
+        timing: 'Day 0 (On Due Date, e.g. 5th of Month)',
+        eventType: 'FEE_DUE',
+        isActive: true,
+        templateTitle: tplDue?.name || 'Standard Due Date Reminder',
+        templateBody: tplDue?.body || defaultTplDue,
+        templatePreview: renderPreview(tplDue?.body || defaultTplDue),
+        eligibleStudentsCount: dueTodayEligible,
+        queuedCount: queuedDue,
+        badgeColor: 'blue',
+      },
+      {
+        stageNumber: 3,
+        id: 'stage_overdue',
+        name: 'Overdue Follow-up Notice',
+        subtitle: 'Grace Period & Arrears Recovery',
+        timing: 'T+2 & T+5 Days (2 & 5 Days Overdue)',
+        eventType: 'FEE_OVERDUE',
+        isActive: true,
+        templateTitle: tplOverdue?.name || 'Standard Overdue Notice',
+        templateBody: tplOverdue?.body || defaultTplOverdue,
+        templatePreview: renderPreview(tplOverdue?.body || defaultTplOverdue),
+        eligibleStudentsCount: overdueEligible,
+        queuedCount: queuedOverdue,
+        badgeColor: 'amber',
+      },
+      {
+        stageNumber: 4,
+        id: 'stage_receipt',
+        name: 'Payment Receipt Confirmation',
+        subtitle: 'Instant Automated Settlement Receipt',
+        timing: 'Instant Real-time Dispatch upon Payment',
+        eventType: 'PAYMENT_SUCCESS',
+        isActive: true,
+        templateTitle: tplSuccess?.name || 'Standard Payment Receipt',
+        templateBody: tplSuccess?.body || defaultTplSuccess,
+        templatePreview: renderPreview(tplSuccess?.body || defaultTplSuccess),
+        eligibleStudentsCount: recentPaidEligible,
+        queuedCount: queuedSuccess,
+        badgeColor: 'purple',
+      },
+    ];
   }
 
   // ============================================================================
@@ -1086,6 +1305,7 @@ export class WhatsAppAutomationService {
   // AUTOMATION: NEW STUDENT REGISTRATION WELCOME
   // ============================================================================
   async triggerStudentWelcomeAutomation(params: {
+    studentId?: string;
     parentPhone: string;
     studentName: string;
     parentName?: string;
@@ -1094,16 +1314,39 @@ export class WhatsAppAutomationService {
   }) {
     try {
       const recipientPhone = queueService.normalizePhoneNumber(params.parentPhone);
-      const feeInfo = params.monthlyFee ? `Monthly Training Fee: ₹${params.monthlyFee}\nDue Date: 5th of every month` : '';
       const academyName = await this.getAcademyName();
+      const parentName = cleanParentName(params.parentName, params.studentName);
+      const feeInfo = params.monthlyFee ? `Monthly Training Fee: ₹${params.monthlyFee}\nDue Date: 5th of every month` : '';
 
-      const baseBody = `*Welcome to ${academyName}* 🏆\n\nDear ${params.parentName || 'Parent'},\nThank you for enrolling *${params.studentName}* at ${academyName}.\nProgram: ${params.course || 'Sports Coaching'}\n${feeInfo}\n\nWe are committed to providing top-quality training for your child's athletic growth.\n- ${academyName} Administration`;
+      // Check if active template exists
+      const template = await templateService.getActiveTemplateForEvent('STUDENT_WELCOME');
+      let baseBody = '';
+      if (template?.body) {
+        baseBody = this.renderTemplate(template.body, {
+          academy_name: academyName,
+          student_name: params.studentName,
+          parent_name: parentName,
+          course: params.course || 'Sports Coaching',
+          course_name: params.course || 'Sports Coaching',
+          monthly_fee: params.monthlyFee ? String(params.monthlyFee) : '',
+          amount: params.monthlyFee ? String(params.monthlyFee) : '',
+          due_date: '5th of every month',
+          date: new Date().toISOString().split('T')[0],
+        });
+      } else {
+        baseBody = `*Welcome to ${academyName}* 🏆\n\nDear ${parentName},\nThank you for enrolling *${params.studentName}* at ${academyName}.\nProgram: ${params.course || 'Sports Coaching'}\n${feeInfo}\n\nWe are committed to providing top-quality training for your child's athletic growth.\n- ${academyName} Administration`;
+      }
+
       const messageBody = await this.formatMessageWithOnboardingNote(baseBody, recipientPhone, academyName);
+      const idempotencyKey = `STUDENT_WELCOME:${params.studentId || params.studentName}:${recipientPhone}`;
 
       const queued = await queueService.enqueueMessage({
         recipientPhone,
         messageBody,
+        studentId: params.studentId || null,
+        templateId: template?.id || null,
         eventType: 'STUDENT_WELCOME',
+        idempotencyKey,
         metadata: {
           studentName: params.studentName,
           registeredAt: new Date().toISOString(),

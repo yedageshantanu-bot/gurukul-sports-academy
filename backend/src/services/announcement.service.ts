@@ -621,12 +621,16 @@ export class AnnouncementService {
     } else {
       // 4b. FUTURE SCHEDULED: Create independent delivery slots for each scheduled time
       const createdSlots: ScheduledDeliverySlot[] = [];
+      const totalFutureSlots = futureTimes.length;
+      const batchCode = this.generateBatchCode(announcement.id, announcement.created_at);
 
       for (let sIdx = 0; sIdx < futureTimes.length; sIdx++) {
         const schedMs = futureTimes[sIdx];
         const slotId = crypto.randomUUID();
         const slotNumber = existingSlots.length + sIdx + 1;
         const slotIso = new Date(schedMs).toISOString();
+        const slotTag = `Slot ${sIdx + 1}/${totalFutureSlots}`;
+        const dispatchId = `${batchCode}-S${slotNumber}`;
 
         const slot: ScheduledDeliverySlot = {
           id: slotId,
@@ -639,6 +643,10 @@ export class AnnouncementService {
           status: 'SCHEDULED',
           recipientCount: recipients.length,
           recipientList: recipients.map((r) => ({ phone: r.recipientPhone, name: r.name, studentId: r.studentId })),
+          batchCode,
+          slotTag,
+          dispatchId,
+          totalSlots: totalFutureSlots,
           history: [
             {
               timestamp: nowIso,
@@ -835,20 +843,33 @@ export class AnnouncementService {
   // UNIFIED SCHEDULING SYSTEM: MULTI-SLOT MATERIALIZATION & LIFECYCLE
   // ============================================================================
 
+  generateBatchCode(announcementId: string, _createdAt?: string): string {
+    const cleanId = (announcementId || '').replace(/-/g, '').slice(0, 4).toUpperCase() || 'MAIN';
+    return `BATCH-${cleanId}`;
+  }
+
   materializeSlots(announcement: any): ScheduledDeliverySlot[] {
     const meta = (announcement.metadata as any) || {};
     const batches = (announcement.batches || [])
       .map((b: any) => ({ id: b.batch?.id, name: b.batch?.name }))
       .filter((b: any) => b.id);
+    const batchCode = this.generateBatchCode(announcement.id, announcement.created_at);
 
     // If slots array exists in metadata, enrich and return each slot (EXCLUDING CANCELLED)
     if (Array.isArray(meta.slots) && meta.slots.length > 0) {
-      return meta.slots
-        .filter((s: any) => s && s.status !== 'CANCELLED' && (s.status as any) !== 'DELETED')
-        .map((s: any, idx: number) => ({
-          id: s.id || `${announcement.id}-slot-${idx + 1}`,
+      const activeMetaSlots = meta.slots.filter((s: any) => s && s.status !== 'CANCELLED' && (s.status as any) !== 'DELETED');
+      const totalSlots = activeMetaSlots.length || 1;
+
+      return activeMetaSlots.map((s: any, idx: number) => {
+        const slotNumber = s.slotNumber || idx + 1;
+        const sBatchCode = s.batchCode || batchCode;
+        const slotTag = s.slotTag || `Slot ${slotNumber}/${totalSlots}`;
+        const dispatchId = s.dispatchId || `${sBatchCode}-S${slotNumber}`;
+
+        return {
+          id: s.id || `${announcement.id}-slot-${slotNumber}`,
           announcementId: announcement.id,
-          slotNumber: s.slotNumber || idx + 1,
+          slotNumber,
           title: s.title || announcement.title,
           announcementTitle: s.title || announcement.title,
           message: s.message || announcement.message,
@@ -862,20 +883,25 @@ export class AnnouncementService {
           recipientList: s.recipientList || [],
           deliveryResult: s.deliveryResult || null,
           errorDetails: s.errorDetails || null,
+          batchCode: sBatchCode,
+          slotTag,
+          dispatchId,
+          totalSlots: s.totalSlots || totalSlots,
           history: Array.isArray(s.history) && s.history.length > 0
             ? s.history
             : [
                 {
                   timestamp: announcement.created_at,
                   action: 'CREATED',
-                  note: `Slot #${s.slotNumber || idx + 1} initialized`,
+                  note: `Slot #${slotNumber} initialized`,
                   toStatus: (s.status || meta.scheduledStatus || 'SCHEDULED') as ScheduledSlotStatus,
                 },
               ],
           batches: s.batches || batches,
           createdAt: s.createdAt || announcement.created_at,
           updatedAt: s.updatedAt || announcement.updated_at,
-        }));
+        };
+      });
     }
 
     // Backward compatibility: If announcement was marked as scheduled in legacy single-schedule format
@@ -888,6 +914,10 @@ export class AnnouncementService {
       const scheduledAt = meta.scheduledAt || announcement.updated_at || announcement.created_at;
       const status: ScheduledSlotStatus = (meta.scheduledStatus as ScheduledSlotStatus) || 'SCHEDULED';
       if (status === 'CANCELLED') return [];
+      const sBatchCode = batchCode;
+      const slotTag = 'Slot 1/1';
+      const dispatchId = `${sBatchCode}-S1`;
+
       return [
         {
           id: `${announcement.id}-slot-1`,
@@ -906,6 +936,10 @@ export class AnnouncementService {
           recipientList: [],
           deliveryResult: null,
           errorDetails: null,
+          batchCode: sBatchCode,
+          slotTag,
+          dispatchId,
+          totalSlots: 1,
           history: [
             {
               timestamp: announcement.created_at,
@@ -1365,6 +1399,14 @@ export class AnnouncementService {
       recipientCount: slot.recipientCount,
       batches: slot.batches,
       history: slot.history,
+      batch_code: slot.batchCode,
+      batchCode: slot.batchCode,
+      slot_tag: slot.slotTag,
+      slotTag: slot.slotTag,
+      dispatch_id: slot.dispatchId,
+      dispatchId: slot.dispatchId,
+      total_slots: slot.totalSlots,
+      totalSlots: slot.totalSlots,
       stats: {
         total: slot.recipientCount,
         pending: slot.status === 'SCHEDULED' || slot.status === 'PENDING' ? slot.recipientCount : 0,
@@ -1441,6 +1483,121 @@ export class AnnouncementService {
       success: true,
       message: `Scheduled broadcast deleted permanently (${cancelledCount} queued messages cancelled).`,
       cancelledCount,
+    };
+  }
+
+  // ============================================================================
+  // 9.5 PERMANENT DELETE FILTERED HISTORY (Requirement 2)
+  // ============================================================================
+  async deleteHistorySlots(params: {
+    slotIds?: string[];
+    filter?: 'ALL_HISTORY' | 'SENT' | 'FAILED' | 'MISSED';
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    let deletedCount = 0;
+    const nowMs = Date.now();
+
+    const { all } = await this.listUnifiedSlots();
+    const targetedSlots = all.filter((slot) => {
+      const schedMs = new Date(slot.scheduledAt).getTime();
+      const isPast = schedMs <= nowMs;
+      const isDone = slot.status === 'SENT' || slot.status === 'FAILED';
+      if (!isPast && !isDone) return false;
+
+      // Filter by specific slot IDs if provided
+      if (Array.isArray(params.slotIds) && params.slotIds.length > 0) {
+        return params.slotIds.includes(slot.id);
+      }
+
+      // Filter by status category
+      if (params.filter === 'SENT' && slot.status !== 'SENT') return false;
+      if (params.filter === 'FAILED' && slot.status !== 'FAILED') return false;
+      if (params.filter === 'MISSED' && slot.status !== 'SCHEDULED' && slot.status !== 'PENDING') return false;
+
+      // Filter by date range if provided
+      if (params.startDate && new Date(slot.scheduledAt) < new Date(params.startDate)) return false;
+      if (params.endDate && new Date(slot.scheduledAt) > new Date(params.endDate)) return false;
+
+      return true;
+    });
+
+    const targetedSlotIds = new Set(targetedSlots.map((s) => s.id));
+    deletedCount = targetedSlotIds.size;
+
+    // Group by announcementId
+    const slotsByAnnouncement = new Map<string, Set<string>>();
+    for (const slot of targetedSlots) {
+      if (!slotsByAnnouncement.has(slot.announcementId)) {
+        slotsByAnnouncement.set(slot.announcementId, new Set());
+      }
+      slotsByAnnouncement.get(slot.announcementId)!.add(slot.id);
+    }
+
+    for (const [announcementId, slotIdSet] of slotsByAnnouncement.entries()) {
+      try {
+        const { data: ann } = await this.supabase
+          .from('announcements')
+          .select('metadata')
+          .eq('id', announcementId)
+          .maybeSingle();
+
+        if (ann && ann.metadata) {
+          const meta = ann.metadata as any;
+          if (Array.isArray(meta.slots)) {
+            const remainingSlots = meta.slots.filter((s: any, idx: number) => {
+              const sId = s.id || `${announcementId}-slot-${s.slotNumber || idx + 1}`;
+              return !slotIdSet.has(sId) && (!s.id || !slotIdSet.has(s.id));
+            });
+            await this.supabase
+              .from('announcements')
+              .update({
+                metadata: {
+                  ...meta,
+                  slots: remainingSlots,
+                  isScheduled: remainingSlots.some((s: any) => s.status === 'SCHEDULED' || s.status === 'POSTPONED'),
+                },
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', announcementId);
+          } else {
+            // Legacy single slot announcement
+            await this.supabase
+              .from('announcements')
+              .update({
+                metadata: {
+                  ...meta,
+                  isScheduled: false,
+                  scheduledStatus: 'DELETED',
+                },
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', announcementId);
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[AnnouncementService] Error cleaning up slots for announcement ${announcementId}:`, err.message);
+      }
+    }
+
+    // Also remove any queue items matching deleted slot IDs
+    if (this.supabase && targetedSlotIds.size > 0) {
+      try {
+        for (const slotId of targetedSlotIds) {
+          await this.supabase
+            .from('whatsapp_queue')
+            .delete()
+            .ilike('idempotency_key', `%${slotId}%`);
+        }
+      } catch (err: any) {
+        console.warn('[AnnouncementService] Error deleting queue items for history slots:', err.message);
+      }
+    }
+
+    return {
+      success: true,
+      deletedCount,
+      message: `Permanently deleted ${deletedCount} historical scheduled message record(s).`,
     };
   }
 

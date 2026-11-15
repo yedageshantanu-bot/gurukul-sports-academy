@@ -931,22 +931,22 @@ export class StudentService {
       }
     }
 
-    // Automatic WhatsApp welcome message on student creation is explicitly disabled per user requirements
-    // (Preserved for manual or opt-in dispatch if needed later)
-    /*
-    if (student.whatsapp_opt_in !== false) {
+    // Automatic WhatsApp welcome message on student creation (Requirement 5)
+    if (student.whatsapp_opt_in !== false && (dto as any).sendWelcomeWhatsApp !== false && (dto as any).sendWhatsApp !== false) {
       const recipientPhone = normalizedParentWhatsapp || normalizedStudentMobile;
       if (recipientPhone) {
-        automationService.triggerStudentWelcomeAutomation({
-          parentPhone: recipientPhone,
-          studentName: student.name,
-          parentName: student.parent_name || undefined,
-          course: student.course || undefined,
-          monthlyFee: Number(student.monthly_fee) || undefined,
-        }).catch((err) => console.warn('[StudentService] Welcome WhatsApp warning:', err.message));
+        import('./whatsapp/automation.service.js').then(({ automationService }) => {
+          automationService.triggerStudentWelcomeAutomation({
+            studentId: student.id,
+            parentPhone: recipientPhone,
+            studentName: student.name,
+            parentName: student.parent_name || undefined,
+            course: student.course || undefined,
+            monthlyFee: Number(student.monthly_fee) || undefined,
+          }).catch((err) => console.warn('[StudentService] Welcome WhatsApp warning:', err.message));
+        }).catch(() => {});
       }
     }
-    */
 
     const result = {
       id: student.id,

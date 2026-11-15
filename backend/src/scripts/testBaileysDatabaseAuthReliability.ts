@@ -115,15 +115,27 @@ async function runTests() {
   (manager as any).socket = mockUnregisteredSocket;
   (manager as any).currentState = 'CONNECTED';
 
+  // Test Pre-Send Number Validation rejecting unregistered onWhatsApp result for allowed CRM recipient
   let caughtUnregistered = false;
   try {
-    await manager.sendPayload('+919999999999', { text: 'Test' });
+    await manager.sendPayload('+919404849500', { text: 'Test Unregistered' });
   } catch (err: any) {
     if (err.message?.includes('not registered on WhatsApp')) {
       caughtUnregistered = true;
     }
   }
   assert(caughtUnregistered, 'Pre-send number validation correctly rejects empty onWhatsApp result ([])');
+
+  // Test Requirement 4 Recipient Security blocks non-CRM recipient before reaching onWhatsApp
+  let caughtSecurityBlock = false;
+  try {
+    await manager.sendPayload('+919999999999', { text: 'Test Non-CRM' });
+  } catch (err: any) {
+    if (err.message?.includes('[SECURITY BLOCK]')) {
+      caughtSecurityBlock = true;
+    }
+  }
+  assert(caughtSecurityBlock, 'Baileys sendPayload strictly enforces [SECURITY BLOCK] for non-CRM recipient');
 
   // Test Pre-Send Number Validation accepting registered onWhatsApp result
   const mockRegisteredSocket = {
