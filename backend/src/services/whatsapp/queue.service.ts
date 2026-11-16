@@ -85,6 +85,8 @@ export function isBlockedOrDummyNumber(phone: string): boolean {
 export class WhatsAppQueueService {
   private inMemoryQueue: Map<string, WhatsAppQueueItem> = new Map();
   private processingRecipients: Set<string> = new Set();
+  private inFlightItemIds: Set<string> = new Set();
+  private recentDispatchedMap: Map<string, number> = new Map();
   private lastDispatchedAt: number = 0;
   public readonly MIN_DISPATCH_INTERVAL_MS = 3500; // Anti-ban humanized throttle (3.5s - 5.5s)
 
@@ -371,128 +373,193 @@ export class WhatsAppQueueService {
   // 2. PROCESS INDIVIDUAL QUEUE ITEM (WITH ALL 10 SAFETY CHECKS)
   // ============================================================================
   async processItem(item: WhatsAppQueueItem): Promise<{ success: boolean; reason?: string; status: WhatsAppQueueStatus; result?: any }> {
-    const settings = await whatsappSettingsService.getSettings();
-    const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+    if (!item || !item.id) {
+      return { success: false, reason: 'Invalid queue item', status: 'FAILED' };
+    }
 
-    // --- SAFETY CHECK 1: Is Global Automation ON? ---
-    if (!settings.global_automation_enabled) {
-      const reason = 'Global WhatsApp automation is currently disabled (OFF)';
-      await this.markItemFailed(item.id, reason, false);
+    // --- CONCURRENCY GUARD 1: In-Flight Mutex on item.id ---
+    if (this.inFlightItemIds.has(item.id)) {
+      console.log(`[QueueService] 🔒 Item ${item.id} is already in-flight. Skipping duplicate processItem execution.`);
+      return { success: false, reason: 'Item already in-flight', status: 'PROCESSING' };
+    }
+
+    const normalizedPhone = this.normalizePhoneNumber(item.recipient_phone);
+
+    // --- CONCURRENCY GUARD 2: In-Flight Recipient check ---
+    if (this.processingRecipients.has(normalizedPhone) || this.processingRecipients.has(item.recipient_phone)) {
+      const reason = `Another message for recipient ${normalizedPhone} is currently processing`;
       return { success: false, reason, status: 'PENDING' };
     }
 
-    // --- SAFETY CHECK 2: Is Emergency STOP OFF? ---
-    if (settings.emergency_stop) {
-      const reason = 'Emergency STOP is active. All message dispatches are halted.';
-      await this.markItemFailed(item.id, reason, false);
-      return { success: false, reason, status: 'PENDING' };
-    }
-
-    // --- SAFETY CHECK 3: Is Recipient Opted-in? ---
-    const isOptedIn = await whatsappSettingsService.isOptedIn({
-      studentId: item.student_id || undefined,
-      phoneNumber: item.recipient_phone,
-    });
-    if (!isOptedIn) {
-      const reason = 'Recipient has opted out of WhatsApp messages (whatsapp_opt_in = false)';
-      await this.markItemFailed(item.id, reason, true);
-      return { success: false, reason, status: 'FAILED' };
-    }
-
-    // --- SAFETY CHECK 4: Is Recipient Phone Valid? ---
-    const cleanedPhone = item.recipient_phone.replace(/[^\d+]/g, '');
-    if (!cleanedPhone || cleanedPhone.length < 8) {
-      const reason = 'Invalid recipient phone number format';
-      await this.markItemFailed(item.id, reason, true);
-      return { success: false, reason, status: 'FAILED' };
-    }
-
-    // --- SAFETY CHECK 4b: Is this a dummy, placeholder, or demo test number? ---
-    if (provider.name !== 'MOCK' && this.isBlockedOrDummyNumber(item.recipient_phone)) {
-      const reason = `Blocked delivery: ${item.recipient_phone} is a dummy/placeholder test number. Live dispatch cancelled to protect real subscribers.`;
-      console.warn(`[QueueService] 🛑 ${reason}`);
-      await this.markItemFailed(item.id, reason, true);
-      await this.updateItemStatus(item.id, 'CANCELLED');
-      return { success: false, reason, status: 'CANCELLED' };
-    }
-
-    // --- SAFETY CHECK 4c (Requirement 4): Is recipient a verified CRM contact? ---
-    if (provider.name !== 'MOCK') {
-      const crmCheck = await recipientSecurityService.validateCrmRecipient(item.recipient_phone);
-      if (!crmCheck.allowed) {
-        const reason = `[SECURITY BLOCK] Attempted send to non-CRM number: ${item.recipient_phone}`;
-        console.warn(`[QueueService] 🛑 ${reason}`);
-        await this.markItemFailed(item.id, reason, true, true);
-        await this.updateItemStatus(item.id, 'FAILED');
-        return { success: false, reason, status: 'FAILED' };
-      }
-    }
-
-    // --- SAFETY CHECK 5: Is Message Still Valid? ---
-    if (item.status === 'CANCELLED') {
-      return { success: false, reason: 'Message was cancelled', status: 'CANCELLED' };
-    }
-    if (item.status === 'FAILED') {
-      return { success: false, reason: item.failure_reason || 'Message failed validation', status: 'FAILED' };
-    }
-    if (item.status === 'SENT') {
+    // --- CONCURRENCY GUARD 3: In-Memory status check ---
+    const inMem = this.inMemoryQueue.get(item.id);
+    if (inMem && inMem.status === 'SENT') {
       return { success: true, reason: 'Message already sent', status: 'SENT' };
     }
-
-    // --- SAFETY CHECK 6: Is another message for this recipient currently processing? ---
-    if (this.processingRecipients.has(item.recipient_phone)) {
-      const reason = 'Another message for this recipient is currently processing';
-      return { success: false, reason, status: 'PENDING' };
+    if (inMem && inMem.status === 'PROCESSING') {
+      return { success: false, reason: 'Item already processing in memory', status: 'PROCESSING' };
     }
 
-    // --- SAFETY CHECK 8: Has the Daily Sending Limit been reached? ---
-    const todayStats = await this.getTodayStats();
-    if (todayStats.sent >= settings.daily_limit) {
-      const reason = `Daily sending limit reached (${settings.daily_limit} messages). Message queued safely.`;
-      return { success: false, reason, status: 'PENDING' };
-    }
+    // --- CONCURRENCY GUARD 4: Atomic Check-and-Set in Database ---
+    if (this.supabase) {
+      try {
+        const { data: dbItem } = await this.supabase
+          .from('whatsapp_queue')
+          .select('status')
+          .eq('id', item.id)
+          .maybeSingle();
 
-    // --- SAFETY CHECK 9: Is the WhatsApp Sender Connected? ---
-    let deviceStatus = await provider.getStatus();
-
-    // Reconnecting Gate: If WhatsApp is momentarily CONNECTING or RECONNECTING (e.g. during 515/428 resets),
-    // wait up to 12s with polling so stream recovery does NOT drop or cancel pending messages!
-    if (deviceStatus.status === 'CONNECTING' || (deviceStatus as any).status === 'RECONNECTING') {
-      console.log(`[QueueService] ⏳ WhatsApp is ${deviceStatus.status}. Waiting for connection gate (up to 12s)...`);
-      const gateStart = Date.now();
-      while (Date.now() - gateStart < 12000) {
-        await new Promise((r) => setTimeout(r, 1500));
-        deviceStatus = await provider.getStatus();
-        if (deviceStatus.status === 'CONNECTED') {
-          console.log('[QueueService] ✅ Connection restored within gate. Resuming message dispatch.');
-          break;
+        if (dbItem && dbItem.status === 'SENT') {
+          if (inMem) inMem.status = 'SENT';
+          return { success: true, reason: 'Message already sent in database', status: 'SENT' };
         }
+        if (dbItem && dbItem.status === 'PROCESSING') {
+          return { success: false, reason: 'Message already marked PROCESSING in database', status: 'PROCESSING' };
+        }
+
+        // Atomically claim from PENDING to PROCESSING
+        const { data: claimed } = await this.supabase
+          .from('whatsapp_queue')
+          .update({ status: 'PROCESSING', updated_at: new Date().toISOString() })
+          .eq('id', item.id)
+          .eq('status', 'PENDING')
+          .select('id, status')
+          .maybeSingle();
+
+        if (!claimed && dbItem && dbItem.status !== 'PENDING') {
+          return { success: dbItem.status === 'SENT', reason: 'Already claimed by another worker', status: (dbItem.status as any) || 'PROCESSING' };
+        }
+      } catch (dbErr: any) {
+        console.warn('[QueueService] Notice during atomic queue claim:', dbErr.message);
       }
     }
 
-    if (deviceStatus.status !== 'CONNECTED') {
-      const reason = `WhatsApp sender is not connected (Status: ${deviceStatus.status})`;
-      // Keep item safely in PENDING state so background worker retries as soon as WhatsApp is reconnected
-      console.warn(`[QueueService] ⚠️ Sender not connected (${deviceStatus.status}). Message ${item.id} kept in PENDING state.`);
-      await this.markItemFailed(item.id, reason, false);
-      return { success: false, reason, status: 'PENDING' };
+    // --- CONCURRENCY GUARD 5: Deduplication Cooldown Window (45s) ---
+    const dedupeKey = `${normalizedPhone}_${item.event_type || 'GENERAL'}_${item.student_id || ''}`;
+    const lastSentTime = this.recentDispatchedMap.get(dedupeKey);
+    if (lastSentTime && Date.now() - lastSentTime < 45000) {
+      console.log(`[QueueService] 🛡️ Duplicate suppressed for ${normalizedPhone} (${item.event_type}) - sent ${Math.round((Date.now() - lastSentTime) / 1000)}s ago.`);
+      await this.updateItemStatus(item.id, 'CANCELLED');
+      return { success: true, reason: 'Duplicate suppressed within 45s safety cooldown', status: 'CANCELLED' };
     }
 
-    // --- SAFETY CHECK 10: Is the Provider Available & Healthy? ---
-    const health = await provider.healthCheck();
-    if (!health.healthy) {
-      const reason = `WhatsApp provider healthcheck failed: ${health.details || 'Unavailable'}`;
-      await this.markItemFailed(item.id, reason, false);
-      return { success: false, reason, status: 'PENDING' };
-    }
-
-    // ==========================================================================
-    // ALL 10 CHECKS PASSED — DISPATCH VIA PROVIDER
-    // ==========================================================================
+    // Acquire In-Flight Locks
+    this.inFlightItemIds.add(item.id);
+    this.processingRecipients.add(normalizedPhone);
     this.processingRecipients.add(item.recipient_phone);
-    await this.updateItemStatus(item.id, 'PROCESSING');
+    if (inMem) inMem.status = 'PROCESSING';
 
     try {
+      const settings = await whatsappSettingsService.getSettings();
+      const provider = whatsappProviderFactory.getProvider(settings.provider_type);
+
+      // --- SAFETY CHECK 1: Is Global Automation ON? ---
+      if (!settings.global_automation_enabled) {
+        const reason = 'Global WhatsApp automation is currently disabled (OFF)';
+        await this.markItemFailed(item.id, reason, false);
+        return { success: false, reason, status: 'PENDING' };
+      }
+
+      // --- SAFETY CHECK 2: Is Emergency STOP OFF? ---
+      if (settings.emergency_stop) {
+        const reason = 'Emergency STOP is active. All message dispatches are halted.';
+        await this.markItemFailed(item.id, reason, false);
+        return { success: false, reason, status: 'PENDING' };
+      }
+
+      // --- SAFETY CHECK 3: Is Recipient Opted-in? ---
+      const isOptedIn = await whatsappSettingsService.isOptedIn({
+        studentId: item.student_id || undefined,
+        phoneNumber: item.recipient_phone,
+      });
+      if (!isOptedIn) {
+        const reason = 'Recipient has opted out of WhatsApp messages (whatsapp_opt_in = false)';
+        await this.markItemFailed(item.id, reason, true);
+        return { success: false, reason, status: 'FAILED' };
+      }
+
+      // --- SAFETY CHECK 4: Is Recipient Phone Valid? ---
+      const cleanedPhone = item.recipient_phone.replace(/[^\d+]/g, '');
+      if (!cleanedPhone || cleanedPhone.length < 8) {
+        const reason = 'Invalid recipient phone number format';
+        await this.markItemFailed(item.id, reason, true);
+        return { success: false, reason, status: 'FAILED' };
+      }
+
+      // --- SAFETY CHECK 4b: Is this a dummy, placeholder, or demo test number? ---
+      if (provider.name !== 'MOCK' && this.isBlockedOrDummyNumber(item.recipient_phone)) {
+        const reason = `Blocked delivery: ${item.recipient_phone} is a dummy/placeholder test number. Live dispatch cancelled to protect real subscribers.`;
+        console.warn(`[QueueService] 🛑 ${reason}`);
+        await this.markItemFailed(item.id, reason, true);
+        await this.updateItemStatus(item.id, 'CANCELLED');
+        return { success: false, reason, status: 'CANCELLED' };
+      }
+
+      // --- SAFETY CHECK 4c (Requirement 4): Is recipient a verified CRM contact? ---
+      if (provider.name !== 'MOCK') {
+        const crmCheck = await recipientSecurityService.validateCrmRecipient(item.recipient_phone);
+        if (!crmCheck.allowed) {
+          const reason = `[SECURITY BLOCK] Attempted send to non-CRM number: ${item.recipient_phone}`;
+          console.warn(`[QueueService] 🛑 ${reason}`);
+          await this.markItemFailed(item.id, reason, true, true);
+          await this.updateItemStatus(item.id, 'FAILED');
+          return { success: false, reason, status: 'FAILED' };
+        }
+      }
+
+      // --- SAFETY CHECK 5: Is Message Still Valid? ---
+      if (item.status === 'CANCELLED') {
+        return { success: false, reason: 'Message was cancelled', status: 'CANCELLED' };
+      }
+      if (item.status === 'FAILED') {
+        return { success: false, reason: item.failure_reason || 'Message failed validation', status: 'FAILED' };
+      }
+      if (item.status === 'SENT') {
+        return { success: true, reason: 'Message already sent', status: 'SENT' };
+      }
+
+      // --- SAFETY CHECK 8: Has the Daily Sending Limit been reached? ---
+      const todayStats = await this.getTodayStats();
+      if (todayStats.sent >= settings.daily_limit) {
+        const reason = `Daily sending limit reached (${settings.daily_limit} messages). Message queued safely.`;
+        await this.markItemFailed(item.id, reason, false);
+        return { success: false, reason, status: 'PENDING' };
+      }
+
+      // --- SAFETY CHECK 9: Is the WhatsApp Sender Connected? ---
+      let deviceStatus = await provider.getStatus();
+
+      // Reconnecting Gate: If WhatsApp is momentarily CONNECTING or RECONNECTING (e.g. during 515/428 resets),
+      // wait up to 12s with polling so stream recovery does NOT drop or cancel pending messages!
+      if (deviceStatus.status === 'CONNECTING' || (deviceStatus as any).status === 'RECONNECTING') {
+        console.log(`[QueueService] ⏳ WhatsApp is ${deviceStatus.status}. Waiting for connection gate (up to 12s)...`);
+        const gateStart = Date.now();
+        while (Date.now() - gateStart < 12000) {
+          await new Promise((r) => setTimeout(r, 1500));
+          deviceStatus = await provider.getStatus();
+          if (deviceStatus.status === 'CONNECTED') {
+            console.log('[QueueService] ✅ Connection restored within gate. Resuming message dispatch.');
+            break;
+          }
+        }
+      }
+
+      if (deviceStatus.status !== 'CONNECTED') {
+        const reason = `WhatsApp sender is not connected (Status: ${deviceStatus.status})`;
+        // Keep item safely in PENDING state so background worker retries as soon as WhatsApp is reconnected
+        console.warn(`[QueueService] ⚠️ Sender not connected (${deviceStatus.status}). Message ${item.id} kept in PENDING state.`);
+        await this.markItemFailed(item.id, reason, false);
+        return { success: false, reason, status: 'PENDING' };
+      }
+
+      // --- SAFETY CHECK 10: Is the Provider Available & Healthy? ---
+      const health = await provider.healthCheck();
+      if (!health.healthy) {
+        const reason = `WhatsApp provider healthcheck failed: ${health.details || 'Unavailable'}`;
+        await this.markItemFailed(item.id, reason, false);
+        return { success: false, reason, status: 'PENDING' };
+      }
+
       // Anti-Ban Rate Limiting: Humanized 3.5 - 6.0 seconds randomized gap between consecutive WhatsApp deliveries
       if (
         (provider.name === 'PROTOTYPE_LINKED_DEVICE' ||
@@ -517,6 +584,9 @@ export class WhatsAppQueueService {
       });
 
       this.lastDispatchedAt = Date.now();
+      if (result.success) {
+        this.recentDispatchedMap.set(dedupeKey, Date.now());
+      }
 
       // Check if recipient is not registered on WhatsApp
       const isNotOnWhatsApp =
@@ -567,6 +637,8 @@ export class WhatsAppQueueService {
       const finalStatus = finalItem?.status || 'FAILED';
       return { success: false, reason: err.message, status: finalStatus };
     } finally {
+      this.inFlightItemIds.delete(item.id);
+      this.processingRecipients.delete(normalizedPhone);
       this.processingRecipients.delete(item.recipient_phone);
     }
   }
@@ -1124,6 +1196,7 @@ export class WhatsAppQueueService {
 
       const now = new Date().toISOString();
       if (this.supabase) {
+        // 1. Process items in whatsapp_queue whose scheduled_at has arrived
         const { data: scheduledItems } = await this.supabase
           .from('whatsapp_queue')
           .select('*')
@@ -1134,12 +1207,23 @@ export class WhatsAppQueueService {
 
         if (scheduledItems && scheduledItems.length > 0) {
           for (const item of scheduledItems) {
-            // Verify this was explicitly scheduled for the future
-            const isExplicitlyScheduled = Boolean((item.metadata as any)?.scheduledTime);
-            if (isExplicitlyScheduled) {
+            // Verify scheduled_at is set and past due
+            if (item.scheduled_at && new Date(item.scheduled_at).getTime() <= Date.now()) {
               await this.processItem(item as WhatsAppQueueItem);
             }
           }
+        }
+
+        // 2. Also check if any scheduled announcements in announcements table have reached their delivery time
+        try {
+          const { announcementService } = await import('../announcement.service.js');
+          const missed = await announcementService.getMissedScheduledAnnouncements();
+          if (missed && missed.length > 0) {
+            console.log(`[QueueService] ⏰ Auto-dispatching ${missed.length} scheduled announcement(s) whose delivery time has arrived.`);
+            await announcementService.dispatchMissedScheduledAnnouncements(missed.map((m: any) => m.id));
+          }
+        } catch (schErr: any) {
+          console.warn('[QueueService] Error checking scheduled announcements in DB:', schErr.message);
         }
       }
     } catch (err: any) {
@@ -1187,6 +1271,15 @@ export class WhatsAppQueueService {
 
         // If genuinely disconnected or session dropped/errored, attempt auto-reconnect with 30s backoff
         // (Do NOT interrupt QR_READY or CONNECTING handshakes)
+        const currentSettings = await whatsappSettingsService.getSettings();
+        const isExplicitDisconnect = Boolean(currentSettings?.session_metadata?.explicit_disconnect);
+
+        // If explicitly unlinked by user/admin, do NOT automatically reconnect!
+        // Allow the user to pair a new account or scan fresh QR cleanly.
+        if (isExplicitDisconnect) {
+          return;
+        }
+
         const now = Date.now();
         if ((status.status === 'DISCONNECTED' || status.status === 'ERROR') && now - this.lastWatchdogReconnectAttempt > 30000) {
           this.lastWatchdogReconnectAttempt = now;

@@ -118,6 +118,47 @@ export class WhatsAppSettingsService {
     return this.updateSettings({ globalAutomationEnabled });
   }
 
+  async resetDeviceStatus(): Promise<WhatsAppSettings> {
+    const current = await this.getSettings();
+    const cleanMetadata = {
+      sessionStatus: 'Unlinked by admin command',
+      explicit_disconnect: true,
+      unlinkedAt: new Date().toISOString(),
+    };
+
+    const updated: WhatsAppSettings = {
+      ...current,
+      device_status: 'DISCONNECTED',
+      device_phone_number: null,
+      last_connected_at: null,
+      last_heartbeat_at: null,
+      session_metadata: cleanMetadata,
+      updated_at: new Date().toISOString(),
+    };
+
+    this.inMemorySettings = updated;
+
+    if (this.supabase) {
+      try {
+        await this.supabase
+          .from('whatsapp_settings')
+          .update({
+            device_status: 'DISCONNECTED',
+            device_phone_number: null,
+            last_connected_at: null,
+            last_heartbeat_at: null,
+            session_metadata: cleanMetadata,
+            updated_at: updated.updated_at,
+          })
+          .eq('id', current.id);
+      } catch (err: any) {
+        console.warn('[WhatsAppSettings] DB reset notice:', err.message);
+      }
+    }
+
+    return updated;
+  }
+
   async updateDeviceStatus(
     status: WhatsAppDeviceStatusEnum,
     phoneNumber?: string | null,
@@ -126,20 +167,30 @@ export class WhatsAppSettingsService {
     const current = await this.getSettings();
     const rawDigits = (phoneNumber || '').replace(/\D/g, '');
     const isMock = rawDigits.includes('9999999999');
-    const cleanPhone: string | null = (phoneNumber === null || (status === 'DISCONNECTED' && phoneNumber === ''))
+    const isDisconnect = status === 'DISCONNECTED';
+    const cleanPhone: string | null = (phoneNumber === null || isDisconnect)
       ? null
       : isMock
       ? null
       : (phoneNumber || current.device_phone_number || null);
     const effectiveStatus = (status === 'CONNECTED' && isMock) ? 'DISCONNECTED' : status;
 
+    const mergedMetadata = sessionMetadata
+      ? { ...current.session_metadata, ...sessionMetadata }
+      : current.session_metadata;
+
+    // If explicit disconnect is requested, ensure explicit_disconnect flag is set
+    if (sessionMetadata?.explicit_disconnect === false) {
+      delete (mergedMetadata as any).explicit_disconnect;
+    }
+
     const updated: WhatsAppSettings = {
       ...current,
       device_status: effectiveStatus,
       device_phone_number: cleanPhone,
-      last_connected_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : current.last_connected_at,
-      last_heartbeat_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : current.last_heartbeat_at,
-      session_metadata: sessionMetadata ? { ...current.session_metadata, ...sessionMetadata } : current.session_metadata,
+      last_connected_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : isDisconnect ? null : current.last_connected_at,
+      last_heartbeat_at: effectiveStatus === 'CONNECTED' ? new Date().toISOString() : isDisconnect ? null : current.last_heartbeat_at,
+      session_metadata: mergedMetadata,
       updated_at: new Date().toISOString(),
     };
 

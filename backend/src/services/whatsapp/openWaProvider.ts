@@ -313,48 +313,81 @@ export class OpenWaProvider implements WhatsAppSender {
   async disconnect(): Promise<{ success: boolean; message: string; status: WhatsAppDeviceStatus }> {
     this.lastStatusResult = null;
     this.lastQrCode = null;
+    this.cachedSessionId = null;
+    this.cachedSessionInfo = null;
     const baseUrl = this.getBaseUrl();
-    const session = await this.getActiveSession();
 
-    if (session) {
-      // 1. Explicitly log out WhatsApp account from bridge
-      try {
-        await fetch(`${baseUrl}/api/sessions/${session.id}/logout`, {
-          method: 'POST',
-          headers: this.getHeaders(),
-          signal: AbortSignal.timeout(8000),
-        });
-        console.log(`[OpenWA] Successfully called logout for session ${session.id}`);
-      } catch (err: any) {
-        console.warn('[OpenWA] Logout notice:', err.message);
-      }
+    try {
+      // 1. Fetch all existing sessions from OpenWA gateway
+      const res = await fetch(`${baseUrl}/api/sessions`, {
+        headers: this.getHeaders(),
+        signal: AbortSignal.timeout(10000),
+      });
 
-      // 2. Stop the session socket
-      try {
-        await fetch(`${baseUrl}/api/sessions/${session.id}/stop`, {
-          method: 'POST',
-          headers: this.getHeaders(),
-          signal: AbortSignal.timeout(8000),
-        });
-      } catch (err: any) {
-        console.warn('[OpenWA] Disconnect/Stop error:', err.message);
+      if (res.ok) {
+        const sessions = (await res.json()) as any[];
+        if (Array.isArray(sessions) && sessions.length > 0) {
+          for (const s of sessions) {
+            // A. Attempt logout
+            try {
+              await fetch(`${baseUrl}/api/sessions/${s.id}/logout`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({}),
+                signal: AbortSignal.timeout(5000),
+              });
+            } catch (loErr: any) {
+              console.warn(`[OpenWA] Logout notice for session ${s.id}:`, loErr.message);
+            }
+
+            // B. Attempt stop
+            try {
+              await fetch(`${baseUrl}/api/sessions/${s.id}/stop`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({}),
+                signal: AbortSignal.timeout(5000),
+              });
+            } catch (stErr: any) {
+              console.warn(`[OpenWA] Stop notice for session ${s.id}:`, stErr.message);
+            }
+
+            // C. CRITICAL ROOT CAUSE FIX: Hard-delete session from bridge!
+            // In OpenWA, DELETE /api/sessions/:id purges the session folder, SQLite auth credentials,
+            // and cryptographic keys. Without this, starting a session reuses the previous user's credentials!
+            try {
+              const delRes = await fetch(`${baseUrl}/api/sessions/${s.id}`, {
+                method: 'DELETE',
+                headers: this.getHeaders(),
+                signal: AbortSignal.timeout(8000),
+              });
+              console.log(`[OpenWA] Hard-deleted session ${s.id}: HTTP ${delRes.status}`);
+            } catch (delErr: any) {
+              console.warn(`[OpenWA] Failed to hard-delete session ${s.id}:`, delErr.message);
+            }
+          }
+        }
       }
+    } catch (err: any) {
+      console.warn('[OpenWA] Disconnect error:', err.message);
     }
 
     this.cachedSessionId = null;
     this.cachedSessionInfo = null;
+    this.lastStatusResult = null;
+    this.lastQrCode = null;
 
     const status: WhatsAppDeviceStatus = {
       status: 'DISCONNECTED',
       providerName: 'OpenWA REST API Gateway',
       isConfigured: this.isConfigured(),
-      sessionStatus: 'Disconnected & Logged out',
-      details: 'Device unlinked cleanly. Ready for new QR code scan.',
+      sessionStatus: 'Session deleted and unlinked cleanly',
+      details: 'Previous WhatsApp session completely removed. Ready for new client QR scan.',
     };
 
     return {
       success: true,
-      message: 'WhatsApp session logged out and disconnected successfully',
+      message: 'WhatsApp session deleted and unlinked successfully',
       status,
     };
   }

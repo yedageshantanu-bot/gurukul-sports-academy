@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { supabaseAdmin } from '../config/supabase.js';
 import { templateService } from '../services/whatsapp/template.service.js';
 import { automationService } from '../services/whatsapp/automation.service.js';
 import { queueService } from '../services/whatsapp/queue.service.js';
@@ -75,7 +76,7 @@ export class WhatsAppController {
       await whatsappSettingsService.updateDeviceStatus(
         result.status.status,
         result.status.phoneNumber,
-        { sessionStatus: result.status.sessionStatus }
+        { sessionStatus: result.status.sessionStatus, explicit_disconnect: false }
       );
 
       if (result.status.status === 'CONNECTED') {
@@ -95,12 +96,38 @@ export class WhatsAppController {
     try {
       const settings = await whatsappSettingsService.getSettings();
       const provider = whatsappProviderFactory.getProvider(settings.provider_type);
-      // Explicit unlink action: pass true to logout socket and purge credentials from Supabase
+      
+      // 1. Explicit unlink action on active provider
       const result = await (provider as any).disconnect(true);
 
-      await whatsappSettingsService.updateDeviceStatus('DISCONNECTED', null, {
-        sessionStatus: 'Unlinked by admin command',
-      });
+      // 2. Cross-provider cleanup: Hard-delete OpenWA session if configured
+      try {
+        await whatsappProviderFactory.getOpenWaProvider().disconnect();
+      } catch (err: any) {
+        console.warn('[WhatsAppController] OpenWA disconnect notice:', err.message);
+      }
+
+      // 3. Cross-provider cleanup: Hard-purge Baileys socket & memory cache
+      try {
+        await whatsappProviderFactory.getBaileysProvider().disconnect(true);
+      } catch (err: any) {
+        console.warn('[WhatsAppController] Baileys disconnect notice:', err.message);
+      }
+
+      // 4. CRITICAL: Purge any stored cryptographic keys in Supabase postgres table
+      if (supabaseAdmin) {
+        try {
+          await supabaseAdmin
+            .from('whatsapp_auth_state')
+            .delete()
+            .neq('session_id', '__never_match__');
+        } catch (dbErr: any) {
+          console.warn('[WhatsAppController] Auth state table purge notice:', dbErr.message);
+        }
+      }
+
+      // 5. Reset Supabase whatsapp_settings (clears old phone, timestamps, and sets explicit_disconnect)
+      await whatsappSettingsService.resetDeviceStatus();
 
       res.status(200).json({
         success: result.success,
@@ -120,7 +147,7 @@ export class WhatsAppController {
       await whatsappSettingsService.updateDeviceStatus(
         result.status.status,
         result.status.phoneNumber,
-        { sessionStatus: result.status.sessionStatus }
+        { sessionStatus: result.status.sessionStatus, explicit_disconnect: false }
       );
 
       if (result.status.status === 'CONNECTED') {

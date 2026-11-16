@@ -386,6 +386,9 @@ export const WhatsAppPage: React.FC = () => {
 
   // Disconnect
   const handleDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect and unlink this WhatsApp session? All previous session keys will be purged from the server so you can scan a new WhatsApp account.')) {
+      return;
+    }
     setRefreshing(true);
     setError(null);
     setSuccess(null);
@@ -396,13 +399,13 @@ export const WhatsAppPage: React.FC = () => {
       });
 
       setDevice({ status: 'DISCONNECTED', phoneNumber: undefined, qrCode: undefined });
-      setSuccess('WhatsApp session disconnected successfully.');
-      toast.success('WhatsApp session disconnected successfully.');
+      setSuccess('WhatsApp session disconnected and old credentials purged cleanly.');
+      toast.success('Session unlinked! Preparing fresh QR code for new account...');
 
-      // Automatically generate a fresh QR code so the user is immediately ready to scan!
+      // Give bridge and database a moment to purge completely, then fetch fresh QR
       setTimeout(() => {
         handleConnectOrRefresh();
-      }, 500);
+      }, 1500);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to disconnect session';
       setError(errMsg);

@@ -198,6 +198,144 @@ export class AnnouncementService {
   }
 
   // ============================================================================
+  // RECIPIENT RESOLVER (Batches, Tournaments, Teams & Admin Self)
+  // ============================================================================
+  async getRecipientsForAnnouncement(
+    announcement: any,
+    options?: {
+      tournamentIds?: string[];
+      teamCodes?: string[];
+      teamMemberIds?: string[];
+      includeSelf?: boolean;
+    }
+  ): Promise<Array<{ recipientPhone: string; name: string; studentId?: string }>> {
+    const meta = (announcement.metadata as any) || {};
+
+    const targetedBatchIds = (announcement.batches || [])
+      .map((b: any) => b.batch?.id)
+      .concat(meta.targetBatchIds || [])
+      .filter(Boolean);
+
+    const targetedTournamentIds = (
+      meta.tournamentIds ||
+      meta.targetTournamentIds ||
+      options?.tournamentIds ||
+      []
+    ).filter(Boolean);
+
+    const targetedTeamCodes = (
+      meta.teamCodes ||
+      options?.teamCodes ||
+      []
+    ).filter(Boolean);
+
+    const targetedTeamMemberIds = (
+      meta.teamMemberIds ||
+      options?.teamMemberIds ||
+      []
+    ).filter(Boolean);
+
+    const includeSelf = Boolean(meta.includeSelf === true || options?.includeSelf === true);
+
+    const recipientMap = new Map<string, { recipientPhone: string; name: string; studentId?: string }>();
+    const getRecipientKey = (rawPhone?: string | null) => {
+      if (!rawPhone) return '';
+      const digits = rawPhone.replace(/[^0-9]/g, '');
+      return digits.length >= 10 ? digits.slice(-10) : digits;
+    };
+
+    // 1. Batches
+    if (targetedBatchIds.length > 0) {
+      const { data: batchStudents, error: bsError } = await this.supabase
+        .from('batch_students')
+        .select(`
+          student:students(id, name, parent_whatsapp, student_mobile, status)
+        `)
+        .in('batch_id', targetedBatchIds);
+
+      if (!bsError && batchStudents) {
+        const uniqueStudentsMap = new Map<string, any>();
+        for (const row of batchStudents) {
+          const st = row.student as any;
+          if (st && st.status === 'ACTIVE' && st.id) {
+            uniqueStudentsMap.set(st.id, st);
+          }
+        }
+        for (const st of uniqueStudentsMap.values()) {
+          const phone = st.parent_whatsapp || st.student_mobile;
+          const key = getRecipientKey(phone);
+          if (key && !recipientMap.has(key)) {
+            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
+          }
+        }
+      }
+    }
+
+    // 2. Tournaments
+    if (targetedTournamentIds.length > 0) {
+      const { data: tourRegs } = await this.supabase
+        .from('tournament_registrations')
+        .select(`
+          student:students(id, name, parent_whatsapp, student_mobile, status)
+        `)
+        .in('tournament_id', targetedTournamentIds);
+
+      for (const row of tourRegs || []) {
+        const st = row.student as any;
+        if (st && st.status === 'ACTIVE') {
+          const phone = st.parent_whatsapp || st.student_mobile;
+          const key = getRecipientKey(phone);
+          if (key && !recipientMap.has(key)) {
+            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
+          }
+        }
+      }
+    }
+
+    // 3. Teams
+    if (targetedTeamCodes.length > 0 || targetedTeamMemberIds.length > 0) {
+      let query = this.supabase.from('team_members').select('*').eq('status', 'ACTIVE');
+      if (targetedTeamCodes.length > 0 && targetedTeamMemberIds.length > 0) {
+        query = query.or(`team_code.in.(${targetedTeamCodes.join(',')}),id.in.(${targetedTeamMemberIds.join(',')})`);
+      } else if (targetedTeamCodes.length > 0) {
+        query = query.in('team_code', targetedTeamCodes);
+      } else {
+        query = query.in('id', targetedTeamMemberIds);
+      }
+
+      const { data: teamMembers } = await query;
+      for (const tm of teamMembers || []) {
+        const key = getRecipientKey(tm.phone);
+        if (key && !recipientMap.has(key)) {
+          recipientMap.set(key, {
+            recipientPhone: tm.phone,
+            name: tm.name || 'Team Member',
+          });
+        }
+      }
+    }
+
+    // 4. Admin Self
+    if (includeSelf) {
+      const { data: ws } = await this.supabase
+        .from('whatsapp_settings')
+        .select('device_phone_number')
+        .limit(1)
+        .maybeSingle();
+      const adminPhone = ws?.device_phone_number || '9881888061';
+      const key = getRecipientKey(adminPhone);
+      if (key && !recipientMap.has(key)) {
+        recipientMap.set(key, {
+          recipientPhone: adminPhone,
+          name: 'Sensei Vikram Salunkhe (Admin Self)',
+        });
+      }
+    }
+
+    return Array.from(recipientMap.values());
+  }
+
+  // ============================================================================
   // 4. SEND ANNOUNCEMENT (Admin Only) - Multi-Slot Delivery System
   // ============================================================================
   async sendAnnouncement(
@@ -219,10 +357,12 @@ export class AnnouncementService {
 
     const targetedBatchIds = (announcement.batches || [])
       .map((b: any) => b.batch?.id)
+      .concat(meta.targetBatchIds || [])
       .filter(Boolean);
 
     const targetedTournamentIds = (
       meta.tournamentIds ||
+      meta.targetTournamentIds ||
       options?.tournamentIds ||
       []
     ).filter(Boolean);
@@ -239,7 +379,7 @@ export class AnnouncementService {
       []
     ).filter(Boolean);
 
-    const includeSelf = Boolean(options?.includeSelf === true);
+    const includeSelf = Boolean(options?.includeSelf === true || meta.includeSelf === true);
 
     if (
       targetedBatchIds.length === 0 &&
@@ -256,113 +396,7 @@ export class AnnouncementService {
     }
 
     // Deduplicate recipients strictly by normalized 10-digit phone number
-    const recipientMap = new Map<string, { recipientPhone: string; name: string; studentId?: string }>();
-    const getRecipientKey = (rawPhone?: string | null) => {
-      if (!rawPhone) return '';
-      const digits = rawPhone.replace(/[^0-9]/g, '');
-      return digits.length >= 10 ? digits.slice(-10) : digits;
-    };
-
-    // 2a. Fetch active students in target batches (strictly deduplicated by unique student ID first)
-    if (targetedBatchIds.length > 0) {
-      const { data: batchStudents, error: bsError } = await this.supabase
-        .from('batch_students')
-        .select(`
-          student:students(id, name, parent_whatsapp, student_mobile, status)
-        `)
-        .in('batch_id', targetedBatchIds);
-
-      if (bsError) {
-        throw new AppError(`Failed to fetch students in target batches: ${bsError.message}`, 500);
-      }
-
-      const uniqueStudentsMap = new Map<string, any>();
-      for (const row of batchStudents || []) {
-        const st = row.student as any;
-        if (st && st.status === 'ACTIVE' && st.id) {
-          uniqueStudentsMap.set(st.id, st);
-        }
-      }
-
-      for (const st of uniqueStudentsMap.values()) {
-        const phone = st.parent_whatsapp || st.student_mobile;
-        const key = getRecipientKey(phone);
-        if (key && !recipientMap.has(key)) {
-          recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
-        }
-      }
-    }
-
-    // 2b. Fetch active students registered in targeted tournaments
-    if (targetedTournamentIds.length > 0) {
-      const { data: tourRegs, error: trError } = await this.supabase
-        .from('tournament_registrations')
-        .select(`
-          student:students(id, name, parent_whatsapp, student_mobile, status)
-        `)
-        .in('tournament_id', targetedTournamentIds);
-
-      if (trError) {
-        console.warn('[AnnouncementService] Failed to fetch tournament students:', trError.message);
-      }
-
-      for (const row of tourRegs || []) {
-        const st = row.student as any;
-        if (st && st.status === 'ACTIVE') {
-          const phone = st.parent_whatsapp || st.student_mobile;
-          const key = getRecipientKey(phone);
-          if (key && !recipientMap.has(key)) {
-            recipientMap.set(key, { recipientPhone: phone, name: st.name, studentId: st.id });
-          }
-        }
-      }
-    }
-
-    // 2c. Fetch active team members in targeted teams
-    if (targetedTeamCodes.length > 0 || targetedTeamMemberIds.length > 0) {
-      let query = this.supabase.from('team_members').select('*').eq('status', 'ACTIVE');
-      if (targetedTeamCodes.length > 0 && targetedTeamMemberIds.length > 0) {
-        query = query.or(`team_code.in.(${targetedTeamCodes.join(',')}),id.in.(${targetedTeamMemberIds.join(',')})`);
-      } else if (targetedTeamCodes.length > 0) {
-        query = query.in('team_code', targetedTeamCodes);
-      } else {
-        query = query.in('id', targetedTeamMemberIds);
-      }
-
-      const { data: teamMembers, error: tmError } = await query;
-      if (tmError) {
-        console.warn('[AnnouncementService] Failed to fetch team members:', tmError.message);
-      }
-
-      for (const tm of teamMembers || []) {
-        const key = getRecipientKey(tm.phone);
-        if (key && !recipientMap.has(key)) {
-          recipientMap.set(key, {
-            recipientPhone: tm.phone,
-            name: tm.name || 'Team Member',
-          });
-        }
-      }
-    }
-
-    // 2d. Self / Admin
-    if (includeSelf) {
-      const { data: ws } = await this.supabase
-        .from('whatsapp_settings')
-        .select('device_phone_number')
-        .limit(1)
-        .maybeSingle();
-      const adminPhone = ws?.device_phone_number || '9881888061';
-      const key = getRecipientKey(adminPhone);
-      if (key && !recipientMap.has(key)) {
-        recipientMap.set(key, {
-          recipientPhone: adminPhone,
-          name: 'Sensei Vikram Salunkhe (Admin Self)',
-        });
-      }
-    }
-
-    const recipients = Array.from(recipientMap.values());
+    const recipients = await this.getRecipientsForAnnouncement(announcement, options);
     if (recipients.length === 0) {
       throw new AppError('No active recipients found in the selected target batches, tournaments, or teams', 400);
     }
@@ -1419,7 +1453,7 @@ export class AnnouncementService {
   }
 
   // ============================================================================
-  // 8. UPDATE SCHEDULED ANNOUNCEMENT
+  // 8. UPDATE SCHEDULED ANNOUNCEMENT (Reschedule + Queue Synchronization)
   // ============================================================================
   async updateScheduledAnnouncement(
     id: string,
@@ -1432,53 +1466,132 @@ export class AnnouncementService {
     }
   ) {
     let announcementId = id;
+    let targetSlotId: string | null = null;
     if (id.includes('-slot-')) {
       announcementId = id.split('-slot-')[0];
+      targetSlotId = id;
     } else {
       try {
-        const { announcement } = await this.getSlotById(id);
+        const { slot, announcement } = await this.getSlotById(id);
         if (announcement?.id) {
           announcementId = announcement.id;
+          targetSlotId = slot?.id || id;
         }
       } catch {}
     }
     const existing = await this.getAnnouncementById(announcementId);
     const existingMeta = (existing.metadata as any) || {};
 
+    const newTimeIso = updates.scheduledTime
+      ? new Date(updates.scheduledTime).toISOString()
+      : existingMeta.scheduledAt || new Date().toISOString();
+    const newTitle = updates.title !== undefined ? updates.title.trim() : existing.title;
+    const newMessage = updates.message !== undefined ? updates.message.trim() : existing.message;
+
+    // Materialize and update slots array in metadata
+    let slots: ScheduledDeliverySlot[] = Array.isArray(existingMeta.slots) && existingMeta.slots.length > 0
+      ? existingMeta.slots
+      : this.materializeSlots(existing);
+
+    const targetIdx = slots.findIndex(
+      (s) => s.id === id || `${announcementId}-slot-${s.slotNumber}` === id || s.id === targetSlotId
+    );
+
+    if (targetIdx !== -1) {
+      const currentSlot = slots[targetIdx];
+      currentSlot.title = newTitle;
+      currentSlot.message = newMessage;
+      currentSlot.messagePreview = newMessage.slice(0, 150);
+      currentSlot.scheduledAt = newTimeIso;
+      currentSlot.status = 'SCHEDULED';
+      currentSlot.updatedAt = new Date().toISOString();
+      if (!Array.isArray(currentSlot.history)) currentSlot.history = [];
+      currentSlot.history.push({
+        timestamp: new Date().toISOString(),
+        action: 'RESCHEDULED',
+        note: `Rescheduled to ${new Date(newTimeIso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+        toStatus: 'SCHEDULED',
+      });
+      slots[targetIdx] = currentSlot;
+    } else if (slots.length > 0) {
+      slots = slots.map((s) => ({
+        ...s,
+        title: newTitle,
+        message: newMessage,
+        messagePreview: newMessage.slice(0, 150),
+        scheduledAt: newTimeIso,
+        status: 'SCHEDULED',
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+
     const updatedMeta = {
       ...existingMeta,
-      ...(updates.scheduledTime ? { scheduledAt: new Date(updates.scheduledTime).toISOString(), isScheduled: true, scheduledStatus: 'SCHEDULED' } : {}),
+      slots,
+      scheduledAt: newTimeIso,
+      isScheduled: true,
+      scheduledStatus: 'SCHEDULED',
     };
 
     // 1. Update announcement in DB
     await this.updateAnnouncement(announcementId, {
-      title: updates.title,
-      message: updates.message,
+      title: newTitle,
+      message: newMessage,
       batchIds: updates.batchIds,
       tournamentIds: updates.tournamentIds,
       metadata: updatedMeta,
     });
 
-    // 2. If scheduledTime or message changed, update pending items in queue
-    if (updates.scheduledTime || updates.title || updates.message) {
-      const newTime = updates.scheduledTime ? new Date(updates.scheduledTime).toISOString() : existingMeta.scheduledAt || new Date().toISOString();
-      const newTitle = updates.title || existing.title;
-      const newMessage = updates.message || existing.message;
-      const academyName = 'Gurukul Sports Academy';
-      const isTeam = (existingMeta?.teamCodes && existingMeta.teamCodes.length > 0) || ((updates as any)?.teamCodes && (updates as any).teamCodes.length > 0);
-      const formatted = isTeam
-        ? `*${newTitle}*\n\n${newMessage}`
-        : `📢 *${newTitle}*\n\n${newMessage}\n\n- *${academyName}*`;
+    // 2. Format message for WhatsApp
+    const academyName = 'Gurukul Sports Academy';
+    const isTeam =
+      (existingMeta?.teamCodes && existingMeta.teamCodes.length > 0) ||
+      ((updates as any)?.teamCodes && (updates as any).teamCodes.length > 0);
+    const formatted = isTeam
+      ? `*${newTitle}*\n\n${newMessage}`
+      : `📢 *${newTitle}*\n\n${newMessage}\n\n- *${academyName}*`;
 
-      await queueService.updateScheduledAnnouncementItems(
-        id,
-        newTime,
-        formatted,
-        existing.title
-      );
+    // 3. Update existing items in queue (by slotId and announcementId)
+    let updatedQueueCount = 0;
+    if (targetSlotId) {
+      updatedQueueCount += await queueService.updateSlotQueueItems(targetSlotId, newTimeIso, formatted);
+    }
+    updatedQueueCount += await queueService.updateScheduledAnnouncementItems(
+      announcementId,
+      newTimeIso,
+      formatted,
+      existing.title
+    );
+
+    // 4. If 0 queue items were updated (e.g. legacy scheduled announcement without pending queue items),
+    // enqueue them now so they are guaranteed to dispatch at scheduled time!
+    if (updatedQueueCount === 0) {
+      try {
+        const recipients = await this.getRecipientsForAnnouncement(existing);
+        if (recipients.length > 0) {
+          const schedMs = new Date(newTimeIso).getTime();
+          const targetSlotUuid = targetSlotId || slots[0]?.id || crypto.randomUUID();
+          const items = recipients.map((rec) => ({
+            recipientPhone: rec.recipientPhone,
+            messageBody: formatted,
+            studentId: rec.studentId,
+            eventType: 'ANNOUNCEMENT',
+            idempotencyKey: `SLOT:${targetSlotUuid}:${rec.recipientPhone}:${schedMs}`,
+            metadata: {
+              slotId: targetSlotUuid,
+              announcementId,
+              scheduledTime: newTimeIso,
+            },
+          }));
+          await queueService.enqueueBatchStaggered(items, 3800, schedMs);
+          console.log(`[AnnouncementService] Auto-enqueued ${items.length} queue items for scheduled announcement ${announcementId}`);
+        }
+      } catch (enqErr: any) {
+        console.warn(`[AnnouncementService] Auto-enqueue notice for ${announcementId}:`, enqErr.message);
+      }
     }
 
-    return this.getAnnouncementById(id);
+    return this.getAnnouncementById(announcementId);
   }
 
   // ============================================================================
@@ -1623,18 +1736,61 @@ export class AnnouncementService {
   // 10. DISPATCH SCHEDULED ANNOUNCEMENT NOW (Maintains Schedule History)
   // ============================================================================
   async dispatchScheduledAnnouncementNow(id: string) {
-    const existing = await this.getAnnouncementById(id);
+    let announcementId = id;
+    let targetSlotId: string | null = null;
+    if (id.includes('-slot-')) {
+      announcementId = id.split('-slot-')[0];
+      targetSlotId = id;
+    } else {
+      try {
+        const { slot, announcement } = await this.getSlotById(id);
+        if (announcement?.id) {
+          announcementId = announcement.id;
+          targetSlotId = slot?.id || id;
+        }
+      } catch {}
+    }
+    const existing = await this.getAnnouncementById(announcementId);
 
     // 1. Update queue items to now and trigger queue runner
-    const res = await queueService.dispatchAnnouncementNow(id, existing.title);
+    let res = { dispatched: 0 };
+    if (targetSlotId) {
+      const slotRes = await queueService.dispatchSlotNow(targetSlotId);
+      res.dispatched += slotRes.dispatched;
+    }
+    const annRes = await queueService.dispatchAnnouncementNow(announcementId, existing.title);
+    res.dispatched = Math.max(res.dispatched, annRes.dispatched);
+
+    // If 0 queue items were dispatched, deliver directly using missed announcement runner
+    if (res.dispatched === 0) {
+      const missedRes = await this.dispatchMissedScheduledAnnouncements([announcementId]);
+      res.dispatched = missedRes.dispatchedCount;
+    }
 
     // 2. Update announcement metadata (Keeps isScheduled: true so it stays in Schedule History)
     const existingMeta = (existing.metadata as any) || {};
+    let slots: ScheduledDeliverySlot[] = Array.isArray(existingMeta.slots) && existingMeta.slots.length > 0
+      ? existingMeta.slots
+      : this.materializeSlots(existing);
+
+    slots = slots.map((s) => {
+      if (s.id === id || s.id === targetSlotId || !targetSlotId) {
+        return {
+          ...s,
+          status: 'SENT' as ScheduledSlotStatus,
+          dispatchTimestamp: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return s;
+    });
+
     await this.supabase
       .from('announcements')
       .update({
         metadata: {
           ...existingMeta,
+          slots,
           isScheduled: true,
           scheduledStatus: 'SENT',
           sentAt: new Date().toISOString(),
@@ -1642,7 +1798,7 @@ export class AnnouncementService {
         },
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', announcementId);
 
     return {
       success: true,
@@ -1735,40 +1891,14 @@ export class AnnouncementService {
         continue;
       }
 
-      // Collect recipients
-      const targetedBatchIds = (announcement.batches || []).map((b: any) => b.batch?.id).filter(Boolean);
-      const recipientMap = new Map<string, { recipientPhone: string; name: string }>();
-      const getRecipientKey = (raw?: string | null) => {
-        if (!raw) return '';
-        const d = raw.replace(/[^0-9]/g, '');
-        return d.length >= 10 ? d.slice(-10) : d;
-      };
+      // Collect recipients using unified resolver (Batches, Tournaments, Teams, Admin Self)
+      const recs = await this.getRecipientsForAnnouncement(announcement);
 
-      if (targetedBatchIds.length > 0) {
-        const { data: batchStudents } = await this.supabase
-          .from('batch_students')
-          .select('student:students(id, name, parent_whatsapp, student_mobile, status)')
-          .in('batch_id', targetedBatchIds);
-
-        const studentMap = new Map<string, any>();
-        for (const row of batchStudents || []) {
-          const st = row.student as any;
-          if (st && st.status === 'ACTIVE' && st.id) studentMap.set(st.id, st);
-        }
-        for (const st of studentMap.values()) {
-          const phone = st.parent_whatsapp || st.student_mobile;
-          const k = getRecipientKey(phone);
-          if (k && !recipientMap.has(k)) {
-            recipientMap.set(k, { recipientPhone: phone, name: st.name });
-          }
-        }
-      }
-
-      const exactBody = announcement.title && !announcement.message.includes(announcement.title)
+      const academyName = 'Gurukul Sports Academy';
+      const isTeam = (meta?.teamCodes && meta.teamCodes.length > 0);
+      const exactBody = isTeam
         ? `*${announcement.title}*\n\n${announcement.message}`
-        : announcement.message;
-
-      const recs = Array.from(recipientMap.values());
+        : `📢 *${announcement.title}*\n\n${announcement.message}\n\n- *${academyName}*`;
       let sentSuccess = 0;
 
       for (let rIdx = 0; rIdx < recs.length; rIdx++) {

@@ -161,7 +161,8 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
     try {
       setSavingEdit(true);
-      await apiClient(`/announcements/scheduled/${editingItem.id}`, {
+      const targetId = editingItem.announcement_id || (editingItem as any).announcementId || (editingItem.id.includes('-slot-') ? editingItem.id.split('-slot-')[0] : editingItem.id);
+      await apiClient(`/announcements/scheduled/${targetId}`, {
         method: 'PATCH',
         body: JSON.stringify({
           title: editTitle.trim(),
@@ -189,7 +190,8 @@ export const ScheduledAnnouncementsPage: React.FC = () => {
 
     try {
       setActionLoadingId(item.id);
-      const res: any = await apiClient(`/announcements/scheduled/${item.id}/send-now`, {
+      const targetId = item.announcement_id || (item as any).announcementId || (item.id.includes('-slot-') ? item.id.split('-slot-')[0] : item.id);
+      const res: any = await apiClient(`/announcements/scheduled/${targetId}/send-now`, {
         method: 'POST',
       });
       toast.success(res?.message || 'Message queued for immediate dispatch!');

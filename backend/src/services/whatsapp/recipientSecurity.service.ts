@@ -178,6 +178,33 @@ export class RecipientSecurityService {
         // Enquiries table error fallback
       }
 
+      // 5.5 Query Team Members table (Squads, Teams, Coaches)
+      try {
+        const teamFilter = `phone.ilike.%${last10}%,phone.ilike.%${chunk1}%${chunk2}%`;
+        const { data: teamMembers, error: tmErr } = await this.supabase
+          .from('team_members')
+          .select('id, name, phone, team_code')
+          .or(teamFilter)
+          .limit(1);
+
+        if (!tmErr && Array.isArray(teamMembers) && teamMembers.length > 0) {
+          const matched = teamMembers[0];
+          this.cache.set(last10, {
+            allowed: true,
+            entityType: 'TEAM_MEMBER',
+            name: matched.name || 'Team Member',
+            cachedAt: Date.now(),
+          });
+          return {
+            allowed: true,
+            entityType: 'TEAM_MEMBER',
+            name: matched.name || 'Team Member',
+          };
+        }
+      } catch {
+        // Team members table lookup fallback
+      }
+
       // 6. Check explicit announcements recipient lists
       try {
         const { all } = await (await import('../announcement.service.js')).announcementService.listUnifiedSlots();
